@@ -87,8 +87,8 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
 
     const renderContent = () => {
         const engineerReviews = reviews.filter(r => !r.stoodioId); // Simple way to filter for now
-        const collaboratedArtists = Array.from(new Set(bookings.filter(b => b.engineer?.id === engineer.id && b.artist).map(b => b.artist!)))
-            .map(artist => allArtists.find(a => a.id === artist.id))
+        const collaboratedArtists = Array.from(new Set(bookings.filter(b => b.engineer?.id === engineer.id && b.artist).map(b => b.artist!.id)))
+            .map(id => allArtists.find(a => a.id === id))
             .filter((artist): artist is Artist => artist !== undefined)
             .slice(0, 10);
 
