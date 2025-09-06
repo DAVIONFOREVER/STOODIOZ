@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Stoodio, Artist, Review, Booking, Engineer, Comment, LinkAttachment, Post } from '../types';
 import Calendar from './Calendar';
@@ -59,7 +60,7 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
 
     const stoodioReviews = reviews.filter(r => r.stoodioId === stoodio.id);
     
-    const hostedArtists = Array.from(new Set(bookings.filter(b => b.stoodio.id === stoodio.id).map(b => b.artist.id)))
+    const hostedArtists = Array.from(new Set(bookings.filter(b => b.stoodio.id === stoodio.id && b.artist).map(b => b.artist!.id)))
         .map(id => allArtists.find(a => a.id === id))
         .filter((artist): artist is Artist => artist !== undefined)
         .slice(0, 5);
@@ -95,15 +96,17 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
                         </div>
                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                             <button 
-                                onClick={() => onStartConversation(stoodio)}
-                                className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600"
+                                onClick={() => currentUser && onStartConversation(stoodio)}
+                                disabled={!currentUser}
+                                className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <MessageIcon className="w-5 h-5" />
                                 Message
                             </button>
                             <button 
-                                onClick={() => onToggleFollow('stoodio', stoodio.id)}
-                                className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
+                                onClick={() => currentUser && onToggleFollow('stoodio', stoodio.id)}
+                                disabled={!currentUser}
+                                className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
                             >
                                 {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
                                 {isFollowing ? 'Following' : 'Follow'}
@@ -235,9 +238,9 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
                         <div className="hidden lg:block mt-6">
                             <button 
                                 onClick={() => selectedTimeSlot && onBook(selectedTimeSlot.date, selectedTimeSlot.time)}
-                                disabled={!selectedTimeSlot}
+                                disabled={!selectedTimeSlot || !currentUser}
                                 className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
-                                {selectedTimeSlot ? `Book Session: ${selectedTimeSlot.time}` : 'Select a Time Slot'}
+                                {currentUser ? (selectedTimeSlot ? `Book Session: ${selectedTimeSlot.time}` : 'Select a Time Slot') : 'Login to Book'}
                             </button>
                         </div>
                     </div>
@@ -248,9 +251,9 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
             <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-sm p-4 border-t border-zinc-700 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)]">
                  <button 
                     onClick={() => selectedTimeSlot && onBook(selectedTimeSlot.date, selectedTimeSlot.time)}
-                    disabled={!selectedTimeSlot}
+                    disabled={!selectedTimeSlot || !currentUser}
                     className="w-full bg-orange-500 text-white font-bold py-4 px-6 rounded-xl hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
-                    {selectedTimeSlot ? `Book for ${selectedTimeSlot.time}` : 'Select a Time Slot'}
+                    {currentUser ? (selectedTimeSlot ? `Book for ${selectedTimeSlot.time}` : 'Select a Time Slot') : 'Login to Book'}
                 </button>
             </div>
         </div>

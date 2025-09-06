@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import type { AdminUser, PlatformUser, DashboardStats } from './types';
 import { AdminView } from './types';
-import type { Booking } from '../types';
+import type { Booking } from '/types.ts';
 import * as api from './services/apiService';
 import Login from './components/Login';
 import DashboardLayout from './components/DashboardLayout';

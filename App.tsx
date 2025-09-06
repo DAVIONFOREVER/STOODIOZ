@@ -7,7 +7,7 @@ import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_
 import { getVibeMatchResults } from './services/geminiService';
 import Header from './components/Header';
 import StoodioList from './components/StudioList';
-import StoodioDetail from './components/StudioDetail';
+import StoodioDetail from './components/StoodioDetail';
 import BookingModal from './components/BookingModal';
 import BookingConfirmation from './components/BookingConfirmation';
 import MyBookings from './components/MyBookings';

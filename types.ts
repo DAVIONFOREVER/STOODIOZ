@@ -1,3 +1,4 @@
+
 // FIX: Removed self-import of `LinkAttachment` which was causing a conflict.
 
 export interface Location {

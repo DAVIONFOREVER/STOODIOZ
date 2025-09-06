@@ -1,7 +1,7 @@
 import type { PlatformUser, DashboardStats } from '../types';
-import type { Booking } from '../../types';
-import { UserRole, BookingStatus, BookingRequestType } from '../../types';
-import { STOODIOZ, ENGINEERS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE } from '../../constants';
+import type { Booking } from '/types.ts';
+import { UserRole, BookingStatus, BookingRequestType } from '/types.ts';
+import { STOODIOZ, ENGINEERS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE } from '/constants.ts';
 
 // --- MOCK DATABASE ---
 const allUsers: PlatformUser[] = [
