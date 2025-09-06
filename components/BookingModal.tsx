@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import type { Stoodio, Engineer, BookingRequest } from '../types';
+import type { Stoodio, Engineer, BookingRequest, Room } from '../types';
 import { BookingRequestType } from '../types';
 import { SERVICE_FEE_PERCENTAGE } from '../constants';
 import { CloseIcon, CalendarIcon, ClockIcon, DurationIcon, PriceIcon, UserGroupIcon } from './icons';
@@ -14,10 +14,11 @@ interface BookingModalProps {
     isLoading: boolean;
     initialDate?: string;
     initialTime?: string;
+    initialRoom: Room;
     initialEngineer?: Engineer;
 }
 
-const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose, onConfirm, isLoading, initialDate, initialTime, initialEngineer }) => {
+const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose, onConfirm, isLoading, initialDate, initialTime, initialRoom, initialEngineer }) => {
     const today = new Date().toISOString().split('T')[0];
     const [date, setDate] = useState<string>(initialDate || today);
     const [startTime, setStartTime] = useState<string>(initialTime || '12:00');
@@ -28,17 +29,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
     const [requestedEngineerId, setRequestedEngineerId] = useState<string>(initialEngineer?.id || '');
 
     const { stoodioCost, engineerFee, serviceFee, totalCost, subtotal } = useMemo(() => {
-        const stoodioCost = stoodio.hourlyRate * duration;
+        const stoodioCost = initialRoom.hourlyRate * duration;
         const engineerFee = requestType !== BookingRequestType.BRING_YOUR_OWN ? stoodio.engineerPayRate * duration : 0;
         const subtotal = stoodioCost + engineerFee;
         const serviceFee = subtotal * SERVICE_FEE_PERCENTAGE;
         const totalCost = subtotal + serviceFee;
         return { stoodioCost, engineerFee, serviceFee, totalCost, subtotal };
-    }, [stoodio.hourlyRate, stoodio.engineerPayRate, duration, requestType]);
+    }, [initialRoom.hourlyRate, stoodio.engineerPayRate, duration, requestType]);
 
     const handleConfirmBooking = (e: React.FormEvent) => {
         e.preventDefault();
         const bookingRequest: BookingRequest = { 
+            room: initialRoom,
             date, 
             startTime, 
             duration, 
@@ -64,7 +66,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl transform animate-slide-up border border-zinc-700" role="dialog" aria-modal="true">
                 <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-100">Book {stoodio.name}</h2>
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-100">Book {stoodio.name}</h2>
+                        <p className="text-orange-400 font-semibold">{initialRoom.name}</p>
+                    </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-200 transition-colors">
                         <CloseIcon className="w-6 h-6" />
                     </button>
@@ -117,7 +122,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                         <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/20">
                             <h3 className="text-lg font-bold mb-4 flex items-center text-slate-100"><PriceIcon className="w-5 h-5 mr-2 text-orange-400" />Cost Summary</h3>
                             <div className="space-y-2 text-sm text-slate-200">
-                                <div className="flex justify-between"><span>Stoodio Time ({duration} hrs)</span> <span>${stoodioCost.toFixed(2)}</span></div>
+                                <div className="flex justify-between"><span>{initialRoom.name} ({duration} hrs)</span> <span>${stoodioCost.toFixed(2)}</span></div>
                                 <div className={`flex justify-between ${requestType === BookingRequestType.BRING_YOUR_OWN ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
                                     <span>Engineer Fee ({duration} hrs at ${stoodio.engineerPayRate}/hr)</span>
                                     <span>${engineerFee.toFixed(2)}</span>

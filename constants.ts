@@ -29,7 +29,7 @@ export const STOODIOZ: Stoodio[] = [
         id: 'studio-1',
         name: 'Echo Chamber Stoodioz',
         location: 'Los Angeles, CA',
-        hourlyRate: 75,
+        hourlyRate: 75, // Fallback, use room rate instead
         engineerPayRate: 40,
         rating: 4.8,
         imageUrl: 'https://picsum.photos/seed/studio1/600/400',
@@ -61,6 +61,11 @@ export const STOODIOZ: Stoodio[] = [
             { id: 'txn-s1-3', description: 'Withdrawal to bank', amount: -500, date: new Date(Date.now() - 86400000 * 7).toISOString(), type: 'debit' },
         ],
         notificationsEnabled: true,
+        rooms: [
+            { id: 'room-1a', name: 'Control Room A (Neve)', description: 'The main control room featuring our vintage Neve 8078 console.', hourlyRate: 75, photos: ['https://picsum.photos/seed/room1a-1/600/400'] },
+            { id: 'room-1b', name: 'Live Room', description: 'A spacious, acoustically treated live room perfect for full bands.', hourlyRate: 60, photos: ['https://picsum.photos/seed/room1b-1/600/400'] },
+            { id: 'room-1c', name: 'Vocal Booth', description: 'An isolated vocal booth for pristine vocal recordings.', hourlyRate: 40, photos: ['https://picsum.photos/seed/room1c-1/600/400'] },
+        ]
     },
     {
         id: 'studio-2',
@@ -89,6 +94,10 @@ export const STOODIOZ: Stoodio[] = [
         walletBalance: 2300.50,
         walletTransactions: [],
         notificationsEnabled: true,
+        rooms: [
+             { id: 'room-2a', name: 'SSL Control Room', description: 'The heart of Vibe Factory with the SSL 4000 G+.', hourlyRate: 90, photos: ['https://picsum.photos/seed/room2a-1/600/400'] },
+             { id: 'room-2b', name: 'Production Suite B', description: 'A smaller suite perfect for writing and overdubs.', hourlyRate: 55, photos: ['https://picsum.photos/seed/room2b-1/600/400'] },
+        ]
     },
     {
         id: 'studio-3',
@@ -119,6 +128,9 @@ export const STOODIOZ: Stoodio[] = [
         walletBalance: 890.00,
         walletTransactions: [],
         notificationsEnabled: true,
+        rooms: [
+             { id: 'room-3a', name: 'Main Production Room', description: 'The primary room for beat making and recording.', hourlyRate: 60, photos: ['https://picsum.photos/seed/room3a-1/600/400'] },
+        ]
     },
     {
         id: 'studio-4',
@@ -146,6 +158,9 @@ export const STOODIOZ: Stoodio[] = [
         walletBalance: 1540.25,
         walletTransactions: [],
         notificationsEnabled: true,
+        rooms: [
+             { id: 'room-4a', name: 'API Control Room', description: 'The main room with our API 2448 Console and access to the live floor.', hourlyRate: 85, photos: ['https://picsum.photos/seed/room4a-1/600/400'] },
+        ]
     },
     {
         id: 'studio-5',
@@ -174,6 +189,9 @@ export const STOODIOZ: Stoodio[] = [
         walletBalance: 730.00,
         walletTransactions: [],
         notificationsEnabled: true,
+        rooms: [
+            { id: 'room-5a', name: 'Live Tracking Room', description: 'Our main live room for full band tracking.', hourlyRate: 65, photos: ['https://picsum.photos/seed/room5a-1/600/400'] },
+        ]
     },
     {
         id: 'studio-6',
@@ -202,6 +220,9 @@ export const STOODIOZ: Stoodio[] = [
         walletBalance: 3105.75,
         walletTransactions: [],
         notificationsEnabled: true,
+        rooms: [
+            { id: 'room-6a', name: 'Ocean View Suite', description: 'The premier suite with our custom console and an inspiring view of the ocean.', hourlyRate: 95, photos: ['https://picsum.photos/seed/room6a-1/600/400'] },
+        ]
     },
 ];
 

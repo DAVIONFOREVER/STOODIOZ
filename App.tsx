@@ -1,7 +1,8 @@
 
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { differenceInHours } from 'date-fns';
-import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult } from './types';
+import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room } from './types';
 import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType } from './types';
 import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE } from './constants';
 import { getVibeMatchResults } from './services/geminiService';
@@ -61,7 +62,7 @@ const App: React.FC = () => {
     const [selectedEngineer, setSelectedEngineer] = useState<Engineer | null>(null);
     const [latestBooking, setLatestBooking] = useState<Booking | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [bookingTime, setBookingTime] = useState<{ date: string, time: string} | null>(null);
+    const [bookingTime, setBookingTime] = useState<{ date: string, time: string, room: Room } | null>(null);
     const [activeSession, setActiveSession] = useState<Booking | null>(null);
     const [tipModalBooking, setTipModalBooking] = useState<Booking | null>(null);
     const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
@@ -199,6 +200,9 @@ const App: React.FC = () => {
             followerIds: [],
             walletBalance: 0,
             walletTransactions: [],
+            rooms: [
+                { id: `room-${Date.now()}`, name: 'Main Control Room', description: 'The primary recording and mixing space.', hourlyRate: 80, photos: [] }
+            ],
         };
         setStoodioz(prev => [...prev, newStoodio]);
         setCurrentUser(newStoodio);
@@ -223,9 +227,9 @@ const App: React.FC = () => {
         handleNavigate(AppView.ENGINEER_PROFILE);
     }, [handleNavigate]);
 
-    const handleOpenBookingModal = useCallback((date: string, time: string) => {
+    const handleOpenBookingModal = useCallback((date: string, time: string, room: Room) => {
         if (!selectedStoodio) return;
-        setBookingTime({ date, time });
+        setBookingTime({ date, time, room });
         handleNavigate(AppView.BOOKING_MODAL);
     }, [selectedStoodio, handleNavigate]);
 
@@ -282,9 +286,11 @@ const App: React.FC = () => {
         const stoodio = currentUser as Stoodio;
         
         const engineerPayout = jobRequest.engineerPayRate * jobRequest.duration;
+        const mainRoom = stoodio.rooms[0] || { id: 'default-room', name: 'Main Room', hourlyRate: stoodio.hourlyRate, description: '', photos: [] };
     
         const newJob: Booking = {
             id: `JOB-${Date.now()}`,
+            room: mainRoom,
             date: jobRequest.date,
             startTime: jobRequest.startTime,
             duration: jobRequest.duration,
@@ -702,7 +708,7 @@ const App: React.FC = () => {
             const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name;
 
             if (stoodio) {
-                const stoodioPayout = booking.stoodio.hourlyRate * booking.duration;
+                const stoodioPayout = booking.room.hourlyRate * booking.duration;
                 const newTx: Transaction = { id: `txn-${Date.now()}`, description: `Payout for ${bookerName || 'session'}'s session`, amount: stoodioPayout, date: new Date().toISOString(), type: 'credit' };
                 const updatedStoodio = { ...stoodio, walletBalance: stoodio.walletBalance + stoodioPayout, walletTransactions: [newTx, ...stoodio.walletTransactions] };
                 setStoodioz(prev => prev.map(s => s.id === stoodio.id ? updatedStoodio : s));
@@ -899,7 +905,7 @@ const App: React.FC = () => {
             <main className="container mx-auto px-4 py-8">
                 {renderAppContent()}
             </main>
-            {(userRole === UserRole.ARTIST || userRole === UserRole.ENGINEER) && currentView === AppView.BOOKING_MODAL && selectedStoodio && (
+            {(userRole === UserRole.ARTIST || userRole === UserRole.ENGINEER) && currentView === AppView.BOOKING_MODAL && selectedStoodio && bookingTime && (
                 <BookingModal
                     stoodio={selectedStoodio}
                     engineers={engineers}
@@ -908,6 +914,7 @@ const App: React.FC = () => {
                     isLoading={isLoading}
                     initialDate={bookingIntent?.date || bookingTime?.date}
                     initialTime={bookingIntent?.time || bookingTime?.time}
+                    initialRoom={bookingTime.room}
                     initialEngineer={bookingIntent?.engineer}
                 />
             )}

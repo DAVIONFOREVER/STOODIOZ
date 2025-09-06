@@ -1,8 +1,7 @@
 
 
-
 import React, { useState } from 'react';
-import type { Stoodio, Artist, Review, Booking, Engineer, Comment, LinkAttachment, Post } from '../types';
+import type { Stoodio, Artist, Review, Booking, Engineer, Comment, LinkAttachment, Post, Room } from '../types';
 import { UserRole } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
@@ -15,7 +14,7 @@ interface StoodioDetailProps {
     allArtists: Artist[];
     allEngineers: Engineer[];
     allStoodioz: Stoodio[];
-    onBook: (date: string, time: string) => void;
+    onBook: (date: string, time: string, room: Room) => void;
     onBack: () => void;
     currentUser: Artist | Engineer | Stoodio | null;
     userRole: UserRole | null;
@@ -60,6 +59,8 @@ const ProfileCard: React.FC<{
 
 const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, bookings, allArtists, allEngineers, allStoodioz, onBook, onBack, currentUser, userRole, onToggleFollow, onSelectArtist, onSelectEngineer, onSelectStoodio, onStartConversation, onLikePost, onCommentOnPost }) => {
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ date: string, time: string } | null>(null);
+    const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio.rooms[0] || null);
+
     const isFollowing = currentUser && 'following' in currentUser ? (currentUser.following.stoodioz || []).includes(stoodio.id) : false;
 
     const stoodioReviews = reviews.filter(r => r.stoodioId === stoodio.id);
@@ -82,13 +83,14 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
         }
     };
 
-    const isBookingDisabled = !selectedTimeSlot || !currentUser || userRole === UserRole.STOODIO;
+    const isBookingDisabled = !selectedTimeSlot || !selectedRoom || !currentUser || userRole === UserRole.STOODIO;
 
     const getButtonText = (mobile: boolean = false) => {
         if (!currentUser) return 'Login to Book';
         if (userRole === UserRole.STOODIO) return 'Stoodioz Cannot Book';
+        if (!selectedRoom) return 'Select a Room';
         if (!selectedTimeSlot) return 'Select a Time Slot';
-        return mobile ? `Book for ${selectedTimeSlot.time}` : `Book Session: ${selectedTimeSlot.time}`;
+        return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom.name}: ${selectedTimeSlot.time}`;
     };
     
     return (
@@ -242,7 +244,19 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
                 {/* Right Column: Calendar and Booking */}
                 <div className="lg:col-span-2">
                     <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg border border-zinc-700 sticky top-28">
-                        <h2 className="text-3xl font-bold mb-4 text-center text-slate-100">Check Availability</h2>
+                        <h2 className="text-3xl font-bold mb-4 text-center text-slate-100">Book a Room</h2>
+                        <div className="space-y-4 mb-6">
+                            {stoodio.rooms.map(room => (
+                                <button key={room.id} onClick={() => setSelectedRoom(room)} className={`w-full text-left p-4 rounded-xl border-2 transition-all ${selectedRoom?.id === room.id ? 'border-orange-500 bg-orange-500/10' : 'border-zinc-700 hover:border-zinc-600 bg-zinc-900/50'}`}>
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold text-lg text-slate-100">{room.name}</span>
+                                        <span className="font-bold text-lg text-orange-400">${room.hourlyRate}/hr</span>
+                                    </div>
+                                    <p className="text-sm text-slate-400 mt-1">{room.description}</p>
+                                </button>
+                            ))}
+                        </div>
+
                         <Calendar 
                             availability={stoodio.availability}
                             onSelectTimeSlot={handleSelectTimeSlot}
@@ -250,7 +264,7 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
                         />
                         <div className="hidden lg:block mt-6">
                             <button 
-                                onClick={() => selectedTimeSlot && onBook(selectedTimeSlot.date, selectedTimeSlot.time)}
+                                onClick={() => selectedTimeSlot && selectedRoom && onBook(selectedTimeSlot.date, selectedTimeSlot.time, selectedRoom)}
                                 disabled={isBookingDisabled}
                                 className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
                                 {getButtonText()}
@@ -263,7 +277,7 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
             {/* Sticky bottom bar for mobile */}
             <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-sm p-4 border-t border-zinc-700 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)]">
                  <button 
-                    onClick={() => selectedTimeSlot && onBook(selectedTimeSlot.date, selectedTimeSlot.time)}
+                    onClick={() => selectedTimeSlot && selectedRoom && onBook(selectedTimeSlot.date, selectedTimeSlot.time, selectedRoom)}
                     disabled={isBookingDisabled}
                     className="w-full bg-orange-500 text-white font-bold py-4 px-6 rounded-xl hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
                     {getButtonText(true)}

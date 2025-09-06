@@ -10,6 +10,20 @@ interface StoodioCardProps {
 }
 
 const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio, distance, travelTime }) => {
+    
+    const priceRange = () => {
+        if (!stoodio.rooms || stoodio.rooms.length === 0) {
+            return `$${stoodio.hourlyRate.toFixed(2)}`;
+        }
+        if (stoodio.rooms.length === 1) {
+            return `$${stoodio.rooms[0].hourlyRate.toFixed(2)}`;
+        }
+        const rates = stoodio.rooms.map(r => r.hourlyRate);
+        const min = Math.min(...rates);
+        const max = Math.max(...rates);
+        return `$${min.toFixed(2)} - $${max.toFixed(2)}`;
+    };
+
     return (
         <div className="bg-zinc-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-orange-500/20 transition-all duration-300 flex flex-col group border border-zinc-700 hover:border-orange-500/50">
             <div className="relative">
@@ -42,7 +56,7 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio, dis
                 </div>
                 <div className="flex justify-between items-center mt-auto">
                     <div>
-                        <span className="text-2xl font-bold text-orange-400">${stoodio.hourlyRate}</span>
+                        <span className="text-2xl font-bold text-orange-400">{priceRange()}</span>
                         <span className="text-slate-400">/hr</span>
                     </div>
                     <button 

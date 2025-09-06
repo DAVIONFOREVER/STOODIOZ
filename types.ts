@@ -38,11 +38,22 @@ export interface Post {
     comments: Comment[];
 }
 
+export interface Room {
+    id: string;
+    name: string;
+    description: string;
+    hourlyRate: number;
+    photos: string[];
+}
+
+
 export interface Stoodio {
     id: string;
     name: string;
     location: string;
-    hourlyRate: number;
+    // DEPRECATED: hourlyRate will now be on a per-room basis.
+    // Keeping for potential backward compatibility, but new logic should use rooms.
+    hourlyRate: number; 
     engineerPayRate: number;
     rating: number;
     imageUrl: string;
@@ -68,6 +79,7 @@ export interface Stoodio {
     walletBalance: number;
     walletTransactions: Transaction[];
     notificationsEnabled?: boolean;
+    rooms: Room[]; // NEW: Studios now have multiple bookable rooms
 }
 
 export interface Artist {
@@ -134,6 +146,7 @@ export enum BookingRequestType {
 }
 
 export interface BookingRequest {
+    room: Room; // NEW: Specify which room is being booked
     date: string;
     startTime: string;
     duration: number; // in hours

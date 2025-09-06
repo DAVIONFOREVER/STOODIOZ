@@ -1,8 +1,9 @@
 
+
 import React, { useState, useMemo } from 'react';
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction } from '../types';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Room } from '../types';
 import { BookingStatus } from '../types';
-import { EditIcon, PhotoIcon, CalendarIcon, LocationIcon, UsersIcon, DollarSignIcon, SoundWaveIcon, UserCheckIcon, UserPlusIcon, UserGroupIcon, CloseIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
+import { EditIcon, PhotoIcon, CalendarIcon, LocationIcon, UsersIcon, DollarSignIcon, SoundWaveIcon, UserCheckIcon, UserPlusIcon, UserGroupIcon, CloseIcon, ChevronLeftIcon, ChevronRightIcon, HouseIcon, MicrophoneIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 
@@ -38,67 +39,91 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.Re
     </div>
 );
 
-const RatesCard: React.FC<{ stoodio: Stoodio; onUpdateStoodio: (updates: Partial<Stoodio>) => void }> = ({ stoodio, onUpdateStoodio }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [rates, setRates] = useState({
-        hourlyRate: stoodio.hourlyRate.toString(),
-        engineerPayRate: stoodio.engineerPayRate.toString(),
-    });
+const ManageRoomsCard: React.FC<{ stoodio: Stoodio; onUpdateStoodio: (updates: Partial<Stoodio>) => void }> = ({ stoodio, onUpdateStoodio }) => {
+    const [editingRoom, setEditingRoom] = useState<Room | null>(null);
 
-    const handleSave = () => {
-        onUpdateStoodio({
-            hourlyRate: parseFloat(rates.hourlyRate) || 0,
-            engineerPayRate: parseFloat(rates.engineerPayRate) || 0,
-        });
-        setIsEditing(false);
+    const handleSaveRoom = (roomToSave: Room) => {
+        let updatedRooms;
+        if (stoodio.rooms.find(r => r.id === roomToSave.id)) {
+            updatedRooms = stoodio.rooms.map(r => r.id === roomToSave.id ? roomToSave : r);
+        } else {
+            updatedRooms = [...stoodio.rooms, roomToSave];
+        }
+        onUpdateStoodio({ rooms: updatedRooms });
+        setEditingRoom(null);
     };
 
-    const handleCancel = () => {
-        setRates({
-            hourlyRate: stoodio.hourlyRate.toString(),
-            engineerPayRate: stoodio.engineerPayRate.toString(),
-        });
-        setIsEditing(false);
+    const handleDeleteRoom = (roomId: string) => {
+        if (window.confirm('Are you sure you want to delete this room? This cannot be undone.')) {
+            const updatedRooms = stoodio.rooms.filter(r => r.id !== roomId);
+            onUpdateStoodio({ rooms: updatedRooms });
+        }
+    };
+    
+    const handleAddNew = () => {
+        setEditingRoom({ id: `room-new-${Date.now()}`, name: '', description: '', hourlyRate: 50, photos: [] });
     };
 
     return (
         <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-slate-100">Rates & Info</h3>
-                {!isEditing && (
-                    <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 text-sm font-semibold text-orange-400 hover:text-orange-300 transition-colors">
-                        <EditIcon className="w-4 h-4" /> Edit
+                <h3 className="text-xl font-bold text-slate-100">Manage Rooms / Rates</h3>
+                {!editingRoom && (
+                    <button onClick={handleAddNew} className="text-sm font-semibold text-orange-400 hover:underline">
+                        + Add New Room
                     </button>
                 )}
             </div>
-            {isEditing ? (
-                <div className="space-y-4">
-                    <div>
-                        <label htmlFor="hourlyRate" className="text-sm font-semibold text-slate-400 mb-1 block">Your Hourly Rate ($)</label>
-                        <input type="number" id="hourlyRate" value={rates.hourlyRate} onChange={e => setRates({...rates, hourlyRate: e.target.value})} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
-                    </div>
-                    <div>
-                        <label htmlFor="engineerPayRate" className="text-sm font-semibold text-slate-400 mb-1 block">Default Engineer Payout ($/hr)</label>
-                        <input type="number" id="engineerPayRate" value={rates.engineerPayRate} onChange={e => setRates({...rates, engineerPayRate: e.target.value})} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                        <button onClick={handleCancel} className="text-sm font-semibold px-4 py-2 rounded-lg text-slate-300 hover:bg-zinc-600">Cancel</button>
-                        <button onClick={handleSave} className="text-sm font-semibold px-4 py-2 rounded-lg bg-orange-500 text-white">Save Rates</button>
-                    </div>
-                </div>
+
+            {editingRoom ? (
+                <RoomEditForm room={editingRoom} onSave={handleSaveRoom} onCancel={() => setEditingRoom(null)} />
             ) : (
-                <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                        <span className="font-semibold text-slate-300">Stoodio Hourly Rate:</span>
-                        <span className="font-bold text-lg text-green-400">${stoodio.hourlyRate.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="font-semibold text-slate-300">Default Engineer Payout:</span>
-                        <span className="font-bold text-lg text-orange-400">${stoodio.engineerPayRate.toFixed(2)}/hr</span>
-                    </div>
-                </div>
+                <ul className="space-y-3">
+                    {stoodio.rooms.map(room => (
+                        <li key={room.id} className="p-3 bg-zinc-700/50 rounded-lg flex justify-between items-center">
+                            <div>
+                                <p className="font-semibold">{room.name}</p>
+                                <p className="text-sm text-slate-400">${room.hourlyRate}/hr</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setEditingRoom(room)} className="text-sm text-orange-400 hover:underline">Edit</button>
+                                {stoodio.rooms.length > 1 && <button onClick={() => handleDeleteRoom(room.id)} className="text-sm text-red-400 hover:underline">Delete</button>}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
             )}
         </div>
+    );
+};
+
+const RoomEditForm: React.FC<{ room: Room; onSave: (room: Room) => void; onCancel: () => void; }> = ({ room, onSave, onCancel }) => {
+    const [formData, setFormData] = useState(room);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(formData);
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4 bg-zinc-900/50 p-4 rounded-lg">
+             <div>
+                <label htmlFor="roomName" className="text-sm font-semibold text-slate-400 mb-1 block">Room Name</label>
+                <input type="text" id="roomName" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" required />
+            </div>
+            <div>
+                <label htmlFor="roomDesc" className="text-sm font-semibold text-slate-400 mb-1 block">Description</label>
+                <textarea id="roomDesc" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" rows={2} required />
+            </div>
+             <div>
+                <label htmlFor="roomRate" className="text-sm font-semibold text-slate-400 mb-1 block">Hourly Rate ($)</label>
+                <input type="number" id="roomRate" value={formData.hourlyRate} onChange={e => setFormData({...formData, hourlyRate: parseFloat(e.target.value) || 0})} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" required />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={onCancel} className="text-sm font-semibold px-4 py-2 rounded-lg text-slate-300 hover:bg-zinc-600">Cancel</button>
+                <button type="submit" className="text-sm font-semibold px-4 py-2 rounded-lg bg-orange-500 text-white">Save Room</button>
+            </div>
+        </form>
     );
 };
 
@@ -225,14 +250,66 @@ const DashboardContent: React.FC<Omit<StoodioDashboardProps, 'allArtists'|'allEn
                         </div>
                     </label>
                 </div>
-                <RatesCard stoodio={stoodio} onUpdateStoodio={onUpdateStoodio} />
+                <ManageRoomsCard stoodio={stoodio} onUpdateStoodio={onUpdateStoodio} />
                 <PostJobCard stoodio={stoodio} onPostJob={onPostJob} />
             </div>
         </div>
     );
 };
 
-// ... (Other tab content components like Availability, Wallet, Followers, etc., remain the same) ...
+const FollowingContent: React.FC<Pick<StoodioDashboardProps, 'stoodio' | 'allStoodioz' | 'allEngineers' | 'allArtists' | 'onToggleFollow' | 'onSelectStoodio' | 'onSelectArtist' | 'onSelectEngineer'>> = ({ stoodio, allStoodioz, allEngineers, allArtists, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer }) => {
+    const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
+    const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
+    const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
+
+    const ProfileCard: React.FC<{ profile: Stoodio | Engineer | Artist; type: 'stoodio' | 'engineer' | 'artist'; onClick: () => void; }> = ({ profile, type, onClick }) => {
+        let icon;
+        let details;
+        if (type === 'stoodio') {
+            icon = <HouseIcon className="w-4 h-4" />;
+            details = (profile as Stoodio).location;
+        } else if (type === 'engineer') {
+            icon = <SoundWaveIcon className="w-4 h-4" />;
+            details = (profile as Engineer).specialties.join(', ');
+        } else {
+            icon = <MicrophoneIcon className="w-4 h-4" />;
+            details = (profile as Artist).bio;
+        }
+
+        const isFollowing = type === 'stoodio' ? stoodio.following.stoodioz.includes(profile.id) :
+                           type === 'engineer' ? stoodio.following.engineers.includes(profile.id) :
+                           stoodio.following.artists.includes(profile.id);
+
+        return (
+            <div className="bg-zinc-800 rounded-xl shadow-lg p-4 flex items-center gap-4 border border-zinc-700">
+                <img src={profile.imageUrl} alt={profile.name} className="w-20 h-20 object-cover rounded-xl flex-shrink-0" />
+                <div className="flex-grow">
+                    <button onClick={onClick} className="font-bold text-lg text-slate-100 hover:text-orange-400 transition-colors text-left">{profile.name}</button>
+                    <p className="text-sm text-slate-400 truncate flex items-center gap-1.5">{icon}{details.substring(0, 50)}...</p>
+                </div>
+                <button onClick={() => onToggleFollow(type, profile.id)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-600 text-slate-200'}`}>
+                    {isFollowing ? <UserCheckIcon className="w-4 h-4" /> : <UserPlusIcon className="w-4 h-4" />}
+                    {isFollowing ? 'Following' : 'Follow'}
+                </button>
+            </div>
+        );
+    };
+    
+    return (
+        <div className="space-y-12">
+            {[...followedArtists, ...followedEngineers, ...followedStoodioz].length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
+                    {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
+                    {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
+                </div>
+            ) : (
+                 <p className="text-slate-400">You're not following anyone yet.</p>
+            )}
+        </div>
+    );
+};
+
 
 const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     const { stoodio, bookings, onUpdateStoodio, allArtists } = props;
@@ -240,7 +317,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
 
     const totalEarnings = bookings
         .filter(b => b.status === BookingStatus.COMPLETED)
-        .reduce((acc, b) => acc + (b.stoodio.hourlyRate * b.duration), 0);
+        .reduce((acc, b) => acc + (b.room.hourlyRate * b.duration), 0);
     
     const followersCount = allArtists.filter(a => a.following.stoodioz.includes(stoodio.id)).length;
     const followingCount = stoodio.following.artists.length + stoodio.following.engineers.length + stoodio.following.stoodioz.length;
@@ -305,11 +382,11 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 </aside>
                 <main className="flex-1">
                     {activeTab === 'dashboard' && <DashboardContent {...props} />}
-                    {activeTab === 'availability' && <div>Availability content would go here.</div>}
-                    {activeTab === 'wallet' && <div>Wallet content would go here.</div>}
-                    {activeTab === 'photos' && <div>Photos content would go here.</div>}
-                    {activeTab === 'following' && <div>Following content would go here.</div>}
-                    {activeTab === 'followers' && <div>Followers content would go here.</div>}
+                    {activeTab === 'availability' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Availability Management coming soon.</div>}
+                    {activeTab === 'wallet' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Wallet & Transactions coming soon.</div>}
+                    {activeTab === 'photos' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Photo Gallery Management coming soon.</div>}
+                    {activeTab === 'following' && <FollowingContent {...props} />}
+                    {activeTab === 'followers' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Followers list coming soon.</div>}
                 </main>
             </div>
         </div>
