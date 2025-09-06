@@ -104,13 +104,22 @@ export const getAllBookings = async (): Promise<Booking[]> => {
 };
 
 export const getDashboardStats = async (): Promise<DashboardStats> => {
-    const totalRevenue = mockBookings
-        .filter(b => b.status === BookingStatus.COMPLETED)
-        .reduce((sum, b) => sum + b.totalCost, 0);
+    const completedBookings = mockBookings.filter(b => b.status === BookingStatus.COMPLETED);
+    
+    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalCost, 0);
+
+    // The service fee is included in the totalCost. To calculate the platform's portion, we reverse the calculation.
+    // totalCost = subtotal * (1 + SERVICE_FEE_PERCENTAGE)
+    // platformFee = totalCost - (totalCost / (1 + SERVICE_FEE_PERCENTAGE))
+    const platformFees = completedBookings.reduce((sum, booking) => {
+        const subtotal = booking.totalCost / (1 + SERVICE_FEE_PERCENTAGE);
+        const feeForBooking = booking.totalCost - subtotal;
+        return sum + feeForBooking;
+    }, 0);
 
     const stats: DashboardStats = {
         totalRevenue: totalRevenue,
-        platformFees: totalRevenue * SERVICE_FEE_PERCENTAGE,
+        platformFees: platformFees,
         artistCount: MOCK_ARTISTS.length,
         engineerCount: ENGINEERS.length,
         stoodioCount: STOODIOZ.length,

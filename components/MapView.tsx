@@ -110,6 +110,10 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
         }
     };
 
+    const visibleEngineers = useMemo(() => {
+        return engineers.filter(e => e.showOnMap);
+    }, [engineers]);
+
     return (
         <div className="relative w-full h-full">
             <div className="w-full h-full bg-slate-200 rounded-2xl shadow-inner overflow-hidden border border-slate-300">
@@ -118,7 +122,7 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
                 {showStoodioz && stoodioz.map(s => (
                     <MapPin key={`stoodio-${s.id}`} type="stoodio" entity={s} position={convertCoordsToPercent(s.coordinates)} onSelect={handleSelect} />
                 ))}
-                {showEngineers && engineers.map(e => {
+                {showEngineers && visibleEngineers.map(e => {
                     const positionCoords = e.displayExactLocation ? e.coordinates : fuzzCoordinates(e.coordinates);
                     return (
                         <MapPin key={`eng-${e.id}`} type="engineer" entity={e} position={convertCoordsToPercent(positionCoords)} onSelect={handleSelect} />

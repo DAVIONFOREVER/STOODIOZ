@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, BookingRequest } from '../types';
 import { BookingRequestType } from '../types';
@@ -26,13 +27,13 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
     );
     const [requestedEngineerId, setRequestedEngineerId] = useState<string>(initialEngineer?.id || '');
 
-    const { stoodioCost, engineerFee, serviceFee, totalCost } = useMemo(() => {
+    const { stoodioCost, engineerFee, serviceFee, totalCost, subtotal } = useMemo(() => {
         const stoodioCost = stoodio.hourlyRate * duration;
         const engineerFee = requestType !== BookingRequestType.BRING_YOUR_OWN ? stoodio.engineerPayRate * duration : 0;
-        // The service fee is now calculated only on the studio's portion of the booking.
-        const serviceFee = stoodioCost * SERVICE_FEE_PERCENTAGE;
-        const totalCost = stoodioCost + engineerFee + serviceFee;
-        return { stoodioCost, engineerFee, serviceFee, totalCost };
+        const subtotal = stoodioCost + engineerFee;
+        const serviceFee = subtotal * SERVICE_FEE_PERCENTAGE;
+        const totalCost = subtotal + serviceFee;
+        return { stoodioCost, engineerFee, serviceFee, totalCost, subtotal };
     }, [stoodio.hourlyRate, stoodio.engineerPayRate, duration, requestType]);
 
     const handleConfirmBooking = (e: React.FormEvent) => {
@@ -121,7 +122,9 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                                     <span>Engineer Fee ({duration} hrs at ${stoodio.engineerPayRate}/hr)</span>
                                     <span>${engineerFee.toFixed(2)}</span>
                                 </div>
-                                <div className="flex justify-between text-slate-300"><span>Service Fee</span> <span>${serviceFee.toFixed(2)}</span></div>
+                                <div className="border-t border-orange-500/20 my-1 opacity-50"></div>
+                                <div className="flex justify-between font-semibold text-slate-300"><span>Subtotal</span> <span>${subtotal.toFixed(2)}</span></div>
+                                <div className="flex justify-between text-slate-300"><span>Service Fee (15%)</span> <span>+ ${serviceFee.toFixed(2)}</span></div>
                                 <div className="border-t border-orange-500/20 my-2"></div>
                                 <div className="flex justify-between font-bold text-lg"><span>Total</span> <span className="text-orange-400">${totalCost.toFixed(2)}</span></div>
                             </div>

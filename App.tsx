@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult } from './types';
@@ -36,6 +35,8 @@ import TheStage from './components/TheStage';
 import VibeMatcherModal from './components/VibeMatcherModal';
 import VibeMatcherResults from './components/VibeMatcherResults';
 import BookingCancellationModal from './components/BookingCancellationModal';
+
+type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
 const App: React.FC = () => {
     // --- App State ---
@@ -276,11 +277,11 @@ const App: React.FC = () => {
         }, 1500);
     }, [selectedStoodio, currentUser, userRole, handleNavigate]);
     
-    const handlePostJob = useCallback((jobRequest: Omit<BookingRequest, 'totalCost' | 'engineerPayRate' | 'requestType'>) => {
+    const handlePostJob = useCallback((jobRequest: JobPostData) => {
         if (!currentUser || userRole !== UserRole.STOODIO) return;
         const stoodio = currentUser as Stoodio;
         
-        const engineerPayout = stoodio.engineerPayRate * jobRequest.duration;
+        const engineerPayout = jobRequest.engineerPayRate * jobRequest.duration;
     
         const newJob: Booking = {
             id: `JOB-${Date.now()}`,
@@ -296,7 +297,7 @@ const App: React.FC = () => {
             requestType: BookingRequestType.FIND_AVAILABLE,
             requestedEngineerId: null,
             totalCost: engineerPayout,
-            engineerPayRate: stoodio.engineerPayRate,
+            engineerPayRate: jobRequest.engineerPayRate,
             bookedById: currentUser.id,
             bookedByRole: userRole,
         };

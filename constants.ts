@@ -226,6 +226,7 @@ export const ENGINEERS: Engineer[] = [
         coordinates: { lat: 34.06, lon: -118.25 },
         isAvailable: true,
         displayExactLocation: false,
+        showOnMap: true,
         email: 'alex@patch.com',
         password: 'password123',
         posts: [],
@@ -236,6 +237,7 @@ export const ENGINEERS: Engineer[] = [
         ],
         availability: generateAvailability(),
         notificationsEnabled: true,
+        minHourlyRate: 45,
     },
     {
         id: 'eng-2',
@@ -256,10 +258,12 @@ export const ENGINEERS: Engineer[] = [
         coordinates: { lat: 40.72, lon: -73.99 },
         isAvailable: false,
         displayExactLocation: true,
+        showOnMap: false,
         walletBalance: 680.00,
         walletTransactions: [],
         availability: generateAvailability(),
         notificationsEnabled: true,
+        minHourlyRate: 55,
     },
     {
         id: 'eng-3',
@@ -280,10 +284,12 @@ export const ENGINEERS: Engineer[] = [
         coordinates: { lat: 36.17, lon: -86.79 },
         isAvailable: true,
         displayExactLocation: false,
+        showOnMap: true,
         walletBalance: 230.50,
         walletTransactions: [],
         availability: generateAvailability(),
         notificationsEnabled: true,
+        minHourlyRate: 40,
     },
     {
         id: 'eng-4',
@@ -304,10 +310,12 @@ export const ENGINEERS: Engineer[] = [
         coordinates: { lat: 41.89, lon: -87.64 },
         isAvailable: true,
         displayExactLocation: false,
+        showOnMap: true,
         walletBalance: 125.00,
         walletTransactions: [],
         availability: generateAvailability(),
         notificationsEnabled: true,
+        minHourlyRate: 50,
     },
 ];
 
@@ -368,7 +376,7 @@ export const REVIEWS: Review[] = [
 
 
 export const ENGINEER_FEE_PERCENTAGE = 0.20; // 20%
-export const SERVICE_FEE_PERCENTAGE = 0.10; // 10%
+export const SERVICE_FEE_PERCENTAGE = 0.15; // 15%
 
 export const MOCK_ARTISTS: Artist[] = [
     {

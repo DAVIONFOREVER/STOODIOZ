@@ -1,4 +1,5 @@
 
+
 // FIX: Removed self-import of `LinkAttachment` which was causing a conflict.
 
 export interface Location {
@@ -112,6 +113,7 @@ export interface Engineer {
     coordinates: Location;
     isAvailable: boolean;
     displayExactLocation?: boolean;
+    showOnMap?: boolean;
     email?: string;
     password?: string;
     posts?: Post[];
@@ -122,6 +124,7 @@ export interface Engineer {
         times: string[]; // HH:MM
     }[];
     notificationsEnabled?: boolean;
+    minHourlyRate?: number;
 }
 
 export enum BookingRequestType {
