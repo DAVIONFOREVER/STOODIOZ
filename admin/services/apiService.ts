@@ -15,6 +15,8 @@ const mockBookings: Booking[] = [
         id: 'BKG-1672532400',
         artist: MOCK_ARTISTS[0],
         stoodio: STOODIOZ[0],
+        // FIX: The `Booking` type requires a `room`. Added the first room from the studio.
+        room: STOODIOZ[0].rooms[0],
         engineer: ENGINEERS[0],
         date: '2024-07-20',
         startTime: '14:00',
@@ -34,6 +36,8 @@ const mockBookings: Booking[] = [
         id: 'BKG-1672618800',
         artist: MOCK_ARTISTS[1],
         stoodio: STOODIOZ[2],
+        // FIX: The `Booking` type requires a `room`. Added the first room from the studio.
+        room: STOODIOZ[2].rooms[0],
         engineer: ENGINEERS[1],
         date: '2024-07-22',
         startTime: '18:00',
@@ -52,6 +56,8 @@ const mockBookings: Booking[] = [
         id: 'BKG-1672705200',
         artist: MOCK_ARTISTS[2],
         stoodio: STOODIOZ[1],
+        // FIX: The `Booking` type requires a `room`. Added the first room from the studio.
+        room: STOODIOZ[1].rooms[0],
         engineer: null,
         date: '2024-07-25',
         startTime: '12:00',
@@ -70,6 +76,8 @@ const mockBookings: Booking[] = [
         id: 'BKG-1672791600',
         artist: MOCK_ARTISTS[3],
         stoodio: STOODIOZ[4],
+        // FIX: The `Booking` type requires a `room`. Added the first room from the studio.
+        room: STOODIOZ[4].rooms[0],
         engineer: null,
         date: '2024-08-01',
         startTime: '10:00',

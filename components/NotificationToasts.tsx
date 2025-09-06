@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { AppNotification } from '../types';
 import { CloseIcon, BellIcon } from './icons';
 
@@ -40,10 +40,27 @@ const NotificationToast: React.FC<{ notification: AppNotification, onDismiss: (i
 };
 
 const NotificationToasts: React.FC<NotificationToastsProps> = ({ notifications, onDismiss }) => {
+  const [activeToasts, setActiveToasts] = useState<AppNotification[]>([]);
+
+  useEffect(() => {
+    // When the notifications prop changes, find any new ones that aren't already active.
+    const newNotifications = notifications.filter(n => !activeToasts.some(at => at.id === n.id));
+    if (newNotifications.length > 0) {
+      setActiveToasts(prev => [...prev, ...newNotifications]);
+    }
+  }, [notifications, activeToasts]);
+
+  const handleDismiss = (id: string) => {
+    // Remove from local active toasts
+    setActiveToasts(prev => prev.filter(n => n.id !== id));
+    // Call parent handler to mark as read globally
+    onDismiss(id); 
+  };
+  
   return (
     <div className="fixed top-24 right-4 z-[100] space-y-3 w-full max-w-sm">
-      {notifications.map(notification => (
-        <NotificationToast key={notification.id} notification={notification} onDismiss={onDismiss} />
+      {activeToasts.map(notification => (
+        <NotificationToast key={notification.id} notification={notification} onDismiss={handleDismiss} />
       ))}
       <style>{`
         @keyframes slide-in-right {

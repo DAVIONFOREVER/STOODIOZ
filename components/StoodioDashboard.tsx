@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Room } from '../types';
 import { BookingStatus } from '../types';
@@ -257,6 +256,39 @@ const DashboardContent: React.FC<Omit<StoodioDashboardProps, 'allArtists'|'allEn
     );
 };
 
+const WalletContent: React.FC<{ stoodio: Stoodio }> = ({ stoodio }) => {
+    return (
+        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
+            <h2 className="text-3xl font-bold mb-2 text-slate-100">Wallet</h2>
+            <p className="text-slate-400 text-sm mb-6">Manage your earnings and transactions.</p>
+            <div className="bg-zinc-900/50 p-6 rounded-lg mb-6">
+                <p className="text-slate-400 text-sm">Current Balance</p>
+                <p className="text-5xl font-bold text-green-400">${stoodio.walletBalance.toFixed(2)}</p>
+            </div>
+            <div className="flex gap-4 mb-8">
+                 <button className="w-full bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 text-sm">Withdraw Funds</button>
+                 <button className="w-full bg-zinc-700 text-slate-200 font-semibold py-2 px-4 rounded-lg hover:bg-zinc-600 text-sm">View Statements</button>
+            </div>
+            <div>
+                 <h3 className="font-semibold text-slate-200 mb-3">Recent Transactions</h3>
+                 <ul className="space-y-3">
+                    {stoodio.walletTransactions.length > 0 ? stoodio.walletTransactions.map((tx: Transaction) => (
+                        <li key={tx.id} className="flex justify-between items-center bg-zinc-700/50 p-3 rounded-md">
+                            <div>
+                                <p className="font-medium text-slate-200">{tx.description}</p>
+                                <p className="text-xs text-slate-400">{new Date(tx.date).toLocaleDateString()}</p>
+                            </div>
+                            <span className={`font-semibold text-lg ${tx.type === 'debit' ? 'text-red-400' : 'text-green-400'}`}>
+                                {tx.type === 'debit' ? '-' : '+'}${Math.abs(tx.amount).toFixed(2)}
+                            </span>
+                        </li>
+                    )) : <p className="text-sm text-slate-500 text-center py-4">No transactions yet.</p>}
+                 </ul>
+            </div>
+        </div>
+    );
+};
+
 const FollowingContent: React.FC<Pick<StoodioDashboardProps, 'stoodio' | 'allStoodioz' | 'allEngineers' | 'allArtists' | 'onToggleFollow' | 'onSelectStoodio' | 'onSelectArtist' | 'onSelectEngineer'>> = ({ stoodio, allStoodioz, allEngineers, allArtists, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer }) => {
     const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
     const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
@@ -306,6 +338,188 @@ const FollowingContent: React.FC<Pick<StoodioDashboardProps, 'stoodio' | 'allSto
             ) : (
                  <p className="text-slate-400">You're not following anyone yet.</p>
             )}
+        </div>
+    );
+};
+
+const FollowersContent: React.FC<Pick<StoodioDashboardProps, 'stoodio' | 'allArtists' | 'onToggleFollow' | 'onSelectArtist'>> = ({ stoodio, allArtists, onToggleFollow, onSelectArtist }) => {
+    const followers = allArtists.filter(a => a.following.stoodioz.includes(stoodio.id));
+
+    return (
+         <div>
+            <h2 className="text-3xl font-bold mb-6 text-slate-100">Artist Followers</h2>
+            {followers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {followers.map(follower => {
+                        const isFollowingBack = stoodio.following.artists.includes(follower.id);
+                        return (
+                            <div key={follower.id} className="bg-zinc-800 rounded-xl shadow-lg p-4 flex items-center gap-4 border border-zinc-700">
+                                <img src={follower.imageUrl} alt={follower.name} className="w-20 h-20 object-cover rounded-xl flex-shrink-0" />
+                                <div className="flex-grow">
+                                    <button onClick={() => onSelectArtist(follower)} className="font-bold text-lg hover:text-orange-400 transition-colors text-left text-slate-100">{follower.name}</button>
+                                    <p className="text-sm text-slate-400 truncate">{follower.bio.substring(0,50)}...</p>
+                                </div>
+                                 <button
+                                    onClick={() => onToggleFollow('artist', follower.id)}
+                                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 ${isFollowingBack ? 'bg-orange-500 text-white' : 'bg-zinc-600 text-slate-200 hover:bg-zinc-500'}`}
+                                >
+                                    {isFollowingBack ? <UserCheckIcon className="w-4 h-4" /> : <UserPlusIcon className="w-4 h-4" />}
+                                    {isFollowingBack ? 'Following' : 'Follow Back'}
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <p className="text-slate-400">No artists are following you yet.</p>
+            )}
+        </div>
+    );
+};
+
+
+const AvailabilityContent: React.FC<{ stoodio: Stoodio; onUpdateStoodio: (updates: Partial<Stoodio>) => void; }> = ({ stoodio, onUpdateStoodio }) => {
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const [editedAvailability, setEditedAvailability] = useState(stoodio.availability || []);
+
+    const availabilityMap = useMemo(() => new Map(editedAvailability.map(item => [item.date, new Set(item.times)])), [editedAvailability]);
+
+    const handlePrevMonth = () => {
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+        setSelectedDate(null);
+    };
+
+    const handleNextMonth = () => {
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+        setSelectedDate(null);
+    };
+
+    const handleDateClick = (date: Date) => {
+        const dateString = date.toISOString().split('T')[0];
+        setSelectedDate(dateString);
+    };
+
+    const handleTimeSlotToggle = (time: string) => {
+        if (!selectedDate) return;
+
+        const newAvailability = [...editedAvailability];
+        const dayIndex = newAvailability.findIndex(d => d.date === selectedDate);
+
+        if (dayIndex > -1) {
+            const times = new Set(newAvailability[dayIndex].times);
+            if (times.has(time)) {
+                times.delete(time);
+            } else {
+                times.add(time);
+            }
+            if (times.size === 0) {
+                newAvailability.splice(dayIndex, 1);
+            } else {
+                newAvailability[dayIndex] = { date: selectedDate, times: Array.from(times).sort() };
+            }
+        } else {
+            newAvailability.push({ date: selectedDate, times: [time] });
+        }
+        setEditedAvailability(newAvailability);
+    };
+
+    const handleSaveChanges = () => {
+        onUpdateStoodio({ availability: editedAvailability });
+        alert('Availability updated!');
+    };
+    
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const startDayOfWeek = startOfMonth.getDay();
+    const daysInMonth: Date[] = [];
+    for (let i = 1; i <= endOfMonth.getDate(); i++) {
+        daysInMonth.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const ALL_TIME_SLOTS = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
+    const availableTimesForSelectedDate = availabilityMap.get(selectedDate || '') || new Set();
+
+    return (
+        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-3xl font-bold text-slate-100">Manage Availability</h2>
+                 <button onClick={handleSaveChanges} className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md">
+                    Save Changes
+                </button>
+            </div>
+            <p className="text-slate-400 text-sm mb-6">This calendar controls the available time slots for all rooms in your stoodio. Your changes will be saved when you click the button above.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-zinc-900/50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
+                        <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
+                            <ChevronLeftIcon className="w-5 h-5 text-slate-400" />
+                        </button>
+                        <h3 className="font-bold text-lg text-slate-100">
+                            {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                        </h3>
+                        <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
+                            <ChevronRightIcon className="w-5 h-5 text-slate-400" />
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 text-center text-sm text-slate-400 mb-2">
+                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => <div key={day}>{day}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                        {Array(startDayOfWeek).fill(null).map((_, index) => <div key={`empty-${index}`}></div>)}
+                        {daysInMonth.map(day => {
+                            const dateString = day.toISOString().split('T')[0];
+                            const isAvailable = (availabilityMap.get(dateString)?.size || 0) > 0;
+                            const isPast = day < today;
+                            const isSelected = selectedDate === dateString;
+                            let dayClass = "w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 text-sm";
+                            if (isPast) {
+                                dayClass += " text-slate-600 cursor-not-allowed";
+                            } else {
+                                dayClass += " cursor-pointer ";
+                                if (isSelected) {
+                                    dayClass += " bg-orange-500 text-white font-bold ring-2 ring-offset-2 ring-offset-zinc-900 ring-orange-500";
+                                } else if (isAvailable) {
+                                    dayClass += " bg-green-500/20 text-green-300 hover:bg-green-500/40";
+                                } else {
+                                    dayClass += " text-slate-300 hover:bg-zinc-700";
+                                }
+                            }
+                            return <div key={dateString} onClick={() => !isPast && handleDateClick(day)} className={dayClass}>{day.getDate()}</div>;
+                        })}
+                    </div>
+                </div>
+                <div>
+                    {selectedDate ? (
+                        <div>
+                            <h4 className="font-semibold text-slate-200 mb-3">Available Slots for <span className="text-orange-400">{selectedDate}</span></h4>
+                            <div className="grid grid-cols-2 gap-2">
+                                {ALL_TIME_SLOTS.map(time => {
+                                    const isChecked = availableTimesForSelectedDate.has(time);
+                                    return (
+                                        <label key={time} className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors ${isChecked ? 'bg-green-500/20' : 'bg-zinc-700 hover:bg-zinc-600'}`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => handleTimeSlotToggle(time)}
+                                                className="w-4 h-4 rounded text-orange-500 bg-zinc-600 border-zinc-500 focus:ring-orange-500 focus:ring-offset-zinc-800"
+                                            />
+                                            <span className={`font-semibold ${isChecked ? 'text-green-300' : 'text-slate-300'}`}>{time}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center h-full bg-zinc-900/50 rounded-lg">
+                            <p className="text-slate-400">Select a date to edit times.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
@@ -382,11 +596,11 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 </aside>
                 <main className="flex-1">
                     {activeTab === 'dashboard' && <DashboardContent {...props} />}
-                    {activeTab === 'availability' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Availability Management coming soon.</div>}
-                    {activeTab === 'wallet' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Wallet & Transactions coming soon.</div>}
+                    {activeTab === 'availability' && <AvailabilityContent stoodio={stoodio} onUpdateStoodio={onUpdateStoodio} />}
+                    {activeTab === 'wallet' && <WalletContent stoodio={stoodio} />}
                     {activeTab === 'photos' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Photo Gallery Management coming soon.</div>}
                     {activeTab === 'following' && <FollowingContent {...props} />}
-                    {activeTab === 'followers' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Followers list coming soon.</div>}
+                    {activeTab === 'followers' && <FollowersContent {...props} />}
                 </main>
             </div>
         </div>

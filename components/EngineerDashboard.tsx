@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Engineer, Review, Booking, Artist, Location, Stoodio, LinkAttachment, Comment, Post, Transaction } from '../types';
 import { BookingStatus } from '../types';
 import { EditIcon, DollarSignIcon, StarIcon, CalendarIcon, UsersIcon, SoundWaveIcon, UserGroupIcon, PhotoIcon, UserCheckIcon, UserPlusIcon, HouseIcon, MicrophoneIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
@@ -68,6 +68,21 @@ const ToggleSwitch: React.FC<{
 );
 
 const ProfileSettingsCard: React.FC<{ engineer: Engineer; onUpdateEngineer: (updates: Partial<Engineer>) => void }> = ({ engineer, onUpdateEngineer }) => {
+    const [rate, setRate] = useState(engineer.minHourlyRate?.toString() ?? '45');
+    
+    useEffect(() => {
+        setRate(engineer.minHourlyRate?.toString() ?? '45');
+    }, [engineer.minHourlyRate]);
+
+    const handleRateBlur = () => {
+        const newRate = parseFloat(rate);
+        if (!isNaN(newRate) && newRate >= 0) {
+            onUpdateEngineer({ minHourlyRate: newRate });
+        } else {
+            setRate(engineer.minHourlyRate?.toString() ?? '45');
+        }
+    };
+    
     return (
         <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
             <h3 className="text-xl font-bold text-slate-100 mb-2">Profile Settings</h3>
@@ -100,6 +115,25 @@ const ProfileSettingsCard: React.FC<{ engineer: Engineer; onUpdateEngineer: (upd
                     checked={engineer.notificationsEnabled ?? true}
                     onChange={(checked) => onUpdateEngineer({ notificationsEnabled: checked })}
                 />
+                <div className="flex items-center justify-between py-3">
+                    <div>
+                        <span className="font-semibold text-slate-300">Minimum Hourly Rate</span>
+                        <p className="text-xs text-slate-500 max-w-xs">Set your minimum required pay per hour for sessions.</p>
+                    </div>
+                    <div className="relative ml-4">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">$</span>
+                        <input 
+                            type="number"
+                            value={rate}
+                            onChange={(e) => setRate(e.target.value)}
+                            onBlur={handleRateBlur}
+                            className="w-24 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 pl-7 text-right font-semibold focus:ring-orange-500 focus:border-orange-500"
+                            min="0"
+                            step="1"
+                            aria-label="Minimum hourly rate"
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     );
