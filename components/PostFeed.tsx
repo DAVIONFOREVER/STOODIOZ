@@ -1,0 +1,42 @@
+import React from 'react';
+import type { Post, Artist, Engineer, Stoodio } from '../types';
+import PostCard from './PostCard';
+
+interface PostFeedProps {
+    posts: Post[];
+    authors: Map<string, Artist | Engineer | Stoodio>;
+    onLikePost: (postId: string) => void;
+    onCommentOnPost: (postId: string, text: string) => void;
+    currentUser: Artist | Engineer | Stoodio | null;
+}
+
+const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onCommentOnPost, currentUser }) => {
+    if (!posts || posts.length === 0) {
+        return (
+            <div className="text-center text-slate-500 py-12 bg-white rounded-2xl shadow-lg border border-slate-200">
+                <p>No posts to display yet.</p>
+            </div>
+        );
+    }
+    
+    return (
+        <div className="space-y-6">
+            {posts.map(post => {
+                const author = authors.get(post.authorId);
+                if (!author || !currentUser) return null; // Don't render post if author or currentUser isn't found
+                return (
+                    <PostCard 
+                        key={post.id} 
+                        post={post} 
+                        author={author} 
+                        onLikePost={onLikePost}
+                        onCommentOnPost={onCommentOnPost}
+                        currentUser={currentUser}
+                    />
+                );
+            })}
+        </div>
+    );
+};
+
+export default PostFeed;
