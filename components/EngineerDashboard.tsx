@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import type { Engineer, Review, Booking, Artist, Location, Stoodio, LinkAttachment, Comment, Post } from '../types';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import type { Engineer, Review, Booking, Artist, Location, Stoodio, LinkAttachment, Comment, Post, Transaction } from '../types';
 import { BookingStatus } from '../types';
-import { EditIcon, DollarSignIcon, StarIcon, CalendarIcon, ClockIcon, UsersIcon, SoundWaveIcon, UserCheckIcon, UserPlusIcon, UserGroupIcon, PhotoIcon, CloseCircleIcon, CheckCircleIcon, MessageIcon, LocationIcon, HouseIcon } from './icons';
-import { calculateDistance } from '../utils/location';
+import { EditIcon, DollarSignIcon, StarIcon, CalendarIcon, UsersIcon, SoundWaveIcon, UserGroupIcon, PhotoIcon, UserCheckIcon, UserPlusIcon, HouseIcon, MicrophoneIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
-import TheStage from './TheStage';
 
 interface EngineerDashboardProps {
     engineer: Engineer;
@@ -30,7 +29,7 @@ interface EngineerDashboardProps {
     onStartSession: (booking: Booking) => void;
 }
 
-type DashboardTab = 'dashboard' | 'find_artists' | 'following' | 'followers';
+type DashboardTab = 'dashboard' | 'wallet' | 'following' | 'followers' | 'availability';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800 p-4 rounded-xl shadow-md flex items-center gap-4 border border-zinc-700">
@@ -42,102 +41,15 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.Re
     </div>
 );
 
-const JobCard: React.FC<{
-    booking: Booking & { distance?: number };
-    onAccept?: (id: string) => void;
-    onDeny?: (id: string) => void;
-    onSelectArtist: (artist: Artist) => void;
-    onSelectStoodio: (stoodio: Stoodio) => void;
-    isDirectRequest: boolean;
-}> = ({ booking, onAccept, onDeny, onSelectArtist, onSelectStoodio, isDirectRequest }) => {
-    const engineerPayout = booking.engineerPayRate * booking.duration;
-    const distance = booking.distance || 0;
-
-    const RequesterInfo: React.FC = () => {
-        if (booking.artist) {
-            return (
-                <div className="flex items-center gap-3 mb-2 cursor-pointer group" onClick={() => onSelectArtist(booking.artist!)}>
-                    <img src={booking.artist.imageUrl} alt={booking.artist.name} className="w-10 h-10 rounded-xl object-cover" />
-                    <div>
-                        <p className="font-bold text-slate-100 group-hover:text-orange-400 transition-colors">{booking.artist.name}</p>
-                        <p className="text-sm text-slate-400">{booking.stoodio.location} ({distance.toFixed(1)} miles)</p>
-                    </div>
-                </div>
-            );
-        }
-        // Studio posted job
-        return (
-             <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-zinc-700 flex items-center justify-center">
-                    <HouseIcon className="w-6 h-6 text-slate-400" />
-                </div>
-                <div>
-                    <p className="font-bold text-slate-100">Job Posted by Stoodio</p>
-                    <p className="text-sm text-slate-400">{booking.stoodio.location} ({distance.toFixed(1)} miles)</p>
-                </div>
-            </div>
-        );
-    };
-
-    return (
-        <div className={`bg-zinc-800 rounded-2xl shadow-lg p-5 border-2 ${isDirectRequest ? 'border-orange-500/50' : 'border-zinc-700'}`}>
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-grow">
-                     <RequesterInfo />
-                    <button onClick={() => onSelectStoodio(booking.stoodio)} className="font-bold text-lg text-slate-100 hover:text-orange-400 transition-colors">{booking.stoodio.name}</button>
-                    <div className="flex items-center gap-4 text-sm text-slate-300 mt-1">
-                        <span className="flex items-center gap-1.5"><CalendarIcon className="w-4 h-4"/> {new Date(booking.date + 'T00:00:00').toLocaleDateString()}</span>
-                        <span className="flex items-center gap-1.5"><ClockIcon className="w-4 h-4"/> {booking.startTime} ({booking.duration} hrs)</span>
-                    </div>
-                     {booking.requiredSkills && booking.requiredSkills.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                           {booking.requiredSkills.map(skill => <span key={skill} className="bg-zinc-700 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">{skill}</span>)}
-                        </div>
-                    )}
-                </div>
-                <div className="flex-shrink-0 flex sm:flex-col items-center sm:items-end justify-between">
-                    <div>
-                        <p className="text-slate-400 text-sm text-right">Payout</p>
-                        <p className="text-2xl font-bold text-green-400">${engineerPayout.toFixed(2)}</p>
-                        <p className="text-xs text-slate-400 text-right">(${booking.engineerPayRate}/hr)</p>
-                    </div>
-                    {isDirectRequest ? (
-                        <div className="flex items-center gap-2 mt-2">
-                            <button onClick={() => onDeny?.(booking.id)} className="bg-red-500 text-white font-bold p-2 rounded-full hover:bg-red-600 transition-all shadow-md"><CloseCircleIcon className="w-6 h-6"/></button>
-                            <button onClick={() => onAccept?.(booking.id)} className="bg-green-500 text-white font-bold p-2 rounded-full hover:bg-green-600 transition-all shadow-md"><CheckCircleIcon className="w-6 h-6"/></button>
-                        </div>
-                    ) : (
-                        <button onClick={() => onAccept?.(booking.id)} className="mt-2 bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md">
-                            Accept Job
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const DashboardContent: React.FC<Omit<EngineerDashboardProps, 'onToggleFollow' | 'onStartConversation' | 'allEngineers' | 'allStoodioz' | 'onSelectEngineer'>> = ({ engineer, reviews, bookings, onAcceptBooking, onDenyBooking, onSelectArtist, onSelectStoodio, allArtists, onNavigateToStudio, onPost, onLikePost, onCommentOnPost, currentUser, onStartSession, onUpdateEngineer }) => {
+const DashboardContent: React.FC<Omit<EngineerDashboardProps, 'onToggleFollow' | 'onStartConversation' | 'allEngineers' | 'allStoodioz' | 'onSelectEngineer'>> = ({ engineer, reviews, bookings, onSelectArtist, allArtists, onPost, onLikePost, onCommentOnPost, currentUser, onStartSession, onUpdateEngineer }) => {
     const confirmedBookings = bookings.filter(b => b.engineer?.id === engineer.id && b.status === BookingStatus.CONFIRMED);
     const engineerReviews = reviews.filter(r => !r.stoodioId);
-
-    const travelableDistance = 50;
-    const directRequests = bookings
-        .filter(b => b.status === BookingStatus.PENDING_APPROVAL && b.requestedEngineerId === engineer.id)
-        .map(job => ({...job, distance: calculateDistance(engineer.coordinates, job.stoodio.coordinates)}));
-
-    const openJobs = bookings.filter(b => b.status === BookingStatus.PENDING).map(job => ({
-        ...job,
-        distance: calculateDistance(engineer.coordinates, job.stoodio.coordinates)
-    })).filter(job => job.distance <= travelableDistance);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-                 {/* Create Post */}
                  <CreatePost currentUser={engineer} onPost={onPost} />
                  
-                 {/* Post Feed */}
                  <PostFeed 
                     posts={engineer.posts || []} 
                     authors={new Map([[engineer.id, engineer]])}
@@ -145,34 +57,6 @@ const DashboardContent: React.FC<Omit<EngineerDashboardProps, 'onToggleFollow' |
                     onCommentOnPost={onCommentOnPost}
                     currentUser={currentUser}
                 />
-                 
-                 {/* Direct Requests */}
-                 {directRequests.length > 0 && (
-                    <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-                        <h2 className="text-xl font-bold mb-4 text-slate-100">Direct Requests</h2>
-                         <div className="space-y-4">
-                            {directRequests.map(job => (
-                                <JobCard key={job.id} booking={job} onAccept={onAcceptBooking} onDeny={onDenyBooking} onSelectArtist={onSelectArtist} onSelectStoodio={onSelectStoodio} isDirectRequest={true} />
-                            ))}
-                        </div>
-                    </div>
-                 )}
-
-                 {/* Job Board */}
-                {engineer.isAvailable && (
-                    <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-                        <h2 className="text-xl font-bold mb-4 text-slate-100">Job Board (Nearby)</h2>
-                        {openJobs.length > 0 ? (
-                            <div className="space-y-4">
-                                {openJobs.map(job => (
-                                    <JobCard key={job.id} booking={job} onAccept={onAcceptBooking} onSelectArtist={onSelectArtist} onSelectStoodio={onSelectStoodio} isDirectRequest={false} />
-                                ))}
-                            </div>
-                        ) : (
-                             <p className="text-slate-400 text-sm text-center py-4">No open session requests in your area. Check back soon!</p>
-                        )}
-                    </div>
-                )}
                  <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
                      <h3 className="text-xl font-bold text-slate-100 mb-4">Upcoming Confirmed Sessions</h3>
                      {confirmedBookings.length > 0 ? (
@@ -197,7 +81,6 @@ const DashboardContent: React.FC<Omit<EngineerDashboardProps, 'onToggleFollow' |
                  </div>
             </div>
             <div className="space-y-8">
-                {/* Notification Settings */}
                 <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
                     <h3 className="text-xl font-bold text-slate-100 mb-4">Settings</h3>
                     <label htmlFor="notif-toggle" className="flex items-center justify-between cursor-pointer">
@@ -216,26 +99,9 @@ const DashboardContent: React.FC<Omit<EngineerDashboardProps, 'onToggleFollow' |
                     </label>
                 </div>
                 <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-                    <h3 className="text-xl font-bold text-slate-100 mb-4">Wallet</h3>
-                    <p className="text-slate-400 text-sm">Current Balance</p>
-                    <p className="text-4xl font-bold text-green-400 mb-4">${engineer.walletBalance.toFixed(2)}</p>
-                    <button className="w-full bg-zinc-700 text-slate-200 font-semibold py-2 px-3 rounded-lg hover:bg-zinc-600 text-sm mb-6">Withdraw Funds</button>
-                     <h4 className="font-semibold text-slate-300 mb-2 text-sm">Recent Transactions</h4>
-                     <ul className="space-y-2">
-                        {engineer.walletTransactions.slice(0, 4).map(tx => (
-                            <li key={tx.id} className="flex justify-between text-sm">
-                                <span className="text-slate-300">{tx.description}</span>
-                                <span className={`font-semibold ${tx.type === 'debit' ? 'text-red-400' : 'text-green-400'}`}>
-                                    {tx.type === 'debit' ? '-' : '+'}${Math.abs(tx.amount).toFixed(2)}
-                                </span>
-                            </li>
-                        ))}
-                     </ul>
-                </div>
-                <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
                      <h3 className="text-xl font-bold text-slate-100 mb-4">Recent Reviews</h3>
                      <ul className="space-y-5">
-                        {engineerReviews.map(review => {
+                        {engineerReviews.slice(0, 3).map(review => {
                             const artist = review.artistId ? allArtists.find(a => a.id === review.artistId) : null;
                             return (
                                 <li key={review.id} className="border-b border-zinc-700 pb-4 last:border-b-0">
@@ -253,79 +119,226 @@ const DashboardContent: React.FC<Omit<EngineerDashboardProps, 'onToggleFollow' |
                                         </div>
                                     </div>
                                     <p className="text-sm text-slate-300">"{review.comment}"</p>
-                                    <p className="text-xs text-slate-500 mt-2 text-right">{review.date}</p>
+                                    <p className="text-xs text-slate-400 mt-2 text-right">{review.date}</p>
                                 </li>
                             );
                         })}
-                     </ul>
+                    </ul>
                 </div>
             </div>
         </div>
     );
-}
+};
 
-const FindArtistsContent: React.FC<Pick<EngineerDashboardProps, 'allArtists' | 'onSelectArtist' | 'onStartConversation'>> = ({ allArtists, onSelectArtist, onStartConversation }) => {
-    const seekingArtists = allArtists.filter(a => a.isSeekingSession);
+const AvailabilityContent: React.FC<Pick<EngineerDashboardProps, 'engineer' | 'onUpdateEngineer'>> = ({ engineer, onUpdateEngineer }) => {
+    const [viewDate, setViewDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [newTime, setNewTime] = useState('');
+
+    const availabilityMap = useMemo(() => 
+        new Map((engineer.availability || []).map(item => [item.date, item.times])), 
+        [engineer.availability]
+    );
+
+    const handleDateClick = (day: Date) => {
+        setSelectedDate(day);
+    };
+
+    const handleAddTime = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!/^\d{2}:\d{2}$/.test(newTime)) {
+            alert("Please enter time in 24-hour HH:MM format (e.g., 14:00).");
+            return;
+        }
+        
+        const dateString = selectedDate.toISOString().split('T')[0];
+        const currentTimes = availabilityMap.get(dateString) || [];
+
+        if (currentTimes.includes(newTime)) {
+            alert("This time slot already exists for this date.");
+            return;
+        }
+
+        const updatedTimes = [...currentTimes, newTime].sort();
+        
+        const newAvailability = [...(engineer.availability || [])];
+        const dayIndex = newAvailability.findIndex(d => d.date === dateString);
+
+        if (dayIndex !== -1) {
+            newAvailability[dayIndex].times = updatedTimes;
+        } else {
+            newAvailability.push({ date: dateString, times: updatedTimes });
+        }
+        
+        onUpdateEngineer({ availability: newAvailability.sort((a,b) => a.date.localeCompare(b.date)) });
+        setNewTime('');
+    };
+
+    const handleRemoveTime = (timeToRemove: string) => {
+        const dateString = selectedDate.toISOString().split('T')[0];
+        const currentTimes = availabilityMap.get(dateString) || [];
+        const updatedTimes = currentTimes.filter(t => t !== timeToRemove);
+        
+        let newAvailability = [...(engineer.availability || [])];
+        const dayIndex = newAvailability.findIndex(d => d.date === dateString);
+
+        if (dayIndex !== -1) {
+            if (updatedTimes.length > 0) {
+                newAvailability[dayIndex].times = updatedTimes;
+            } else {
+                newAvailability = newAvailability.filter(d => d.date !== dateString);
+            }
+        }
+        
+        onUpdateEngineer({ availability: newAvailability });
+    };
+
+    const startOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+    const endOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+    const startDayOfWeek = startOfMonth.getDay();
+    const daysInMonth = Array.from({ length: endOfMonth.getDate() }, (_, i) => new Date(viewDate.getFullYear(), viewDate.getMonth(), i + 1));
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const selectedDateString = selectedDate.toISOString().split('T')[0];
+
     return (
-        <div>
-            <h2 className="text-3xl font-bold mb-6 text-slate-100">Artists Seeking Sessions</h2>
-            {seekingArtists.length > 0 ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {seekingArtists.map(artist => (
-                        <div key={artist.id} className="bg-zinc-800 rounded-xl shadow-lg p-4 flex flex-col gap-4 border border-zinc-700">
-                             <div className="flex items-center gap-4">
-                                <img src={artist.imageUrl} alt={artist.name} className="w-16 h-16 object-cover rounded-xl flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <button onClick={() => onSelectArtist(artist)} className="font-bold text-lg hover:text-orange-400 transition-colors text-left text-slate-100">{artist.name}</button>
-                                    <p className="text-sm text-slate-400 truncate">{artist.bio.substring(0,50)}...</p>
+        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
+            <h2 className="text-3xl font-bold mb-6 text-slate-100">Manage Availability</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-zinc-900/50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
+                        <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
+                            <ChevronLeftIcon className="w-5 h-5 text-slate-400" />
+                        </button>
+                        <h3 className="font-bold text-lg text-slate-100">
+                            {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                        </h3>
+                        <button onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
+                            <ChevronRightIcon className="w-5 h-5 text-slate-400" />
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 text-center text-sm text-slate-400 mb-2">
+                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => <div key={day}>{day}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                        {Array(startDayOfWeek).fill(null).map((_, i) => <div key={`empty-${i}`} />)}
+                        {daysInMonth.map(day => {
+                            const dateString = day.toISOString().split('T')[0];
+                            const isAvailable = availabilityMap.has(dateString);
+                            const isPast = day < today;
+                            const isSelected = dateString === selectedDateString;
+                            
+                            let dayClasses = "w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 text-sm";
+                            if (isPast) dayClasses += " text-slate-600 cursor-not-allowed";
+                            else {
+                                dayClasses += " cursor-pointer";
+                                if (isSelected) dayClasses += " bg-orange-500 text-white font-bold ring-2 ring-orange-400";
+                                else if (isAvailable) dayClasses += " bg-orange-500/20 text-orange-300 hover:bg-orange-500/40";
+                                else dayClasses += " text-slate-300 hover:bg-zinc-700";
+                            }
+                            return (
+                                <div key={dateString} onClick={() => !isPast && handleDateClick(day)} className={dayClasses}>
+                                    {day.getDate()}
                                 </div>
-                             </div>
-                             <button onClick={() => onStartConversation(artist)} className="w-full bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-all text-sm flex items-center justify-center gap-2">
-                                <MessageIcon className="w-4 h-4" />
-                                Message
-                             </button>
-                        </div>
-                    ))}
-                 </div>
-            ) : (
-                <p className="text-slate-400 text-center py-8">No artists are actively seeking sessions right now.</p>
-            )}
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="bg-zinc-900/50 p-4 rounded-lg">
+                    <h3 className="font-bold text-lg text-slate-100 mb-4 text-center">
+                        Slots for {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                    </h3>
+                    <div className="max-h-48 overflow-y-auto pr-2 space-y-2">
+                        {(availabilityMap.get(selectedDateString) || []).length > 0 ? (
+                            (availabilityMap.get(selectedDateString) || []).sort().map(time => (
+                                <div key={time} className="flex items-center justify-between bg-zinc-700 p-2 rounded-md">
+                                    <span className="font-semibold text-slate-200">{time}</span>
+                                    <button onClick={() => handleRemoveTime(time)} className="text-red-400 hover:text-red-300">
+                                        <CloseIcon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-slate-500 text-center py-4">No time slots for this date.</p>
+                        )}
+                    </div>
+                    <form onSubmit={handleAddTime} className="mt-4 pt-4 border-t border-zinc-700 flex items-center gap-2">
+                        <input
+                            type="time"
+                            value={newTime}
+                            onChange={e => setNewTime(e.target.value)}
+                            className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500"
+                            required
+                        />
+                        <button type="submit" className="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-all">
+                            Add
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     );
 };
 
-const FollowersContent: React.FC<Pick<EngineerDashboardProps, 'engineer' | 'allArtists' | 'onToggleFollow' | 'onSelectArtist'>> = ({ engineer, allArtists, onToggleFollow, onSelectArtist }) => {
-    const followers = allArtists.filter(a => a.following.engineers.includes(engineer.id));
+const WalletContent: React.FC<{ engineer: Engineer }> = ({ engineer }) => {
+    return (
+        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
+            <h2 className="text-3xl font-bold mb-2 text-slate-100">Wallet</h2>
+            <p className="text-slate-400 text-sm mb-6">Manage your earnings and transactions.</p>
+            
+            <div className="bg-zinc-900/50 p-6 rounded-lg mb-6">
+                <p className="text-slate-400 text-sm">Current Balance</p>
+                <p className="text-5xl font-bold text-green-400">${engineer.walletBalance.toFixed(2)}</p>
+            </div>
+            
+            <div className="flex gap-4 mb-8">
+                 <button className="w-full bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 text-sm">Withdraw Funds</button>
+                 <button className="w-full bg-zinc-700 text-slate-200 font-semibold py-2 px-4 rounded-lg hover:bg-zinc-600 text-sm">View Statements</button>
+            </div>
+
+            <div>
+                 <h3 className="font-semibold text-slate-200 mb-3">All Transactions</h3>
+                 <ul className="space-y-3">
+                    {engineer.walletTransactions.length > 0 ? engineer.walletTransactions.map((tx: Transaction) => (
+                        <li key={tx.id} className="flex justify-between items-center bg-zinc-700/50 p-3 rounded-md">
+                            <div>
+                                <p className="font-medium text-slate-200">{tx.description}</p>
+                                <p className="text-xs text-slate-400">{new Date(tx.date).toLocaleDateString()}</p>
+                            </div>
+                            <span className={`font-semibold text-lg ${tx.type === 'debit' ? 'text-red-400' : 'text-green-400'}`}>
+                                {tx.type === 'debit' ? '-' : '+'}${Math.abs(tx.amount).toFixed(2)}
+                            </span>
+                        </li>
+                    )) : <p className="text-sm text-slate-500 text-center py-4">No transactions yet.</p>}
+                 </ul>
+            </div>
+        </div>
+    );
+};
+
+const ProfileCard: React.FC<{ profile: Stoodio | Engineer | Artist; type: 'stoodio' | 'engineer' | 'artist'; onClick: () => void; }> = ({ profile, type, onClick }) => {
+    let icon;
+    let details;
+    if (type === 'stoodio') {
+        icon = <HouseIcon className="w-4 h-4" />;
+        details = (profile as Stoodio).location;
+    } else if (type === 'engineer') {
+        icon = <SoundWaveIcon className="w-4 h-4" />;
+        details = (profile as Engineer).specialties.join(', ');
+    } else {
+        icon = <MicrophoneIcon className="w-4 h-4" />;
+        details = (profile as Artist).bio;
+    }
 
     return (
-         <div>
-            <h2 className="text-3xl font-bold mb-6 text-slate-100">Artist Followers</h2>
-            {followers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {followers.map(follower => {
-                        const isFollowingBack = engineer.following.artists.includes(follower.id);
-                        return (
-                            <div key={follower.id} className="bg-zinc-800 rounded-xl shadow-lg p-4 flex items-center gap-4 border border-zinc-700">
-                                <img src={follower.imageUrl} alt={follower.name} className="w-20 h-20 object-cover rounded-xl flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <button onClick={() => onSelectArtist(follower)} className="font-bold text-lg hover:text-orange-400 transition-colors text-left text-slate-100">{follower.name}</button>
-                                    <p className="text-sm text-slate-400 truncate">{follower.bio.substring(0,50)}...</p>
-                                </div>
-                                <button 
-                                    onClick={() => onToggleFollow('artist', follower.id)}
-                                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 ${isFollowingBack ? 'bg-orange-500 text-white' : 'bg-zinc-600 text-slate-200 hover:bg-zinc-500'}`}
-                                >
-                                    {isFollowingBack ? <UserCheckIcon className="w-4 h-4" /> : <UserPlusIcon className="w-4 h-4" />}
-                                    {isFollowingBack ? 'Following' : 'Follow Back'}
-                                </button>
-                            </div>
-                        );
-                    })}
-                </div>
-            ) : (
-                <p className="text-slate-400">No artists are following you yet.</p>
-            )}
-        </div>
+        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-700/50 p-3 rounded-lg hover:bg-zinc-700 transition-colors text-left">
+            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+            <div className="flex-grow overflow-hidden">
+                <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
+                <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
+            </div>
+        </button>
     );
 };
 
@@ -337,72 +350,55 @@ const FollowingContent: React.FC<Pick<EngineerDashboardProps, 'engineer' | 'allA
     return (
         <div className="space-y-12">
             <div>
-                <h2 className="text-3xl font-bold mb-6 text-slate-100">Followed Stoodioz</h2>
-                {followedStoodioz.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {followedStoodioz.map(s => (
-                            <div key={s.id} className="bg-zinc-800 rounded-xl shadow-lg p-4 flex items-center gap-4 border border-zinc-700">
-                                <img src={s.imageUrl} alt={s.name} className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <button onClick={() => onSelectStoodio(s)} className="font-bold text-lg text-slate-100 hover:text-orange-400 transition-colors text-left">{s.name}</button>
-                                    <p className="text-sm text-slate-400 flex items-center gap-1.5 mt-1"><LocationIcon className="w-4 h-4"/>{s.location}</p>
-                                </div>
-                                <button onClick={() => onToggleFollow('stoodio', s.id)} className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 bg-orange-500 text-white"><UserCheckIcon className="w-4 h-4" />Following</button>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-slate-400">You're not following any stoodioz yet.</p>
-                )}
-            </div>
-             <div>
-                <h2 className="text-3xl font-bold mb-6 text-slate-100">Followed Engineers</h2>
-                {followedEngineers.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {followedEngineers.map(e => (
-                            <div key={e.id} className="bg-zinc-800 rounded-xl shadow-lg p-4 flex items-center gap-4 border border-zinc-700">
-                                <img src={e.imageUrl} alt={e.name} className="w-20 h-20 object-cover rounded-xl flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <button onClick={() => onSelectEngineer(e)} className="font-bold text-lg text-slate-100 hover:text-orange-400 transition-colors text-left">{e.name}</button>
-                                    <p className="text-sm text-slate-400 truncate">{e.specialties.join(', ')}</p>
-                                </div>
-                                <button onClick={() => onToggleFollow('engineer', e.id)} className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 bg-orange-500 text-white"><UserCheckIcon className="w-4 h-4" />Following</button>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-slate-400">You're not following any other engineers yet.</p>
-                )}
-            </div>
-            <div>
                 <h2 className="text-3xl font-bold mb-6 text-slate-100">Followed Artists</h2>
                 {followedArtists.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {followedArtists.map(artist => (
-                             <div key={artist.id} className="bg-zinc-800 rounded-xl shadow-lg p-4 flex items-center gap-4 border border-zinc-700">
-                                <img src={artist.imageUrl} alt={artist.name} className="w-20 h-20 object-cover rounded-xl flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <button onClick={() => onSelectArtist(artist)} className="font-bold text-lg text-slate-100 hover:text-orange-400 transition-colors text-left">{artist.name}</button>
-                                    <p className="text-sm text-slate-400 truncate">{artist.bio.substring(0,50)}...</p>
-                                </div>
-                                <button onClick={() => onToggleFollow('artist', artist.id)} className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 bg-orange-500 text-white"><UserCheckIcon className="w-4 h-4" />Following</button>
-                            </div>
-                        ))}
+                        {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
                     </div>
-                ) : (
-                    <p className="text-slate-400">You're not following any artists yet.</p>
-                )}
+                ) : <p className="text-slate-400">Not following any artists.</p>}
+            </div>
+            <div>
+                <h2 className="text-3xl font-bold mb-6 text-slate-100">Followed Engineers</h2>
+                {followedEngineers.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
+                    </div>
+                ) : <p className="text-slate-400">Not following any other engineers.</p>}
+            </div>
+            <div>
+                <h2 className="text-3xl font-bold mb-6 text-slate-100">Followed Stoodioz</h2>
+                {followedStoodioz.length > 0 ? (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
+                    </div>
+                ) : <p className="text-slate-400">Not following any stoodioz.</p>}
             </div>
         </div>
     );
 };
 
+const FollowersContent: React.FC<Pick<EngineerDashboardProps, 'engineer' | 'allArtists' | 'onSelectArtist'>> = ({ engineer, allArtists, onSelectArtist }) => {
+    const followers = allArtists.filter(a => a.following.engineers.includes(engineer.id));
+
+    return (
+         <div>
+            <h2 className="text-3xl font-bold mb-6 text-slate-100">Artist Followers</h2>
+            {followers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {followers.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
+                </div>
+            ) : <p className="text-slate-400">No artists are following you yet.</p>}
+        </div>
+    );
+};
+
+
 const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
-    const { engineer, bookings, allArtists, onUpdateEngineer } = props;
+    const { engineer, onUpdateEngineer, reviews } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [editedBio, setEditedBio] = useState(engineer.bio);
-
+    
     useEffect(() => {
         setEditedBio(engineer.bio);
     }, [engineer.bio]);
@@ -413,22 +409,9 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
     };
 
     const handleUpdatePhoto = () => {
-        const newSeed = `${engineer.id}-updated-${Date.now()}`;
+        const newSeed = `eng-updated-${Date.now()}`;
         onUpdateEngineer({ imageUrl: `https://picsum.photos/seed/${newSeed}/200` });
     };
-
-    const handleToggle = (key: keyof Engineer, value: boolean) => {
-        onUpdateEngineer({ [key]: value });
-    };
-    
-    const totalEarnings = bookings.reduce((acc, b) => {
-        if (b.engineer?.id === engineer.id && b.status === BookingStatus.COMPLETED) {
-            return acc + (b.engineerPayRate * b.duration) + (b.tip || 0);
-        }
-        return acc;
-    }, 0);
-    const followersCount = allArtists.filter(a => a.following.engineers.includes(engineer.id)).length;
-    const followingCount = engineer.following.artists.length + engineer.following.engineers.length + engineer.following.stoodioz.length;
     
     const TabButton: React.FC<{tab: DashboardTab, label: string, icon: React.ReactNode}> = ({ tab, label, icon }) => (
         <button 
@@ -446,11 +429,11 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
 
     return (
         <div>
-            {/* Header */}
+            {/* Header section */}
             <div className="flex flex-col md:flex-row gap-6 md:items-start mb-8">
-                <div className="relative group flex-shrink-0">
+                 <div className="relative group flex-shrink-0">
                     <img src={engineer.imageUrl} alt={engineer.name} className="w-32 h-32 object-cover rounded-xl shadow-md border-4 border-zinc-700" />
-                     <button onClick={handleUpdatePhoto} className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={handleUpdatePhoto} className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
                         <PhotoIcon className="w-8 h-8"/>
                     </button>
                 </div>
@@ -470,72 +453,60 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                             </div>
                         </div>
                      ) : (
-                        <p className="text-slate-500 mt-2 max-w-xl">{engineer.bio}</p>
+                        <p className="text-slate-400 mt-2 max-w-xl">{engineer.bio}</p>
                      )}
                 </div>
-                 <div className="flex flex-col gap-4 items-start md:items-end w-full md:w-auto">
-                     {!isEditingBio && (
-                         <button 
+                <div className="flex flex-col gap-4 items-end">
+                    {!isEditingBio && (
+                        <button 
                             onClick={() => setIsEditingBio(true)}
-                            className="w-full md:w-auto flex-shrink-0 flex items-center justify-center gap-2 text-sm font-semibold text-orange-400 hover:text-orange-300 bg-zinc-800 border border-zinc-600 hover:bg-zinc-700 px-4 py-2 rounded-lg transition-colors"
+                            className="flex-shrink-0 flex items-center gap-2 text-sm font-semibold text-orange-400 hover:text-orange-300 bg-zinc-800 border border-zinc-600 hover:bg-zinc-700 px-4 py-2 rounded-lg transition-colors"
                         >
                             <EditIcon className="w-4 h-4" /> Edit Bio
                         </button>
                      )}
-                    <label htmlFor="availability-toggle" className="w-full md:w-auto flex items-center justify-between cursor-pointer bg-zinc-800 border border-zinc-600 px-4 py-2 rounded-lg">
+                     <label htmlFor="available-toggle" className="flex items-center cursor-pointer bg-zinc-800 border border-zinc-600 px-4 py-2 rounded-lg">
                         <span className="mr-3 font-semibold text-slate-300 text-sm">Available for Sessions</span>
                         <div className="relative">
-                            <input 
-                                type="checkbox" 
-                                id="availability-toggle" 
-                                className="sr-only peer" 
+                            <input
+                                type="checkbox"
+                                id="available-toggle"
+                                className="sr-only peer"
                                 checked={engineer.isAvailable}
-                                onChange={(e) => handleToggle('isAvailable', e.target.checked)}
+                                onChange={(e) => onUpdateEngineer({ isAvailable: e.target.checked })}
                             />
                             <div className="block bg-zinc-600 w-12 h-6 rounded-full peer-checked:bg-green-500 transition"></div>
                             <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-6"></div>
                         </div>
                     </label>
-                     <label htmlFor="location-toggle" className="w-full md:w-auto flex items-center justify-between cursor-pointer bg-zinc-800 border border-zinc-600 px-4 py-2 rounded-lg">
-                        <span className="mr-3 font-semibold text-slate-300 text-sm">Show Exact Location on Map</span>
-                        <div className="relative">
-                            <input 
-                                type="checkbox" 
-                                id="location-toggle" 
-                                className="sr-only peer" 
-                                checked={engineer.displayExactLocation}
-                                onChange={(e) => handleToggle('displayExactLocation', e.target.checked)}
-                            />
-                            <div className="block bg-zinc-600 w-12 h-6 rounded-full peer-checked:bg-green-500 transition"></div>
-                            <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-6"></div>
-                        </div>
-                    </label>
-                 </div>
+                </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard label="Wallet Balance" value={`$${engineer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-orange-400"/>} />
-                <StatCard label="Followers" value={followersCount.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-orange-400"/>} />
-                <StatCard label="Following" value={followingCount.toLocaleString()} icon={<UserGroupIcon className="w-6 h-6 text-orange-400"/>} />
-                <StatCard label="Total Bookings" value={bookings.filter(b=>b.engineer?.id === engineer.id).length} icon={<CalendarIcon className="w-6 h-6 text-orange-400"/>} />
+            {/* Stats section */}
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <StatCard label="Overall Rating" value={engineer.rating.toFixed(1)} icon={<StarIcon className="w-6 h-6 text-orange-400" />} />
+                <StatCard label="Sessions Completed" value={engineer.sessionsCompleted} icon={<UserGroupIcon className="w-6 h-6 text-orange-400" />} />
+                <StatCard label="Followers" value={engineer.followers.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-orange-400" />} />
+                <StatCard label="Wallet Balance" value={`$${engineer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-orange-400" />} />
             </div>
 
-            {/* Content Grid */}
+            {/* Main content grid with sidebar */}
             <div className="flex flex-col md:flex-row gap-8 mt-10">
                 <aside className="md:w-1/4 lg:w-1/5">
                     <nav className="flex flex-col space-y-2">
                         <TabButton tab="dashboard" label="Dashboard" icon={<SoundWaveIcon className="w-5 h-5"/>} />
-                        <TabButton tab="find_artists" label="Find Artists" icon={<UsersIcon className="w-5 h-5"/>} />
+                        <TabButton tab="wallet" label="Wallet" icon={<DollarSignIcon className="w-5 h-5"/>} />
                         <TabButton tab="following" label="Following" icon={<UserCheckIcon className="w-5 h-5"/>} />
                         <TabButton tab="followers" label="Followers" icon={<UsersIcon className="w-5 h-5"/>} />
+                        <TabButton tab="availability" label="Availability" icon={<CalendarIcon className="w-5 h-5"/>} />
                     </nav>
                 </aside>
                 <main className="flex-1">
                     {activeTab === 'dashboard' && <DashboardContent {...props} />}
-                    {activeTab === 'find_artists' && <FindArtistsContent {...props} />}
+                    {activeTab === 'wallet' && <WalletContent engineer={engineer} />}
                     {activeTab === 'following' && <FollowingContent {...props} />}
                     {activeTab === 'followers' && <FollowersContent {...props} />}
+                    {activeTab === 'availability' && <AvailabilityContent engineer={engineer} onUpdateEngineer={onUpdateEngineer} />}
                 </main>
             </div>
         </div>

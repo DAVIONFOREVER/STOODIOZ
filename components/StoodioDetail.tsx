@@ -1,6 +1,9 @@
 
+
+
 import React, { useState } from 'react';
 import type { Stoodio, Artist, Review, Booking, Engineer, Comment, LinkAttachment, Post } from '../types';
+import { UserRole } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
 import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, LocationIcon } from './icons';
@@ -15,6 +18,7 @@ interface StoodioDetailProps {
     onBook: (date: string, time: string) => void;
     onBack: () => void;
     currentUser: Artist | Engineer | Stoodio | null;
+    userRole: UserRole | null;
     onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist', id: string) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
@@ -54,7 +58,7 @@ const ProfileCard: React.FC<{
 };
 
 
-const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, bookings, allArtists, allEngineers, allStoodioz, onBook, onBack, currentUser, onToggleFollow, onSelectArtist, onSelectEngineer, onSelectStoodio, onStartConversation, onLikePost, onCommentOnPost }) => {
+const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, bookings, allArtists, allEngineers, allStoodioz, onBook, onBack, currentUser, userRole, onToggleFollow, onSelectArtist, onSelectEngineer, onSelectStoodio, onStartConversation, onLikePost, onCommentOnPost }) => {
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ date: string, time: string } | null>(null);
     const isFollowing = currentUser && 'following' in currentUser ? (currentUser.following.stoodioz || []).includes(stoodio.id) : false;
 
@@ -76,6 +80,15 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
         } else {
             setSelectedTimeSlot({ date, time });
         }
+    };
+
+    const isBookingDisabled = !selectedTimeSlot || !currentUser || userRole === UserRole.STOODIO;
+
+    const getButtonText = (mobile: boolean = false) => {
+        if (!currentUser) return 'Login to Book';
+        if (userRole === UserRole.STOODIO) return 'Stoodioz Cannot Book';
+        if (!selectedTimeSlot) return 'Select a Time Slot';
+        return mobile ? `Book for ${selectedTimeSlot.time}` : `Book Session: ${selectedTimeSlot.time}`;
     };
     
     return (
@@ -238,9 +251,9 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
                         <div className="hidden lg:block mt-6">
                             <button 
                                 onClick={() => selectedTimeSlot && onBook(selectedTimeSlot.date, selectedTimeSlot.time)}
-                                disabled={!selectedTimeSlot || !currentUser}
+                                disabled={isBookingDisabled}
                                 className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
-                                {currentUser ? (selectedTimeSlot ? `Book Session: ${selectedTimeSlot.time}` : 'Select a Time Slot') : 'Login to Book'}
+                                {getButtonText()}
                             </button>
                         </div>
                     </div>
@@ -251,9 +264,9 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
             <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-zinc-900/90 backdrop-blur-sm p-4 border-t border-zinc-700 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)]">
                  <button 
                     onClick={() => selectedTimeSlot && onBook(selectedTimeSlot.date, selectedTimeSlot.time)}
-                    disabled={!selectedTimeSlot || !currentUser}
+                    disabled={isBookingDisabled}
                     className="w-full bg-orange-500 text-white font-bold py-4 px-6 rounded-xl hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
-                    {currentUser ? (selectedTimeSlot ? `Book for ${selectedTimeSlot.time}` : 'Select a Time Slot') : 'Login to Book'}
+                    {getButtonText(true)}
                 </button>
             </div>
         </div>
