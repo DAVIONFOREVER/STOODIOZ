@@ -1,5 +1,5 @@
 // FIX: Created mock data for the application. This file was previously a placeholder.
-import { Stoodio, Engineer, Artist, Review, Conversation, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus } from './types';
+import { Stoodio, Engineer, Artist, Review, Conversation, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, Booking } from './types';
 
 export const SERVICE_FEE_PERCENTAGE = 0.15;
 
@@ -40,6 +40,7 @@ export const MOCK_ARTISTS: Artist[] = [
         { title: 'SoundCloud', url: 'https://soundcloud.com/lunavance' },
     ],
     showOnMap: true,
+    isOnline: true,
   },
   {
     id: 'artist-2',
@@ -56,6 +57,7 @@ export const MOCK_ARTISTS: Artist[] = [
     walletBalance: 3200,
     walletTransactions: [],
     showOnMap: true,
+    isOnline: false,
   },
 ];
 
@@ -88,6 +90,7 @@ export const ENGINEERS: Engineer[] = [
         enabled: true,
     },
     minimumPayRate: 45,
+    isOnline: true,
   },
   {
     id: 'eng-2',
@@ -119,6 +122,7 @@ export const ENGINEERS: Engineer[] = [
         enabled: true,
     },
     minimumPayRate: 50,
+    isOnline: false,
   },
 ];
 
@@ -165,6 +169,7 @@ export const STOODIOZ: Stoodio[] = [
     verificationStatus: VerificationStatus.VERIFIED,
     googleBusinessProfileUrl: 'https://maps.app.goo.gl/example',
     websiteUrl: 'https://echochamber.com',
+    isOnline: true,
   },
   {
     id: 'studio-2',
@@ -197,7 +202,28 @@ export const STOODIOZ: Stoodio[] = [
     ],
     showOnMap: true,
     verificationStatus: VerificationStatus.UNVERIFIED,
+    isOnline: false,
   },
+];
+
+export const MOCK_BOOKINGS: Booking[] = [
+    {
+        id: 'BKG-12345',
+        stoodio: STOODIOZ[0],
+        artist: MOCK_ARTISTS[0],
+        engineer: ENGINEERS[0],
+        room: STOODIOZ[0].rooms[0],
+        date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days from now
+        startTime: '14:00',
+        duration: 4,
+        totalCost: 828,
+        engineerPayRate: 65,
+        status: BookingStatus.CONFIRMED,
+        requestType: BookingRequestType.SPECIFIC_ENGINEER,
+        requestedEngineerId: 'eng-1',
+        bookedById: 'artist-1',
+        bookedByRole: UserRole.ARTIST,
+    }
 ];
 
 export const REVIEWS: Review[] = [
@@ -230,6 +256,7 @@ export const CONVERSATIONS: Conversation[] = [
       { id: 'msg-1', senderId: 'artist-1', text: 'Hey Alex! Loved the session last week. When are you free next?', timestamp: new Date(Date.now() - 172800000).toISOString(), type: 'text' },
       { id: 'msg-2', senderId: 'eng-1', text: 'Hey Luna! It was great. I have some openings next Tuesday.', timestamp: new Date(Date.now() - 86400000).toISOString(), type: 'text' },
     ],
+    bookingId: MOCK_BOOKINGS[0].id,
   },
   {
     id: 'convo-2',

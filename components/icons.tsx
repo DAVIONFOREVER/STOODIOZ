@@ -278,3 +278,9 @@ export const VerifiedIcon: React.FC<IconProps & { title?: string }> = ({ title, 
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 21.75l-3.375-3.375L3 16.125V6.375l9-4.125 9 4.125v9.75L15.375 18.375 12 21.75z" />
     </svg>
 );
+
+export const PaperclipIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3.375 3.375 0 0119.5 7.372l-8.552 8.552a1.125 1.125 0 01-1.591-1.591l5.343-5.343" />
+    </svg>
+);

@@ -139,6 +139,7 @@ interface BaseUser {
     walletTransactions: Transaction[];
     posts?: Post[];
     links?: Link[];
+    isOnline?: boolean;
 }
 
 export interface Artist extends BaseUser {
@@ -250,6 +251,7 @@ export interface Conversation {
     participant: Artist | Engineer | Stoodio;
     messages: Message[];
     unreadCount: number;
+    bookingId?: string;
 }
 
 export interface AppNotification {

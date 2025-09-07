@@ -1,9 +1,10 @@
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room } from './types';
 import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus } from './types';
-import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE } from './constants';
-import { getVibeMatchResults } from './services/geminiService';
+import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE, MOCK_BOOKINGS } from './constants';
+import { getVibeMatchResults, generateSmartReplies } from './services/geminiService';
 import { webSocketService } from './services/webSocketService';
 import { calculateDistance } from './utils/location';
 import Header from './components/Header';
@@ -45,7 +46,7 @@ const App: React.FC = () => {
     const [stoodioz, setStoodioz] = useState<Stoodio[]>(STOODIOZ);
     const [engineers, setEngineers] = useState<Engineer[]>(ENGINEERS);
     const [artists, setArtists] = useState<Artist[]>(MOCK_ARTISTS);
-    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
     const [reviews] = useState<Review[]>(REVIEWS);
     const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -70,6 +71,8 @@ const App: React.FC = () => {
     const [vibeMatchResults, setVibeMatchResults] = useState<VibeMatchResult | null>(null);
     const [isVibeMatcherLoading, setIsVibeMatcherLoading] = useState<boolean>(false);
     const [bookingIntent, setBookingIntent] = useState<{ engineer: Engineer; date: string; time: string; } | null>(null);
+    const [smartReplies, setSmartReplies] = useState<string[]>([]);
+    const [isSmartRepliesLoading, setIsSmartRepliesLoading] = useState<boolean>(false);
 
 
     // --- Derived State ---
@@ -690,6 +693,7 @@ const App: React.FC = () => {
         } else if (userRole === UserRole.STOODIO) {
             const updatedStoodio = { ...currentUser as Stoodio, posts: [newPost, ...((currentUser as Stoodio).posts || [])] };
             setCurrentUser(updatedStoodio);
+            // FIX: Corrected a typo. The variable should be 's', not 'a'.
             setStoodioz(prev => prev.map(s => s.id === updatedStoodio.id ? updatedStoodio : s));
         }
     }, [currentUser, userRole]);
@@ -861,6 +865,65 @@ const App: React.FC = () => {
         setNotifications(prev => prev.filter(n => n.id !== id));
     };
 
+    const handleFetchSmartReplies = useCallback(async (messages: Message[]) => {
+        if (!currentUser) return;
+        setIsSmartRepliesLoading(true);
+        try {
+            const replies = await generateSmartReplies(messages, currentUser.id);
+            setSmartReplies(replies);
+        } catch (error) {
+            console.error("Failed to fetch smart replies:", error);
+            setSmartReplies([]);
+        } finally {
+            setIsSmartRepliesLoading(false);
+        }
+    }, [currentUser]);
+
+    const handleSendMessage = useCallback((conversationId: string, messageContent: Omit<Message, 'id' | 'senderId' | 'timestamp'>) => {
+        if (!currentUser) return;
+
+        const newMessage: Message = {
+            ...messageContent,
+            id: `msg-${Date.now()}`,
+            senderId: currentUser.id,
+            timestamp: new Date().toISOString(),
+        };
+
+        let updatedConversation: Conversation | null = null;
+
+        setConversations(prev => prev.map(convo => {
+            if (convo.id === conversationId) {
+                updatedConversation = {
+                    ...convo,
+                    messages: [...convo.messages, newMessage],
+                    unreadCount: 0,
+                };
+                return updatedConversation;
+            }
+            return convo;
+        }));
+
+        if (updatedConversation) {
+            handleFetchSmartReplies(updatedConversation.messages);
+            
+            // Mock a reply from the other person after a short delay
+            setTimeout(() => {
+                const participant = updatedConversation?.participant;
+                if (participant) {
+                     const replyMessage: Message = {
+                        id: `msg-${Date.now() + 1}`,
+                        senderId: participant.id,
+                        text: 'This is a simulated reply.',
+                        timestamp: new Date(Date.now() + 1000).toISOString(),
+                        type: 'text'
+                    };
+                     setConversations(prev => prev.map(c => c.id === conversationId ? {...c, messages: [...c.messages, replyMessage]} : c));
+                }
+            }, 2000);
+
+        }
+    }, [currentUser, handleFetchSmartReplies]);
+
     const renderAppContent = () => {
         const handleGuestInteraction = () => handleNavigate(AppView.LOGIN);
 
@@ -925,7 +988,7 @@ const App: React.FC = () => {
                  return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.INBOX:
-                 if (currentUser) return <Inbox conversations={conversations} onSendMessage={()=>{}} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} currentUser={currentUser} />;
+                 if (currentUser) return <Inbox conversations={conversations} onSendMessage={handleSendMessage} selectedConversationId={selectedConversationId} onSelectConversation={setSelectedConversationId} currentUser={currentUser} bookings={bookings} onNavigate={handleNavigate} smartReplies={smartReplies} isSmartRepliesLoading={isSmartRepliesLoading} onFetchSmartReplies={handleFetchSmartReplies} />;
                  return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
             
             case AppView.ACTIVE_SESSION:

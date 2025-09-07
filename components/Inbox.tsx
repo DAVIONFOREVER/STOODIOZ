@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Conversation, Message, Artist, Stoodio, Engineer } from '../types';
-import { ChevronLeftIcon, PaperAirplaneIcon, PlusCircleIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon } from './icons';
+import type { Conversation, Message, Artist, Stoodio, Engineer, Booking } from '../types';
+import { AppView } from '../types';
+import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon, PaperclipIcon } from './icons';
 import { formatDistanceToNow } from 'date-fns';
+import BookingContextCard from './BookingContextCard';
 
 interface InboxProps {
     conversations: Conversation[];
+    bookings: Booking[];
     onSendMessage: (conversationId: string, messageContent: Omit<Message, 'id' | 'senderId' | 'timestamp'>) => void;
     selectedConversationId: string | null;
     onSelectConversation: (id: string | null) => void;
     currentUser: Artist | Stoodio | Engineer;
+    onNavigate: (view: AppView) => void;
+    smartReplies: string[];
+    isSmartRepliesLoading: boolean;
+    onFetchSmartReplies: (messages: Message[]) => void;
 }
 
 const ConversationList: React.FC<{
@@ -27,17 +34,10 @@ const ConversationList: React.FC<{
                     let lastMessageText = 'No messages yet';
                     if (lastMessage) {
                         switch (lastMessage.type) {
-                            case 'image':
-                                lastMessageText = 'Sent an image';
-                                break;
-                            case 'link':
-                                lastMessageText = 'Sent a link';
-                                break;
-                            case 'audio':
-                                lastMessageText = 'Sent a music file';
-                                break;
-                            default:
-                                lastMessageText = lastMessage.text || '';
+                            case 'image': lastMessageText = 'Sent an image'; break;
+                            case 'link': lastMessageText = 'Sent a link'; break;
+                            case 'audio': lastMessageText = 'Sent a music file'; break;
+                            default: lastMessageText = lastMessage.text || '';
                         }
                     }
 
@@ -47,8 +47,8 @@ const ConversationList: React.FC<{
                             <div className={`p-4 flex items-center gap-4 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-orange-500/10' : 'hover:bg-zinc-700/50'}`}>
                                 <div className="relative flex-shrink-0">
                                     <img src={convo.participant.imageUrl} alt={convo.participant.name} className="w-14 h-14 rounded-xl object-cover"/>
-                                    {convo.unreadCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 text-white bg-orange-500 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full ring-2 ring-zinc-800">{convo.unreadCount}</span>
+                                    {convo.participant.isOnline && (
+                                        <span className="absolute -bottom-1 -right-1 block h-4 w-4 rounded-full bg-green-500 ring-2 ring-zinc-800" title="Online"></span>
                                     )}
                                 </div>
                                 <div className="flex-grow overflow-hidden">
@@ -67,56 +67,18 @@ const ConversationList: React.FC<{
     )
 }
 
-const LinkModal: React.FC<{
-    onSendLink: (title: string, url: string) => void;
-    onClose: () => void;
-}> = ({ onSendLink, onClose }) => {
-    const [title, setTitle] = useState('');
-    const [url, setUrl] = useState('');
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (title.trim() && url.trim()) {
-            onSendLink(title, url);
-        }
-    };
-
-    return (
-        <div className="absolute bottom-20 left-4 right-4 z-20">
-            <form onSubmit={handleSubmit} className="bg-zinc-900 p-4 rounded-lg border border-zinc-700 shadow-xl">
-                <h4 className="font-semibold text-center mb-2">Send a Link</h4>
-                 <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Link Title"
-                    className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-md p-2 mb-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
-                />
-                 <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://example.com"
-                    className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-md p-2 mb-3 focus:ring-orange-500 focus:border-orange-500 text-sm"
-                />
-                 <div className="flex justify-end gap-2">
-                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-md bg-zinc-600 hover:bg-zinc-500">Cancel</button>
-                    <button type="submit" className="px-4 py-2 text-sm rounded-md bg-orange-500 hover:bg-orange-600 text-white">Send</button>
-                </div>
-            </form>
-        </div>
-    );
-}
-
 const ChatThread: React.FC<{
     conversation: Conversation;
+    booking: Booking | null;
     currentUser: Artist | Stoodio | Engineer;
     onSendMessage: (conversationId: string, messageContent: Omit<Message, 'id' | 'senderId' | 'timestamp'>) => void;
     onBack: () => void;
-}> = ({ conversation, currentUser, onSendMessage, onBack }) => {
+    onNavigate: (view: AppView) => void;
+    smartReplies: string[];
+    isSmartRepliesLoading: boolean;
+}> = ({ conversation, booking, currentUser, onSendMessage, onBack, onNavigate, smartReplies, isSmartRepliesLoading }) => {
     const [newMessage, setNewMessage] = useState('');
     const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
-    const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -130,38 +92,34 @@ const ChatThread: React.FC<{
             setNewMessage('');
         }
     }
-
-    const handleSendPhoto = () => {
-        onSendMessage(conversation.id, {
-            type: 'image',
-            imageUrl: `https://picsum.photos/seed/chatimg${Date.now()}/400/300`,
-            text: 'Here is the photo you requested.'
-        });
+    
+    const handleSendAttachment = (type: 'image' | 'audio' | 'link') => {
+        const messageContent: Omit<Message, 'id' | 'senderId' | 'timestamp'> = { type: 'text' }; // default
+        switch(type) {
+            case 'image':
+                messageContent.type = 'image';
+                messageContent.imageUrl = `https://picsum.photos/seed/chatimg${Date.now()}/400/300`;
+                messageContent.text = 'Here is a photo.';
+                break;
+            case 'audio':
+                 messageContent.type = 'audio';
+                 messageContent.text = 'Check out this track.';
+                 messageContent.audioUrl = 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-2-short.mp3';
+                 messageContent.audioInfo = { filename: 'track_idea.mp3', duration: '0:18' };
+                 break;
+            case 'link':
+                 messageContent.type = 'link';
+                 messageContent.link = { title: 'Inspiration Board', url: 'https://www.pinterest.com' };
+                 messageContent.text = 'Here is a link for inspiration.';
+                 break;
+        }
+        onSendMessage(conversation.id, messageContent);
         setIsAttachmentMenuOpen(false);
-    };
-
-    const handleSendMusic = () => {
-        onSendMessage(conversation.id, {
-            type: 'audio',
-            text: 'Here is the track.',
-            audioUrl: 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-1-short.mp3',
-            audioInfo: {
-                filename: 'new_track_demo.mp3',
-                duration: '0:28'
-            }
-        });
-        setIsAttachmentMenuOpen(false);
-    };
-
-    const handleSendLink = (title: string, url: string) => {
-        onSendMessage(conversation.id, {
-            type: 'link',
-            link: { title, url },
-            text: `Check this out: ${title}`
-        });
-        setIsLinkModalOpen(false);
-        setIsAttachmentMenuOpen(false);
-    };
+    }
+    
+    const handleSmartReplyClick = (reply: string) => {
+        onSendMessage(conversation.id, { type: 'text', text: reply });
+    }
 
     return (
         <div className="flex flex-col h-full bg-zinc-800">
@@ -176,6 +134,8 @@ const ChatThread: React.FC<{
             
             {/* Messages */}
             <div className="flex-grow p-4 space-y-4 overflow-y-auto">
+                {booking && <BookingContextCard booking={booking} onNavigate={onNavigate}/>}
+
                 {conversation.messages.length === 0 && (
                     <div className="text-center text-slate-500 text-sm mt-8">
                         This is the beginning of your conversation.
@@ -185,7 +145,7 @@ const ChatThread: React.FC<{
                      const isUser = msg.senderId === currentUser.id;
                      return (
                         <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                            {!isUser && <img src={conversation.participant.imageUrl} className="w-6 h-6 rounded-xl self-start"/>}
+                            {!isUser && <img src={conversation.participant.imageUrl} className="w-6 h-6 rounded-full self-start"/>}
                             <div className={`max-w-xs md:max-w-md lg:max-w-lg p-1 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-slate-100 rounded-bl-lg'}`}>
                                 {msg.type === 'image' && msg.imageUrl && (
                                     <div className="p-2">
@@ -204,10 +164,6 @@ const ChatThread: React.FC<{
                                     <div className="p-3 space-y-2">
                                         {msg.text && <p className="px-1 text-sm">{msg.text}</p>}
                                         <div className="bg-black/20 p-2 rounded-lg">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <MusicNoteIcon className="w-5 h-5 flex-shrink-0" />
-                                                <span className="font-semibold text-sm truncate">{msg.audioInfo.filename}</span>
-                                            </div>
                                             <audio controls src={msg.audioUrl} className="w-full h-8 inbox-audio-player"></audio>
                                         </div>
                                     </div>
@@ -220,25 +176,34 @@ const ChatThread: React.FC<{
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* Smart Replies */}
+            {(isSmartRepliesLoading || smartReplies.length > 0) && (
+                 <div className="px-4 pb-2 flex items-center gap-2 overflow-x-auto">
+                    {isSmartRepliesLoading ? (
+                        <div className="text-sm text-slate-400 italic">Generating replies...</div>
+                    ) : (
+                        smartReplies.map((reply, i) => (
+                            <button key={i} onClick={() => handleSmartReplyClick(reply)} className="flex-shrink-0 text-sm bg-zinc-700 hover:bg-zinc-600 text-slate-200 py-1.5 px-3 rounded-full transition-colors">
+                                {reply}
+                            </button>
+                        ))
+                    )}
+                </div>
+            )}
+
+
             {/* Input Area */}
             <div className="relative p-4 bg-zinc-800 border-t border-zinc-700">
-                {isLinkModalOpen && <LinkModal onSendLink={handleSendLink} onClose={() => setIsLinkModalOpen(false)} />}
-                {isAttachmentMenuOpen && !isLinkModalOpen && (
-                    <div className="absolute bottom-20 left-4 bg-zinc-900 p-2 rounded-lg border border-zinc-700 shadow-xl flex flex-col gap-1 z-20">
-                        <button onClick={handleSendPhoto} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700">
-                            <PhotoIcon className="w-5 h-5 text-slate-300" /> Send Photo
-                        </button>
-                         <button onClick={() => setIsLinkModalOpen(true)} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700">
-                            <LinkIcon className="w-5 h-5 text-slate-300" /> Send Link
-                        </button>
-                        <button onClick={handleSendMusic} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700">
-                            <MusicNoteIcon className="w-5 h-5 text-slate-300" /> Send Music
-                        </button>
+                {isAttachmentMenuOpen && (
+                    <div className="absolute bottom-16 left-4 bg-zinc-900 p-2 rounded-lg border border-zinc-700 shadow-xl flex flex-col gap-1 z-20">
+                        <button onClick={() => handleSendAttachment('image')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PhotoIcon className="w-5 h-5 text-slate-300" /> Send Photo</button>
+                        <button onClick={() => handleSendAttachment('link')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><LinkIcon className="w-5 h-5 text-slate-300" /> Send Link</button>
+                        <button onClick={() => handleSendAttachment('audio')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><MusicNoteIcon className="w-5 h-5 text-slate-300" /> Send Music</button>
                     </div>
                 )}
                 <form onSubmit={handleSubmit} className="flex items-center gap-2">
-                     <button type="button" onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)} className="text-slate-400 hover:text-orange-400 p-2">
-                        {isAttachmentMenuOpen ? <CloseIcon className="w-6 h-6"/> : <PlusCircleIcon className="w-6 h-6" />}
+                     <button type="button" onClick={() => setIsAttachmentMenuOpen(prev => !prev)} className="text-slate-400 hover:text-orange-400 p-2">
+                        <PaperclipIcon className="w-6 h-6"/>
                      </button>
                      <input
                         type="text"
@@ -256,11 +221,20 @@ const ChatThread: React.FC<{
     );
 };
 
-const Inbox: React.FC<InboxProps> = ({ conversations, onSendMessage, selectedConversationId, onSelectConversation, currentUser }) => {
-    const selectedConversation = selectedConversationId ? conversations.find(c => c.id === selectedConversationId) : null;
+const Inbox: React.FC<InboxProps> = ({ conversations, bookings, onSendMessage, selectedConversationId, onSelectConversation, currentUser, onNavigate, smartReplies, isSmartRepliesLoading, onFetchSmartReplies }) => {
     
-    // A simple way to handle responsiveness without resize listeners for this mock app.
-    // In a real app, you'd use CSS or a hook like useMediaQuery.
+    useEffect(() => {
+        if(selectedConversationId) {
+            const convo = conversations.find(c => c.id === selectedConversationId);
+            if (convo) {
+                onFetchSmartReplies(convo.messages);
+            }
+        }
+    }, [selectedConversationId, conversations, onFetchSmartReplies]);
+    
+    const selectedConversation = selectedConversationId ? conversations.find(c => c.id === selectedConversationId) : null;
+    const associatedBooking = selectedConversation?.bookingId ? bookings.find(b => b.id === selectedConversation.bookingId) : null;
+    
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
@@ -284,14 +258,17 @@ const Inbox: React.FC<InboxProps> = ({ conversations, onSendMessage, selectedCon
                 </div>
             )}
             
-            {/* The main chat view area */}
             <div className={`flex-grow ${!showListView ? 'w-full' : 'hidden md:block'}`}>
                 {selectedConversation ? (
                     <ChatThread
                         conversation={selectedConversation}
+                        booking={associatedBooking || null}
                         currentUser={currentUser}
                         onSendMessage={onSendMessage}
-                        onBack={() => onSelectConversation(null)} // This is for mobile view
+                        onBack={() => onSelectConversation(null)}
+                        onNavigate={onNavigate}
+                        smartReplies={smartReplies}
+                        isSmartRepliesLoading={isSmartRepliesLoading}
                     />
                 ) : (
                     <div className="h-full flex items-center justify-center">
@@ -304,18 +281,13 @@ const Inbox: React.FC<InboxProps> = ({ conversations, onSendMessage, selectedCon
             </div>
             
             <style>{`
-                .inbox-audio-player::-webkit-media-controls-panel {
-                    background-color: rgba(0,0,0,0.3);
-                    border-radius: 8px;
-                }
+                .inbox-audio-player::-webkit-media-controls-panel { background-color: rgba(0,0,0,0.3); border-radius: 8px; }
                  .inbox-audio-player::-webkit-media-controls-play-button,
                  .inbox-audio-player::-webkit-media-controls-current-time-display,
                  .inbox-audio-player::-webkit-media-controls-time-remaining-display,
                  .inbox-audio-player::-webkit-media-controls-mute-button,
                  .inbox-audio-player::-webkit-media-controls-volume-slider,
-                 .inbox-audio-player::-webkit-media-controls-timeline {
-                    color: white;
-                }
+                 .inbox-audio-player::-webkit-media-controls-timeline { color: white; }
             `}</style>
         </div>
     );

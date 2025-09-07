@@ -1,6 +1,7 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Engineer, Stoodio, VibeMatchResult } from '../types';
+import type { Engineer, Stoodio, VibeMatchResult, Message } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -104,6 +105,53 @@ export const getVibeMatchResults = async (
     }
 };
 
+export const generateSmartReplies = async (messages: Message[], currentUserId: string): Promise<string[]> => {
+    if (messages.length === 0) return [];
+    
+    const recentMessages = messages
+        .slice(-4) // Get last 4 messages for context
+        .map(m => `${m.senderId === currentUserId ? 'Me' : 'Them'}: ${m.text || '(Sent an attachment)'}`)
+        .join('\n');
+
+    const prompt = `
+        You are an intelligent assistant in a messaging feature for "Stoodioz", a music studio booking app.
+        The conversation is between creative professionals (artists, audio engineers, studio managers).
+        Based on the last few messages, suggest 3 concise, natural-sounding, and relevant replies for "Me".
+        The replies should be helpful for scheduling or discussing creative work.
+        Return the suggestions as a JSON array of 3 unique strings. Do not suggest replies that have already been said.
+
+        Conversation context:
+        ${recentMessages}
+
+        Suggestions for "Me":
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                },
+                temperature: 0.8,
+            },
+        });
+        
+        const resultJson = JSON.parse(response.text);
+        // Ensure it's an array of strings
+        if (Array.isArray(resultJson) && resultJson.every(item => typeof item === 'string')) {
+            return resultJson as string[];
+        }
+        return [];
+    } catch (error) {
+        console.error("Error generating smart replies:", error);
+        // Return an empty array on failure to hide the feature gracefully
+        return [];
+    }
+};
 
 export const generateEngineerProfile = async (): Promise<Engineer> => {
   try {
