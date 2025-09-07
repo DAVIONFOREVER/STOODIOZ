@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Conversation, Message } from '../types';
+import type { Conversation, Message, Artist, Stoodio, Engineer } from '../types';
 import { ChevronLeftIcon, PaperAirplaneIcon, PlusCircleIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon } from './icons';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -8,6 +8,7 @@ interface InboxProps {
     onSendMessage: (conversationId: string, messageContent: Omit<Message, 'id' | 'senderId' | 'timestamp'>) => void;
     selectedConversationId: string | null;
     onSelectConversation: (id: string | null) => void;
+    currentUser: Artist | Stoodio | Engineer;
 }
 
 const ConversationList: React.FC<{
@@ -47,7 +48,7 @@ const ConversationList: React.FC<{
                                 <div className="relative flex-shrink-0">
                                     <img src={convo.participant.imageUrl} alt={convo.participant.name} className="w-14 h-14 rounded-xl object-cover"/>
                                     {convo.unreadCount > 0 && (
-                                        <span className="absolute top-0 right-0 block h-3 w-3 rounded-full bg-orange-500 ring-2 ring-zinc-800"></span>
+                                        <span className="absolute -top-1 -right-1 text-white bg-orange-500 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full ring-2 ring-zinc-800">{convo.unreadCount}</span>
                                     )}
                                 </div>
                                 <div className="flex-grow overflow-hidden">
@@ -109,9 +110,10 @@ const LinkModal: React.FC<{
 
 const ChatThread: React.FC<{
     conversation: Conversation;
+    currentUser: Artist | Stoodio | Engineer;
     onSendMessage: (conversationId: string, messageContent: Omit<Message, 'id' | 'senderId' | 'timestamp'>) => void;
     onBack: () => void;
-}> = ({ conversation, onSendMessage, onBack }) => {
+}> = ({ conversation, currentUser, onSendMessage, onBack }) => {
     const [newMessage, setNewMessage] = useState('');
     const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
     const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -180,7 +182,7 @@ const ChatThread: React.FC<{
                     </div>
                 )}
                 {conversation.messages.map(msg => {
-                     const isUser = msg.senderId === 'artist-user';
+                     const isUser = msg.senderId === currentUser.id;
                      return (
                         <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
                             {!isUser && <img src={conversation.participant.imageUrl} className="w-6 h-6 rounded-xl self-start"/>}
@@ -236,63 +238,83 @@ const ChatThread: React.FC<{
                 )}
                 <form onSubmit={handleSubmit} className="flex items-center gap-2">
                      <button type="button" onClick={() => setIsAttachmentMenuOpen(!isAttachmentMenuOpen)} className="text-slate-400 hover:text-orange-400 p-2">
-                        <PlusCircleIcon className="w-7 h-7" />
-                    </button>
-                    <input 
+                        {isAttachmentMenuOpen ? <CloseIcon className="w-6 h-6"/> : <PlusCircleIcon className="w-6 h-6" />}
+                     </button>
+                     <input
                         type="text"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         placeholder="Type a message..."
-                        className="w-full bg-zinc-700 border-transparent text-slate-200 rounded-full p-3 px-5 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-full py-2 px-4 focus:ring-orange-500 focus:border-orange-500"
                     />
-                    <button type="submit" className="bg-orange-500 text-white p-3 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-slate-600" disabled={!newMessage.trim()}>
+                    <button type="submit" disabled={!newMessage.trim()} className="bg-orange-500 text-white p-2 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-slate-500 disabled:cursor-not-allowed">
                         <PaperAirplaneIcon className="w-6 h-6" />
                     </button>
                 </form>
             </div>
         </div>
-    )
-}
+    );
+};
 
-const Inbox: React.FC<InboxProps> = ({ conversations, onSendMessage, selectedConversationId, onSelectConversation }) => {
+const Inbox: React.FC<InboxProps> = ({ conversations, onSendMessage, selectedConversationId, onSelectConversation, currentUser }) => {
+    const selectedConversation = selectedConversationId ? conversations.find(c => c.id === selectedConversationId) : null;
+    
+    // A simple way to handle responsiveness without resize listeners for this mock app.
+    // In a real app, you'd use CSS or a hook like useMediaQuery.
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-    const selectedConversation = conversations.find(c => c.id === selectedConversationId);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const showDetailView = isMobile && selectedConversation;
+    const showListView = !isMobile || !selectedConversation;
 
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-xl border border-zinc-700 h-[calc(100vh-12rem)] overflow-hidden flex">
-            {/* Desktop: List always visible */}
-            <div className={`w-full md:w-1/3 flex-shrink-0 ${selectedConversationId ? 'hidden md:block' : 'block'}`}>
-                <ConversationList 
-                    conversations={conversations}
-                    onSelect={onSelectConversation}
-                    selectedConversationId={selectedConversationId}
-                />
-            </div>
-
-             {/* Main content area */}
-            <div className={`flex-grow h-full ${selectedConversationId ? 'block' : 'hidden md:hidden'}`}>
+        <div className="h-[calc(100vh-128px)] bg-zinc-800 rounded-xl shadow-lg border border-zinc-700 flex overflow-hidden">
+            {showListView && (
+                 <div className={`w-full md:w-1/3 lg:w-1/4 ${showDetailView ? 'hidden md:block' : ''}`}>
+                    <ConversationList
+                        conversations={conversations}
+                        onSelect={onSelectConversation}
+                        selectedConversationId={selectedConversationId}
+                    />
+                </div>
+            )}
+            
+            {/* The main chat view area */}
+            <div className={`flex-grow ${!showListView ? 'w-full' : 'hidden md:block'}`}>
                 {selectedConversation ? (
-                    <ChatThread 
+                    <ChatThread
                         conversation={selectedConversation}
+                        currentUser={currentUser}
                         onSendMessage={onSendMessage}
-                        onBack={() => onSelectConversation(null)}
+                        onBack={() => onSelectConversation(null)} // This is for mobile view
                     />
                 ) : (
-                    <div className="h-full hidden md:flex items-center justify-center text-slate-500">
-                        <p>Select a conversation to start chatting.</p>
+                    <div className="h-full flex items-center justify-center">
+                        <div className="text-center text-slate-500">
+                            <p className="text-lg font-semibold">Select a conversation</p>
+                            <p>Start chatting with your connections.</p>
+                        </div>
                     </div>
                 )}
             </div>
-             <style>{`
+            
+            <style>{`
                 .inbox-audio-player::-webkit-media-controls-panel {
-                  background-color: transparent;
+                    background-color: rgba(0,0,0,0.3);
+                    border-radius: 8px;
                 }
-                .inbox-audio-player::-webkit-media-controls-play-button,
-                .inbox-audio-player::-webkit-media-controls-current-time-display,
-                .inbox-audio-player::-webkit-media-controls-time-remaining-display,
-                .inbox-audio-player::-webkit-media-controls-timeline,
-                .inbox-audio-player::-webkit-media-controls-mute-button {
-                  filter: invert(0.9);
+                 .inbox-audio-player::-webkit-media-controls-play-button,
+                 .inbox-audio-player::-webkit-media-controls-current-time-display,
+                 .inbox-audio-player::-webkit-media-controls-time-remaining-display,
+                 .inbox-audio-player::-webkit-media-controls-mute-button,
+                 .inbox-audio-player::-webkit-media-controls-volume-slider,
+                 .inbox-audio-player::-webkit-media-controls-timeline {
+                    color: white;
                 }
             `}</style>
         </div>

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Engineer, Stoodio, VibeMatchResult } from '../types';
 
@@ -108,7 +109,7 @@ export const generateEngineerProfile = async (): Promise<Engineer> => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: "Generate a realistic profile for a freelance audio engineer. Include a name, a short bio (2-3 sentences), and a list of 3-4 music genres they specialize in. The name should sound like a real person.",
+      contents: "Generate a realistic profile for a freelance audio engineer. Include a name, a plausible email address, a short bio (2-3 sentences), and a list of 3-4 music genres they specialize in. The name should sound like a real person.",
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -117,6 +118,10 @@ export const generateEngineerProfile = async (): Promise<Engineer> => {
             name: {
               type: Type.STRING,
               description: "The engineer's full name."
+            },
+            email: {
+              type: Type.STRING,
+              description: "A plausible email address for the engineer."
             },
             bio: {
               type: Type.STRING,
@@ -130,7 +135,7 @@ export const generateEngineerProfile = async (): Promise<Engineer> => {
               description: "A list of 3-4 music genres they specialize in."
             }
           },
-          required: ["name", "bio", "specialties"]
+          required: ["name", "email", "bio", "specialties"]
         },
       },
     });
@@ -140,6 +145,7 @@ export const generateEngineerProfile = async (): Promise<Engineer> => {
     return {
       ...engineerProfile,
       id: `eng-gen-${Date.now()}`,
+      password: 'password',
       rating: Number((4.5 + Math.random() * 0.5).toFixed(1)),
       sessionsCompleted: Math.floor(Math.random() * 200),
       followers: Math.floor(Math.random() * 1000),
@@ -162,6 +168,8 @@ export const generateEngineerProfile = async (): Promise<Engineer> => {
     return {
       id: 'eng-fallback',
       name: "Alex 'Patch' Robinson",
+      email: 'alex.fallback@example.com',
+      password: 'password',
       bio: "A seasoned audio engineer with over a decade of experience in both analog and digital domains. Passionate about helping artists achieve their perfect sound. (Fallback profile due to API error).",
       specialties: ["Indie Rock", "Hip-Hop", "Electronic", "Folk"],
       rating: 4.9,

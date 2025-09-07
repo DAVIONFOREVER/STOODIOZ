@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
+import type { Booking } from '../types';
 
 interface CalendarProps {
     availability: { date: string; times: string[] }[];
+    bookings: Booking[];
     onSelectTimeSlot: (date: string, time: string) => void;
     selectedTimeSlot: { date: string, time: string } | null;
 }
 
-const Calendar: React.FC<CalendarProps> = ({ availability, onSelectTimeSlot, selectedTimeSlot }) => {
+const Calendar: React.FC<CalendarProps> = ({ availability, bookings, onSelectTimeSlot, selectedTimeSlot }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-    const availabilityMap = new Map(availability.map(item => [item.date, item.times]));
+    const availabilityMap = useMemo(() => new Map(availability.map(item => [item.date, item.times])), [availability]);
+    
+    const bookingsForDay = useMemo(() => {
+        if (!selectedDate) return new Set();
+        return new Set(
+            bookings
+                .filter(b => b.date === selectedDate)
+                .map(b => b.startTime)
+        );
+    }, [bookings, selectedDate]);
 
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
@@ -98,12 +109,16 @@ const Calendar: React.FC<CalendarProps> = ({ availability, onSelectTimeSlot, sel
                         <div className="grid grid-cols-3 gap-2">
                             {availableTimesForSelectedDate.map(time => {
                                 const isSelected = selectedTimeSlot?.date === selectedDate && selectedTimeSlot?.time === time;
+                                const isBooked = bookingsForDay.has(time);
                                 return (
                                 <button 
                                     key={time}
                                     onClick={() => onSelectTimeSlot(selectedDate, time)}
+                                    disabled={isBooked}
                                     className={`p-2 text-sm rounded-lg transition-colors duration-200 font-semibold ${
-                                        isSelected 
+                                        isBooked
+                                        ? 'bg-zinc-700 text-slate-500 line-through cursor-not-allowed'
+                                        : isSelected 
                                         ? 'bg-orange-500 text-white' 
                                         : 'bg-zinc-700 hover:bg-zinc-600 text-slate-200'
                                     }`}

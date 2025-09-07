@@ -1,8 +1,8 @@
 import React from 'react';
 import { AppView } from '../types';
-// FIX: Import `Booking` and `VibeMatchResult` types to satisfy the props for MapView.
 import type { Stoodio, Engineer, Artist, Booking, VibeMatchResult } from '../types';
-import { StoodiozLogoIcon, SoundWaveIcon, UserCircleIcon, HouseIcon, MicrophoneIcon, ChevronRightIcon } from './icons';
+// FIX: Added MicrophoneIcon, SoundWaveIcon, and HouseIcon to the import.
+import { ChevronRightIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon } from './icons';
 import MapView from './MapView';
 
 interface LandingPageProps {
@@ -10,7 +10,6 @@ interface LandingPageProps {
     stoodioz: Stoodio[];
     engineers: Engineer[];
     artists: Artist[];
-    // FIX: Add `bookings` and `vibeMatchResults` to the props interface.
     bookings: Booking[];
     vibeMatchResults: VibeMatchResult | null;
     onSelectStoodio: (stoodio: Stoodio) => void;
@@ -28,7 +27,6 @@ const FeatureCard: React.FC<{ icon: React.ReactNode, title: string, description:
     </div>
 );
 
-// FIX: Destructure the new props `bookings` and `vibeMatchResults`.
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, stoodioz, engineers, artists, bookings, vibeMatchResults, onSelectStoodio }) => {
     return (
         <div>
@@ -108,7 +106,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, stoodioz, enginee
                         <h2 className="text-4xl font-extrabold text-center mb-4 text-slate-900">Live Activity Across the Nation</h2>
                         <p className="text-center text-lg text-slate-600 mb-12 max-w-2xl mx-auto">See where sessions are happening and creators are connecting in real-time.</p>
                         <div className="relative h-[50vh]">
-                             {/* FIX: Pass `bookings` and `vibeMatchResults` props to the MapView component. */}
                              <MapView
                                 stoodioz={stoodioz}
                                 engineers={engineers}

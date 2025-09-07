@@ -1,11 +1,11 @@
 
 
 import React, { useState } from 'react';
-import type { Stoodio, Artist, Review, Booking, Engineer, Comment, LinkAttachment, Post, Room } from '../types';
+import type { Stoodio, Artist, Review, Booking, Engineer, Post, Room } from '../types';
 import { UserRole } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
-import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, LocationIcon } from './icons';
+import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon } from './icons';
 
 interface StoodioDetailProps {
     stoodio: Stoodio;
@@ -141,6 +141,33 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
                         ))}
                     </ul>
 
+                    {/* In-House Engineers */}
+                    <div className="mb-10">
+                        <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><SoundWaveIcon className="w-6 h-6" /> In-House Engineers</h3>
+                        {(stoodio.inHouseEngineers && stoodio.inHouseEngineers.length > 0) ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {stoodio.inHouseEngineers.map(info => {
+                                    const engineer = allEngineers.find(e => e.id === info.engineerId);
+                                    if (!engineer) return null;
+                                    return (
+                                        <div key={engineer.id} className="bg-zinc-800 rounded-xl p-3 flex items-center gap-4 border border-zinc-700 hover:border-orange-500/50 transition-colors">
+                                            <img src={engineer.imageUrl} alt={engineer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                                            <div className="flex-grow">
+                                                <button onClick={() => onSelectEngineer(engineer)} className="font-bold text-slate-200 hover:text-orange-400 transition-colors text-left">{engineer.name}</button>
+                                                <p className="text-sm text-slate-400 truncate">{engineer.specialties.join(', ')}</p>
+                                                <div className="text-sm font-semibold text-green-400 flex items-center gap-1 mt-1">
+                                                    <DollarSignIcon className="w-4 h-4" /> ${info.payRate}/hr
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-slate-400">This studio uses freelance engineers from the platform.</p>
+                        )}
+                    </div>
+
                     {/* Posts & Updates */}
                     <div className="mb-10">
                         <h3 className="text-2xl font-bold mb-4 text-orange-400">Posts & Updates</h3>
@@ -259,6 +286,7 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
 
                         <Calendar 
                             availability={stoodio.availability}
+                            bookings={bookings}
                             onSelectTimeSlot={handleSelectTimeSlot}
                             selectedTimeSlot={selectedTimeSlot}
                         />

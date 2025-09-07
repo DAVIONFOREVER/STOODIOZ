@@ -1,137 +1,76 @@
+// This is a MOCK API service for the admin dashboard.
+// In a real application, this would make fetch calls to a backend API.
+
 import type { PlatformUser, DashboardStats } from '../types';
-import type { Booking } from '/types.ts';
-import { UserRole, BookingStatus, BookingRequestType } from '/types.ts';
-import { STOODIOZ, ENGINEERS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE } from '/constants.ts';
+import { UserRole } from '../../types';
+import type { Booking } from '../../types';
+import { MOCK_ARTISTS, ENGINEERS, STOODIOZ } from '../../constants';
+import { BookingStatus, BookingRequestType } from '../../types';
 
-// --- MOCK DATABASE ---
-const allUsers: PlatformUser[] = [
-    ...MOCK_ARTISTS.map((u, i) => ({ ...u, role: UserRole.ARTIST, joinedDate: `2023-10-${15+i}` })),
-    ...ENGINEERS.map((u, i) => ({ ...u, role: UserRole.ENGINEER, joinedDate: `2023-11-${10+i}` })),
-    ...STOODIOZ.map((u, i) => ({ ...u, role: UserRole.STOODIO, joinedDate: `2023-09-${5+i}` })),
-];
-
-const mockBookings: Booking[] = [
-    {
-        id: 'BKG-1672532400',
-        artist: MOCK_ARTISTS[0],
-        stoodio: STOODIOZ[0],
-        // FIX: The `Booking` type requires a `room`. Added the first room from the studio.
-        room: STOODIOZ[0].rooms[0],
-        engineer: ENGINEERS[0],
-        date: '2024-07-20',
-        startTime: '14:00',
-        duration: 4,
-        totalCost: 390,
-        // FIX: Property 'engineerPayRate' is missing in type but required in type 'Booking'.
-        engineerPayRate: STOODIOZ[0].engineerPayRate,
-        status: BookingStatus.COMPLETED,
-        requestType: BookingRequestType.SPECIFIC_ENGINEER,
-        requestedEngineerId: 'eng-1',
-        tip: 50,
-        // FIX: Added missing properties `bookedById` and `bookedByRole` to satisfy the Booking type.
-        bookedById: MOCK_ARTISTS[0].id,
-        bookedByRole: UserRole.ARTIST,
-    },
-    {
-        id: 'BKG-1672618800',
-        artist: MOCK_ARTISTS[1],
-        stoodio: STOODIOZ[2],
-        // FIX: The `Booking` type requires a `room`. Added the first room from the studio.
-        room: STOODIOZ[2].rooms[0],
-        engineer: ENGINEERS[1],
-        date: '2024-07-22',
-        startTime: '18:00',
-        duration: 3,
-        totalCost: 234,
-        // FIX: Property 'engineerPayRate' is missing in type but required in type 'Booking'.
-        engineerPayRate: STOODIOZ[2].engineerPayRate,
-        status: BookingStatus.CONFIRMED,
-        requestType: BookingRequestType.FIND_AVAILABLE,
-        requestedEngineerId: null,
-        // FIX: Added missing properties `bookedById` and `bookedByRole` to satisfy the Booking type.
-        bookedById: MOCK_ARTISTS[1].id,
-        bookedByRole: UserRole.ARTIST,
-    },
-     {
-        id: 'BKG-1672705200',
-        artist: MOCK_ARTISTS[2],
-        stoodio: STOODIOZ[1],
-        // FIX: The `Booking` type requires a `room`. Added the first room from the studio.
-        room: STOODIOZ[1].rooms[0],
-        engineer: null,
-        date: '2024-07-25',
-        startTime: '12:00',
-        duration: 6,
-        totalCost: 594,
-        // FIX: Property 'engineerPayRate' is missing in type but required in type 'Booking'.
-        engineerPayRate: STOODIOZ[1].engineerPayRate,
-        status: BookingStatus.PENDING,
-        requestType: BookingRequestType.FIND_AVAILABLE,
-        requestedEngineerId: null,
-        // FIX: Added missing properties `bookedById` and `bookedByRole` to satisfy the Booking type.
-        bookedById: MOCK_ARTISTS[2].id,
-        bookedByRole: UserRole.ARTIST,
-    },
-     {
-        id: 'BKG-1672791600',
-        artist: MOCK_ARTISTS[3],
-        stoodio: STOODIOZ[4],
-        // FIX: The `Booking` type requires a `room`. Added the first room from the studio.
-        room: STOODIOZ[4].rooms[0],
-        engineer: null,
-        date: '2024-08-01',
-        startTime: '10:00',
-        duration: 8,
-        totalCost: 572,
-        // FIX: Property 'engineerPayRate' is missing in type but required in type 'Booking'.
-        engineerPayRate: STOODIOZ[4].engineerPayRate,
-        status: BookingStatus.PENDING_APPROVAL,
-        requestType: BookingRequestType.SPECIFIC_ENGINEER,
-        requestedEngineerId: 'eng-3',
-        // FIX: Added missing properties `bookedById` and `bookedByRole` to satisfy the Booking type.
-        bookedById: MOCK_ARTISTS[3].id,
-        bookedByRole: UserRole.ARTIST,
+// Let's create some more mock data for a richer admin experience
+const generateMockBookings = (): Booking[] => {
+    const bookings: Booking[] = [];
+    for (let i = 0; i < 25; i++) {
+        const artist = MOCK_ARTISTS[Math.floor(Math.random() * MOCK_ARTISTS.length)];
+        const stoodio = STOODIOZ[Math.floor(Math.random() * STOODIOZ.length)];
+        const engineer = ENGINEERS[Math.floor(Math.random() * ENGINEERS.length)];
+        const statusValues = Object.values(BookingStatus);
+        const status = statusValues[Math.floor(Math.random() * statusValues.length)];
+        const duration = Math.floor(Math.random() * 6) + 2;
+        const totalCost = (stoodio.hourlyRate + stoodio.engineerPayRate) * duration * 1.15;
+        
+        bookings.push({
+            id: `BKG-ADM-${Date.now() + i}`,
+            stoodio,
+            artist,
+            engineer,
+            room: stoodio.rooms[0],
+            date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            startTime: `${Math.floor(Math.random() * 10) + 10}:00`,
+            duration,
+            totalCost,
+            engineerPayRate: stoodio.engineerPayRate,
+            status,
+            requestType: BookingRequestType.FIND_AVAILABLE,
+            requestedEngineerId: null,
+            bookedById: artist.id,
+            bookedByRole: UserRole.ARTIST,
+        });
     }
+    return bookings;
+};
+
+const allUsers: PlatformUser[] = [
+    ...MOCK_ARTISTS.map(a => ({...a, role: UserRole.ARTIST, joinedDate: new Date().toISOString() })),
+    ...ENGINEERS.map(e => ({...e, role: UserRole.ENGINEER, joinedDate: new Date().toISOString() })),
+    ...STOODIOZ.map(s => ({...s, role: UserRole.STOODIO, joinedDate: new Date().toISOString() })),
 ];
 
+const allBookings = generateMockBookings();
 
-// --- API FUNCTIONS ---
+export const apiService = {
+    getUsers: async (): Promise<PlatformUser[]> => {
+        console.log("API: Fetching users...");
+        return new Promise(resolve => setTimeout(() => resolve(allUsers), 500));
+    },
+    getBookings: async (): Promise<Booking[]> => {
+        console.log("API: Fetching bookings...");
+        return new Promise(resolve => setTimeout(() => resolve(allBookings), 800));
+    },
+    getDashboardStats: async (): Promise<DashboardStats> => {
+        console.log("API: Fetching stats...");
+        const completedBookings = allBookings.filter(b => b.status === BookingStatus.COMPLETED);
+        const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalCost, 0);
+        const platformFees = totalRevenue * (15 / 115); // Assuming 15% fee on top of subtotal
 
-const simulateDelay = <T>(data: T): Promise<T> => {
-    return new Promise(resolve => {
-        setTimeout(() => resolve(data), 800);
-    });
-};
-
-export const getAllUsers = async (): Promise<PlatformUser[]> => {
-    return simulateDelay(allUsers);
-};
-
-export const getAllBookings = async (): Promise<Booking[]> => {
-    return simulateDelay(mockBookings);
-};
-
-export const getDashboardStats = async (): Promise<DashboardStats> => {
-    const completedBookings = mockBookings.filter(b => b.status === BookingStatus.COMPLETED);
-    
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + b.totalCost, 0);
-
-    // The service fee is included in the totalCost. To calculate the platform's portion, we reverse the calculation.
-    // totalCost = subtotal * (1 + SERVICE_FEE_PERCENTAGE)
-    // platformFee = totalCost - (totalCost / (1 + SERVICE_FEE_PERCENTAGE))
-    const platformFees = completedBookings.reduce((sum, booking) => {
-        const subtotal = booking.totalCost / (1 + SERVICE_FEE_PERCENTAGE);
-        const feeForBooking = booking.totalCost - subtotal;
-        return sum + feeForBooking;
-    }, 0);
-
-    const stats: DashboardStats = {
-        totalRevenue: totalRevenue,
-        platformFees: platformFees,
-        artistCount: MOCK_ARTISTS.length,
-        engineerCount: ENGINEERS.length,
-        stoodioCount: STOODIOZ.length,
-        totalBookings: mockBookings.length,
-    };
-    return simulateDelay(stats);
+        const stats: DashboardStats = {
+            totalRevenue,
+            platformFees,
+            artistCount: MOCK_ARTISTS.length,
+            engineerCount: ENGINEERS.length,
+            stoodioCount: STOODIOZ.length,
+            totalBookings: allBookings.length,
+        };
+        return new Promise(resolve => setTimeout(() => resolve(stats), 300));
+    }
 };

@@ -1,6 +1,4 @@
-
-
-import type { Artist, Engineer, Stoodio, UserRole } from '/types.ts';
+import type { Artist, Engineer, Stoodio, UserRole } from '../types';
 
 export enum AdminView {
     DASHBOARD = 'DASHBOARD',

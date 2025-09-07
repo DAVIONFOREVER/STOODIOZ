@@ -1,10 +1,14 @@
-
-import React, { useState, useMemo } from 'react';
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Room } from '../types';
+import React, { useState } from 'react';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction } from '../types';
 import { BookingStatus } from '../types';
-import { EditIcon, PhotoIcon, CalendarIcon, LocationIcon, UsersIcon, DollarSignIcon, SoundWaveIcon, UserCheckIcon, UserPlusIcon, UserGroupIcon, CloseIcon, ChevronLeftIcon, ChevronRightIcon, HouseIcon, MicrophoneIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, HouseIcon, SoundWaveIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
+import AvailabilityManager from './AvailabilityManager';
+import Following from './Following';
+import FollowersList from './FollowersList';
+import RoomManager from './RoomManager';
+import EngineerManager from './EngineerManager';
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -26,582 +30,149 @@ interface StoodioDashboardProps {
     onPostJob: (jobRequest: JobPostData) => void;
 }
 
-type DashboardTab = 'dashboard' | 'availability' | 'wallet' | 'following' | 'followers' | 'photos';
+type DashboardTab = 'dashboard' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800 p-4 rounded-xl shadow-md flex items-center gap-4 border border-zinc-700">
-        <div className="bg-orange-500/20 p-3 rounded-lg">{icon}</div>
+    <div className="bg-slate-50 p-4 rounded-xl flex items-center gap-4 border border-slate-200">
+        <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
-            <p className="text-slate-400 text-sm font-medium">{label}</p>
-            <p className="text-2xl font-bold text-slate-100">{value}</p>
+            <p className="text-slate-500 text-sm font-medium">{label}</p>
+            <p className="text-2xl font-bold text-slate-800">{value}</p>
         </div>
     </div>
 );
 
-const ManageRoomsCard: React.FC<{ stoodio: Stoodio; onUpdateStoodio: (updates: Partial<Stoodio>) => void }> = ({ stoodio, onUpdateStoodio }) => {
-    const [editingRoom, setEditingRoom] = useState<Room | null>(null);
-
-    const handleSaveRoom = (roomToSave: Room) => {
-        let updatedRooms;
-        if (stoodio.rooms.find(r => r.id === roomToSave.id)) {
-            updatedRooms = stoodio.rooms.map(r => r.id === roomToSave.id ? roomToSave : r);
-        } else {
-            updatedRooms = [...stoodio.rooms, roomToSave];
-        }
-        onUpdateStoodio({ rooms: updatedRooms });
-        setEditingRoom(null);
-    };
-
-    const handleDeleteRoom = (roomId: string) => {
-        if (window.confirm('Are you sure you want to delete this room? This cannot be undone.')) {
-            const updatedRooms = stoodio.rooms.filter(r => r.id !== roomId);
-            onUpdateStoodio({ rooms: updatedRooms });
-        }
-    };
-    
-    const handleAddNew = () => {
-        setEditingRoom({ id: `room-new-${Date.now()}`, name: '', description: '', hourlyRate: 50, photos: [] });
-    };
-
-    return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-slate-100">Manage Rooms / Rates</h3>
-                {!editingRoom && (
-                    <button onClick={handleAddNew} className="text-sm font-semibold text-orange-400 hover:underline">
-                        + Add New Room
-                    </button>
-                )}
-            </div>
-
-            {editingRoom ? (
-                <RoomEditForm room={editingRoom} onSave={handleSaveRoom} onCancel={() => setEditingRoom(null)} />
-            ) : (
-                <ul className="space-y-3">
-                    {stoodio.rooms.map(room => (
-                        <li key={room.id} className="p-3 bg-zinc-700/50 rounded-lg flex justify-between items-center">
-                            <div>
-                                <p className="font-semibold">{room.name}</p>
-                                <p className="text-sm text-slate-400">${room.hourlyRate}/hr</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setEditingRoom(room)} className="text-sm text-orange-400 hover:underline">Edit</button>
-                                {stoodio.rooms.length > 1 && <button onClick={() => handleDeleteRoom(room.id)} className="text-sm text-red-400 hover:underline">Delete</button>}
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </div>
-    );
-};
-
-const RoomEditForm: React.FC<{ room: Room; onSave: (room: Room) => void; onCancel: () => void; }> = ({ room, onSave, onCancel }) => {
-    const [formData, setFormData] = useState(room);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onSave(formData);
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4 bg-zinc-900/50 p-4 rounded-lg">
-             <div>
-                <label htmlFor="roomName" className="text-sm font-semibold text-slate-400 mb-1 block">Room Name</label>
-                <input type="text" id="roomName" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" required />
-            </div>
-            <div>
-                <label htmlFor="roomDesc" className="text-sm font-semibold text-slate-400 mb-1 block">Description</label>
-                <textarea id="roomDesc" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" rows={2} required />
-            </div>
-             <div>
-                <label htmlFor="roomRate" className="text-sm font-semibold text-slate-400 mb-1 block">Hourly Rate ($)</label>
-                <input type="number" id="roomRate" value={formData.hourlyRate} onChange={e => setFormData({...formData, hourlyRate: parseFloat(e.target.value) || 0})} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" required />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={onCancel} className="text-sm font-semibold px-4 py-2 rounded-lg text-slate-300 hover:bg-zinc-600">Cancel</button>
-                <button type="submit" className="text-sm font-semibold px-4 py-2 rounded-lg bg-orange-500 text-white">Save Room</button>
-            </div>
-        </form>
-    );
-};
-
-const PostJobCard: React.FC<{ stoodio: Stoodio; onPostJob: StoodioDashboardProps['onPostJob'] }> = ({ stoodio, onPostJob }) => {
-    const today = new Date().toISOString().split('T')[0];
-    const [date, setDate] = useState(today);
-    const [startTime, setStartTime] = useState('12:00');
-    const [duration, setDuration] = useState(4);
-    const [skills, setSkills] = useState('');
-    const [engineerPayRate, setEngineerPayRate] = useState(stoodio.engineerPayRate.toString());
-    
-    React.useEffect(() => {
-        setEngineerPayRate(stoodio.engineerPayRate.toString());
-    }, [stoodio.engineerPayRate]);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onPostJob({
-            date,
-            startTime,
-            duration,
-            requiredSkills: skills ? skills.split(',').map(s => s.trim()) : [],
-            engineerPayRate: parseFloat(engineerPayRate) || 0,
-        });
-        // Reset form to defaults
-        setDate(today);
-        setStartTime('12:00');
-        setDuration(4);
-        setSkills('');
-        setEngineerPayRate(stoodio.engineerPayRate.toString());
-    };
-
-    return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-            <h3 className="text-xl font-bold text-slate-100 mb-4">Post a Job for Engineers</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="job-date" className="text-sm font-semibold text-slate-400 mb-1 block">Date</label>
-                        <input type="date" id="job-date" value={date} min={today} onChange={e => setDate(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
-                    </div>
-                     <div>
-                        <label htmlFor="job-start-time" className="text-sm font-semibold text-slate-400 mb-1 block">Start Time</label>
-                        <input type="time" id="job-start-time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
-                    </div>
-                </div>
-                 <div>
-                    <label htmlFor="job-duration" className="text-sm font-semibold text-slate-400 mb-1 block">Duration (hours)</label>
-                    <input type="number" id="job-duration" value={duration} min="1" max="12" onChange={e => setDuration(parseInt(e.target.value))} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
-                </div>
-                <div>
-                    <label htmlFor="job-pay-rate" className="text-sm font-semibold text-slate-400 mb-1 block">Engineer Payout ($/hr)</label>
-                    <input type="number" id="job-pay-rate" value={engineerPayRate} min="0" step="1" onChange={e => setEngineerPayRate(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
-                </div>
-                 <div>
-                    <label htmlFor="job-skills" className="text-sm font-semibold text-slate-400 mb-1 block">Required Skills (optional, comma-separated)</label>
-                    <input type="text" id="job-skills" value={skills} onChange={e => setSkills(e.target.value)} placeholder="e.g., Pro Tools, Vocal Tuning" className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
-                </div>
-                <button type="submit" className="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-all shadow-md">
-                    Post Job to Board
-                </button>
-            </form>
-        </div>
-    );
-};
-
-const DashboardContent: React.FC<Omit<StoodioDashboardProps, 'allArtists'|'allEngineers'|'allStoodioz'|'onToggleFollow'|'onSelectArtist'|'onSelectEngineer'|'onSelectStoodio'>> = (props) => {
-    const { stoodio, bookings, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, onUpdateStoodio } = props;
-    
-    const recentBookings = bookings
-        .filter(b => b.status === BookingStatus.CONFIRMED || b.status === BookingStatus.COMPLETED)
-        .slice(0, 5);
-
-    return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-                <CreatePost currentUser={stoodio} onPost={onPost} />
-                <PostFeed 
-                    posts={stoodio.posts || []} 
-                    authors={new Map([[stoodio.id, stoodio]])}
-                    onLikePost={onLikePost}
-                    onCommentOnPost={onCommentOnPost}
-                    currentUser={currentUser}
-                />
-                <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-                    <h3 className="text-xl font-bold text-slate-100 mb-4">Recent Bookings</h3>
-                    {recentBookings.length > 0 ? (
-                        <ul className="space-y-4">
-                            {recentBookings.map(booking => (
-                                <li key={booking.id} className="p-3 bg-zinc-700/50 rounded-lg flex items-center justify-between">
-                                    <div>
-                                        <p className="font-semibold">{booking.artist?.name || 'Stoodio Job'}</p>
-                                        <p className="text-sm text-slate-400">
-                                            {new Date(booking.date + 'T00:00:00').toLocaleDateString('en-us', {month: 'short', day: 'numeric'})} at {booking.startTime}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className={`font-semibold text-sm ${booking.status === BookingStatus.COMPLETED ? 'text-green-400' : 'text-yellow-400'}`}>{booking.status}</p>
-                                        <p className="text-xs text-slate-500">with {booking.engineer?.name || 'N/A'}</p>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="text-slate-400 text-sm text-center py-4">No recent bookings found.</p>
-                    )}
-                </div>
-            </div>
-            <div className="space-y-8">
-                 <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-                    <h3 className="text-xl font-bold text-slate-100 mb-4">Settings</h3>
-                    <label htmlFor="notif-toggle" className="flex items-center justify-between cursor-pointer">
-                        <span className="font-semibold text-slate-300">Enable Notifications</span>
-                        <div className="relative">
-                            <input 
-                                type="checkbox" 
-                                id="notif-toggle" 
-                                className="sr-only peer" 
-                                checked={stoodio.notificationsEnabled ?? true}
-                                onChange={(e) => onUpdateStoodio({ notificationsEnabled: e.target.checked })}
-                            />
-                            <div className="block bg-zinc-600 w-12 h-6 rounded-full peer-checked:bg-green-500 transition"></div>
-                            <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-6"></div>
-                        </div>
-                    </label>
-                </div>
-                <ManageRoomsCard stoodio={stoodio} onUpdateStoodio={onUpdateStoodio} />
-                <PostJobCard stoodio={stoodio} onPostJob={onPostJob} />
-            </div>
-        </div>
-    );
-};
-
-const WalletContent: React.FC<{ stoodio: Stoodio }> = ({ stoodio }) => {
-    return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-            <h2 className="text-3xl font-bold mb-2 text-slate-100">Wallet</h2>
-            <p className="text-slate-400 text-sm mb-6">Manage your earnings and transactions.</p>
-            <div className="bg-zinc-900/50 p-6 rounded-lg mb-6">
-                <p className="text-slate-400 text-sm">Current Balance</p>
-                <p className="text-5xl font-bold text-green-400">${stoodio.walletBalance.toFixed(2)}</p>
-            </div>
-            <div className="flex gap-4 mb-8">
-                 <button className="w-full bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 text-sm">Withdraw Funds</button>
-                 <button className="w-full bg-zinc-700 text-slate-200 font-semibold py-2 px-4 rounded-lg hover:bg-zinc-600 text-sm">View Statements</button>
-            </div>
-            <div>
-                 <h3 className="font-semibold text-slate-200 mb-3">Recent Transactions</h3>
-                 <ul className="space-y-3">
-                    {stoodio.walletTransactions.length > 0 ? stoodio.walletTransactions.map((tx: Transaction) => (
-                        <li key={tx.id} className="flex justify-between items-center bg-zinc-700/50 p-3 rounded-md">
-                            <div>
-                                <p className="font-medium text-slate-200">{tx.description}</p>
-                                <p className="text-xs text-slate-400">{new Date(tx.date).toLocaleDateString()}</p>
-                            </div>
-                            <span className={`font-semibold text-lg ${tx.type === 'debit' ? 'text-red-400' : 'text-green-400'}`}>
-                                {tx.type === 'debit' ? '-' : '+'}${Math.abs(tx.amount).toFixed(2)}
-                            </span>
-                        </li>
-                    )) : <p className="text-sm text-slate-500 text-center py-4">No transactions yet.</p>}
-                 </ul>
-            </div>
-        </div>
-    );
-};
-
-const FollowingContent: React.FC<Pick<StoodioDashboardProps, 'stoodio' | 'allStoodioz' | 'allEngineers' | 'allArtists' | 'onToggleFollow' | 'onSelectStoodio' | 'onSelectArtist' | 'onSelectEngineer'>> = ({ stoodio, allStoodioz, allEngineers, allArtists, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer }) => {
-    const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
-    const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
-    const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
-
-    const ProfileCard: React.FC<{ profile: Stoodio | Engineer | Artist; type: 'stoodio' | 'engineer' | 'artist'; onClick: () => void; }> = ({ profile, type, onClick }) => {
-        let icon;
-        let details;
-        if (type === 'stoodio') {
-            icon = <HouseIcon className="w-4 h-4" />;
-            details = (profile as Stoodio).location;
-        } else if (type === 'engineer') {
-            icon = <SoundWaveIcon className="w-4 h-4" />;
-            details = (profile as Engineer).specialties.join(', ');
-        } else {
-            icon = <MicrophoneIcon className="w-4 h-4" />;
-            details = (profile as Artist).bio;
-        }
-
-        const isFollowing = type === 'stoodio' ? stoodio.following.stoodioz.includes(profile.id) :
-                           type === 'engineer' ? stoodio.following.engineers.includes(profile.id) :
-                           stoodio.following.artists.includes(profile.id);
-
-        return (
-            <div className="bg-zinc-800 rounded-xl shadow-lg p-4 flex items-center gap-4 border border-zinc-700">
-                <img src={profile.imageUrl} alt={profile.name} className="w-20 h-20 object-cover rounded-xl flex-shrink-0" />
-                <div className="flex-grow">
-                    <button onClick={onClick} className="font-bold text-lg text-slate-100 hover:text-orange-400 transition-colors text-left">{profile.name}</button>
-                    <p className="text-sm text-slate-400 truncate flex items-center gap-1.5">{icon}{details.substring(0, 50)}...</p>
-                </div>
-                <button onClick={() => onToggleFollow(type, profile.id)} className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-600 text-slate-200'}`}>
-                    {isFollowing ? <UserCheckIcon className="w-4 h-4" /> : <UserPlusIcon className="w-4 h-4" />}
-                    {isFollowing ? 'Following' : 'Follow'}
-                </button>
-            </div>
-        );
-    };
-    
-    return (
-        <div className="space-y-12">
-            {[...followedArtists, ...followedEngineers, ...followedStoodioz].length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
-                    {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
-                    {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
-                </div>
-            ) : (
-                 <p className="text-slate-400">You're not following anyone yet.</p>
-            )}
-        </div>
-    );
-};
-
-const FollowersContent: React.FC<Pick<StoodioDashboardProps, 'stoodio' | 'allArtists' | 'onToggleFollow' | 'onSelectArtist'>> = ({ stoodio, allArtists, onToggleFollow, onSelectArtist }) => {
-    const followers = allArtists.filter(a => a.following.stoodioz.includes(stoodio.id));
-
-    return (
-         <div>
-            <h2 className="text-3xl font-bold mb-6 text-slate-100">Artist Followers</h2>
-            {followers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {followers.map(follower => {
-                        const isFollowingBack = stoodio.following.artists.includes(follower.id);
-                        return (
-                            <div key={follower.id} className="bg-zinc-800 rounded-xl shadow-lg p-4 flex items-center gap-4 border border-zinc-700">
-                                <img src={follower.imageUrl} alt={follower.name} className="w-20 h-20 object-cover rounded-xl flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <button onClick={() => onSelectArtist(follower)} className="font-bold text-lg hover:text-orange-400 transition-colors text-left text-slate-100">{follower.name}</button>
-                                    <p className="text-sm text-slate-400 truncate">{follower.bio.substring(0,50)}...</p>
-                                </div>
-                                 <button
-                                    onClick={() => onToggleFollow('artist', follower.id)}
-                                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 ${isFollowingBack ? 'bg-orange-500 text-white' : 'bg-zinc-600 text-slate-200 hover:bg-zinc-500'}`}
-                                >
-                                    {isFollowingBack ? <UserCheckIcon className="w-4 h-4" /> : <UserPlusIcon className="w-4 h-4" />}
-                                    {isFollowingBack ? 'Following' : 'Follow Back'}
-                                </button>
-                            </div>
-                        );
-                    })}
-                </div>
-            ) : (
-                <p className="text-slate-400">No artists are following you yet.</p>
-            )}
-        </div>
-    );
-};
-
-
-const AvailabilityContent: React.FC<{ stoodio: Stoodio; onUpdateStoodio: (updates: Partial<Stoodio>) => void; }> = ({ stoodio, onUpdateStoodio }) => {
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedDate, setSelectedDate] = useState<string | null>(null);
-    const [editedAvailability, setEditedAvailability] = useState(stoodio.availability || []);
-
-    const availabilityMap = useMemo(() => new Map(editedAvailability.map(item => [item.date, new Set(item.times)])), [editedAvailability]);
-
-    const handlePrevMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-        setSelectedDate(null);
-    };
-
-    const handleNextMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-        setSelectedDate(null);
-    };
-
-    const handleDateClick = (date: Date) => {
-        const dateString = date.toISOString().split('T')[0];
-        setSelectedDate(dateString);
-    };
-
-    const handleTimeSlotToggle = (time: string) => {
-        if (!selectedDate) return;
-
-        const newAvailability = [...editedAvailability];
-        const dayIndex = newAvailability.findIndex(d => d.date === selectedDate);
-
-        if (dayIndex > -1) {
-            const times = new Set(newAvailability[dayIndex].times);
-            if (times.has(time)) {
-                times.delete(time);
-            } else {
-                times.add(time);
-            }
-            if (times.size === 0) {
-                newAvailability.splice(dayIndex, 1);
-            } else {
-                newAvailability[dayIndex] = { date: selectedDate, times: Array.from(times).sort() };
-            }
-        } else {
-            newAvailability.push({ date: selectedDate, times: [time] });
-        }
-        setEditedAvailability(newAvailability);
-    };
-
-    const handleSaveChanges = () => {
-        onUpdateStoodio({ availability: editedAvailability });
-        alert('Availability updated!');
-    };
-    
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    const startDayOfWeek = startOfMonth.getDay();
-    const daysInMonth: Date[] = [];
-    for (let i = 1; i <= endOfMonth.getDate(); i++) {
-        daysInMonth.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
-    }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const ALL_TIME_SLOTS = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
-    const availableTimesForSelectedDate = availabilityMap.get(selectedDate || '') || new Set();
-
-    return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-3xl font-bold text-slate-100">Manage Availability</h2>
-                 <button onClick={handleSaveChanges} className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md">
-                    Save Changes
-                </button>
-            </div>
-            <p className="text-slate-400 text-sm mb-6">This calendar controls the available time slots for all rooms in your stoodio. Your changes will be saved when you click the button above.</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-zinc-900/50 p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                        <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
-                            <ChevronLeftIcon className="w-5 h-5 text-slate-400" />
-                        </button>
-                        <h3 className="font-bold text-lg text-slate-100">
-                            {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                        </h3>
-                        <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
-                            <ChevronRightIcon className="w-5 h-5 text-slate-400" />
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center text-sm text-slate-400 mb-2">
-                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => <div key={day}>{day}</div>)}
-                    </div>
-                    <div className="grid grid-cols-7 gap-1">
-                        {Array(startDayOfWeek).fill(null).map((_, index) => <div key={`empty-${index}`}></div>)}
-                        {daysInMonth.map(day => {
-                            const dateString = day.toISOString().split('T')[0];
-                            const isAvailable = (availabilityMap.get(dateString)?.size || 0) > 0;
-                            const isPast = day < today;
-                            const isSelected = selectedDate === dateString;
-                            let dayClass = "w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 text-sm";
-                            if (isPast) {
-                                dayClass += " text-slate-600 cursor-not-allowed";
-                            } else {
-                                dayClass += " cursor-pointer ";
-                                if (isSelected) {
-                                    dayClass += " bg-orange-500 text-white font-bold ring-2 ring-offset-2 ring-offset-zinc-900 ring-orange-500";
-                                } else if (isAvailable) {
-                                    dayClass += " bg-green-500/20 text-green-300 hover:bg-green-500/40";
-                                } else {
-                                    dayClass += " text-slate-300 hover:bg-zinc-700";
-                                }
-                            }
-                            return <div key={dateString} onClick={() => !isPast && handleDateClick(day)} className={dayClass}>{day.getDate()}</div>;
-                        })}
-                    </div>
-                </div>
-                <div>
-                    {selectedDate ? (
-                        <div>
-                            <h4 className="font-semibold text-slate-200 mb-3">Available Slots for <span className="text-orange-400">{selectedDate}</span></h4>
-                            <div className="grid grid-cols-2 gap-2">
-                                {ALL_TIME_SLOTS.map(time => {
-                                    const isChecked = availableTimesForSelectedDate.has(time);
-                                    return (
-                                        <label key={time} className={`p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors ${isChecked ? 'bg-green-500/20' : 'bg-zinc-700 hover:bg-zinc-600'}`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={isChecked}
-                                                onChange={() => handleTimeSlotToggle(time)}
-                                                className="w-4 h-4 rounded text-orange-500 bg-zinc-600 border-zinc-500 focus:ring-orange-500 focus:ring-offset-zinc-800"
-                                            />
-                                            <span className={`font-semibold ${isChecked ? 'text-green-300' : 'text-slate-300'}`}>{time}</span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-center h-full bg-zinc-900/50 rounded-lg">
-                            <p className="text-slate-400">Select a date to edit times.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
+const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`px-4 py-3 font-semibold text-sm transition-colors ${isActive ? 'border-b-2 border-orange-500 text-orange-500' : 'text-slate-500 hover:text-slate-800'}`}
+    >
+        {label}
+    </button>
+);
 
 const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
-    const { stoodio, bookings, onUpdateStoodio, allArtists } = props;
+    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
-    const totalEarnings = bookings
-        .filter(b => b.status === BookingStatus.COMPLETED)
-        .reduce((acc, b) => acc + (b.room.hourlyRate * b.duration), 0);
+    const upcomingBookingsCount = bookings
+        .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
+        .length;
     
-    const followersCount = allArtists.filter(a => a.following.stoodioz.includes(stoodio.id)).length;
-    const followingCount = stoodio.following.artists.length + stoodio.following.engineers.length + stoodio.following.stoodioz.length;
+    const followers = [...allArtists, ...allEngineers, ...allStoodioz].filter(u => u.followerIds.includes(stoodio.id));
+    const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
+    const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
+    const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
 
-    const TabButton: React.FC<{tab: DashboardTab, label: string, icon: React.ReactNode}> = ({ tab, label, icon }) => (
-        <button 
-            onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-3 w-full p-3 rounded-lg text-left font-semibold transition-colors ${
-                activeTab === tab 
-                ? 'bg-orange-500 text-white' 
-                : 'text-slate-300 hover:bg-zinc-700'
-            }`}
-        >
-            {icon}
-            {label}
-        </button>
-    );
-
-    const handleUpdatePhoto = () => {
-        const newSeed = `${stoodio.id}-updated-${Date.now()}`;
-        onUpdateStoodio({ imageUrl: `https://picsum.photos/seed/${newSeed}/600/400` });
-    };
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'availability':
+                return <AvailabilityManager user={stoodio} onUpdateUser={onUpdateStoodio} />;
+            case 'rooms':
+                return <RoomManager stoodio={stoodio} onUpdateStoodio={onUpdateStoodio} />;
+            case 'engineers':
+                return <EngineerManager stoodio={stoodio} allEngineers={allEngineers} onUpdateStoodio={onUpdateStoodio} />;
+            case 'wallet':
+                return (
+                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                        <h3 className="text-xl font-bold mb-4">Wallet</h3>
+                        <p className="text-4xl font-bold text-green-500 mb-6">${stoodio.walletBalance.toFixed(2)}</p>
+                        <h4 className="font-semibold mb-2">Transaction History</h4>
+                        <div className="space-y-2">
+                            {stoodio.walletTransactions.map((tx: Transaction) => (
+                                <div key={tx.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-md">
+                                    <div>
+                                        <p className="font-medium text-slate-700">{tx.description}</p>
+                                        <p className="text-xs text-slate-500">{new Date(tx.date).toLocaleString()}</p>
+                                    </div>
+                                    <p className={`font-semibold ${tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}`}>
+                                        {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            case 'photos':
+                return (
+                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                        <h3 className="text-xl font-bold mb-4">Photo Management</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            {stoodio.photos.map((photo, index) => (
+                                <img key={index} src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
+                            ))}
+                        </div>
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+                            <PhotoIcon className="mx-auto h-12 w-12 text-slate-400" />
+                            <p className="mt-2 text-sm text-slate-600">Drag & drop photos here or click to upload</p>
+                            <button className="mt-4 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Upload Photos</button>
+                        </div>
+                    </div>
+                );
+            case 'followers':
+                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} />;
+            case 'following':
+                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} />;
+            case 'dashboard':
+            default:
+                 return (
+                    <div className="space-y-8">
+                        <CreatePost currentUser={currentUser!} onPost={onPost} />
+                        <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
+                    </div>
+                );
+        }
+    }
 
     return (
-        <div>
-            {/* Header */}
-            <div className="flex flex-col md:flex-row gap-6 md:items-center mb-8">
-                <div className="relative group flex-shrink-0">
-                    <img src={stoodio.imageUrl} alt={stoodio.name} className="w-32 h-32 object-cover rounded-2xl shadow-md" />
-                     <button onClick={handleUpdatePhoto} className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                        <PhotoIcon className="w-8 h-8"/>
-                    </button>
-                </div>
-                <div>
-                    <h1 className="text-5xl font-extrabold tracking-tight text-orange-500">{stoodio.name}</h1>
-                    <div className="flex items-center text-slate-400 mt-2">
-                         <LocationIcon className="w-5 h-5 mr-2" />
-                         <span>{stoodio.location}</span>
+        <div className="space-y-8">
+            {/* Profile Header */}
+            <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-lg">
+                <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
+                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                        <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-slate-200 flex-shrink-0" />
+                        <div className="text-center sm:text-left">
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">{stoodio.name}</h1>
+                            <p className="text-slate-500 mt-2">Stoodio Dashboard</p>
+                        </div>
+                    </div>
+                     <div className="flex-shrink-0 pt-2">
+                        <label className="flex items-center cursor-pointer">
+                            <span className="text-sm font-medium text-slate-700 mr-3">Show on Map</span>
+                            <div className="relative">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only" 
+                                    checked={stoodio.showOnMap ?? false} 
+                                    onChange={(e) => onUpdateStoodio({ showOnMap: e.target.checked })} 
+                                />
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-slate-300'}`}></div>
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
+                            </div>
+                        </label>
                     </div>
                 </div>
-            </div>
-            
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard label="Total Earnings" value={`$${totalEarnings.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-orange-400" />} />
-                <StatCard label="Followers" value={followersCount.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-orange-400" />} />
-                <StatCard label="Following" value={followingCount.toLocaleString()} icon={<UserGroupIcon className="w-6 h-6 text-orange-400" />} />
-                <StatCard label="Total Bookings" value={bookings.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+                     <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-500" />} />
+                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-500" />} />
+                    <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-500" />} />
+                </div>
             </div>
 
-             {/* Content Grid */}
-            <div className="flex flex-col md:flex-row gap-8 mt-10">
-                <aside className="md:w-1/4 lg:w-1/5">
-                    <nav className="flex flex-col space-y-2">
-                        <TabButton tab="dashboard" label="Dashboard" icon={<SoundWaveIcon className="w-5 h-5"/>} />
-                        <TabButton tab="availability" label="Availability" icon={<CalendarIcon className="w-5 h-5"/>} />
-                        <TabButton tab="wallet" label="Wallet" icon={<DollarSignIcon className="w-5 h-5"/>} />
-                        <TabButton tab="photos" label="Photos" icon={<PhotoIcon className="w-5 h-5"/>} />
-                        <TabButton tab="following" label="Following" icon={<UserCheckIcon className="w-5 h-5"/>} />
-                        <TabButton tab="followers" label="Followers" icon={<UsersIcon className="w-5 h-5"/>} />
-                    </nav>
-                </aside>
-                <main className="flex-1">
-                    {activeTab === 'dashboard' && <DashboardContent {...props} />}
-                    {activeTab === 'availability' && <AvailabilityContent stoodio={stoodio} onUpdateStoodio={onUpdateStoodio} />}
-                    {activeTab === 'wallet' && <WalletContent stoodio={stoodio} />}
-                    {activeTab === 'photos' && <div className="text-center p-8 bg-zinc-800 rounded-lg">Photo Gallery Management coming soon.</div>}
-                    {activeTab === 'following' && <FollowingContent {...props} />}
-                    {activeTab === 'followers' && <FollowersContent {...props} />}
-                </main>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-lg">
+                <div className="flex border-b border-slate-200 overflow-x-auto">
+                    <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                    <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
+                    <TabButton label="Rooms" isActive={activeTab === 'rooms'} onClick={() => setActiveTab('rooms')} />
+                    <TabButton label="Engineers" isActive={activeTab === 'engineers'} onClick={() => setActiveTab('engineers')} />
+                    <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
+                    <TabButton label="Photos" isActive={activeTab === 'photos'} onClick={() => setActiveTab('photos')} />
+                    <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
+                    <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                </div>
+                <div className="p-6">
+                    {renderContent()}
+                </div>
             </div>
         </div>
     );

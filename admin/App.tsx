@@ -1,72 +1,53 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { AdminUser, PlatformUser, DashboardStats } from './types';
 import { AdminView } from './types';
-import type { Booking } from '/types.ts';
-import * as api from './services/apiService';
+import { UserRole } from '../types';
+import type { Booking } from '../types';
+import { MOCK_ARTISTS, ENGINEERS, STOODIOZ } from '../constants';
+import { apiService } from './services/apiService';
 import Login from './components/Login';
 import DashboardLayout from './components/DashboardLayout';
 import FinancialDashboard from './components/FinancialDashboard';
 import UserManagement from './components/UserManagement';
 import BookingManagement from './components/BookingManagement';
 
-const AdminApp: React.FC = () => {
+const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
     const [currentView, setCurrentView] = useState<AdminView>(AdminView.DASHBOARD);
-    
-    // Data state
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [stats, setStats] = useState<DashboardStats | null>(null);
     const [users, setUsers] = useState<PlatformUser[]>([]);
     const [bookings, setBookings] = useState<Booking[]>([]);
+    const [stats, setStats] = useState<DashboardStats | null>(null);
 
-    useEffect(() => {
+    React.useEffect(() => {
         if (currentUser) {
             const fetchData = async () => {
-                setIsLoading(true);
-                try {
-                    const [statsData, usersData, bookingsData] = await Promise.all([
-                        api.getDashboardStats(),
-                        api.getAllUsers(),
-                        api.getAllBookings()
-                    ]);
-                    setStats(statsData);
-                    setUsers(usersData);
-                    setBookings(bookingsData);
-                } catch (error) {
-                    console.error("Failed to fetch admin data", error);
-                } finally {
-                    setIsLoading(false);
-                }
+                const [fetchedUsers, fetchedBookings, fetchedStats] = await Promise.all([
+                    apiService.getUsers(),
+                    apiService.getBookings(),
+                    apiService.getDashboardStats(),
+                ]);
+                setUsers(fetchedUsers);
+                setBookings(fetchedBookings);
+                setStats(fetchedStats);
             };
             fetchData();
         }
     }, [currentUser]);
 
-
     const handleLogin = (email: string, password: string) => {
-        if (email.toLowerCase() === 'admin@stoodioz.com') {
-            setCurrentUser({
-                id: 'admin-1',
-                name: 'Stoodioz Admin',
-                email: 'admin@stoodioz.com'
-            });
+        if (email === 'admin@stoodioz.com' && password === 'password') {
+            setCurrentUser({ id: 'admin-1', name: 'Admin User', email });
+        } else {
+            alert('Invalid admin credentials.');
         }
     };
-    
+
     const handleLogout = () => {
         setCurrentUser(null);
     };
 
     const renderContent = () => {
-        if (isLoading) {
-            return (
-                 <div className="flex justify-center items-center h-64">
-                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-orange-500"></div>
-                </div>
-            )
-        }
-        switch(currentView) {
+        switch (currentView) {
             case AdminView.DASHBOARD:
                 return <FinancialDashboard stats={stats} />;
             case AdminView.USER_MANAGEMENT:
@@ -83,7 +64,7 @@ const AdminApp: React.FC = () => {
     }
 
     return (
-        <DashboardLayout 
+        <DashboardLayout
             user={currentUser}
             onLogout={handleLogout}
             currentView={currentView}
@@ -94,4 +75,4 @@ const AdminApp: React.FC = () => {
     );
 };
 
-export default AdminApp;
+export default App;

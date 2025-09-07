@@ -110,25 +110,21 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
         }
     };
 
-    const visibleEngineers = useMemo(() => {
-        return engineers.filter(e => e.showOnMap);
-    }, [engineers]);
-
     return (
         <div className="relative w-full h-full">
             <div className="w-full h-full bg-slate-200 rounded-2xl shadow-inner overflow-hidden border border-slate-300">
                 <img src="https://images.unsplash.com/photo-1568224348083-22ac64165d62?q=80&w=2574" alt="World Map" className="w-full h-full object-cover opacity-40" />
                 
-                {showStoodioz && stoodioz.map(s => (
+                {showStoodioz && stoodioz.filter(s => s.showOnMap).map(s => (
                     <MapPin key={`stoodio-${s.id}`} type="stoodio" entity={s} position={convertCoordsToPercent(s.coordinates)} onSelect={handleSelect} />
                 ))}
-                {showEngineers && visibleEngineers.map(e => {
+                {showEngineers && engineers.filter(e => e.showOnMap).map(e => {
                     const positionCoords = e.displayExactLocation ? e.coordinates : fuzzCoordinates(e.coordinates);
                     return (
                         <MapPin key={`eng-${e.id}`} type="engineer" entity={e} position={convertCoordsToPercent(positionCoords)} onSelect={handleSelect} />
                     );
                 })}
-                {showArtists && artists.map(a => (
+                {showArtists && artists.filter(a => a.showOnMap).map(a => (
                     <MapPin key={`art-${a.id}`} type="artist" entity={a} position={convertCoordsToPercent(a.coordinates)} onSelect={handleSelect} />
                 ))}
                 {showJobs && activeAndFutureJobs.map(job => (

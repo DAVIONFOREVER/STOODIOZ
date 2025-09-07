@@ -28,14 +28,32 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
     );
     const [requestedEngineerId, setRequestedEngineerId] = useState<string>(initialEngineer?.id || '');
 
-    const { stoodioCost, engineerFee, serviceFee, totalCost, subtotal } = useMemo(() => {
+    const { stoodioCost, engineerFee, serviceFee, totalCost, subtotal, effectivePayRate } = useMemo(() => {
         const stoodioCost = initialRoom.hourlyRate * duration;
-        const engineerFee = requestType !== BookingRequestType.BRING_YOUR_OWN ? stoodio.engineerPayRate * duration : 0;
+        
+        let currentEngineerPayRate = stoodio.engineerPayRate; // Default rate
+
+        // If a specific engineer is chosen, check for a custom in-house rate
+        if (requestType === BookingRequestType.SPECIFIC_ENGINEER && requestedEngineerId) {
+            const inHouseEngineerInfo = stoodio.inHouseEngineers?.find(
+                e => e.engineerId === requestedEngineerId
+            );
+            if (inHouseEngineerInfo) {
+                currentEngineerPayRate = inHouseEngineerInfo.payRate;
+            }
+        }
+
+        const engineerFee = requestType !== BookingRequestType.BRING_YOUR_OWN 
+            ? currentEngineerPayRate * duration 
+            : 0;
+
         const subtotal = stoodioCost + engineerFee;
         const serviceFee = subtotal * SERVICE_FEE_PERCENTAGE;
         const totalCost = subtotal + serviceFee;
-        return { stoodioCost, engineerFee, serviceFee, totalCost, subtotal };
-    }, [initialRoom.hourlyRate, stoodio.engineerPayRate, duration, requestType]);
+        
+        return { stoodioCost, engineerFee, serviceFee, totalCost, subtotal, effectivePayRate: currentEngineerPayRate };
+    }, [initialRoom.hourlyRate, stoodio.engineerPayRate, stoodio.inHouseEngineers, duration, requestType, requestedEngineerId]);
+
 
     const handleConfirmBooking = (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,7 +63,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
             startTime, 
             duration, 
             totalCost,
-            engineerPayRate: stoodio.engineerPayRate,
+            engineerPayRate: effectivePayRate,
             requestType, 
             requestedEngineerId: requestType === BookingRequestType.SPECIFIC_ENGINEER ? requestedEngineerId : undefined 
         };
@@ -124,7 +142,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                             <div className="space-y-2 text-sm text-slate-200">
                                 <div className="flex justify-between"><span>{initialRoom.name} ({duration} hrs)</span> <span>${stoodioCost.toFixed(2)}</span></div>
                                 <div className={`flex justify-between ${requestType === BookingRequestType.BRING_YOUR_OWN ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
-                                    <span>Engineer Fee ({duration} hrs at ${stoodio.engineerPayRate}/hr)</span>
+                                    <span>Engineer Fee ({duration} hrs at ${effectivePayRate}/hr)</span>
                                     <span>${engineerFee.toFixed(2)}</span>
                                 </div>
                                 <div className="border-t border-orange-500/20 my-1 opacity-50"></div>

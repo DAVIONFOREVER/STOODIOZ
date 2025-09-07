@@ -1,17 +1,15 @@
 
 
-
 import React, { useState } from 'react';
-// FIX: Added BookingRequest to the import list.
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Comment, Post, BookingRequest } from '../types';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction } from '../types';
 import { BookingStatus } from '../types';
-import { EditIcon, PhotoIcon, EquipmentIcon, CalendarIcon, LocationIcon, UsersIcon, DollarSignIcon, SoundWaveIcon, UserCheckIcon, UserPlusIcon, UserGroupIcon, CloseIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, UserCheckIcon, UserPlusIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
+import AvailabilityManager from './AvailabilityManager';
+import Following from './Following';
 
-// FIX: Defined JobPostData to match the expected structure for posting a job.
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
-
 
 interface StoodioDashboardProps {
     stoodio: Stoodio;
@@ -28,79 +26,145 @@ interface StoodioDashboardProps {
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
     currentUser: Artist | Engineer | Stoodio | null;
-    // FIX: Corrected the onPostJob prop type to align with the implementation, which does not expect a 'room' property.
     onPostJob: (jobRequest: JobPostData) => void;
 }
 
-type DashboardTab = 'dashboard' | 'following' | 'followers' | 'photos';
+type DashboardTab = 'dashboard' | 'availability' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800 p-4 rounded-xl shadow-md flex items-center gap-4 border border-zinc-700">
-        <div className="bg-orange-500/20 p-3 rounded-lg">{icon}</div>
+    <div className="bg-slate-50 p-4 rounded-xl flex items-center gap-4 border border-slate-200">
+        <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
-            <p className="text-slate-400 text-sm font-medium">{label}</p>
-            <p className="text-2xl font-bold text-slate-100">{value}</p>
+            <p className="text-slate-500 text-sm font-medium">{label}</p>
+            <p className="text-2xl font-bold text-slate-800">{value}</p>
         </div>
     </div>
 );
 
-// FIX: The PostJobCard component now correctly handles engineer pay rate and has been updated to accept the `stoodio` prop.
-const PostJobCard: React.FC<{ stoodio: Stoodio; onPostJob: StoodioDashboardProps['onPostJob'] }> = ({ stoodio, onPostJob }) => {
-    const today = new Date().toISOString().split('T')[0];
-    const [date, setDate] = useState(today);
-    const [startTime, setStartTime] = useState('12:00');
-    const [duration, setDuration] = useState(4);
-    const [skills, setSkills] = useState('');
-    const [engineerPayRate, setEngineerPayRate] = useState(stoodio.engineerPayRate.toString());
+const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`px-4 py-3 font-semibold text-sm transition-colors ${isActive ? 'border-b-2 border-orange-500 text-orange-500' : 'text-slate-500 hover:text-slate-800'}`}
+    >
+        {label}
+    </button>
+);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        // FIX: The object passed to onPostJob now includes `engineerPayRate` and correctly matches the updated prop type, resolving the original error about the missing 'room' property by fixing the type definition.
-        onPostJob({
-            date,
-            startTime,
-            duration,
-            requiredSkills: skills ? skills.split(',').map(s => s.trim()) : [],
-            engineerPayRate: parseFloat(engineerPayRate) || 0,
-        });
-        // Reset form
-        setDate(today);
-        setStartTime('12:00');
-        setDuration(4);
-        setSkills('');
-        setEngineerPayRate(stoodio.engineerPayRate.toString());
-    };
+const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
+    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer } = props;
+    const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
+
+    const upcomingBookingsCount = bookings
+        .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
+        .length;
+    
+    const followers = allArtists.filter(a => a.following.stoodioz.includes(stoodio.id));
+    const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
+    const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
+    const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'availability':
+                // FIX: Changed props 'stoodio' to 'user' and 'onUpdateStoodio' to 'onUpdateUser' to match AvailabilityManagerProps interface.
+                return <AvailabilityManager user={stoodio} onUpdateUser={onUpdateStoodio} />;
+            case 'wallet':
+                return (
+                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                        <h3 className="text-xl font-bold mb-4">Wallet</h3>
+                        <p className="text-4xl font-bold text-green-500 mb-6">${stoodio.walletBalance.toFixed(2)}</p>
+                        <h4 className="font-semibold mb-2">Transaction History</h4>
+                        <div className="space-y-2">
+                            {stoodio.walletTransactions.map((tx: Transaction) => (
+                                <div key={tx.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-md">
+                                    <div>
+                                        <p className="font-medium text-slate-700">{tx.description}</p>
+                                        <p className="text-xs text-slate-500">{new Date(tx.date).toLocaleString()}</p>
+                                    </div>
+                                    <p className={`font-semibold ${tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}`}>
+                                        {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            case 'photos':
+                return (
+                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                        <h3 className="text-xl font-bold mb-4">Photo Management</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            {stoodio.photos.map((photo, index) => (
+                                <img key={index} src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
+                            ))}
+                        </div>
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+                            <PhotoIcon className="mx-auto h-12 w-12 text-slate-400" />
+                            <p className="mt-2 text-sm text-slate-600">Drag & drop photos here or click to upload</p>
+                            <button className="mt-4 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Upload Photos</button>
+                        </div>
+                    </div>
+                );
+            case 'followers':
+                 return (
+                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                        <h3 className="text-xl font-bold mb-4">Followers ({followers.length})</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {followers.map(artist => (
+                                <div key={artist.id} className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg">
+                                    <img src={artist.imageUrl} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
+                                    <span className="font-semibold text-sm text-slate-700">{artist.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            case 'following':
+                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} />;
+            case 'dashboard':
+            default:
+                 return (
+                    <div className="space-y-8">
+                        <CreatePost currentUser={currentUser!} onPost={onPost} />
+                        <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
+                    </div>
+                );
+        }
+    }
 
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
-            <h3 className="text-xl font-bold text-slate-100 mb-4">Post a Job for Engineers</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="job-date" className="text-sm font-semibold text-slate-400 mb-1 block">Date</label>
-                        <input type="date" id="job-date" value={date} min={today} onChange={e => setDate(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
-                    </div>
-                     <div>
-                        <label htmlFor="job-start-time" className="text-sm font-semibold text-slate-400 mb-1 block">Start Time</label>
-                        <input type="time" id="job-start-time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
+        <div className="space-y-8">
+            {/* Profile Header */}
+            <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-lg">
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-slate-200 flex-shrink-0" />
+                    <div className="text-center sm:text-left">
+                        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">{stoodio.name}</h1>
+                        <p className="text-slate-500 mt-2">Stoodio Dashboard</p>
                     </div>
                 </div>
-                 <div>
-                    <label htmlFor="job-duration" className="text-sm font-semibold text-slate-400 mb-1 block">Duration (hours)</label>
-                    <input type="number" id="job-duration" value={duration} min="1" max="12" onChange={e => setDuration(parseInt(e.target.value))} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+                     <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-500" />} />
+                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-500" />} />
+                    <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-500" />} />
                 </div>
-                <div>
-                    <label htmlFor="job-pay-rate" className="text-sm font-semibold text-slate-400 mb-1 block">Engineer Payout ($/hr)</label>
-                    <input type="number" id="job-pay-rate" value={engineerPayRate} min="0" step="1" onChange={e => setEngineerPayRate(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 shadow-lg">
+                <div className="flex border-b border-slate-200 overflow-x-auto">
+                    <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                    <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
+                    <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
+                    <TabButton label="Photos" isActive={activeTab === 'photos'} onClick={() => setActiveTab('photos')} />
+                    <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
+                    <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
                 </div>
-                 <div>
-                    <label htmlFor="job-skills" className="text-sm font-semibold text-slate-400 mb-1 block">Required Skills (optional, comma-separated)</label>
-                    <input type="text" id="job-skills" value={skills} onChange={e => setSkills(e.target.value)} placeholder="e.g., Pro Tools, Vocal Tuning" className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500" />
+                <div className="p-6">
+                    {renderContent()}
                 </div>
-                <button type="submit" className="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-all shadow-md">
-                    Post Job to Board
-                </button>
-            </form>
+            </div>
         </div>
     );
 };
+
+export default StoodioDashboard;

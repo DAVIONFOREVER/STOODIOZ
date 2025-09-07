@@ -1,11 +1,14 @@
+
 import React, { useState } from 'react';
+import { AppView } from '../types';
 
 interface LoginProps {
     onLogin: (email: string, password: string) => void;
     error: string | null;
+    onNavigate: (view: AppView) => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
@@ -15,36 +18,36 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
     };
 
     return (
-        <div className="max-w-md mx-auto bg-zinc-800 p-8 rounded-2xl border border-zinc-700 mt-16">
-            <h1 className="text-4xl font-extrabold text-center mb-2 text-orange-500">Welcome Back</h1>
-            <p className="text-center text-slate-400 mb-8">Log in to your Stoodioz account.</p>
+        <div className="max-w-md mx-auto bg-white p-8 rounded-2xl border border-slate-200 shadow-xl mt-16">
+            <h1 className="text-4xl font-extrabold text-center mb-2 text-slate-900">Welcome Back</h1>
+            <p className="text-center text-slate-500 mb-8">Log in to your Stoodioz account.</p>
             {error && (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm p-3 rounded-lg mb-6 text-center">
+                <div className="bg-red-100 border border-red-300 text-red-700 text-sm p-3 rounded-lg mb-6 text-center">
                     {error}
                 </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                    <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
                     <input
                         type="email"
                         id="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-4 pr-4 py-3 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-4 py-3 bg-slate-100 border-slate-300 text-slate-800 rounded-lg focus:ring-orange-500 focus:border-orange-500"
                         placeholder="you@example.com"
                         required
                         autoComplete="email"
                     />
                 </div>
                 <div>
-                    <label htmlFor="password" aria-label="Password" className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                    <label htmlFor="password" aria-label="Password" className="block text-sm font-medium text-slate-700 mb-2">Password</label>
                     <input
                         type="password"
                         id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full pl-4 pr-4 py-3 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-4 py-3 bg-slate-100 border-slate-300 text-slate-800 rounded-lg focus:ring-orange-500 focus:border-orange-500"
                         placeholder="••••••••"
                         required
                         autoComplete="current-password"
@@ -54,6 +57,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
                     Log In
                 </button>
             </form>
+             <div className="text-center mt-6">
+                <p className="text-sm text-slate-500">
+                    Don't have an account?{' '}
+                    <button onClick={() => onNavigate(AppView.CHOOSE_PROFILE)} className="font-semibold text-orange-500 hover:underline">
+                        Get Started
+                    </button>
+                </p>
+            </div>
         </div>
     );
 };

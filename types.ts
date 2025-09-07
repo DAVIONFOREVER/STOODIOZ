@@ -1,10 +1,75 @@
+// FIX: Created the full type definitions for the application based on usage in other files. This file was previously a placeholder.
 
+export enum AppView {
+    LANDING_PAGE = 'LANDING_PAGE',
+    LOGIN = 'LOGIN',
+    CHOOSE_PROFILE = 'CHOOSE_PROFILE',
+    ARTIST_SETUP = 'ARTIST_SETUP',
+    ENGINEER_SETUP = 'ENGINEER_SETUP',
+    STOODIO_SETUP = 'STOODIO_SETUP',
+    PRIVACY_POLICY = 'PRIVACY_POLICY',
+    THE_STAGE = 'THE_STAGE',
+    STOODIO_LIST = 'STOODIO_LIST',
+    STOODIO_DETAIL = 'STOODIO_DETAIL',
+    ENGINEER_LIST = 'ENGINEER_LIST',
+    ENGINEER_PROFILE = 'ENGINEER_PROFILE',
+    ARTIST_LIST = 'ARTIST_LIST',
+    ARTIST_PROFILE = 'ARTIST_PROFILE',
+    MAP_VIEW = 'MAP_VIEW',
+    BOOKING_MODAL = 'BOOKING_MODAL',
+    CONFIRMATION = 'CONFIRMATION',
+    MY_BOOKINGS = 'MY_BOOKINGS',
+    STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
+    ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
+    ARTIST_DASHBOARD = 'ARTIST_DASHBOARD',
+    INBOX = 'INBOX',
+    ACTIVE_SESSION = 'ACTIVE_SESSION',
+    VIBE_MATCHER_RESULTS = 'VIBE_MATCHER_RESULTS',
+}
 
-// FIX: Removed self-import of `LinkAttachment` which was causing a conflict.
+export enum UserRole {
+    ARTIST = 'ARTIST',
+    STOODIO = 'STOODIO',
+    ENGINEER = 'ENGINEER',
+}
+
+export enum BookingStatus {
+    PENDING = 'PENDING',
+    PENDING_APPROVAL = 'PENDING_APPROVAL',
+    CONFIRMED = 'CONFIRMED',
+    IN_PROGRESS = 'IN_PROGRESS',
+    COMPLETED = 'COMPLETED',
+    CANCELLED = 'CANCELLED',
+}
+
+export enum BookingRequestType {
+    FIND_AVAILABLE = 'FIND_AVAILABLE',
+    SPECIFIC_ENGINEER = 'SPECIFIC_ENGINEER',
+    BRING_YOUR_OWN = 'BRING_YOUR_OWN',
+}
+
+export enum NotificationType {
+    GENERAL = 'GENERAL',
+    BOOKING_REQUEST = 'BOOKING_REQUEST',
+    BOOKING_CONFIRMED = 'BOOKING_CONFIRMED',
+    BOOKING_DENIED = 'BOOKING_DENIED',
+    NEW_FOLLOWER = 'NEW_FOLLOWER',
+    NEW_LIKE = 'NEW_LIKE',
+    NEW_COMMENT = 'NEW_COMMENT',
+    NEW_TIP = 'NEW_TIP',
+}
 
 export interface Location {
     lat: number;
     lon: number;
+}
+
+export interface Room {
+    id: string;
+    name: string;
+    description: string;
+    hourlyRate: number;
+    photos: string[];
 }
 
 export interface Transaction {
@@ -13,6 +78,17 @@ export interface Transaction {
     amount: number;
     date: string;
     type: 'credit' | 'debit';
+}
+
+export interface Following {
+    stoodioz: string[];
+    engineers: string[];
+    artists: string[];
+}
+
+export interface LinkAttachment {
+    title: string;
+    url: string;
 }
 
 export interface Comment {
@@ -34,150 +110,93 @@ export interface Post {
     videoThumbnailUrl?: string;
     link?: LinkAttachment;
     timestamp: string;
-    likes: string[]; // Array of user IDs
+    likes: string[];
     comments: Comment[];
 }
 
-export interface Room {
+interface BaseUser {
     id: string;
     name: string;
-    description: string;
-    hourlyRate: number;
-    photos: string[];
-}
-
-
-export interface Stoodio {
-    id: string;
-    name: string;
-    location: string;
-    // DEPRECATED: hourlyRate will now be on a per-room basis.
-    // Keeping for potential backward compatibility, but new logic should use rooms.
-    hourlyRate: number; 
-    engineerPayRate: number;
-    rating: number;
-    imageUrl: string;
-    amenities: string[];
-    description: string;
-    coordinates: Location;
-    availability: {
-        date: string; // YYYY-MM-DD
-        times: string[]; // HH:MM
-    }[];
-    photos: string[]; // Gallery images
-    followers: number;
-    following: {
-        artists: string[];
-        engineers: string[];
-        stoodioz: string[];
-    };
-    followerIds: string[];
-    links?: { title: string; url: string }[];
-    email?: string;
+    email: string;
     password?: string;
-    posts?: Post[];
+    imageUrl: string;
+    followers: number;
+    following: Following;
+    followerIds: string[];
+    coordinates: Location;
     walletBalance: number;
     walletTransactions: Transaction[];
-    notificationsEnabled?: boolean;
-    rooms: Room[]; // NEW: Studios now have multiple bookable rooms
+    posts?: Post[];
 }
 
-export interface Artist {
-    id: string;
-    name: string;
-    imageUrl: string;
+export interface Artist extends BaseUser {
     bio: string;
-    followers: number;
-    following: {
-        stoodioz: string[];
-        engineers: string[];
-        artists: string[];
-    };
-    followerIds: string[];
-    links?: { title: string; url: string }[];
-    coordinates: Location;
     isSeekingSession: boolean;
-    email?: string;
-    password?: string;
-    posts?: Post[];
-    walletBalance: number;
-    walletTransactions: Transaction[];
-    notificationsEnabled?: boolean;
+    showOnMap?: boolean;
 }
 
-export interface Engineer {
-    id: string;
-    name: string;
+export interface Engineer extends BaseUser {
     bio: string;
     specialties: string[];
     rating: number;
     sessionsCompleted: number;
-    imageUrl: string;
     audioSampleUrl: string;
-    followers: number;
-    following: {
-        artists: string[];
-        engineers: string[];
-        stoodioz: string[];
-    };
-    followerIds: string[];
-    links?: { title: string; url: string }[];
-    coordinates: Location;
     isAvailable: boolean;
-    displayExactLocation?: boolean;
     showOnMap?: boolean;
-    email?: string;
-    password?: string;
-    posts?: Post[];
-    walletBalance: number;
-    walletTransactions: Transaction[];
-    availability?: {
-        date: string; // YYYY-MM-DD
-        times: string[]; // HH:MM
-    }[];
-    notificationsEnabled?: boolean;
-    minHourlyRate?: number;
+    displayExactLocation?: boolean;
+    availability?: { date: string; times: string[] }[];
 }
 
-export enum BookingRequestType {
-    FIND_AVAILABLE = 'FIND_AVAILABLE',
-    SPECIFIC_ENGINEER = 'SPECIFIC_ENGINEER',
-    BRING_YOUR_OWN = 'BRING_YOUR_OWN'
+export interface InHouseEngineerInfo {
+    engineerId: string;
+    payRate: number;
+}
+
+export interface Stoodio extends BaseUser {
+    description: string;
+    location: string;
+    hourlyRate: number;
+    engineerPayRate: number;
+    rating: number;
+    amenities: string[];
+    availability: { date: string; times: string[] }[];
+    photos: string[];
+    rooms: Room[];
+    inHouseEngineers?: InHouseEngineerInfo[];
+    showOnMap?: boolean;
 }
 
 export interface BookingRequest {
-    room: Room; // NEW: Specify which room is being booked
+    room: Room;
     date: string;
     startTime: string;
-    duration: number; // in hours
+    duration: number;
     totalCost: number;
     engineerPayRate: number;
     requestType: BookingRequestType;
     requestedEngineerId?: string;
     requiredSkills?: string[];
-    postedBy?: UserRole;
 }
 
-export enum BookingStatus {
-    PENDING = 'PENDING', // Open on the job board
-    PENDING_APPROVAL = 'PENDING_APPROVAL', // Sent to a specific engineer
-    CONFIRMED = 'CONFIRMED',
-    IN_PROGRESS = 'IN_PROGRESS',
-    COMPLETED = 'COMPLETED',
-    CANCELLED = 'CANCELLED',
-}
-
-
-export interface Booking extends BookingRequest {
-    id:string;
-    stoodio: Stoodio;
-    engineer: Engineer | null;
-    artist: Artist | null;
+export interface Booking {
+    id: string;
+    room: Room;
+    date: string;
+    startTime: string;
+    duration: number;
+    totalCost: number;
+    engineerPayRate: number;
+    requestType: BookingRequestType;
     status: BookingStatus;
+    stoodio: Stoodio;
+    artist: Artist | null;
+    engineer: Engineer | null;
+    requestedEngineerId: string | null;
     bookedById: string;
     bookedByRole: UserRole;
+    requiredSkills?: string[];
+    postedBy?: UserRole;
     tip?: number;
-    requestedEngineerId: string | null;
 }
 
 export interface Review {
@@ -185,51 +204,32 @@ export interface Review {
     reviewerName: string;
     artistId?: string;
     stoodioId?: string;
+    engineerId?: string;
     rating: number;
     comment: string;
-    date: string; // YYYY-MM-DD
-}
-
-export type MessageType = 'text' | 'image' | 'link' | 'audio';
-
-export interface LinkAttachment {
-    url: string;
-    title: string;
-}
-
-export interface AudioAttachment {
-    filename: string;
-    duration: string; // e.g. "3:45"
+    date: string;
 }
 
 export interface Message {
     id: string;
-    senderId: string; // 'artist-user' or engineer/stoodio id
-    timestamp: string; // ISO 8601
-    type: MessageType;
-    text?: string; // Optional for images (as a caption) or links
+    senderId: string;
+    text?: string;
+    timestamp: string;
+    type: 'text' | 'image' | 'link' | 'audio';
     imageUrl?: string;
     link?: LinkAttachment;
     audioUrl?: string;
-    audioInfo?: AudioAttachment;
+    audioInfo?: {
+        filename: string;
+        duration: string;
+    };
 }
 
 export interface Conversation {
     id: string;
-    participant: Engineer | Stoodio | Artist;
+    participant: Artist | Engineer | Stoodio;
     messages: Message[];
     unreadCount: number;
-}
-export enum NotificationType {
-    BOOKING_REQUEST = 'BOOKING_REQUEST',
-    BOOKING_CONFIRMED = 'BOOKING_CONFIRMED',
-    BOOKING_DENIED = 'BOOKING_DENIED',
-    SESSION_COMPLETED = 'SESSION_COMPLETED',
-    NEW_FOLLOWER = 'NEW_FOLLOWER',
-    NEW_LIKE = 'NEW_LIKE',
-    NEW_COMMENT = 'NEW_COMMENT',
-    NEW_TIP = 'NEW_TIP',
-    GENERAL = 'GENERAL',
 }
 
 export interface AppNotification {
@@ -239,17 +239,15 @@ export interface AppNotification {
     timestamp: string;
     type: NotificationType;
     read: boolean;
+    actor?: {
+        name: string;
+        imageUrl: string;
+    };
     link?: {
         view: AppView;
         entityId?: string;
     };
-    actor?: {
-        id: string;
-        name: string;
-        imageUrl: string;
-    };
 }
-
 
 export interface VibeMatchResult {
     vibeDescription: string;
@@ -259,38 +257,4 @@ export interface VibeMatchResult {
         entity: Stoodio | Engineer;
         reason: string;
     }[];
-}
-
-export enum AppView {
-    LANDING_PAGE = 'LANDING_PAGE',
-    LOGIN = 'LOGIN',
-    CHOOSE_PROFILE = 'CHOOSE_PROFILE',
-    ARTIST_SETUP = 'ARTIST_SETUP',
-    ENGINEER_SETUP = 'ENGINEER_SETUP',
-    STOODIO_SETUP = 'STOODIO_SETUP',
-    PRIVACY_POLICY = 'PRIVACY_POLICY',
-    THE_STAGE = 'THE_STAGE',
-    ARTIST_DASHBOARD = 'ARTIST_DASHBOARD',
-    STOODIO_LIST = 'STOODIO_LIST',
-    STOODIO_DETAIL = 'STOODIO_DETAIL',
-    BOOKING_MODAL = 'BOOKING_MODAL',
-    CONFIRMATION = 'CONFIRMATION',
-    MY_BOOKINGS = 'MY_BOOKINGS',
-    INBOX = 'INBOX',
-    FOLLOWING = 'FOLLOWING',
-    ARTIST_LIST = 'ARTIST_LIST',
-    ARTIST_PROFILE = 'ARTIST_PROFILE',
-    ENGINEER_LIST = 'ENGINEER_LIST',
-    ENGINEER_PROFILE = 'ENGINEER_PROFILE',
-    STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
-    ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
-    MAP_VIEW = 'MAP_VIEW',
-    ACTIVE_SESSION = 'ACTIVE_SESSION',
-    VIBE_MATCHER_RESULTS = 'VIBE_MATCHER_RESULTS',
-}
-
-export enum UserRole {
-    ARTIST = 'ARTIST',
-    STOODIO = 'STOODIO',
-    ENGINEER = 'ENGINEER'
 }
