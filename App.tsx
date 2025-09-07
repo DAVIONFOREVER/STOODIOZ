@@ -1,10 +1,11 @@
-
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room } from './types';
-import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType } from './types';
+import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus } from './types';
 import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE } from './constants';
 import { getVibeMatchResults } from './services/geminiService';
+import { webSocketService } from './services/webSocketService';
+import { calculateDistance } from './utils/location';
 import Header from './components/Header';
 import StoodioList from './components/StudioList';
 import StoodioDetail from './components/StoodioDetail';
@@ -84,6 +85,60 @@ const App: React.FC = () => {
         return UserRole.ARTIST;
     }, [currentUser]);
 
+    // --- "Uber-like" Real-time Job Notification Logic ---
+    useEffect(() => {
+        const showPushNotification = (title: string, options: NotificationOptions) => {
+            if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification(title, options);
+                });
+            }
+        };
+
+        const handleNewBooking = (newBooking: Booking) => {
+            // This logic runs for all users, but we only notify relevant engineers.
+            if (userRole === UserRole.ENGINEER && currentUser) {
+                const engineer = currentUser as Engineer;
+                const prefs = engineer.notificationPreferences;
+                
+                // Only proceed if the engineer has alerts enabled
+                if (!prefs || !prefs.enabled) return;
+
+                const distance = calculateDistance(engineer.coordinates, newBooking.stoodio.coordinates);
+
+                // Check if the job is within the engineer's preferred radius
+                if (distance <= prefs.radius) {
+                    const message = `New ${newBooking.duration}hr session available at ${newBooking.stoodio.name}. Payout: $${(newBooking.engineerPayRate * newBooking.duration).toFixed(2)}.`;
+                    
+                    // 1. Create an in-app notification
+                    setNotifications(prev => [...prev, {
+                        id: `notif-${Date.now()}`,
+                        userId: engineer.id,
+                        message: `Job Alert: ${message}`,
+                        timestamp: new Date().toISOString(),
+                        type: NotificationType.BOOKING_REQUEST,
+                        read: false,
+                        link: { view: AppView.ENGINEER_DASHBOARD }
+                    }]);
+                    
+                    // 2. Trigger a system push notification
+                    showPushNotification('New Session Available!', {
+                        body: message,
+                        icon: '/logo192.png', // Assuming a logo exists in public folder
+                        tag: newBooking.id, // Tag prevents multiple notifications for the same booking
+                    });
+                }
+            }
+        };
+        
+        // Subscribe to the mock websocket service
+        const unsubscribe = webSocketService.on('new-booking', handleNewBooking);
+
+        // Clean up the subscription on component unmount
+        return () => unsubscribe();
+
+    }, [currentUser, userRole]);
+
 
     // --- Navigation Handlers ---
     const handleNavigate = useCallback((view: AppView) => {
@@ -108,6 +163,12 @@ const App: React.FC = () => {
         if (canGoForward) setHistoryIndex(prev => prev - 1);
     }, [canGoForward]);
 
+    const handleNavigateToStudio = useCallback((location: Location) => {
+        const { lat, lon } = location;
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }, []);
+
     // --- Auth Handlers ---
     const handleLogin = useCallback((email: string, password: string): void => {
         const allUsers: (Artist | Engineer | Stoodio)[] = [...artists, ...engineers, ...stoodioz];
@@ -115,6 +176,10 @@ const App: React.FC = () => {
 
         if (user) {
             setCurrentUser(user);
+             // Request notification permission on login for a better user experience
+            if ('Notification' in window && Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
             setHistory([AppView.THE_STAGE]);
             setHistoryIndex(0);
         } else {
@@ -173,6 +238,7 @@ const App: React.FC = () => {
             isAvailable: true,
             walletBalance: 100,
             walletTransactions: [],
+            notificationPreferences: { radius: 50, enabled: true },
         };
         setEngineers(prev => [...prev, newEngineer]);
         setCurrentUser(newEngineer);
@@ -201,6 +267,7 @@ const App: React.FC = () => {
             rooms: [
                 { id: `room-${Date.now()}`, name: 'Main Control Room', description: 'The primary recording and mixing space.', hourlyRate: 80, photos: [] }
             ],
+            verificationStatus: VerificationStatus.UNVERIFIED,
         };
         setStoodioz(prev => [...prev, newStoodio]);
         setCurrentUser(newStoodio);
@@ -269,6 +336,12 @@ const App: React.FC = () => {
 
                 setBookings(prev => [...prev, newBooking]);
                 setLatestBooking(newBooking);
+                
+                // Emit the new booking for real-time alerts
+                if (newBooking.requestType !== BookingRequestType.BRING_YOUR_OWN) {
+                    webSocketService.emit('new-booking', newBooking);
+                }
+
                 handleNavigate(AppView.CONFIRMATION);
             } finally {
                 setIsLoading(false);
@@ -306,6 +379,9 @@ const App: React.FC = () => {
             bookedByRole: userRole,
         };
         setBookings(prev => [...prev, newJob]);
+
+        // Emit the new job for real-time alerts
+        webSocketService.emit('new-booking', newJob);
     
         setNotifications(prev => [...prev, {
             id: `notif-${Date.now()}`, 
@@ -391,6 +467,39 @@ const App: React.FC = () => {
         const updatedStoodio = { ...currentUser as Stoodio, ...updatedProfile };
         setCurrentUser(updatedStoodio);
         setStoodioz(prev => prev.map(s => s.id === updatedStoodio.id ? updatedStoodio : s));
+    };
+
+    const handleVerificationSubmit = (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => {
+        if (userRole !== UserRole.STOODIO) return;
+
+        const updateStoodioState = (id: string, updates: Partial<Stoodio>) => {
+            setStoodioz(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+            if (currentUser?.id === id) {
+                setCurrentUser(prev => ({ ...prev, ...updates }) as Stoodio);
+            }
+        };
+
+        // 1. Set status to Pending
+        updateStoodioState(stoodioId, {
+            verificationStatus: VerificationStatus.PENDING,
+            googleBusinessProfileUrl: data.googleBusinessProfileUrl,
+            websiteUrl: data.websiteUrl,
+        });
+
+        // 2. Simulate admin review and approval
+        setTimeout(() => {
+            updateStoodioState(stoodioId, { verificationStatus: VerificationStatus.VERIFIED });
+            
+            // 3. Send notification
+            setNotifications(prev => [...prev, {
+                id: `notif-verified-${Date.now()}`,
+                userId: stoodioId,
+                message: "Congratulations! Your stoodio has been verified.",
+                timestamp: new Date().toISOString(),
+                type: NotificationType.GENERAL,
+                read: false,
+            }]);
+        }, 4000); // 4-second delay for simulation
     };
     
     const handleUpdateEngineer = (updatedProfile: Partial<Engineer>) => {
@@ -781,7 +890,7 @@ const App: React.FC = () => {
             case AppView.ENGINEER_LIST:
                 return <EngineerList engineers={engineers} onSelectEngineer={handleViewEngineerProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} />;
             case AppView.ENGINEER_PROFILE:
-                return selectedEngineer ? <EngineerProfile engineer={selectedEngineer} onBack={handleGoBack} reviews={reviews} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} isFollowing={currentUser && 'following' in currentUser ? currentUser.following.engineers.includes(selectedEngineer.id) : false} userRole={userRole} bookings={bookings} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onStartNavigation={()=>{}} onStartConversation={()=>{}} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onInitiateBooking={handleInitiateBookingWithEngineer} /> : <EngineerList engineers={engineers} onSelectEngineer={handleViewEngineerProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} />;
+                return selectedEngineer ? <EngineerProfile engineer={selectedEngineer} onBack={handleGoBack} reviews={reviews} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} isFollowing={currentUser && 'following' in currentUser ? currentUser.following.engineers.includes(selectedEngineer.id) : false} userRole={userRole} bookings={bookings} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onStartNavigation={handleNavigateToStudio} onStartConversation={()=>{}} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onInitiateBooking={handleInitiateBookingWithEngineer} /> : <EngineerList engineers={engineers} onSelectEngineer={handleViewEngineerProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} />;
             case AppView.ARTIST_LIST:
                  return <ArtistList artists={artists} onSelectArtist={handleViewArtistProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole}/>;
             case AppView.ARTIST_PROFILE:
@@ -791,23 +900,23 @@ const App: React.FC = () => {
             
             // --- Authenticated Views ---
             case AppView.THE_STAGE:
-                if (currentUser) return <TheStage currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} />;
+                if (currentUser) return <TheStage currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onToggleFollow={handleToggleFollow} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onNavigate={handleNavigate} />;
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
             case AppView.CONFIRMATION:
                 if (latestBooking) return <BookingConfirmation booking={latestBooking} onDone={() => handleNavigate(AppView.MY_BOOKINGS)} engineers={engineers}/>;
                 return <StoodioList stoodioz={stoodioz} onSelectStoodio={handleViewStoodioDetails} />;
             case AppView.MY_BOOKINGS:
                 const userBookings = bookings.filter(b => b.bookedById === currentUser?.id);
-                return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={() => {}} onOpenCancelModal={setBookingToCancel} />;
+                return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={handleNavigateToStudio} onOpenCancelModal={setBookingToCancel} />;
 
             case AppView.STOODIO_DASHBOARD:
-                if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} />;
+                if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onVerificationSubmit={handleVerificationSubmit} />;
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.ENGINEER_DASHBOARD:
                 if (userRole === UserRole.ENGINEER) {
                     const engineerBookings = bookings.filter(b => b.engineer?.id === currentUser?.id || b.status === BookingStatus.PENDING || (b.status === BookingStatus.PENDING_APPROVAL && b.requestedEngineerId === currentUser?.id));
-                    return <EngineerDashboard engineer={currentUser as Engineer} reviews={reviews.filter(r => r.engineerId === currentUser?.id)} bookings={engineerBookings} onUpdateEngineer={handleUpdateEngineer} onAcceptBooking={handleAcceptBooking} onDenyBooking={handleDenyBooking} onStartSession={handleStartSession} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onToggleFollow={handleToggleFollow} onNavigateToStudio={()=>{}} onStartConversation={()=>{}} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} />;
+                    return <EngineerDashboard engineer={currentUser as Engineer} reviews={reviews.filter(r => r.engineerId === currentUser?.id)} bookings={engineerBookings} onUpdateEngineer={handleUpdateEngineer} onAcceptBooking={handleAcceptBooking} onDenyBooking={handleDenyBooking} onStartSession={handleStartSession} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onToggleFollow={handleToggleFollow} onNavigateToStudio={handleNavigateToStudio} onStartConversation={()=>{}} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} />;
                 }
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
@@ -846,6 +955,12 @@ const App: React.FC = () => {
                 onLogout={handleLogout}
                 onMarkAsRead={handleMarkAsRead}
                 onMarkAllAsRead={handleMarkAllAsRead}
+                allArtists={artists}
+                allEngineers={engineers}
+                allStoodioz={stoodioz}
+                onSelectArtist={handleViewArtistProfile}
+                onSelectEngineer={handleViewEngineerProfile}
+                onSelectStoodio={handleViewStoodioDetails}
             />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {renderAppContent()}

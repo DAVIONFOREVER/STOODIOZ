@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Stoodio } from '../types';
-import { LocationIcon, StarIcon } from './icons';
+import { VerificationStatus } from '../types';
+import { LocationIcon, StarIcon, VerifiedIcon } from './icons';
 import { estimateTravelTime } from '../utils/location';
 
 interface StoodioCardProps {
@@ -19,7 +20,12 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio, dis
                 <img src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-48 object-cover" />
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/70 to-transparent"></div>
                 <div className="absolute bottom-4 left-4">
-                    <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors">{stoodio.name}</h3>
+                    <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors flex items-center gap-2">
+                        {stoodio.name}
+                        {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
+                            <VerifiedIcon className="w-6 h-6 text-blue-400" title="Verified Stoodio" />
+                        )}
+                    </h3>
                     <p className="text-slate-300 font-semibold flex items-center gap-1.5"><LocationIcon className="w-4 h-4" /> {stoodio.location}</p>
                 </div>
                 <div className="absolute top-4 right-4 bg-zinc-900/80 px-3 py-1.5 rounded-full flex items-center gap-1.5 text-yellow-400 font-bold text-sm">

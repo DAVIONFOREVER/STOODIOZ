@@ -59,6 +59,12 @@ export enum NotificationType {
     NEW_TIP = 'NEW_TIP',
 }
 
+export enum VerificationStatus {
+    UNVERIFIED = 'UNVERIFIED',
+    PENDING = 'PENDING',
+    VERIFIED = 'VERIFIED',
+}
+
 export interface Location {
     lat: number;
     lon: number;
@@ -84,6 +90,11 @@ export interface Following {
     stoodioz: string[];
     engineers: string[];
     artists: string[];
+}
+
+export interface Link {
+    title: string;
+    url: string;
 }
 
 export interface LinkAttachment {
@@ -127,6 +138,7 @@ interface BaseUser {
     walletBalance: number;
     walletTransactions: Transaction[];
     posts?: Post[];
+    links?: Link[];
 }
 
 export interface Artist extends BaseUser {
@@ -145,6 +157,11 @@ export interface Engineer extends BaseUser {
     showOnMap?: boolean;
     displayExactLocation?: boolean;
     availability?: { date: string; times: string[] }[];
+    notificationPreferences?: {
+        radius: number; // in miles
+        enabled: boolean;
+    };
+    minimumPayRate?: number;
 }
 
 export interface InHouseEngineerInfo {
@@ -164,6 +181,9 @@ export interface Stoodio extends BaseUser {
     rooms: Room[];
     inHouseEngineers?: InHouseEngineerInfo[];
     showOnMap?: boolean;
+    verificationStatus: VerificationStatus;
+    googleBusinessProfileUrl?: string;
+    websiteUrl?: string;
 }
 
 export interface BookingRequest {

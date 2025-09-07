@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction } from '../types';
-import { BookingStatus } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, HouseIcon, SoundWaveIcon } from './icons';
+import { BookingStatus, UserRole } from '../types';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, HouseIcon, SoundWaveIcon, VerifiedIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -9,8 +9,115 @@ import Following from './Following';
 import FollowersList from './FollowersList';
 import RoomManager from './RoomManager';
 import EngineerManager from './EngineerManager';
+import VerificationManager from './VerificationManager';
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
+
+const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onPostJob }) => {
+    const today = new Date().toISOString().split('T')[0];
+    const [date, setDate] = useState(today);
+    const [startTime, setStartTime] = useState('14:00');
+    const [duration, setDuration] = useState(4);
+    const [engineerPayRate, setEngineerPayRate] = useState(50);
+    const [requiredSkills, setRequiredSkills] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onPostJob({
+            date,
+            startTime,
+            duration,
+            engineerPayRate,
+            requiredSkills: requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
+        });
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Post a New Job</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-slate-600">Date</label>
+                    <input type="date" value={date} onChange={e => setDate(e.target.value)} min={today} className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-600">Start Time</label>
+                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-600">Duration (hrs)</label>
+                    <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} min="1" className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-600">Pay Rate ($/hr)</label>
+                    <input type="number" value={engineerPayRate} onChange={e => setEngineerPayRate(Number(e.target.value))} min="20" className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                </div>
+                <div className="md:col-span-2 lg:col-span-5">
+                    <label className="block text-sm font-medium text-slate-600">Required Skills (optional, comma-separated)</label>
+                    <input type="text" value={requiredSkills} onChange={e => setRequiredSkills(e.target.value)} placeholder="e.g. Pro Tools, Vocal Tuning, Mixing" className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                </div>
+                 <div className="lg:col-start-5">
+                     <button type="submit" className="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">Post Job</button>
+                </div>
+            </div>
+        </form>
+    );
+};
+
+const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; onPostJob: (data: JobPostData) => void; }> = ({ stoodio, bookings, onPostJob }) => {
+    const postedJobs = bookings
+        .filter(b => b.postedBy === UserRole.STOODIO && b.stoodio.id === stoodio.id)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const getStatusInfo = (job: Booking) => {
+        switch(job.status) {
+            case BookingStatus.PENDING:
+                return { text: "Pending", color: "bg-yellow-100 text-yellow-800" };
+            case BookingStatus.CONFIRMED:
+                return { text: `Filled by ${job.engineer?.name}`, color: "bg-green-100 text-green-800" };
+            case BookingStatus.COMPLETED:
+                return { text: "Completed", color: "bg-blue-100 text-blue-800" };
+            case BookingStatus.CANCELLED:
+                 return { text: "Cancelled", color: "bg-red-100 text-red-800" };
+            default:
+                return { text: job.status, color: "bg-slate-100 text-slate-800" };
+        }
+    }
+
+    return (
+        <div>
+            <JobPostForm onPostJob={onPostJob} />
+             <h3 className="text-xl font-bold text-slate-900 mb-4">Your Posted Jobs</h3>
+             <div className="space-y-4">
+                {postedJobs.length > 0 ? postedJobs.map(job => {
+                    const status = getStatusInfo(job);
+                    return (
+                        <div key={job.id} className="bg-slate-50 p-4 rounded-lg border border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                            <div>
+                                <p className="text-xs text-slate-500">Date</p>
+                                <p className="font-semibold">{new Date(job.date + 'T00:00:00').toLocaleDateString()}</p>
+                            </div>
+                             <div>
+                                <p className="text-xs text-slate-500">Payout</p>
+                                <p className="font-semibold text-green-600">${(job.engineerPayRate * job.duration).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500">Status</p>
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>{status.text}</span>
+                            </div>
+                            <div className="text-right">
+                                {/* Future actions like "Cancel Job" could go here */}
+                            </div>
+                        </div>
+                    );
+                }) : (
+                    <p className="text-center py-8 text-slate-500">You haven't posted any jobs yet.</p>
+                )}
+             </div>
+        </div>
+    );
+};
+
 
 interface StoodioDashboardProps {
     stoodio: Stoodio;
@@ -28,9 +135,10 @@ interface StoodioDashboardProps {
     onCommentOnPost: (postId: string, text: string) => void;
     currentUser: Artist | Engineer | Stoodio | null;
     onPostJob: (jobRequest: JobPostData) => void;
+    onVerificationSubmit: (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => void;
 }
 
-type DashboardTab = 'dashboard' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-slate-50 p-4 rounded-xl flex items-center gap-4 border border-slate-200">
@@ -52,7 +160,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
-    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer } = props;
+    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer, onVerificationSubmit } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
     const upcomingBookingsCount = bookings
@@ -66,6 +174,10 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'verification':
+                return <VerificationManager stoodio={stoodio} onVerificationSubmit={onVerificationSubmit} />;
+            case 'jobManagement':
+                return <StoodioJobManagement stoodio={stoodio} bookings={bookings} onPostJob={onPostJob} />;
             case 'availability':
                 return <AvailabilityManager user={stoodio} onUpdateUser={onUpdateStoodio} />;
             case 'rooms':
@@ -162,6 +274,8 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
             <div className="bg-white rounded-xl border border-slate-200 shadow-lg">
                 <div className="flex border-b border-slate-200 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                    <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
+                    <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Rooms" isActive={activeTab === 'rooms'} onClick={() => setActiveTab('rooms')} />
                     <TabButton label="Engineers" isActive={activeTab === 'engineers'} onClick={() => setActiveTab('engineers')} />

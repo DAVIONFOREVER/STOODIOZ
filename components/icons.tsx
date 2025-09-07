@@ -263,3 +263,18 @@ export const UserCircleIcon: React.FC<IconProps> = (props) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
 );
+
+export const SearchIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+    </svg>
+);
+
+// FIX: Update VerifiedIcon component to accept a 'title' prop for tooltips and accessibility.
+export const VerifiedIcon: React.FC<IconProps & { title?: string }> = ({ title, ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" {...props}>
+        {title && <title>{title}</title>}
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21.75l-3.375-3.375L3 16.125V6.375l9-4.125 9 4.125v9.75L15.375 18.375 12 21.75z" />
+    </svg>
+);

@@ -1,7 +1,7 @@
 // FIX: Implemented the ArtistProfile component which was previously a placeholder file, causing import errors.
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { Artist, Engineer, Stoodio, UserRole } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon } from './icons';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon } from './icons';
 import PostFeed from './PostFeed';
 
 interface ArtistProfileProps {
@@ -23,10 +23,47 @@ interface ArtistProfileProps {
     currentUser: Artist | Engineer | Stoodio | null;
 }
 
+const ProfileCard: React.FC<{
+    profile: Stoodio | Engineer | Artist;
+    type: 'stoodio' | 'engineer' | 'artist';
+    onClick: () => void;
+}> = ({ profile, type, onClick }) => {
+    let icon;
+    let details;
+    if (type === 'stoodio') {
+        icon = <HouseIcon className="w-4 h-4" />;
+        details = (profile as Stoodio).location;
+    } else if (type === 'engineer') {
+        icon = <SoundWaveIcon className="w-4 h-4" />;
+        details = (profile as Engineer).specialties.join(', ');
+    } else {
+        icon = <MicrophoneIcon className="w-4 h-4" />;
+        details = (profile as Artist).bio;
+    }
+
+    return (
+        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left">
+            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+            <div className="flex-grow overflow-hidden">
+                <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
+                <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
+            </div>
+        </button>
+    );
+};
+
 const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
-    const { artist, onBack, onToggleFollow, isFollowing, currentUser, onStartConversation, onLikePost, onCommentOnPost } = props;
+    const { artist, onBack, onToggleFollow, isFollowing, currentUser, onStartConversation, onLikePost, onCommentOnPost, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio } = props;
     
-    const authorsMap = new Map<string, Artist | Engineer | Stoodio>([[artist.id, artist]]);
+    const allUsers = useMemo(() => [...allArtists, ...allEngineers, ...allStoodioz], [allArtists, allEngineers, allStoodioz]);
+    const followers = useMemo(() => allUsers.filter(u => artist.followerIds.includes(u.id)), [allUsers, artist.followerIds]);
+
+    const followedArtists = useMemo(() => allArtists.filter(a => artist.following.artists.includes(a.id)), [allArtists, artist.following.artists]);
+    const followedEngineers = useMemo(() => allEngineers.filter(e => artist.following.engineers.includes(e.id)), [allEngineers, artist.following.engineers]);
+    const followedStoodioz = useMemo(() => allStoodioz.filter(s => artist.following.stoodioz.includes(s.id)), [allStoodioz, artist.following.stoodioz]);
+    const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length;
+
+    const sortedPosts = useMemo(() => (artist.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [artist.posts]);
 
     return (
         <div>
@@ -34,7 +71,7 @@ const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
                 <ChevronLeftIcon className="w-5 h-5" />
                 Back to Artists
             </button>
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-4xl mx-auto space-y-12">
                 <div className="bg-zinc-800 rounded-2xl shadow-lg p-8 border border-zinc-700">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
                         <img src={artist.imageUrl} alt={artist.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
@@ -63,11 +100,52 @@ const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
                     </div>
                 </div>
                 
-                <div className="mt-8">
+                 {artist.links && artist.links.length > 0 && (
+                    <div>
+                        <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-6 h-6" /> Links</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {artist.links.map(link => (
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="bg-zinc-800 p-3 rounded-lg hover:bg-zinc-700 transition-colors border border-zinc-700 flex items-center gap-3">
+                                    <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
+                                    <div className="overflow-hidden">
+                                        <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>
+                                        <p className="text-xs text-slate-400 truncate">{link.url}</p>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div>
+                    <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UsersIcon className="w-6 h-6" /> Followers ({followers.length})</h3>
+                    {followers.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {followers.map(f => {
+                                const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'artist';
+                                const onClick = () => type === 'artist' ? onSelectArtist(f as Artist) : type === 'engineer' ? onSelectEngineer(f as Engineer) : onSelectStoodio(f as Stoodio);
+                                return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
+                            })}
+                        </div>
+                    ) : <p className="text-slate-400">No followers yet.</p>}
+                </div>
+
+                <div>
+                    <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-6 h-6" /> Following ({followingCount})</h3>
+                    {followingCount > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
+                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
+                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
+                        </div>
+                    ) : <p className="text-slate-400">Not following anyone yet.</p>}
+                </div>
+
+                <div>
                      <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts</h3>
                      <PostFeed 
-                        posts={artist.posts || []}
-                        authors={authorsMap}
+                        posts={sortedPosts}
+                        authors={new Map([[artist.id, artist]])}
                         onLikePost={onLikePost}
                         onCommentOnPost={onCommentOnPost}
                         currentUser={currentUser}

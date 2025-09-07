@@ -7,6 +7,7 @@ import PostFeed from './PostFeed';
 import Following from './Following';
 import FollowersList from './FollowersList';
 import AvailabilityManager from './AvailabilityManager';
+import NotificationSettings from './NotificationSettings';
 
 interface EngineerDashboardProps {
     engineer: Engineer;
@@ -31,7 +32,7 @@ interface EngineerDashboardProps {
     onStartSession: (booking: Booking) => void;
 }
 
-type DashboardTab = 'dashboard' | 'jobs' | 'availability' | 'wallet' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'jobs' | 'availability' | 'preferences' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-slate-50 p-4 rounded-xl flex items-center gap-4 border border-slate-200">
@@ -57,7 +58,30 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
     const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
-    const openJobs = bookings.filter(b => b.status === BookingStatus.PENDING || (b.status === BookingStatus.PENDING_APPROVAL && b.requestedEngineerId === engineer.id));
+    const openJobs = bookings.filter(job => {
+        const isRelevantJob = job.status === BookingStatus.PENDING || 
+                              (job.status === BookingStatus.PENDING_APPROVAL && job.requestedEngineerId === engineer.id);
+                              
+        if (!isRelevantJob) {
+            return false;
+        }
+        
+        // Always show direct requests regardless of pay rate
+        if (job.status === BookingStatus.PENDING_APPROVAL) {
+            return true;
+        }
+        
+        // For open jobs, check against minimum pay rate
+        if (job.status === BookingStatus.PENDING) {
+            // If engineer has a min pay rate, filter jobs that pay less.
+            if (engineer.minimumPayRate && job.engineerPayRate < engineer.minimumPayRate) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+    
     const upcomingSessions = bookings.filter(b => b.engineer?.id === engineer.id && b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date());
 
     const followers = [...allArtists, ...allEngineers, ...allStoodioz].filter(u => u.followerIds.includes(engineer.id));
@@ -86,7 +110,7 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                                         </div>
                                     ))}
                                 </div>
-                            ) : <p className="text-slate-500">No open jobs right now.</p>}
+                            ) : <p className="text-slate-500">No open jobs right now that match your criteria.</p>}
                         </div>
                         <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
                             <h2 className="text-xl font-bold text-slate-800 mb-4">Upcoming Sessions</h2>
@@ -107,6 +131,8 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                 );
              case 'availability':
                 return <AvailabilityManager user={engineer} onUpdateUser={onUpdateEngineer} />;
+            case 'preferences':
+                return <NotificationSettings engineer={engineer} onUpdateEngineer={onUpdateEngineer} />;
             case 'wallet':
                  return (
                     <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
@@ -185,6 +211,7 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Job Board" isActive={activeTab === 'jobs'} onClick={() => setActiveTab('jobs')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
+                    <TabButton label="Job Preferences" isActive={activeTab === 'preferences'} onClick={() => setActiveTab('preferences')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />

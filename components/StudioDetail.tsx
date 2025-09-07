@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import type { Stoodio, Artist, Review, Booking, Engineer, Post, Room } from '../types';
-import { UserRole } from '../types';
+import { UserRole, VerificationStatus } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
-import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon } from './icons';
+import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon } from './icons';
 
 interface StoodioDetailProps {
     stoodio: Stoodio;
@@ -105,7 +105,12 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
                     
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
                         <div>
-                            <h1 className="text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
+                                {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
+                                    <VerifiedIcon className="w-10 h-10 text-blue-500" title="Verified Stoodio" />
+                                )}
+                            </div>
                             <p className="text-slate-400 mt-2">{stoodio.location} &middot; {stoodio.followers.toLocaleString()} followers</p>
                         </div>
                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">

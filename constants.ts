@@ -1,5 +1,5 @@
 // FIX: Created mock data for the application. This file was previously a placeholder.
-import { Stoodio, Engineer, Artist, Review, Conversation, UserRole, BookingStatus, BookingRequestType, NotificationType } from './types';
+import { Stoodio, Engineer, Artist, Review, Conversation, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus } from './types';
 
 export const SERVICE_FEE_PERCENTAGE = 0.15;
 
@@ -13,7 +13,7 @@ export const MOCK_ARTISTS: Artist[] = [
     imageUrl: 'https://source.unsplash.com/random/400x400/?woman,singer',
     followers: 1258,
     following: { stoodioz: ['studio-1'], engineers: ['eng-1', 'eng-2'], artists: [] },
-    followerIds: ['eng-1', 'studio-1'],
+    followerIds: ['eng-1', 'studio-1', 'artist-2'],
     coordinates: { lat: 34.0522, lon: -118.2437 },
     isSeekingSession: true,
     walletBalance: 1500,
@@ -33,6 +33,11 @@ export const MOCK_ARTISTS: Artist[] = [
                 { id: 'c-a1-1', authorId: 'eng-1', authorName: 'Alex Robinson', authorImageUrl: 'https://source.unsplash.com/random/400x400/?man,sound-engineer', text: 'Was a great session!', timestamp: new Date().toISOString() }
             ]
         }
+    ],
+    links: [
+        { title: 'Official Website', url: 'https://lunavance.music' },
+        { title: 'Spotify', url: 'https://spotify.com/artist/lunavance' },
+        { title: 'SoundCloud', url: 'https://soundcloud.com/lunavance' },
     ],
     showOnMap: true,
   },
@@ -78,6 +83,11 @@ export const ENGINEERS: Engineer[] = [
        { date: new Date().toISOString().split('T')[0], times: ['13:00', '15:00', '17:00'] },
     ],
     showOnMap: true,
+    notificationPreferences: {
+        radius: 50, // 50 miles
+        enabled: true,
+    },
+    minimumPayRate: 45,
   },
   {
     id: 'eng-2',
@@ -92,14 +102,23 @@ export const ENGINEERS: Engineer[] = [
     audioSampleUrl: 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-2-short.mp3',
     followers: 1102,
     following: { artists: ['artist-2'], engineers: ['eng-1'], stoodioz: ['studio-2'] },
-    followerIds: ['artist-1'],
+    followerIds: ['artist-1', 'artist-2'],
     coordinates: { lat: 40.72, lon: -74.01 },
     isAvailable: true,
     walletBalance: 7250,
     walletTransactions: [],
     posts: [],
+    links: [
+        { title: 'Portfolio', url: 'https://jennaortega.audio' },
+        { title: 'Mix With The Masters', url: 'https://mixwiththemasters.com' }
+    ],
     availability: [],
     showOnMap: true,
+    notificationPreferences: {
+        radius: 25, // 25 miles
+        enabled: true,
+    },
+    minimumPayRate: 50,
   },
 ];
 
@@ -135,10 +154,17 @@ export const STOODIOZ: Stoodio[] = [
         { id: 'room-1b', name: 'Vocal Booth B', description: 'A dedicated vocal and isolation booth.', hourlyRate: 80, photos: [] }
     ],
     posts: [],
+    links: [
+        { title: 'Studio Website', url: 'https://echochamber.com' },
+        { title: 'Gear List', url: 'https://echochamber.com/gear' }
+    ],
     inHouseEngineers: [
         { engineerId: 'eng-1', payRate: 65 }
     ],
     showOnMap: true,
+    verificationStatus: VerificationStatus.VERIFIED,
+    googleBusinessProfileUrl: 'https://maps.app.goo.gl/example',
+    websiteUrl: 'https://echochamber.com',
   },
   {
     id: 'studio-2',
@@ -170,6 +196,7 @@ export const STOODIOZ: Stoodio[] = [
         { engineerId: 'eng-2', payRate: 50 }
     ],
     showOnMap: true,
+    verificationStatus: VerificationStatus.UNVERIFIED,
   },
 ];
 

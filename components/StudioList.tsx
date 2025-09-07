@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Location } from '../types';
+import { VerificationStatus } from '../types';
 import { calculateDistance, getCoordsFromZip } from '../utils/location';
 import StoodioCard from './StudioCard';
 import { LocationIcon } from './icons';
@@ -14,6 +15,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ stoodioz, onSelectStoodio }) 
     const [zipCode, setZipCode] = useState<string>('');
     const [searchLocation, setSearchLocation] = useState<Location | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showVerifiedOnly, setShowVerifiedOnly] = useState<boolean>(false);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,18 +35,24 @@ const StoodioList: React.FC<StoodioListProps> = ({ stoodioz, onSelectStoodio }) 
     };
 
     const filteredStoodioz = useMemo(() => {
-        if (!searchLocation) {
-            // Return all stoodioz, maybe sorted alphabetically, if no search is made
-            return stoodioz.slice().sort((a, b) => a.name.localeCompare(b.name));
+        let results = stoodioz;
+
+        if (showVerifiedOnly) {
+            results = results.filter(s => s.verificationStatus === VerificationStatus.VERIFIED);
         }
-        return stoodioz
+
+        if (!searchLocation) {
+            return results.slice().sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        return results
             .map(stoodio => ({
                 ...stoodio,
                 distance: calculateDistance(searchLocation, stoodio.coordinates),
             }))
             .filter(stoodio => stoodio.distance <= radius)
             .sort((a, b) => a.distance - b.distance);
-    }, [stoodioz, searchLocation, radius]);
+    }, [stoodioz, searchLocation, radius, showVerifiedOnly]);
 
     return (
         <div>
@@ -77,23 +85,40 @@ const StoodioList: React.FC<StoodioListProps> = ({ stoodioz, onSelectStoodio }) 
                 </form>
                  {error && <p className="text-red-400 text-sm text-center mt-2">{error}</p>}
 
-                {searchLocation && (
-                    <div className="mt-4">
-                        <label htmlFor="radius-slider" className="block text-center text-sm font-medium text-slate-300 mb-2">
-                            Search Radius: <span className="font-bold text-orange-400">{radius} miles</span>
+                <div className="mt-4 border-t border-zinc-700 pt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    {searchLocation && (
+                        <div className="w-full sm:w-2/3">
+                            <label htmlFor="radius-slider" className="block text-center text-sm font-medium text-slate-300 mb-2">
+                                Search Radius: <span className="font-bold text-orange-400">{radius} miles</span>
+                            </label>
+                            <input
+                                id="radius-slider"
+                                type="range"
+                                min="5"
+                                max="100"
+                                step="5"
+                                value={radius}
+                                onChange={(e) => setRadius(Number(e.target.value))}
+                                className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                            />
+                        </div>
+                    )}
+                    <div className={`flex items-center ${!searchLocation ? 'w-full justify-center' : 'sm:w-1/3 sm:justify-end'}`}>
+                         <label className="flex items-center cursor-pointer">
+                            <span className="text-sm font-medium text-slate-300 mr-3">Show Verified Only</span>
+                            <div className="relative">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only" 
+                                    checked={showVerifiedOnly} 
+                                    onChange={(e) => setShowVerifiedOnly(e.target.checked)} 
+                                />
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${showVerifiedOnly ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${showVerifiedOnly ? 'translate-x-6' : ''}`}></div>
+                            </div>
                         </label>
-                        <input
-                            id="radius-slider"
-                            type="range"
-                            min="5"
-                            max="100"
-                            step="5"
-                            value={radius}
-                            onChange={(e) => setRadius(Number(e.target.value))}
-                            className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-orange-500"
-                        />
                     </div>
-                )}
+                </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -107,7 +132,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ stoodioz, onSelectStoodio }) 
                 ))}
             </div>
              {searchLocation && filteredStoodioz.length === 0 && (
-                <p className="text-center text-slate-500 mt-8">No stoodioz found within {radius} miles of {zipCode}. Try increasing the search radius.</p>
+                <p className="text-center text-slate-500 mt-8">No stoodioz found. Try increasing the search radius or changing filters.</p>
             )}
         </div>
     );
