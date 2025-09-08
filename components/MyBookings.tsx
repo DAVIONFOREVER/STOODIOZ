@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Booking, Location, Engineer } from '../types';
-import { BookingStatus, BookingRequestType } from '../types';
+import { BookingStatus, BookingRequestType, UserRole } from '../types';
 import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon } from './icons';
 
 interface MyBookingsProps {
@@ -9,9 +9,11 @@ interface MyBookingsProps {
     onOpenTipModal: (booking: Booking) => void;
     onNavigateToStudio: (location: Location) => void;
     onOpenCancelModal: (booking: Booking) => void;
+    onArtistNavigate: (booking: Booking) => void;
+    userRole: UserRole | null;
 }
 
-const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipModal, onNavigateToStudio, onOpenCancelModal }) => {
+const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipModal, onNavigateToStudio, onOpenCancelModal, onArtistNavigate, userRole }) => {
 
     const getStatusAndEngineer = (booking: Booking) => {
         const requestedEngineer = booking.requestedEngineerId ? engineers.find(e => e.id === booking.requestedEngineerId) : null;
@@ -48,7 +50,8 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                 <div className="space-y-6">
                     {bookings.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(booking => {
                         const { statusText, statusColor, engineerName } = getStatusAndEngineer(booking);
-                        const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status);
+                        const isUpcoming = new Date(`${booking.date}T${booking.startTime}`) >= new Date();
+                        const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;
                         return (
                         <div key={booking.id} className={`bg-zinc-800 rounded-2xl shadow-lg p-6 flex flex-col md:flex-row gap-6 border border-zinc-700 hover:border-orange-500/50 transition-colors duration-300 ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
                             <div className="flex-shrink-0">
@@ -84,8 +87,17 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                                     <p className="text-xl font-bold text-slate-100">${booking.totalCost.toFixed(2)}</p>
                                      {booking.tip && <p className="text-sm text-green-400 font-semibold">+ ${booking.tip.toFixed(2)} Tip</p>}
                                  </div>
-                                 {booking.status === BookingStatus.CONFIRMED && (
-                                     <button onClick={() => onNavigateToStudio(booking.stoodio.coordinates)} className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5">
+                                 {booking.status === BookingStatus.CONFIRMED && isUpcoming && (
+                                     <button 
+                                        onClick={() => {
+                                            if (userRole === UserRole.ARTIST) {
+                                                onArtistNavigate(booking);
+                                            } else {
+                                                onNavigateToStudio(booking.stoodio.coordinates);
+                                            }
+                                        }}
+                                        className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
+                                     >
                                         <RoadIcon className="w-4 h-4"/>
                                         Navigate
                                      </button>

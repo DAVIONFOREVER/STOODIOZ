@@ -5,7 +5,7 @@ import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType,
 import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE, MOCK_BOOKINGS } from './constants';
 import { getVibeMatchResults, generateSmartReplies } from './services/geminiService';
 import { webSocketService } from './services/webSocketService';
-import { calculateDistance } from './utils/location';
+import { calculateDistance, estimateTravelTime } from './utils/location';
 import Header from './components/Header';
 import BookingModal from './components/BookingModal';
 import TipModal from './components/TipModal';
@@ -183,6 +183,49 @@ const App: React.FC = () => {
         const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
         window.open(url, '_blank', 'noopener,noreferrer');
     }, []);
+
+    const handleArtistNavigation = useCallback((booking: Booking) => {
+        if (!currentUser || userRole !== UserRole.ARTIST) return;
+
+        const artist = currentUser as Artist;
+        const studio = booking.stoodio;
+        
+        // Calculate distance and ETA
+        const distance = calculateDistance(artist.coordinates, studio.coordinates);
+        const eta = estimateTravelTime(distance);
+
+        const newNotifications: AppNotification[] = [];
+
+        // Notify the studio
+        newNotifications.push({
+            id: `notif-nav-studio-${Date.now()}`,
+            userId: studio.id,
+            message: `${artist.name} is on their way to your studio for their session at ${booking.startTime}. ETA: ${eta}.`,
+            timestamp: new Date().toISOString(),
+            type: NotificationType.GENERAL,
+            read: false,
+            link: { view: AppView.STOODIO_DASHBOARD }
+        });
+
+        // Notify the engineer, if one is assigned
+        if (booking.engineer) {
+            newNotifications.push({
+                id: `notif-nav-eng-${Date.now()}`,
+                userId: booking.engineer.id,
+                message: `${artist.name} is on their way to ${studio.name} for your session. ETA: ${eta}.`,
+                timestamp: new Date().toISOString(),
+                type: NotificationType.GENERAL,
+                read: false,
+                link: { view: AppView.ENGINEER_DASHBOARD }
+            });
+        }
+
+        setNotifications(prev => [...prev, ...newNotifications]);
+        
+        // Trigger navigation
+        handleNavigateToStudio(studio.coordinates);
+
+    }, [currentUser, userRole, handleNavigateToStudio]);
 
     // --- Auth Handlers ---
     const handleLogin = useCallback((email: string, password: string): void => {
@@ -1059,7 +1102,7 @@ const App: React.FC = () => {
                 return <StoodioList stoodioz={stoodioz} onSelectStoodio={handleViewStoodioDetails} />;
             case AppView.MY_BOOKINGS:
                 const userBookings = bookings.filter(b => b.bookedById === currentUser?.id);
-                return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={handleNavigateToStudio} onOpenCancelModal={setBookingToCancel} />;
+                return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={handleNavigateToStudio} onOpenCancelModal={setBookingToCancel} onArtistNavigate={handleArtistNavigation} userRole={userRole} />;
 
             case AppView.STOODIO_DASHBOARD:
                 if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onVerificationSubmit={handleVerificationSubmit} onNavigate={handleNavigate} />;

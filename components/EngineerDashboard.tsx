@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Engineer, Review, Booking, Artist, Stoodio, Transaction } from '../types';
 import { BookingStatus, AppView, SubscriptionPlan } from '../types';
-import { DollarSignIcon, CalendarIcon, StarIcon, CheckCircleIcon, CloseCircleIcon, BriefcaseIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, StarIcon, CheckCircleIcon, CloseCircleIcon, BriefcaseIcon, RoadIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import Following from './Following';
@@ -70,7 +70,7 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 
 
 const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
-    const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer, onNavigate } = props;
+    const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer, onNavigate, onNavigateToStudio } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
     const openJobs = bookings.filter(job => {
@@ -138,7 +138,15 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                                             <p className="font-bold text-slate-700">{session.stoodio.name}</p>
                                             <p className="text-sm text-slate-500">with {session.artist?.name || 'Studio Job'}</p>
                                             <p className="text-sm text-slate-500">{new Date(session.date + 'T00:00:00').toLocaleDateString()} at {session.startTime}</p>
-                                            <button onClick={() => onStartSession(session)} className="w-full mt-2 bg-orange-500 text-white font-bold py-2 rounded-lg hover:bg-orange-600">Start Session</button>
+                                            <div className="flex gap-2 mt-2">
+                                                <button onClick={() => onNavigateToStudio(session.stoodio.coordinates)} className="w-full bg-green-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5 justify-center">
+                                                    <RoadIcon className="w-4 h-4"/>
+                                                    Navigate
+                                                </button>
+                                                <button onClick={() => onStartSession(session)} className="w-full bg-orange-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md">
+                                                    Start Session
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
