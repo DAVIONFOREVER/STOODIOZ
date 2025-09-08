@@ -115,7 +115,17 @@ export const ENGINEERS: Engineer[] = [
     isAvailable: true,
     walletBalance: 5800,
     walletTransactions: [],
-    posts: [],
+    posts: [
+        {
+            id: 'post-e1-1',
+            authorId: 'eng-1',
+            authorType: UserRole.ENGINEER,
+            text: 'Just upgraded the monitors in my setup. Ready for some critical listening sessions! 🎧',
+            timestamp: new Date(Date.now() - 2 * 86400000).toISOString(), // 2 days ago
+            likes: ['artist-1', 'studio-2'],
+            comments: []
+        }
+    ],
     availability: [
        { date: new Date().toISOString().split('T')[0], times: ['13:00', '15:00', '17:00'] },
     ],
@@ -253,7 +263,18 @@ export const STOODIOZ: Stoodio[] = [
     rooms: [
         { id: 'room-2a', name: 'Main Live Room', description: 'Our flagship live tracking room.', hourlyRate: 90, photos: [] }
     ],
-    posts: [],
+    posts: [
+         {
+            id: 'post-s2-1',
+            authorId: 'studio-2',
+            authorType: UserRole.STOODIO,
+            text: 'Our live room just got a beautiful vintage drum kit. Come check it out!',
+            imageUrl: 'https://source.unsplash.com/random/800x600/?drum-kit',
+            timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), // 3 days ago
+            likes: ['eng-2'],
+            comments: []
+        }
+    ],
     inHouseEngineers: [
         { engineerId: 'eng-2', payRate: 50 }
     ],

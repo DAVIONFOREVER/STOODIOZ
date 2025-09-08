@@ -1,4 +1,5 @@
 
+
 import React, { useMemo } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment } from '../types';
 import { AppView } from '../types';
@@ -65,16 +66,15 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         
         const allPosts = allUsers.flatMap(user => user.posts || []);
         
-        const feedPosts = allPosts
-            .filter(post => followedIds.has(post.authorId))
+        // The stage now shows a global feed of all posts, sorted by newest first.
+        const feedPosts = [...allPosts] // Create a copy before sorting
             .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
         
         // Mock suggestion logic: find users not followed by current user
         const suggestions = allUsers.filter(u => !followedIds.has(u.id) && u.id !== currentUser.id).slice(0, 4);
 
-        // Mock trending post logic: find a highly liked post from someone not followed
-        const trendingPost = allPosts
-            .filter(post => !followedIds.has(post.authorId))
+        // Mock trending post logic: find the most popular post overall
+        const trendingPost = [...allPosts] // Create another copy for a different sort
             .sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0] || null;
             
         const trendingPostAuthor = trendingPost ? authorsMap.get(trendingPost.authorId) : null;
