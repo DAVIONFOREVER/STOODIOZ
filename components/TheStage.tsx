@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment } from '../types';
 import { AppView } from '../types';
@@ -89,11 +90,11 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     };
 
     return (
-        <div className="container mx-auto">
+        <div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Sidebar */}
-                <aside className="hidden lg:block lg:col-span-3">
-                    <div className="sticky top-28 space-y-6">
+                <aside className="lg:col-span-3">
+                    <div className="lg:sticky lg:top-28 space-y-6">
                        <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-lg">
                            <h3 className="font-bold text-slate-900 px-3 mb-2">Quick Links</h3>
@@ -122,8 +123,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 </main>
 
                 {/* Right Sidebar */}
-                 <aside className="hidden lg:block lg:col-span-3">
-                     <div className="sticky top-28 space-y-6">
+                 <aside className="lg:col-span-3">
+                     <div className="lg:sticky lg:top-28 space-y-6">
                         {suggestions.length > 0 && (
                             <WhoToFollow 
                                 suggestions={suggestions}

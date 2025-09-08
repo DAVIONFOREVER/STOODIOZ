@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Artist, Engineer, Stoodio } from '../types';
 import { UserPlusIcon } from './icons';
@@ -23,7 +24,7 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
                 {suggestions.map(user => (
                     <div key={user.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100">
                         <button onClick={() => onSelectUser(user)} className="flex items-center gap-3 text-left">
-                            <img src={user.imageUrl} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
+                            <img loading="lazy" src={user.imageUrl} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
                             <div>
                                 <p className="font-semibold text-sm text-slate-800">{user.name}</p>
                                 <p className="text-xs text-slate-500 capitalize">{getRole(user)}</p>

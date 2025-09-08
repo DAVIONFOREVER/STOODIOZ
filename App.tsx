@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room } from './types';
 import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus } from './types';
@@ -8,34 +8,46 @@ import { getVibeMatchResults, generateSmartReplies } from './services/geminiServ
 import { webSocketService } from './services/webSocketService';
 import { calculateDistance } from './utils/location';
 import Header from './components/Header';
-import StoodioList from './components/StudioList';
-import StoodioDetail from './components/StoodioDetail';
 import BookingModal from './components/BookingModal';
-import BookingConfirmation from './components/BookingConfirmation';
-import MyBookings from './components/MyBookings';
-import StoodioDashboard from './components/StoodioDashboard';
-import EngineerDashboard from './components/EngineerDashboard';
-import Inbox from './components/Inbox';
-import ActiveSession from './components/ActiveSession';
 import TipModal from './components/TipModal';
-import ArtistList from './components/ArtistList';
-import ArtistProfile from './components/ArtistProfile';
-import ArtistDashboard from './components/ArtistDashboard';
-import EngineerList from './components/EngineerList';
-import EngineerProfile from './components/EngineerProfile';
-import MapView from './components/MapView';
 import NotificationToasts from './components/NotificationToasts';
-import LandingPage from './components/LandingPage';
-import ChooseProfile from './components/ChooseProfile';
-import ArtistSetup from './components/ArtistSetup';
-import EngineerSetup from './components/EngineerSetup';
-import StoodioSetup from './components/StoodioSetup';
-import Login from './components/Login';
-import PrivacyPolicy from './components/PrivacyPolicy';
-import TheStage from './components/TheStage';
 import VibeMatcherModal from './components/VibeMatcherModal';
-import VibeMatcherResults from './components/VibeMatcherResults';
 import BookingCancellationModal from './components/BookingCancellationModal';
+
+// --- Lazy Loaded Components ---
+const StoodioList = lazy(() => import('./components/StudioList'));
+const StoodioDetail = lazy(() => import('./components/StoodioDetail'));
+const BookingConfirmation = lazy(() => import('./components/BookingConfirmation'));
+const MyBookings = lazy(() => import('./components/MyBookings'));
+const StoodioDashboard = lazy(() => import('./components/StoodioDashboard'));
+const EngineerDashboard = lazy(() => import('./components/EngineerDashboard'));
+const Inbox = lazy(() => import('./components/Inbox'));
+const ActiveSession = lazy(() => import('./components/ActiveSession'));
+const ArtistList = lazy(() => import('./components/ArtistList'));
+const ArtistProfile = lazy(() => import('./components/ArtistProfile'));
+const ArtistDashboard = lazy(() => import('./components/ArtistDashboard'));
+const EngineerList = lazy(() => import('./components/EngineerList'));
+const EngineerProfile = lazy(() => import('./components/EngineerProfile'));
+const MapView = lazy(() => import('./components/MapView'));
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const ChooseProfile = lazy(() => import('./components/ChooseProfile'));
+const ArtistSetup = lazy(() => import('./components/ArtistSetup'));
+const EngineerSetup = lazy(() => import('./components/EngineerSetup'));
+const StoodioSetup = lazy(() => import('./components/StoodioSetup'));
+const Login = lazy(() => import('./components/Login'));
+const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
+const TheStage = lazy(() => import('./components/TheStage'));
+const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults'));
+
+const LoadingSpinner: React.FC = () => (
+    <div className="flex justify-center items-center py-20">
+        <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    </div>
+);
+
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -317,34 +329,59 @@ const App: React.FC = () => {
     const handleConfirmBooking = useCallback(async (bookingRequest: BookingRequest) => {
         if (!selectedStoodio || !userRole || !currentUser || (userRole !== UserRole.ARTIST && userRole !== UserRole.ENGINEER)) return;
         setIsLoading(true);
+
+        const getInitialStatus = () => {
+            if (bookingRequest.requestType === BookingRequestType.BRING_YOUR_OWN) return BookingStatus.CONFIRMED;
+            if (bookingRequest.requestType === BookingRequestType.SPECIFIC_ENGINEER) return BookingStatus.PENDING_APPROVAL;
+            return BookingStatus.PENDING;
+        };
+
+        const newBooking: Booking = {
+            id: `BKG-${Date.now()}`,
+            ...bookingRequest,
+            stoodio: selectedStoodio,
+            engineer: null,
+            artist: userRole === UserRole.ARTIST ? (currentUser as Artist) : null,
+            status: getInitialStatus(),
+            requestedEngineerId: bookingRequest.requestedEngineerId || null,
+            bookedById: currentUser.id,
+            bookedByRole: userRole,
+        };
+
+        setBookings(prev => [...prev, newBooking]);
+        setLatestBooking(newBooking);
+        
+        if (newBooking.requestType !== BookingRequestType.BRING_YOUR_OWN) {
+            webSocketService.emit('new-booking', newBooking);
+        }
+
+        // --- SIMULATION FOR "FIND AN ENGINEER" ---
+        if (newBooking.requestType === BookingRequestType.FIND_AVAILABLE) {
+            setTimeout(() => {
+                const availableEngineer = engineers.find(e => e.isAvailable);
+                if (availableEngineer) {
+                    setBookings(prev => prev.map(b => 
+                        b.id === newBooking.id 
+                        ? { ...b, status: BookingStatus.CONFIRMED, engineer: availableEngineer } 
+                        : b
+                    ));
+                    setNotifications(prev => [...prev, {
+                        id: `notif-found-${Date.now()}`,
+                        userId: currentUser.id,
+                        message: `Great news! ${availableEngineer.name} is confirmed for your session at ${selectedStoodio.name}.`,
+                        timestamp: new Date().toISOString(),
+                        type: NotificationType.BOOKING_CONFIRMED,
+                        read: false,
+                        link: { view: AppView.MY_BOOKINGS }
+                    }]);
+                }
+            }, 4000); // 4-second delay to simulate searching
+        }
+        // --- END SIMULATION ---
+        
+        // Use a short timeout for the UI transition to the confirmation page
         setTimeout(() => {
             try {
-                const getInitialStatus = () => {
-                    if (bookingRequest.requestType === BookingRequestType.BRING_YOUR_OWN) return BookingStatus.CONFIRMED;
-                    if (bookingRequest.requestType === BookingRequestType.SPECIFIC_ENGINEER) return BookingStatus.PENDING_APPROVAL;
-                    return BookingStatus.PENDING; // This is now an open job for first-come, first-served
-                };
-
-                const newBooking: Booking = {
-                    id: `BKG-${Date.now()}`,
-                    ...bookingRequest,
-                    stoodio: selectedStoodio,
-                    engineer: null,
-                    artist: userRole === UserRole.ARTIST ? (currentUser as Artist) : null,
-                    status: getInitialStatus(),
-                    requestedEngineerId: bookingRequest.requestedEngineerId || null,
-                    bookedById: currentUser.id,
-                    bookedByRole: userRole,
-                };
-
-                setBookings(prev => [...prev, newBooking]);
-                setLatestBooking(newBooking);
-                
-                // Emit the new booking for real-time alerts
-                if (newBooking.requestType !== BookingRequestType.BRING_YOUR_OWN) {
-                    webSocketService.emit('new-booking', newBooking);
-                }
-
                 handleNavigate(AppView.CONFIRMATION);
             } finally {
                 setIsLoading(false);
@@ -352,8 +389,9 @@ const App: React.FC = () => {
                 setBookingTime(null);
                 setBookingIntent(null);
             }
-        }, 1500);
-    }, [selectedStoodio, currentUser, userRole, handleNavigate]);
+        }, 500); 
+
+    }, [selectedStoodio, currentUser, userRole, handleNavigate, engineers]);
     
     const handlePostJob = useCallback((jobRequest: JobPostData) => {
         if (!currentUser || userRole !== UserRole.STOODIO) return;
@@ -1026,7 +1064,9 @@ const App: React.FC = () => {
                 onSelectStoodio={handleViewStoodioDetails}
             />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {renderAppContent()}
+                <Suspense fallback={<LoadingSpinner />}>
+                    {renderAppContent()}
+                </Suspense>
 
                 {/* --- Modals --- */}
                 {currentView === AppView.BOOKING_MODAL && selectedStoodio && bookingTime && (

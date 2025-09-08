@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, BookingRequest, Room } from '../types';
 import { BookingRequestType } from '../types';
@@ -82,8 +81,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl transform animate-slide-up border border-zinc-700" role="dialog" aria-modal="true">
-                <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
+            <div className="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl transform animate-slide-up border border-zinc-700 flex flex-col max-h-[90vh] sm:max-h-[85vh]" role="dialog" aria-modal="true">
+                <div className="p-6 border-b border-zinc-700 flex justify-between items-center flex-shrink-0">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-100">Book {stoodio.name}</h2>
                         <p className="text-orange-400 font-semibold">{initialRoom.name}</p>
@@ -93,69 +92,71 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                     </button>
                 </div>
 
-                <form onSubmit={handleConfirmBooking}>
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Left Column: Date, Time, Duration */}
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="date" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><CalendarIcon className="w-4 h-4 mr-2" /> Date</label>
-                                <input type="date" id="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
+                <form onSubmit={handleConfirmBooking} className="flex-1 flex flex-col overflow-hidden">
+                    <div className="flex-1 overflow-y-auto">
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Left Column: Date, Time, Duration */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label htmlFor="date" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><CalendarIcon className="w-4 h-4 mr-2" /> Date</label>
+                                    <input type="date" id="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
+                                </div>
+                                <div>
+                                    <label htmlFor="startTime" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><ClockIcon className="w-4 h-4 mr-2" /> Start Time</label>
+                                    <input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
+                                </div>
+                                <div>
+                                    <label htmlFor="duration" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><DurationIcon className="w-4 h-4 mr-2" /> Duration (hours)</label>
+                                    <input type="number" id="duration" value={duration} min="1" max="12" onChange={e => setDuration(parseInt(e.target.value))} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
+                                </div>
                             </div>
-                            <div>
-                                <label htmlFor="startTime" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><ClockIcon className="w-4 h-4 mr-2" /> Start Time</label>
-                                <input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
-                            </div>
-                            <div>
-                                <label htmlFor="duration" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><DurationIcon className="w-4 h-4 mr-2" /> Duration (hours)</label>
-                                <input type="number" id="duration" value={duration} min="1" max="12" onChange={e => setDuration(parseInt(e.target.value))} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
+
+                            {/* Right Column: Engineer Options */}
+                            <div className="space-y-4">
+                                 <div>
+                                    <label className="flex items-center text-sm font-semibold text-slate-400 mb-2"><UserGroupIcon className="w-4 h-4 mr-2" /> Engineer</label>
+                                    <div className="space-y-2">
+                                        <RadioOption id="find" value={BookingRequestType.FIND_AVAILABLE} label="Find an Engineer for Me" description="Fastest response. We'll find an available engineer for you." checked={requestType === BookingRequestType.FIND_AVAILABLE} onChange={setRequestType} disabled={!!initialEngineer} />
+                                        <RadioOption id="specific" value={BookingRequestType.SPECIFIC_ENGINEER} label="Choose a Specific Engineer" description="Send a request to an engineer of your choice." checked={requestType === BookingRequestType.SPECIFIC_ENGINEER} onChange={setRequestType} disabled={!!initialEngineer} />
+                                        <RadioOption id="byo" value={BookingRequestType.BRING_YOUR_OWN} label="Bring My Own Engineer" description="Book the studio only. No engineer fee." checked={requestType === BookingRequestType.BRING_YOUR_OWN} onChange={setRequestType} disabled={!!initialEngineer}/>
+                                    </div>
+                                </div>
+                                {requestType === BookingRequestType.SPECIFIC_ENGINEER && (
+                                    <div className="animate-fade-in-fast">
+                                        <label htmlFor="engineer-select" className="sr-only">Select Engineer</label>
+                                        <select id="engineer-select" value={requestedEngineerId} onChange={e => setRequestedEngineerId(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500 disabled:opacity-70" disabled={!!initialEngineer}>
+                                            <option value="" disabled>-- Select an Engineer --</option>
+                                            {engineerOptions.map(engineer => (
+                                                <option key={engineer.id} value={engineer.id}>{engineer.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        {/* Right Column: Engineer Options */}
-                        <div className="space-y-4">
-                             <div>
-                                <label className="flex items-center text-sm font-semibold text-slate-400 mb-2"><UserGroupIcon className="w-4 h-4 mr-2" /> Engineer</label>
-                                <div className="space-y-2">
-                                    <RadioOption id="find" value={BookingRequestType.FIND_AVAILABLE} label="Find an Engineer for Me" description="Fastest response. We'll find an available engineer for you." checked={requestType === BookingRequestType.FIND_AVAILABLE} onChange={setRequestType} disabled={!!initialEngineer} />
-                                    <RadioOption id="specific" value={BookingRequestType.SPECIFIC_ENGINEER} label="Choose a Specific Engineer" description="Send a request to an engineer of your choice." checked={requestType === BookingRequestType.SPECIFIC_ENGINEER} onChange={setRequestType} disabled={!!initialEngineer} />
-                                    <RadioOption id="byo" value={BookingRequestType.BRING_YOUR_OWN} label="Bring My Own Engineer" description="Book the studio only. No engineer fee." checked={requestType === BookingRequestType.BRING_YOUR_OWN} onChange={setRequestType} disabled={!!initialEngineer}/>
+                        
+                        {/* Cost Summary */}
+                        <div className="px-6 pb-6">
+                            <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/20">
+                                <h3 className="text-lg font-bold mb-4 flex items-center text-slate-100"><PriceIcon className="w-5 h-5 mr-2 text-orange-400" />Cost Summary</h3>
+                                <div className="space-y-2 text-sm text-slate-200">
+                                    <div className="flex justify-between"><span>{initialRoom.name} ({duration} hrs)</span> <span>${stoodioCost.toFixed(2)}</span></div>
+                                    <div className={`flex justify-between ${requestType === BookingRequestType.BRING_YOUR_OWN ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
+                                        <span>Engineer Fee ({duration} hrs at ${effectivePayRate}/hr)</span>
+                                        <span>${engineerFee.toFixed(2)}</span>
+                                    </div>
+                                    <div className="border-t border-orange-500/20 my-1 opacity-50"></div>
+                                    <div className="flex justify-between font-semibold text-slate-300"><span>Subtotal</span> <span>${subtotal.toFixed(2)}</span></div>
+                                    <div className="flex justify-between text-slate-300"><span>Service Fee (15%)</span> <span>+ ${serviceFee.toFixed(2)}</span></div>
+                                    <div className="border-t border-orange-500/20 my-2"></div>
+                                    <div className="flex justify-between font-bold text-lg"><span>Total</span> <span className="text-orange-400">${totalCost.toFixed(2)}</span></div>
                                 </div>
                             </div>
-                            {requestType === BookingRequestType.SPECIFIC_ENGINEER && (
-                                <div className="animate-fade-in-fast">
-                                    <label htmlFor="engineer-select" className="sr-only">Select Engineer</label>
-                                    <select id="engineer-select" value={requestedEngineerId} onChange={e => setRequestedEngineerId(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500 disabled:opacity-70" disabled={!!initialEngineer}>
-                                        <option value="" disabled>-- Select an Engineer --</option>
-                                        {engineerOptions.map(engineer => (
-                                            <option key={engineer.id} value={engineer.id}>{engineer.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
                         </div>
                     </div>
-                    
-                    {/* Cost Summary */}
-                    <div className="px-6 pb-6">
-                        <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/20">
-                            <h3 className="text-lg font-bold mb-4 flex items-center text-slate-100"><PriceIcon className="w-5 h-5 mr-2 text-orange-400" />Cost Summary</h3>
-                            <div className="space-y-2 text-sm text-slate-200">
-                                <div className="flex justify-between"><span>{initialRoom.name} ({duration} hrs)</span> <span>${stoodioCost.toFixed(2)}</span></div>
-                                <div className={`flex justify-between ${requestType === BookingRequestType.BRING_YOUR_OWN ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
-                                    <span>Engineer Fee ({duration} hrs at ${effectivePayRate}/hr)</span>
-                                    <span>${engineerFee.toFixed(2)}</span>
-                                </div>
-                                <div className="border-t border-orange-500/20 my-1 opacity-50"></div>
-                                <div className="flex justify-between font-semibold text-slate-300"><span>Subtotal</span> <span>${subtotal.toFixed(2)}</span></div>
-                                <div className="flex justify-between text-slate-300"><span>Service Fee (15%)</span> <span>+ ${serviceFee.toFixed(2)}</span></div>
-                                <div className="border-t border-orange-500/20 my-2"></div>
-                                <div className="flex justify-between font-bold text-lg"><span>Total</span> <span className="text-orange-400">${totalCost.toFixed(2)}</span></div>
-                            </div>
-                        </div>
-                    </div>
 
 
-                    <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-xl flex justify-end">
+                    <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-xl flex justify-end flex-shrink-0">
                         <button type="button" onClick={onClose} className="text-slate-300 bg-transparent hover:bg-zinc-700 font-bold rounded-lg text-sm px-5 py-3 text-center mr-2 transition-colors border border-zinc-600">
                             Cancel
                         </button>

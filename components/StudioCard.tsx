@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Stoodio } from '../types';
 import { VerificationStatus } from '../types';
@@ -17,7 +18,7 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio, dis
             onClick={() => onSelectStoodio(stoodio)}
         >
             <div className="relative">
-                <img src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-48 object-cover" />
+                <img loading="lazy" src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-48 object-cover" />
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/70 to-transparent"></div>
                 <div className="absolute bottom-4 left-4">
                     <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors flex items-center gap-2">

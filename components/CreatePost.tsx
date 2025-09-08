@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Artist, Engineer, Stoodio, LinkAttachment } from '../types';
 import { PhotoIcon, LinkIcon, CloseCircleIcon, VideoCameraIcon } from './icons';
@@ -103,18 +104,18 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                         )}
                         
                         <div className="flex justify-between items-center mt-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 sm:gap-2">
                                 <button type="button" onClick={handleAddPhoto} className="flex items-center gap-1.5 text-slate-500 hover:text-orange-500 p-2 rounded-lg transition-colors">
                                     <PhotoIcon className="w-5 h-5" />
-                                    <span className="text-sm font-semibold">Photo</span>
+                                    <span className="hidden sm:inline text-sm font-semibold">Photo</span>
                                 </button>
                                  <button type="button" onClick={handleAddVideo} className="flex items-center gap-1.5 text-slate-500 hover:text-orange-500 p-2 rounded-lg transition-colors">
                                     <VideoCameraIcon className="w-5 h-5" />
-                                    <span className="text-sm font-semibold">Video</span>
+                                    <span className="hidden sm:inline text-sm font-semibold">Video</span>
                                 </button>
                                  <button type="button" onClick={() => setIsLinkModalOpen(!isLinkModalOpen)} className="flex items-center gap-1.5 text-slate-500 hover:text-orange-500 p-2 rounded-lg transition-colors">
                                     <LinkIcon className="w-5 h-5" />
-                                    <span className="text-sm font-semibold">Link</span>
+                                    <span className="hidden sm:inline text-sm font-semibold">Link</span>
                                 </button>
                             </div>
                             <button

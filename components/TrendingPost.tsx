@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Post, Artist, Engineer, Stoodio } from '../types';
 import { HeartIcon, ChatBubbleIcon } from './icons';
@@ -19,7 +20,7 @@ const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onLikePost, o
             <h3 className="font-bold text-slate-900 px-1 mb-2">Trending on Stoodioz</h3>
             <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                 <button onClick={() => onSelectUser(author)} className="flex items-center gap-3 mb-2 text-left">
-                     <img src={author.imageUrl} alt={author.name} className="w-8 h-8 rounded-lg object-cover" />
+                     <img loading="lazy" src={author.imageUrl} alt={author.name} className="w-8 h-8 rounded-lg object-cover" />
                     <div>
                         <p className="font-semibold text-sm text-slate-800">{author.name}</p>
                     </div>

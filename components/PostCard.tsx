@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -42,7 +43,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {/* Post Content */}
                 {post.text && <p className="text-slate-700 whitespace-pre-wrap mb-4">{post.text}</p>}
                 {post.imageUrl && (
-                    <img src={post.imageUrl} alt="Post image" className="rounded-xl w-full h-auto max-h-96 object-cover my-4" />
+                    <img loading="lazy" src={post.imageUrl} alt="Post image" className="rounded-xl w-full h-auto max-h-96 object-cover my-4" />
                 )}
                  {post.videoUrl && (
                     <div className="my-4 rounded-xl overflow-hidden w-full aspect-video bg-black">
@@ -51,9 +52,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                             poster={post.videoThumbnailUrl}
                             controls
                             muted
-                            autoPlay
                             loop
                             playsInline
+                            preload="metadata"
                             className="w-full h-full object-contain"
                         />
                     </div>
@@ -67,21 +68,23 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
             </div>
 
             {/* Post Actions */}
-            <div className="border-t border-slate-200 mx-6 py-2 flex justify-around items-center text-slate-500">
-                <button 
+            <div className="border-t border-slate-200 mx-4 sm:mx-6 py-1 flex justify-around items-center text-slate-500">
+                <button
                     onClick={() => onLikePost(post.id)}
-                    className={`flex items-center gap-2 font-semibold transition-colors p-2 rounded-lg ${isLiked ? 'text-red-500' : 'hover:text-red-500'}`}
+                    className={`flex items-center gap-1.5 font-semibold transition-colors p-2 rounded-lg text-sm ${isLiked ? 'text-red-500' : 'hover:text-red-500'}`}
                 >
                     <HeartIcon className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-                    <span>Like ({post.likes.length})</span>
+                    <span className="hidden sm:inline">Like</span>
+                    <span>({post.likes.length})</span>
                 </button>
-                <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-2 font-semibold hover:text-orange-500 transition-colors p-2 rounded-lg">
+                <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-1.5 font-semibold hover:text-orange-500 transition-colors p-2 rounded-lg text-sm">
                     <ChatBubbleIcon className="w-5 h-5" />
-                    <span>Comment ({post.comments.length})</span>
+                    <span className="hidden sm:inline">Comment</span>
+                    <span>({post.comments.length})</span>
                 </button>
-                <button className="flex items-center gap-2 font-semibold hover:text-blue-500 transition-colors p-2 rounded-lg">
+                <button className="flex items-center gap-1.5 font-semibold hover:text-blue-500 transition-colors p-2 rounded-lg text-sm">
                     <ShareIcon className="w-5 h-5" />
-                    <span>Share</span>
+                    <span className="hidden sm:inline">Share</span>
                 </button>
             </div>
             
