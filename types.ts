@@ -8,6 +8,7 @@ export enum AppView {
     ENGINEER_SETUP = 'ENGINEER_SETUP',
     STOODIO_SETUP = 'STOODIO_SETUP',
     PRIVACY_POLICY = 'PRIVACY_POLICY',
+    SUBSCRIPTION_PLANS = 'SUBSCRIPTION_PLANS',
     THE_STAGE = 'THE_STAGE',
     STOODIO_LIST = 'STOODIO_LIST',
     STOODIO_DETAIL = 'STOODIO_DETAIL',
@@ -63,6 +64,24 @@ export enum VerificationStatus {
     UNVERIFIED = 'UNVERIFIED',
     PENDING = 'PENDING',
     VERIFIED = 'VERIFIED',
+}
+
+export enum SubscriptionPlan {
+    FREE = 'FREE',
+    STOODIO_PRO = 'STOODIO_PRO',
+    ENGINEER_PLUS = 'ENGINEER_PLUS',
+}
+
+export enum SubscriptionStatus {
+    ACTIVE = 'ACTIVE',
+    INACTIVE = 'INACTIVE',
+    TRIAL = 'TRIAL',
+}
+
+export interface Subscription {
+    plan: SubscriptionPlan;
+    status: SubscriptionStatus;
+    nextBillingDate?: string;
 }
 
 export interface Location {
@@ -163,6 +182,7 @@ export interface Engineer extends BaseUser {
         enabled: boolean;
     };
     minimumPayRate?: number;
+    subscription?: Subscription;
 }
 
 export interface InHouseEngineerInfo {
@@ -185,6 +205,7 @@ export interface Stoodio extends BaseUser {
     verificationStatus: VerificationStatus;
     googleBusinessProfileUrl?: string;
     websiteUrl?: string;
+    subscription?: Subscription;
 }
 
 export interface BookingRequest {

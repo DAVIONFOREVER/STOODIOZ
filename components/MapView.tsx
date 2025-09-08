@@ -1,8 +1,8 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, Artist, Location, Booking, VibeMatchResult } from '../types';
 import { BookingStatus } from '../types';
 import { HouseIcon, SoundWaveIcon, MicrophoneIcon, ChevronUpIcon, ChevronDownIcon, BriefcaseIcon, MagicWandIcon } from './icons';
+import MapBookingPopup from './MapBookingPopup';
 
 interface MapViewProps {
     stoodioz: Stoodio[];
@@ -13,6 +13,7 @@ interface MapViewProps {
     onSelectStoodio?: (stoodio: Stoodio) => void;
     onSelectEngineer?: (engineer: Engineer) => void;
     onSelectArtist?: (artist: Artist) => void;
+    onInitiateBooking?: (engineer: Engineer, date: string, time: string) => void;
 }
 
 type PinType = 'stoodio' | 'engineer' | 'artist' | 'job' | 'vibe-match-stoodio' | 'vibe-match-engineer';
@@ -78,13 +79,14 @@ const MapPin: React.FC<{
     );
 };
 
-const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, bookings, vibeMatchResults, onSelectStoodio, onSelectEngineer, onSelectArtist }) => {
+const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, bookings, vibeMatchResults, onSelectStoodio, onSelectEngineer, onSelectArtist, onInitiateBooking }) => {
     const [showStoodioz, setShowStoodioz] = useState(true);
     const [showEngineers, setShowEngineers] = useState(true);
     const [showArtists, setShowArtists] = useState(true);
     const [showJobs, setShowJobs] = useState(true);
     const [showVibeMatches, setShowVibeMatches] = useState(true);
     const [isFiltersOpen, setIsFiltersOpen] = useState(true);
+    const [selectedMapEngineer, setSelectedMapEngineer] = useState<Engineer | null>(null);
 
     const activeAndFutureJobs = useMemo(() => {
         return bookings.filter(b => 
@@ -100,7 +102,12 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
                 break;
             case 'engineer':
             case 'vibe-match-engineer':
-                onSelectEngineer?.(entity as Engineer);
+                const engineer = entity as Engineer;
+                if (onInitiateBooking) {
+                    setSelectedMapEngineer(engineer);
+                } else {
+                    onSelectEngineer?.(engineer);
+                }
                 break;
             case 'artist':
                 onSelectArtist?.(entity as Artist);
@@ -109,6 +116,11 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
                 onSelectStoodio?.((entity as Booking).stoodio);
                 break;
         }
+    };
+
+    const handleInitiateBookingFromPopup = (engineer: Engineer, date: string, time: string) => {
+        onInitiateBooking?.(engineer, date, time);
+        setSelectedMapEngineer(null);
     };
 
     return (
@@ -138,6 +150,14 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
                     );
                 })}
             </div>
+            
+            {selectedMapEngineer && onInitiateBooking && (
+                <MapBookingPopup
+                    engineer={selectedMapEngineer}
+                    onClose={() => setSelectedMapEngineer(null)}
+                    onInitiateBooking={handleInitiateBookingFromPopup}
+                />
+            )}
 
             {/* Filter Panel */}
             <div className="absolute top-4 left-4 z-20 w-64">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Engineer, Review, Booking, Artist, Stoodio, Transaction } from '../types';
-import { BookingStatus } from '../types';
+import { BookingStatus, AppView, SubscriptionPlan } from '../types';
 import { DollarSignIcon, CalendarIcon, StarIcon, CheckCircleIcon, CloseCircleIcon, BriefcaseIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
@@ -30,6 +30,7 @@ interface EngineerDashboardProps {
     onCommentOnPost: (postId: string, text: string) => void;
     currentUser: Artist | Engineer | Stoodio | null;
     onStartSession: (booking: Booking) => void;
+    onNavigate: (view: AppView) => void;
 }
 
 type DashboardTab = 'dashboard' | 'jobs' | 'availability' | 'preferences' | 'wallet' | 'followers' | 'following';
@@ -53,9 +54,23 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
     </button>
 );
 
+const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
+    <div className="bg-gradient-to-r from-sky-500 to-indigo-500 p-6 rounded-2xl text-white text-center shadow-lg">
+        <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
+        <h3 className="text-xl font-bold mb-2">Upgrade to Engineer Plus</h3>
+        <p className="text-sm opacity-90 mb-4">Get enhanced visibility, access the job board, and showcase your profile to more artists.</p>
+        <button 
+            onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
+            className="bg-white text-indigo-500 font-bold py-2 px-6 rounded-lg hover:bg-slate-100 transition-all duration-300"
+        >
+            View Plans
+        </button>
+    </div>
+);
+
 
 const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
-    const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer } = props;
+    const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer, onNavigate } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
     const openJobs = bookings.filter(job => {
@@ -88,6 +103,8 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
     const followedStoodioz = allStoodioz.filter(s => engineer.following.stoodioz.includes(s.id));
     const followedEngineers = allEngineers.filter(e => engineer.following.engineers.includes(e.id));
     const followedArtists = allArtists.filter(a => engineer.following.artists.includes(a.id));
+    
+    const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
 
     const renderContent = () => {
         switch (activeTab) {
@@ -162,9 +179,14 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
             case 'dashboard':
             default:
                 return (
-                     <div className="space-y-8">
-                        <CreatePost currentUser={currentUser!} onPost={onPost} />
-                        <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
+                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-8">
+                            <CreatePost currentUser={currentUser!} onPost={onPost} />
+                            <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
+                        </div>
+                        <div className="lg:col-span-1 space-y-6">
+                            {!isProPlan && <UpgradePlusCard onNavigate={onNavigate} />}
+                        </div>
                     </div>
                 );
         }

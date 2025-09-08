@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction } from '../types';
-import { BookingStatus, UserRole } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, HouseIcon, SoundWaveIcon, VerifiedIcon } from './icons';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, AppNotification } from '../types';
+import { BookingStatus, UserRole, AppView, SubscriptionPlan } from '../types';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, HouseIcon, SoundWaveIcon, VerifiedIcon, StarIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -118,6 +118,20 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
     );
 };
 
+const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
+    <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 rounded-2xl text-white text-center shadow-lg">
+        <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
+        <h3 className="text-xl font-bold mb-2">Upgrade to Stoodio Pro</h3>
+        <p className="text-sm opacity-90 mb-4">Unlock advanced features, lower service fees, and priority support to grow your business.</p>
+        <button 
+            onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
+            className="bg-white text-orange-500 font-bold py-2 px-6 rounded-lg hover:bg-slate-100 transition-all duration-300"
+        >
+            View Plans
+        </button>
+    </div>
+);
+
 
 interface StoodioDashboardProps {
     stoodio: Stoodio;
@@ -136,6 +150,7 @@ interface StoodioDashboardProps {
     currentUser: Artist | Engineer | Stoodio | null;
     onPostJob: (jobRequest: JobPostData) => void;
     onVerificationSubmit: (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => void;
+    onNavigate: (view: AppView) => void;
 }
 
 type DashboardTab = 'dashboard' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
@@ -160,7 +175,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
-    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer, onVerificationSubmit } = props;
+    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer, onVerificationSubmit, onNavigate } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
     const upcomingBookingsCount = bookings
@@ -171,6 +186,13 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
     const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
     const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
+
+    const handleBookSession = () => {
+        onSelectStoodio(stoodio);
+        onNavigate(AppView.STOODIO_DETAIL);
+    };
+    
+    const isProPlan = stoodio.subscription?.plan === SubscriptionPlan.STOODIO_PRO;
 
     const renderContent = () => {
         switch (activeTab) {
@@ -228,9 +250,14 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
             case 'dashboard':
             default:
                  return (
-                    <div className="space-y-8">
-                        <CreatePost currentUser={currentUser!} onPost={onPost} />
-                        <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-8">
+                            <CreatePost currentUser={currentUser!} onPost={onPost} />
+                            <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
+                        </div>
+                         <div className="lg:col-span-1 space-y-6">
+                            {!isProPlan && <UpgradeProCard onNavigate={onNavigate} />}
+                        </div>
                     </div>
                 );
         }
@@ -240,16 +267,23 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
         <div className="space-y-8">
             {/* Profile Header */}
             <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-lg">
-                <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                     <div className="flex flex-col sm:flex-row items-center gap-6">
                         <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-slate-200 flex-shrink-0" />
                         <div className="text-center sm:text-left">
                             <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">{stoodio.name}</h1>
                             <p className="text-slate-500 mt-2">Stoodio Dashboard</p>
                         </div>
                     </div>
-                     <div className="flex-shrink-0 pt-2">
-                        <label className="flex items-center cursor-pointer">
+                    <div className="flex-shrink-0 flex flex-col gap-y-4">
+                        <button
+                            onClick={handleBookSession}
+                            className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                        >
+                            <CalendarIcon className="w-5 h-5"/>
+                            Book a New Session
+                        </button>
+                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
                             <span className="text-sm font-medium text-slate-700 mr-3">Show on Map</span>
                             <div className="relative">
                                 <input 

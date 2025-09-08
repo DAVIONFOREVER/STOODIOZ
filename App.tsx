@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room } from './types';
@@ -38,6 +37,7 @@ const Login = lazy(() => import('./components/Login'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
 const TheStage = lazy(() => import('./components/TheStage'));
 const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults'));
+const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans'));
 
 const LoadingSpinner: React.FC = () => (
     <div className="flex justify-center items-center py-20">
@@ -327,7 +327,20 @@ const App: React.FC = () => {
     }, [handleNavigate, currentUser]);
 
     const handleConfirmBooking = useCallback(async (bookingRequest: BookingRequest) => {
-        if (!selectedStoodio || !userRole || !currentUser || (userRole !== UserRole.ARTIST && userRole !== UserRole.ENGINEER)) return;
+        if (!selectedStoodio || !userRole || !currentUser || ![UserRole.ARTIST, UserRole.ENGINEER, UserRole.STOODIO].includes(userRole)) return;
+        
+        if (userRole === UserRole.STOODIO && currentUser.id !== selectedStoodio.id) {
+            setNotifications(prev => [...prev, {
+                id: `notif-error-${Date.now()}`,
+                userId: currentUser!.id,
+                message: "Error: Studio owners can only book sessions at their own studio.",
+                timestamp: new Date().toISOString(),
+                type: NotificationType.GENERAL,
+                read: false
+            }]);
+            return;
+        }
+
         setIsLoading(true);
 
         const getInitialStatus = () => {
@@ -492,6 +505,26 @@ const App: React.FC = () => {
                         setCurrentUser(updatedEngineer);
                     }
                 }
+            } else if (bookingToCancel.bookedByRole === UserRole.STOODIO) {
+                const currentStoodio = stoodioz.find(s => s.id === bookingToCancel.bookedById);
+                if (currentStoodio) {
+                    const newTx: Transaction = {
+                        id: `txn-cancel-${Date.now()}`,
+                        description: `Refund for cancelled session at ${bookingToCancel.stoodio.name}`,
+                        amount: refundAmount,
+                        date: new Date().toISOString(),
+                        type: 'credit'
+                    };
+                    const updatedStoodio = {
+                        ...currentStoodio,
+                        walletBalance: currentStoodio.walletBalance + refundAmount,
+                        walletTransactions: [newTx, ...currentStoodio.walletTransactions]
+                    };
+                    setStoodioz(prev => prev.map(s => s.id === updatedStoodio.id ? updatedStoodio : s));
+                    if(currentUser?.id === updatedStoodio.id) {
+                        setCurrentUser(updatedStoodio);
+                    }
+                }
             }
         }
         
@@ -500,7 +533,7 @@ const App: React.FC = () => {
 
         setBookingToCancel(null);
 
-    }, [bookings, currentUser, artists, engineers]);
+    }, [bookings, currentUser, artists, engineers, stoodioz]);
 
 
     const handleUpdateStoodio = (updatedProfile: Partial<Stoodio>) => {
@@ -809,12 +842,20 @@ const App: React.FC = () => {
                     setEngineers(prev => prev.map(e => e.id === updatedBooker.id ? updatedBooker : e));
                     if (currentUser?.id === updatedBooker.id) setCurrentUser(updatedBooker);
                 }
+            } else if (booking.bookedByRole === UserRole.STOODIO) {
+                const bookerStoodio = stoodioz.find(s => s.id === booking.bookedById);
+                if (bookerStoodio) {
+                    const newTx: Transaction = { id: `txn-${Date.now()}`, description: `Session cost for internal booking`, amount: -booking.totalCost, date: new Date().toISOString(), type: 'debit' };
+                    const updatedBooker = { ...bookerStoodio, walletBalance: bookerStoodio.walletBalance - booking.totalCost, walletTransactions: [newTx, ...bookerStoodio.walletTransactions] };
+                    setStoodioz(prev => prev.map(s => s.id === updatedBooker.id ? updatedBooker : s));
+                    if (currentUser?.id === updatedBooker.id) setCurrentUser(updatedBooker);
+                }
             }
 
             // Payee Logic
             const sessionEngineer = booking.engineer ? engineers.find(e => e.id === booking.engineer!.id) : null;
             const stoodio = stoodioz.find(s => s.id === booking.stoodio.id);
-            const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name;
+            const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name || stoodioz.find(s => s.id === booking.bookedById)?.name;
 
             if (stoodio) {
                 const stoodioPayout = booking.room.hourlyRate * booking.duration;
@@ -856,11 +897,19 @@ const App: React.FC = () => {
                 setEngineers(prev => prev.map(e => e.id === updatedBooker.id ? updatedBooker : e));
                 if (currentUser?.id === updatedBooker.id) setCurrentUser(updatedBooker);
              }
+        } else if (booking.bookedByRole === UserRole.STOODIO) {
+            const bookerStoodio = stoodioz.find(s => s.id === booking.bookedById);
+            if (bookerStoodio) {
+                const newTx: Transaction = { id: `txn-tip-${Date.now()}`, description: `Tip for ${booking.engineer?.name}`, amount: -tipAmount, date: new Date().toISOString(), type: 'debit' };
+                const updatedBooker = {...bookerStoodio, walletBalance: bookerStoodio.walletBalance - tipAmount, walletTransactions: [newTx, ...bookerStoodio.walletTransactions]};
+                setStoodioz(prev => prev.map(s => s.id === updatedBooker.id ? updatedBooker : s));
+                if (currentUser?.id === updatedBooker.id) setCurrentUser(updatedBooker);
+            }
         }
         
         // Payee Logic
         const engineer = engineers.find(e => e.id === booking.engineer!.id);
-        const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name;
+        const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name || stoodioz.find(s => s.id === booking.bookedById)?.name;
         if (engineer) {
             const newTx: Transaction = { id: `txn-tip-${Date.now()}`, description: `Tip from ${bookerName || 'a user'}`, amount: tipAmount, date: new Date().toISOString(), type: 'credit' };
             const updatedEngineer = { ...engineer, walletBalance: engineer.walletBalance + tipAmount, walletTransactions: [newTx, ...engineer.walletTransactions] };
@@ -871,7 +920,7 @@ const App: React.FC = () => {
         }
 
         setTipModalBooking(null);
-    }, [bookings, artists, engineers, currentUser, handleUpdateArtistProfile]);
+    }, [bookings, artists, engineers, currentUser, handleUpdateArtistProfile, stoodioz]);
 
     const handleOpenVibeMatcher = useCallback(() => setIsVibeMatcherOpen(true), []);
     const handleCloseVibeMatcher = useCallback(() => setIsVibeMatcherOpen(false), []);
@@ -981,6 +1030,8 @@ const App: React.FC = () => {
                 return <StoodioSetup onCompleteSetup={handleCompleteStoodioSetup} onNavigate={handleNavigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={handleGoBack} />;
+            case AppView.SUBSCRIPTION_PLANS:
+                return <SubscriptionPlans onNavigate={handleNavigate} />;
 
             // --- Shared (Auth & Guest) Views ---
             case AppView.STOODIO_LIST:
@@ -997,7 +1048,7 @@ const App: React.FC = () => {
             case AppView.ARTIST_PROFILE:
                 return selectedArtist ? <ArtistProfile artist={selectedArtist} onBack={handleGoBack} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} isFollowing={currentUser && 'following' in currentUser ? currentUser.following.artists.includes(selectedArtist.id) : false} userRole={userRole} onStartNavigation={()=>{}} onStartConversation={()=>{}} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} /> : <ArtistList artists={artists} onSelectArtist={handleViewArtistProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole}/>;
             case AppView.MAP_VIEW:
-                return <MapView stoodioz={stoodioz} engineers={engineers} artists={artists} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectArtist={handleViewArtistProfile} bookings={bookings} vibeMatchResults={vibeMatchResults}/>;
+                return <MapView stoodioz={stoodioz} engineers={engineers} artists={artists} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectArtist={handleViewArtistProfile} bookings={bookings} vibeMatchResults={vibeMatchResults} onInitiateBooking={currentUser ? handleInitiateBookingWithEngineer : undefined} />;
             
             // --- Authenticated Views ---
             case AppView.THE_STAGE:
@@ -1011,13 +1062,13 @@ const App: React.FC = () => {
                 return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={handleNavigateToStudio} onOpenCancelModal={setBookingToCancel} />;
 
             case AppView.STOODIO_DASHBOARD:
-                if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onVerificationSubmit={handleVerificationSubmit} />;
+                if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onVerificationSubmit={handleVerificationSubmit} onNavigate={handleNavigate} />;
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.ENGINEER_DASHBOARD:
                 if (userRole === UserRole.ENGINEER) {
                     const engineerBookings = bookings.filter(b => b.engineer?.id === currentUser?.id || b.status === BookingStatus.PENDING || (b.status === BookingStatus.PENDING_APPROVAL && b.requestedEngineerId === currentUser?.id));
-                    return <EngineerDashboard engineer={currentUser as Engineer} reviews={reviews.filter(r => r.engineerId === currentUser?.id)} bookings={engineerBookings} onUpdateEngineer={handleUpdateEngineer} onAcceptBooking={handleAcceptBooking} onDenyBooking={handleDenyBooking} onStartSession={handleStartSession} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onToggleFollow={handleToggleFollow} onNavigateToStudio={handleNavigateToStudio} onStartConversation={()=>{}} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} />;
+                    return <EngineerDashboard engineer={currentUser as Engineer} reviews={reviews.filter(r => r.engineerId === currentUser?.id)} bookings={engineerBookings} onUpdateEngineer={handleUpdateEngineer} onAcceptBooking={handleAcceptBooking} onDenyBooking={handleDenyBooking} onStartSession={handleStartSession} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onToggleFollow={handleToggleFollow} onNavigateToStudio={handleNavigateToStudio} onStartConversation={()=>{}} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onNavigate={handleNavigate} />;
                 }
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 

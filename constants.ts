@@ -1,7 +1,42 @@
 // FIX: Created mock data for the application. This file was previously a placeholder.
-import { Stoodio, Engineer, Artist, Review, Conversation, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, Booking } from './types';
+import { Stoodio, Engineer, Artist, Review, Conversation, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, Booking, SubscriptionPlan, SubscriptionStatus } from './types';
 
 export const SERVICE_FEE_PERCENTAGE = 0.15;
+
+const getTodayString = () => new Date().toISOString().split('T')[0];
+
+/**
+ * Dynamically generates available time slots for today, starting from the next hour.
+ * This ensures there are always bookable slots for testing purposes.
+ */
+const generateTodaysAvailability = (): { date: string; times: string[] } => {
+    const now = new Date();
+    const nextHour = now.getHours() + 1;
+    const futureTimes: string[] = [];
+
+    // Generate all available hourly slots for the rest of the day until 10 PM (22:00).
+    for (let hour = nextHour; hour < 23; hour++) {
+        futureTimes.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    
+    // If it's too late, there will be no times, which is realistic.
+    // The future days will have plenty of slots.
+    return { date: getTodayString(), times: futureTimes };
+};
+
+
+/**
+ * Generates a full day of availability for a future date.
+ * @param daysAhead The number of days from today.
+ */
+const generateFutureAvailability = (daysAhead: number): { date: string; times: string[] } => {
+    const date = new Date();
+    date.setDate(date.getDate() + daysAhead);
+    return {
+        date: date.toISOString().split('T')[0],
+        times: ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00']
+    };
+};
 
 export const MOCK_ARTISTS: Artist[] = [
   {
@@ -91,6 +126,10 @@ export const ENGINEERS: Engineer[] = [
     },
     minimumPayRate: 45,
     isOnline: true,
+    subscription: {
+        plan: SubscriptionPlan.FREE,
+        status: SubscriptionStatus.ACTIVE,
+    },
   },
   {
     id: 'eng-2',
@@ -123,6 +162,11 @@ export const ENGINEERS: Engineer[] = [
     },
     minimumPayRate: 50,
     isOnline: false,
+    subscription: {
+        plan: SubscriptionPlan.ENGINEER_PLUS,
+        status: SubscriptionStatus.ACTIVE,
+        nextBillingDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+    },
   },
 ];
 
@@ -141,7 +185,11 @@ export const STOODIOZ: Stoodio[] = [
     amenities: ['Neve 8078 Console', 'Vocal Booth', 'Lounge Area', 'Free Coffee & Wi-Fi'],
     coordinates: { lat: 34.05, lon: -118.25 },
     availability: [
-      { date: new Date().toISOString().split('T')[0], times: ['10:00', '12:00', '14:00', '18:00'] },
+      generateTodaysAvailability(),
+      generateFutureAvailability(1),
+      generateFutureAvailability(2),
+      generateFutureAvailability(5),
+      generateFutureAvailability(7),
     ],
     photos: [
       'https://source.unsplash.com/random/800x600/?mixing-console',
@@ -170,6 +218,11 @@ export const STOODIOZ: Stoodio[] = [
     googleBusinessProfileUrl: 'https://maps.app.goo.gl/example',
     websiteUrl: 'https://echochamber.com',
     isOnline: true,
+    subscription: {
+        plan: SubscriptionPlan.STOODIO_PRO,
+        status: SubscriptionStatus.ACTIVE,
+        nextBillingDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+    },
   },
   {
     id: 'studio-2',
@@ -185,7 +238,11 @@ export const STOODIOZ: Stoodio[] = [
     amenities: ['Large Live Room', 'Vintage Drum Kits', 'API Console', 'Pro Tools HD'],
     coordinates: { lat: 40.71, lon: -74.00 },
     availability: [
-       { date: new Date().toISOString().split('T')[0], times: ['11:00', '13:00', '15:00', '19:00', '21:00'] },
+       generateTodaysAvailability(),
+       generateFutureAvailability(1),
+       generateFutureAvailability(3),
+       generateFutureAvailability(4),
+       generateFutureAvailability(6),
     ],
     photos: [],
     followers: 781,
@@ -203,6 +260,10 @@ export const STOODIOZ: Stoodio[] = [
     showOnMap: true,
     verificationStatus: VerificationStatus.UNVERIFIED,
     isOnline: false,
+    subscription: {
+        plan: SubscriptionPlan.FREE,
+        status: SubscriptionStatus.ACTIVE,
+    },
   },
 ];
 

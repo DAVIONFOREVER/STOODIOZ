@@ -1,10 +1,8 @@
-
 import React, { useState } from 'react';
 import type { Stoodio, Artist, Review, Booking, Engineer, Post, Room } from '../types';
 import { UserRole, VerificationStatus } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
-// FIX: Added VerifiedIcon to the import list from './icons' to resolve a reference error.
 import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon } from './icons';
 
 interface StoodioDetailProps {
@@ -83,11 +81,11 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
         }
     };
 
-    const isBookingDisabled = !selectedTimeSlot || !selectedRoom || !currentUser || userRole === UserRole.STOODIO;
+    const isBookingDisabled = !selectedTimeSlot || !selectedRoom || !currentUser || (userRole === UserRole.STOODIO && currentUser.id !== stoodio.id);
 
     const getButtonText = (mobile: boolean = false) => {
         if (!currentUser) return 'Login to Book';
-        if (userRole === UserRole.STOODIO) return 'Stoodioz Cannot Book';
+        if (userRole === UserRole.STOODIO && currentUser.id !== stoodio.id) return 'Cannot Book Other Stoodioz';
         if (!selectedRoom) return 'Select a Room';
         if (!selectedTimeSlot) return 'Select a Time Slot';
         return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom.name}: ${selectedTimeSlot.time}`;
