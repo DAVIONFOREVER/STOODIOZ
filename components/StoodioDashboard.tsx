@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, AppNotification } from '../types';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, HouseIcon, SoundWaveIcon, VerifiedIcon, StarIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -10,6 +10,7 @@ import FollowersList from './FollowersList';
 import RoomManager from './RoomManager';
 import EngineerManager from './EngineerManager';
 import VerificationManager from './VerificationManager';
+import Wallet from './Wallet';
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -151,6 +152,9 @@ interface StoodioDashboardProps {
     onPostJob: (jobRequest: JobPostData) => void;
     onVerificationSubmit: (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => void;
     onNavigate: (view: AppView) => void;
+    onOpenAddFundsModal: () => void;
+    onOpenPayoutModal: () => void;
+    onViewBooking: (bookingId: string) => void;
 }
 
 type DashboardTab = 'dashboard' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
@@ -175,7 +179,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
-    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer, onVerificationSubmit, onNavigate } = props;
+    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer, onVerificationSubmit, onNavigate, onOpenAddFundsModal, onOpenPayoutModal, onViewBooking } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
     const upcomingBookingsCount = bookings
@@ -208,24 +212,13 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 return <EngineerManager stoodio={stoodio} allEngineers={allEngineers} onUpdateStoodio={onUpdateStoodio} />;
             case 'wallet':
                 return (
-                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                        <h3 className="text-xl font-bold mb-4">Wallet</h3>
-                        <p className="text-4xl font-bold text-green-500 mb-6">${stoodio.walletBalance.toFixed(2)}</p>
-                        <h4 className="font-semibold mb-2">Transaction History</h4>
-                        <div className="space-y-2">
-                            {stoodio.walletTransactions.map((tx: Transaction) => (
-                                <div key={tx.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-md">
-                                    <div>
-                                        <p className="font-medium text-slate-700">{tx.description}</p>
-                                        <p className="text-xs text-slate-500">{new Date(tx.date).toLocaleString()}</p>
-                                    </div>
-                                    <p className={`font-semibold ${tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}`}>
-                                        {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                     <Wallet
+                        user={stoodio}
+                        onAddFunds={onOpenAddFundsModal}
+                        onRequestPayout={onOpenPayoutModal}
+                        onViewBooking={onViewBooking}
+                        userRole={UserRole.STOODIO}
+                    />
                 );
             case 'photos':
                 return (

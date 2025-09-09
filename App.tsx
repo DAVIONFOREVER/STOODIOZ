@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room } from './types';
-import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus } from './types';
+import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, TransactionCategory, TransactionStatus } from './types';
 import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE, MOCK_BOOKINGS } from './constants';
 import { getVibeMatchResults, generateSmartReplies } from './services/geminiService';
 import { webSocketService } from './services/webSocketService';
@@ -12,6 +12,8 @@ import TipModal from './components/TipModal';
 import NotificationToasts from './components/NotificationToasts';
 import VibeMatcherModal from './components/VibeMatcherModal';
 import BookingCancellationModal from './components/BookingCancellationModal';
+import AddFundsModal from './components/AddFundsModal';
+import RequestPayoutModal from './components/RequestPayoutModal';
 
 // --- Lazy Loaded Components ---
 const StoodioList = lazy(() => import('./components/StudioList'));
@@ -85,6 +87,8 @@ const App: React.FC = () => {
     const [bookingIntent, setBookingIntent] = useState<{ engineer: Engineer; date: string; time: string; } | null>(null);
     const [smartReplies, setSmartReplies] = useState<string[]>([]);
     const [isSmartRepliesLoading, setIsSmartRepliesLoading] = useState<boolean>(false);
+    const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
+    const [isPayoutOpen, setIsPayoutOpen] = useState(false);
 
 
     // --- Derived State ---
@@ -226,6 +230,12 @@ const App: React.FC = () => {
         handleNavigateToStudio(studio.coordinates);
 
     }, [currentUser, userRole, handleNavigateToStudio]);
+    
+    const handleViewBooking = (bookingId: string) => {
+        // In a real app, you might navigate to a specific booking detail view.
+        // For simplicity, we navigate to the list view.
+        handleNavigate(AppView.MY_BOOKINGS);
+    };
 
     // --- Auth Handlers ---
     const handleLogin = useCallback((email: string, password: string): void => {
@@ -508,65 +518,50 @@ const App: React.FC = () => {
         const refundAmount = bookingToCancel.totalCost * refundPercentage;
 
         if (refundAmount > 0) {
+            const refundTx: Omit<Transaction, 'id'> = { 
+                description: `Refund for cancelled session at ${bookingToCancel.stoodio.name}`, 
+                amount: refundAmount, 
+                date: new Date().toISOString(), 
+                category: TransactionCategory.REFUND,
+                status: TransactionStatus.COMPLETED,
+                relatedBookingId: bookingToCancel.id
+            };
+
             if (bookingToCancel.bookedByRole === UserRole.ARTIST) {
                 const currentArtist = artists.find(a => a.id === bookingToCancel.bookedById);
                 if (currentArtist) {
-                    const newTx: Transaction = { 
-                        id: `txn-cancel-${Date.now()}`, 
-                        description: `Refund for cancelled session at ${bookingToCancel.stoodio.name}`, 
-                        amount: refundAmount, 
-                        date: new Date().toISOString(), 
-                        type: 'credit' 
-                    };
+                    const newTx: Transaction = { ...refundTx, id: `txn-cancel-${Date.now()}` };
                     const updatedArtist = { 
                         ...currentArtist,
                         walletBalance: currentArtist.walletBalance + refundAmount, 
                         walletTransactions: [newTx, ...currentArtist.walletTransactions] 
                     };
                     setArtists(prev => prev.map(a => a.id === updatedArtist.id ? updatedArtist : a));
-                    if(currentUser?.id === updatedArtist.id) {
-                        setCurrentUser(updatedArtist);
-                    }
+                    if(currentUser?.id === updatedArtist.id) setCurrentUser(updatedArtist);
                 }
             } else if (bookingToCancel.bookedByRole === UserRole.ENGINEER) {
                  const currentEngineer = engineers.find(e => e.id === bookingToCancel.bookedById);
                 if (currentEngineer) {
-                    const newTx: Transaction = { 
-                        id: `txn-cancel-${Date.now()}`, 
-                        description: `Refund for cancelled session at ${bookingToCancel.stoodio.name}`, 
-                        amount: refundAmount, 
-                        date: new Date().toISOString(), 
-                        type: 'credit' 
-                    };
+                    const newTx: Transaction = { ...refundTx, id: `txn-cancel-${Date.now()}` };
                     const updatedEngineer = { 
                         ...currentEngineer,
                         walletBalance: currentEngineer.walletBalance + refundAmount, 
                         walletTransactions: [newTx, ...currentEngineer.walletTransactions] 
                     };
                     setEngineers(prev => prev.map(e => e.id === updatedEngineer.id ? updatedEngineer : e));
-                    if(currentUser?.id === updatedEngineer.id) {
-                        setCurrentUser(updatedEngineer);
-                    }
+                    if(currentUser?.id === updatedEngineer.id) setCurrentUser(updatedEngineer);
                 }
             } else if (bookingToCancel.bookedByRole === UserRole.STOODIO) {
                 const currentStoodio = stoodioz.find(s => s.id === bookingToCancel.bookedById);
                 if (currentStoodio) {
-                    const newTx: Transaction = {
-                        id: `txn-cancel-${Date.now()}`,
-                        description: `Refund for cancelled session at ${bookingToCancel.stoodio.name}`,
-                        amount: refundAmount,
-                        date: new Date().toISOString(),
-                        type: 'credit'
-                    };
+                    const newTx: Transaction = { ...refundTx, id: `txn-cancel-${Date.now()}` };
                     const updatedStoodio = {
                         ...currentStoodio,
                         walletBalance: currentStoodio.walletBalance + refundAmount,
                         walletTransactions: [newTx, ...currentStoodio.walletTransactions]
                     };
                     setStoodioz(prev => prev.map(s => s.id === updatedStoodio.id ? updatedStoodio : s));
-                    if(currentUser?.id === updatedStoodio.id) {
-                        setCurrentUser(updatedStoodio);
-                    }
+                    if(currentUser?.id === updatedStoodio.id) setCurrentUser(updatedStoodio);
                 }
             }
         }
@@ -870,48 +865,34 @@ const App: React.FC = () => {
 
         if (updatedBooking) {
             const booking = updatedBooking;
+            const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name || stoodioz.find(s => s.id === booking.bookedById)?.name;
+            const now = new Date().toISOString();
+
             // Payer Logic
+            const paymentTx: Transaction = { id: `txn-pay-${Date.now()}`, description: `Session at ${booking.stoodio.name}`, amount: -booking.totalCost, date: now, category: TransactionCategory.SESSION_PAYMENT, status: TransactionStatus.COMPLETED, relatedBookingId: booking.id, relatedUserName: booking.stoodio.name };
             if (booking.bookedByRole === UserRole.ARTIST) {
-                const artist = artists.find(a => a.id === booking.bookedById);
-                if (artist) {
-                    const newTx: Transaction = { id: `txn-${Date.now()}`, description: `Session at ${booking.stoodio.name}`, amount: -booking.totalCost, date: new Date().toISOString(), type: 'debit' };
-                    handleUpdateArtistProfile({ walletBalance: artist.walletBalance - booking.totalCost, walletTransactions: [newTx, ...artist.walletTransactions] });
-                }
-            } else if (booking.bookedByRole === UserRole.ENGINEER) {
-                const bookerEngineer = engineers.find(e => e.id === booking.bookedById);
-                if (bookerEngineer) {
-                    const newTx: Transaction = { id: `txn-${Date.now()}`, description: `Session at ${booking.stoodio.name}`, amount: -booking.totalCost, date: new Date().toISOString(), type: 'debit' };
-                    const updatedBooker = { ...bookerEngineer, walletBalance: bookerEngineer.walletBalance - booking.totalCost, walletTransactions: [newTx, ...bookerEngineer.walletTransactions] };
-                    setEngineers(prev => prev.map(e => e.id === updatedBooker.id ? updatedBooker : e));
-                    if (currentUser?.id === updatedBooker.id) setCurrentUser(updatedBooker);
-                }
-            } else if (booking.bookedByRole === UserRole.STOODIO) {
-                const bookerStoodio = stoodioz.find(s => s.id === booking.bookedById);
-                if (bookerStoodio) {
-                    const newTx: Transaction = { id: `txn-${Date.now()}`, description: `Session cost for internal booking`, amount: -booking.totalCost, date: new Date().toISOString(), type: 'debit' };
-                    const updatedBooker = { ...bookerStoodio, walletBalance: bookerStoodio.walletBalance - booking.totalCost, walletTransactions: [newTx, ...bookerStoodio.walletTransactions] };
-                    setStoodioz(prev => prev.map(s => s.id === updatedBooker.id ? updatedBooker : s));
-                    if (currentUser?.id === updatedBooker.id) setCurrentUser(updatedBooker);
-                }
-            }
+                handleUpdateArtistProfile({ walletBalance: (currentUser as Artist).walletBalance - booking.totalCost, walletTransactions: [paymentTx, ...(currentUser as Artist).walletTransactions] });
+            } // Simplified for demo, add engineer/studio logic if they can book
 
             // Payee Logic
-            const sessionEngineer = booking.engineer ? engineers.find(e => e.id === booking.engineer!.id) : null;
-            const stoodio = stoodioz.find(s => s.id === booking.stoodio.id);
-            const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name || stoodioz.find(s => s.id === booking.bookedById)?.name;
+            const stoodioPayout = booking.room.hourlyRate * booking.duration;
+            const stoodioPayoutTx: Transaction = { id: `txn-payout-s-${Date.now()}`, description: `Payout from ${bookerName || 'session'}`, amount: stoodioPayout, date: now, category: TransactionCategory.SESSION_PAYOUT, status: TransactionStatus.PENDING, relatedBookingId: booking.id, relatedUserName: bookerName };
+            setStoodioz(prev => prev.map(s => s.id === booking.stoodio.id ? { ...s, walletBalance: s.walletBalance + stoodioPayout, walletTransactions: [stoodioPayoutTx, ...s.walletTransactions] } : s));
 
-            if (stoodio) {
-                const stoodioPayout = booking.room.hourlyRate * booking.duration;
-                const newTx: Transaction = { id: `txn-${Date.now()}`, description: `Payout for ${bookerName || 'session'}'s session`, amount: stoodioPayout, date: new Date().toISOString(), type: 'credit' };
-                const updatedStoodio = { ...stoodio, walletBalance: stoodio.walletBalance + stoodioPayout, walletTransactions: [newTx, ...stoodio.walletTransactions] };
-                setStoodioz(prev => prev.map(s => s.id === stoodio.id ? updatedStoodio : s));
-            }
-            if (sessionEngineer) {
+            if (booking.engineer) {
                 const engineerPayout = booking.engineerPayRate * booking.duration;
-                const newTx: Transaction = { id: `txn-${Date.now()}`, description: `Payout for ${bookerName || 'session'}'s session`, amount: engineerPayout, date: new Date().toISOString(), type: 'credit' };
-                const updatedEngineer = { ...sessionEngineer, walletBalance: sessionEngineer.walletBalance + engineerPayout, walletTransactions: [newTx, ...sessionEngineer.walletTransactions] };
-                setEngineers(prev => prev.map(e => e.id === updatedEngineer.id ? updatedEngineer : e));
+                const engineerPayoutTx: Transaction = { id: `txn-payout-e-${Date.now()}`, description: `Payout from ${bookerName || 'session'}`, amount: engineerPayout, date: now, category: TransactionCategory.SESSION_PAYOUT, status: TransactionStatus.PENDING, relatedBookingId: booking.id, relatedUserName: bookerName };
+                setEngineers(prev => prev.map(e => e.id === booking.engineer!.id ? { ...e, walletBalance: e.walletBalance + engineerPayout, walletTransactions: [engineerPayoutTx, ...e.walletTransactions] } : e));
+                
+                // Simulate payout processing
+                setTimeout(() => {
+                    setEngineers(prev => prev.map(e => e.id === booking.engineer!.id ? { ...e, walletTransactions: e.walletTransactions.map(tx => tx.id === engineerPayoutTx.id ? {...tx, status: TransactionStatus.COMPLETED} : tx) } : e));
+                }, 3000);
             }
+            
+            setTimeout(() => {
+                setStoodioz(prev => prev.map(s => s.id === booking.stoodio.id ? { ...s, walletTransactions: s.walletTransactions.map(tx => tx.id === stoodioPayoutTx.id ? {...tx, status: TransactionStatus.COMPLETED} : tx) } : s));
+            }, 3000);
         }
 
         setActiveSession(null);
@@ -920,50 +901,87 @@ const App: React.FC = () => {
 
     const handleConfirmTip = useCallback((bookingId: string, tipAmount: number) => {
         const booking = bookings.find(b => b.id === bookingId);
-        if (!booking || !booking.engineer) return;
+        if (!booking || !booking.engineer || !currentUser) return;
+        
+        const bookerName = currentUser.name;
+        const now = new Date().toISOString();
 
         const updatedBooking = { ...booking, tip: tipAmount };
         setBookings(prev => prev.map(b => b.id === bookingId ? updatedBooking : b));
 
         // Payer Logic
-        if (booking.bookedByRole === UserRole.ARTIST) {
-            const artist = artists.find(a => a.id === booking.bookedById);
-            if (artist) {
-                const newTx: Transaction = { id: `txn-tip-${Date.now()}`, description: `Tip for ${booking.engineer?.name}`, amount: -tipAmount, date: new Date().toISOString(), type: 'debit' };
-                handleUpdateArtistProfile({ walletBalance: artist.walletBalance - tipAmount, walletTransactions: [newTx, ...artist.walletTransactions] });
-            }
-        } else if (booking.bookedByRole === UserRole.ENGINEER) {
-             const bookerEngineer = engineers.find(e => e.id === booking.bookedById);
-             if (bookerEngineer) {
-                const newTx: Transaction = { id: `txn-tip-${Date.now()}`, description: `Tip for ${booking.engineer?.name}`, amount: -tipAmount, date: new Date().toISOString(), type: 'debit' };
-                const updatedBooker = {...bookerEngineer, walletBalance: bookerEngineer.walletBalance - tipAmount, walletTransactions: [newTx, ...bookerEngineer.walletTransactions]};
-                setEngineers(prev => prev.map(e => e.id === updatedBooker.id ? updatedBooker : e));
-                if (currentUser?.id === updatedBooker.id) setCurrentUser(updatedBooker);
-             }
-        } else if (booking.bookedByRole === UserRole.STOODIO) {
-            const bookerStoodio = stoodioz.find(s => s.id === booking.bookedById);
-            if (bookerStoodio) {
-                const newTx: Transaction = { id: `txn-tip-${Date.now()}`, description: `Tip for ${booking.engineer?.name}`, amount: -tipAmount, date: new Date().toISOString(), type: 'debit' };
-                const updatedBooker = {...bookerStoodio, walletBalance: bookerStoodio.walletBalance - tipAmount, walletTransactions: [newTx, ...bookerStoodio.walletTransactions]};
-                setStoodioz(prev => prev.map(s => s.id === updatedBooker.id ? updatedBooker : s));
-                if (currentUser?.id === updatedBooker.id) setCurrentUser(updatedBooker);
-            }
-        }
+        const tipPaymentTx: Transaction = { id: `txn-tip-pay-${Date.now()}`, description: `Tip for ${booking.engineer?.name}`, amount: -tipAmount, date: now, category: TransactionCategory.TIP_PAYMENT, status: TransactionStatus.COMPLETED, relatedBookingId: booking.id, relatedUserName: booking.engineer.name };
+        handleUpdateArtistProfile({ walletBalance: (currentUser as Artist).walletBalance - tipAmount, walletTransactions: [tipPaymentTx, ...(currentUser as Artist).walletTransactions] });
         
         // Payee Logic
-        const engineer = engineers.find(e => e.id === booking.engineer!.id);
-        const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name || stoodioz.find(s => s.id === booking.bookedById)?.name;
-        if (engineer) {
-            const newTx: Transaction = { id: `txn-tip-${Date.now()}`, description: `Tip from ${bookerName || 'a user'}`, amount: tipAmount, date: new Date().toISOString(), type: 'credit' };
-            const updatedEngineer = { ...engineer, walletBalance: engineer.walletBalance + tipAmount, walletTransactions: [newTx, ...engineer.walletTransactions] };
-            setEngineers(prev => prev.map(e => e.id === engineer.id ? updatedEngineer : e));
-             if (currentUser?.id === engineer.id) {
-                setCurrentUser(updatedEngineer);
-            }
-        }
+        const tipPayoutTx: Transaction = { id: `txn-tip-payout-${Date.now()}`, description: `Tip from ${bookerName}`, amount: tipAmount, date: now, category: TransactionCategory.TIP_PAYOUT, status: TransactionStatus.COMPLETED, relatedBookingId: booking.id, relatedUserName: bookerName };
+        setEngineers(prev => prev.map(e => e.id === booking.engineer!.id ? {...e, walletBalance: e.walletBalance + tipAmount, walletTransactions: [tipPayoutTx, ...e.walletTransactions]} : e));
 
         setTipModalBooking(null);
-    }, [bookings, artists, engineers, currentUser, handleUpdateArtistProfile, stoodioz]);
+    }, [bookings, currentUser, handleUpdateArtistProfile]);
+    
+    const handleAddFunds = (amount: number) => {
+        if (!currentUser) return;
+        const newTx: Transaction = {
+            id: `txn-add-funds-${Date.now()}`,
+            description: 'Added funds to wallet',
+            amount,
+            date: new Date().toISOString(),
+            category: TransactionCategory.ADD_FUNDS,
+            status: TransactionStatus.COMPLETED,
+        };
+        const updatedUser = {
+            ...currentUser,
+            walletBalance: currentUser.walletBalance + amount,
+            walletTransactions: [newTx, ...currentUser.walletTransactions],
+        };
+
+        if (userRole === UserRole.ARTIST) setArtists(prev => prev.map(a => a.id === currentUser.id ? updatedUser as Artist : a));
+        else if (userRole === UserRole.ENGINEER) setEngineers(prev => prev.map(e => e.id === currentUser.id ? updatedUser as Engineer : e));
+        else if (userRole === UserRole.STOODIO) setStoodioz(prev => prev.map(s => s.id === currentUser.id ? updatedUser as Stoodio : s));
+        
+        setCurrentUser(updatedUser);
+        setIsAddFundsOpen(false);
+    };
+
+    const handleRequestPayout = (amount: number) => {
+        if (!currentUser || userRole === UserRole.ARTIST) return;
+         const newTx: Transaction = {
+            id: `txn-payout-${Date.now()}`,
+            description: 'Payout to bank account',
+            amount: -amount,
+            date: new Date().toISOString(),
+            category: TransactionCategory.WITHDRAWAL,
+            status: TransactionStatus.PENDING,
+        };
+        const updatedUser = {
+            ...currentUser,
+            walletBalance: currentUser.walletBalance - amount,
+            walletTransactions: [newTx, ...currentUser.walletTransactions],
+        };
+
+        if (userRole === UserRole.ENGINEER) setEngineers(prev => prev.map(e => e.id === currentUser.id ? updatedUser as Engineer : e));
+        else if (userRole === UserRole.STOODIO) setStoodioz(prev => prev.map(s => s.id === currentUser.id ? updatedUser as Stoodio : s));
+        
+        setCurrentUser(updatedUser);
+        setIsPayoutOpen(false);
+
+        // Simulate processing
+        setTimeout(() => {
+            const completeTx = (user: Stoodio | Engineer) => ({
+                ...user,
+                walletTransactions: user.walletTransactions.map(tx => tx.id === newTx.id ? { ...tx, status: TransactionStatus.COMPLETED } : tx)
+            });
+
+            // FIX: Cast the result of completeTx to the appropriate type to resolve TypeScript error.
+             if (userRole === UserRole.ENGINEER) setEngineers(prev => prev.map(e => e.id === currentUser.id ? completeTx(e) as Engineer : e));
+            else if (userRole === UserRole.STOODIO) setStoodioz(prev => prev.map(s => s.id === currentUser.id ? completeTx(s) as Stoodio : s));
+            
+            if (currentUser?.id === updatedUser.id) {
+                setCurrentUser(prev => completeTx(prev as Engineer | Stoodio));
+            }
+        }, 5000);
+    };
 
     const handleOpenVibeMatcher = useCallback(() => setIsVibeMatcherOpen(true), []);
     const handleCloseVibeMatcher = useCallback(() => setIsVibeMatcherOpen(false), []);
@@ -1105,18 +1123,18 @@ const App: React.FC = () => {
                 return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={handleNavigateToStudio} onOpenCancelModal={setBookingToCancel} onArtistNavigate={handleArtistNavigation} userRole={userRole} />;
 
             case AppView.STOODIO_DASHBOARD:
-                if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onVerificationSubmit={handleVerificationSubmit} onNavigate={handleNavigate} />;
+                if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onVerificationSubmit={handleVerificationSubmit} onNavigate={handleNavigate} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onOpenPayoutModal={() => setIsPayoutOpen(true)} onViewBooking={handleViewBooking} />;
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.ENGINEER_DASHBOARD:
                 if (userRole === UserRole.ENGINEER) {
                     const engineerBookings = bookings.filter(b => b.engineer?.id === currentUser?.id || b.status === BookingStatus.PENDING || (b.status === BookingStatus.PENDING_APPROVAL && b.requestedEngineerId === currentUser?.id));
-                    return <EngineerDashboard engineer={currentUser as Engineer} reviews={reviews.filter(r => r.engineerId === currentUser?.id)} bookings={engineerBookings} onUpdateEngineer={handleUpdateEngineer} onAcceptBooking={handleAcceptBooking} onDenyBooking={handleDenyBooking} onStartSession={handleStartSession} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onToggleFollow={handleToggleFollow} onNavigateToStudio={handleNavigateToStudio} onStartConversation={()=>{}} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onNavigate={handleNavigate} />;
+                    return <EngineerDashboard engineer={currentUser as Engineer} reviews={reviews.filter(r => r.engineerId === currentUser?.id)} bookings={engineerBookings} onUpdateEngineer={handleUpdateEngineer} onAcceptBooking={handleAcceptBooking} onDenyBooking={handleDenyBooking} onStartSession={handleStartSession} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onToggleFollow={handleToggleFollow} onNavigateToStudio={handleNavigateToStudio} onStartConversation={()=>{}} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onNavigate={handleNavigate} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onOpenPayoutModal={() => setIsPayoutOpen(true)} onViewBooking={handleViewBooking} />;
                 }
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.ARTIST_DASHBOARD:
-                if (userRole === UserRole.ARTIST) return <ArtistDashboard artist={currentUser as Artist} bookings={bookings.filter(b => b.artist?.id === currentUser?.id)} conversations={conversations} onNavigate={handleNavigate} onUpdateProfile={handleUpdateArtistProfile} allStoodioz={stoodioz} allEngineers={engineers} allArtists={artists} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectArtist={handleViewArtistProfile} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onOpenVibeMatcher={handleOpenVibeMatcher} />;
+                if (userRole === UserRole.ARTIST) return <ArtistDashboard artist={currentUser as Artist} bookings={bookings.filter(b => b.artist?.id === currentUser?.id)} conversations={conversations} onNavigate={handleNavigate} onUpdateProfile={handleUpdateArtistProfile} allStoodioz={stoodioz} allEngineers={engineers} allArtists={artists} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectArtist={handleViewArtistProfile} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onOpenVibeMatcher={handleOpenVibeMatcher} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onViewBooking={handleViewBooking} />;
                  return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.INBOX:
@@ -1195,6 +1213,19 @@ const App: React.FC = () => {
                         onClose={handleCloseVibeMatcher}
                         onAnalyze={handleVibeMatch}
                         isLoading={isVibeMatcherLoading}
+                    />
+                )}
+                {isAddFundsOpen && (
+                    <AddFundsModal
+                        onClose={() => setIsAddFundsOpen(false)}
+                        onConfirm={handleAddFunds}
+                    />
+                )}
+                {isPayoutOpen && currentUser && (
+                    <RequestPayoutModal
+                        onClose={() => setIsPayoutOpen(false)}
+                        onConfirm={handleRequestPayout}
+                        currentBalance={currentUser.walletBalance}
                     />
                 )}
                 

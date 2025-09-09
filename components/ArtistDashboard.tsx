@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Transaction } from '../types';
+import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
+import { UserRole, AppView } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import Following from './Following';
 import FollowersList from './FollowersList';
+import Wallet from './Wallet';
 
 interface ArtistDashboardProps {
     artist: Artist;
@@ -24,6 +26,8 @@ interface ArtistDashboardProps {
     onCommentOnPost: (postId: string, text: string) => void;
     currentUser: Artist | Engineer | Stoodio | null;
     onOpenVibeMatcher: () => void;
+    onOpenAddFundsModal: () => void;
+    onViewBooking: (bookingId: string) => void;
 }
 
 type DashboardTab = 'dashboard' | 'wallet' | 'followers' | 'following';
@@ -48,7 +52,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const ArtistDashboard: React.FC<ArtistDashboardProps> = (props) => {
-    const { artist, bookings, onPost, onLikePost, onCommentOnPost, currentUser, allStoodioz, allEngineers, allArtists, onToggleFollow, onSelectStoodio, onSelectEngineer, onSelectArtist, onOpenVibeMatcher, onUpdateProfile } = props;
+    const { artist, bookings, onPost, onLikePost, onCommentOnPost, currentUser, allStoodioz, allEngineers, allArtists, onToggleFollow, onSelectStoodio, onSelectEngineer, onSelectArtist, onOpenVibeMatcher, onUpdateProfile, onOpenAddFundsModal, onViewBooking } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
     
     const followers = [...allArtists, ...allEngineers, ...allStoodioz].filter(u => u.followerIds.includes(artist.id));
@@ -60,25 +64,12 @@ const ArtistDashboard: React.FC<ArtistDashboardProps> = (props) => {
         switch (activeTab) {
             case 'wallet':
                 return (
-                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                        <h3 className="text-xl font-bold mb-4">Wallet</h3>
-                        <p className="text-4xl font-bold text-green-500 mb-6">${artist.walletBalance.toFixed(2)}</p>
-                        <h4 className="font-semibold mb-2">Transaction History</h4>
-                        <div className="space-y-2">
-                            {artist.walletTransactions.map((tx: Transaction) => (
-                                <div key={tx.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-md">
-                                    <div>
-                                        <p className="font-medium text-slate-700">{tx.description}</p>
-                                        <p className="text-xs text-slate-500">{new Date(tx.date).toLocaleString()}</p>
-                                    </div>
-                                    <p className={`font-semibold ${tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}`}>
-                                        {tx.type === 'credit' ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
-                                    </p>
-                                </div>
-                            ))}
-                             {artist.walletTransactions.length === 0 && <p className="text-slate-500 text-sm">No transactions yet.</p>}
-                        </div>
-                    </div>
+                    <Wallet
+                        user={artist}
+                        onAddFunds={onOpenAddFundsModal}
+                        onViewBooking={onViewBooking}
+                        userRole={UserRole.ARTIST}
+                    />
                 );
             case 'followers':
                  return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} />;

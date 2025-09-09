@@ -1,5 +1,5 @@
 // FIX: Created mock data for the application. This file was previously a placeholder.
-import { Stoodio, Engineer, Artist, Review, Conversation, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, Booking, SubscriptionPlan, SubscriptionStatus } from './types';
+import { Stoodio, Engineer, Artist, Review, Conversation, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, Booking, SubscriptionPlan, SubscriptionStatus, TransactionCategory, TransactionStatus } from './types';
 
 export const SERVICE_FEE_PERCENTAGE = 0.15;
 
@@ -53,8 +53,24 @@ export const MOCK_ARTISTS: Artist[] = [
     isSeekingSession: true,
     walletBalance: 1500,
     walletTransactions: [
-        { id: 'txn-a1-1', description: 'Added funds', amount: 2000, date: new Date().toISOString(), type: 'credit' },
-        { id: 'txn-a1-2', description: 'Session at Echo Chamber', amount: -500, date: new Date().toISOString(), type: 'debit' }
+        { 
+            id: 'txn-a1-1', 
+            description: 'Loaded funds into wallet', 
+            amount: 2000, 
+            date: new Date(Date.now() - 86400000 * 2).toISOString(), 
+            category: TransactionCategory.ADD_FUNDS,
+            status: TransactionStatus.COMPLETED
+        },
+        { 
+            id: 'txn-a1-2', 
+            description: 'Session at Echo Chamber Stoodioz', 
+            amount: -500, 
+            date: new Date().toISOString(), 
+            category: TransactionCategory.SESSION_PAYMENT,
+            status: TransactionStatus.COMPLETED,
+            relatedBookingId: 'BKG-OLD-123',
+            relatedUserName: 'Echo Chamber Stoodioz'
+        }
     ],
     posts: [
         {
@@ -123,6 +139,15 @@ export const ENGINEERS: Engineer[] = [
             text: 'Just upgraded the monitors in my setup. Ready for some critical listening sessions! 🎧',
             timestamp: new Date(Date.now() - 2 * 86400000).toISOString(), // 2 days ago
             likes: ['artist-1', 'studio-2'],
+            comments: []
+        },
+        {
+            id: 'post-e1-2',
+            authorId: 'eng-1',
+            authorType: UserRole.ENGINEER,
+            text: 'Looking for a vocalist for a dream pop track. DM me if interested!',
+            timestamp: new Date(Date.now() - 4 * 86400000).toISOString(),
+            likes: ['artist-1'],
             comments: []
         }
     ],
@@ -272,6 +297,15 @@ export const STOODIOZ: Stoodio[] = [
             imageUrl: 'https://source.unsplash.com/random/800x600/?drum-kit',
             timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), // 3 days ago
             likes: ['eng-2'],
+            comments: []
+        },
+        {
+            id: 'post-s2-2',
+            authorId: 'studio-2',
+            authorType: UserRole.STOODIO,
+            text: 'We have some open slots next week! Book now before they are gone.',
+            timestamp: new Date(Date.now() - 5 * 86400000).toISOString(),
+            likes: [],
             comments: []
         }
     ],

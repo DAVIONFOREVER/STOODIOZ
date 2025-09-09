@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Engineer, Review, Booking, Artist, Stoodio, Transaction } from '../types';
-import { BookingStatus, AppView, SubscriptionPlan } from '../types';
+import { BookingStatus, AppView, SubscriptionPlan, UserRole } from '../types';
 import { DollarSignIcon, CalendarIcon, StarIcon, CheckCircleIcon, CloseCircleIcon, BriefcaseIcon, RoadIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
@@ -8,6 +8,7 @@ import Following from './Following';
 import FollowersList from './FollowersList';
 import AvailabilityManager from './AvailabilityManager';
 import NotificationSettings from './NotificationSettings';
+import Wallet from './Wallet';
 
 interface EngineerDashboardProps {
     engineer: Engineer;
@@ -31,6 +32,9 @@ interface EngineerDashboardProps {
     currentUser: Artist | Engineer | Stoodio | null;
     onStartSession: (booking: Booking) => void;
     onNavigate: (view: AppView) => void;
+    onOpenAddFundsModal: () => void;
+    onOpenPayoutModal: () => void;
+    onViewBooking: (bookingId: string) => void;
 }
 
 type DashboardTab = 'dashboard' | 'jobs' | 'availability' | 'preferences' | 'wallet' | 'followers' | 'following';
@@ -70,7 +74,7 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 
 
 const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
-    const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer, onNavigate, onNavigateToStudio } = props;
+    const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer, onNavigate, onNavigateToStudio, onOpenAddFundsModal, onOpenPayoutModal, onViewBooking } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
     const openJobs = bookings.filter(job => {
@@ -160,25 +164,13 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                 return <NotificationSettings engineer={engineer} onUpdateEngineer={onUpdateEngineer} />;
             case 'wallet':
                  return (
-                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                        <h3 className="text-xl font-bold mb-4">Wallet</h3>
-                        <p className="text-4xl font-bold text-green-500 mb-6">${engineer.walletBalance.toFixed(2)}</p>
-                        <h4 className="font-semibold mb-2">Transaction History</h4>
-                        <div className="space-y-2">
-                            {engineer.walletTransactions.map((tx: Transaction) => (
-                                <div key={tx.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-md">
-                                    <div>
-                                        <p className="font-medium text-slate-700">{tx.description}</p>
-                                        <p className="text-xs text-slate-500">{new Date(tx.date).toLocaleString()}</p>
-                                    </div>
-                                    <p className={`font-semibold ${tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}`}>
-                                        {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
-                                    </p>
-                                </div>
-                            ))}
-                             {engineer.walletTransactions.length === 0 && <p className="text-slate-500 text-sm">No transactions yet.</p>}
-                        </div>
-                    </div>
+                    <Wallet
+                        user={engineer}
+                        onAddFunds={onOpenAddFundsModal}
+                        onRequestPayout={onOpenPayoutModal}
+                        onViewBooking={onViewBooking}
+                        userRole={UserRole.ENGINEER}
+                    />
                 );
             case 'followers':
                  return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} />;

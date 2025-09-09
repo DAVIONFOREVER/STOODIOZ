@@ -81,8 +81,9 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                                         <p className="font-medium text-slate-700">{tx.description}</p>
                                         <p className="text-xs text-slate-500">{new Date(tx.date).toLocaleString()}</p>
                                     </div>
-                                    <p className={`font-semibold ${tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}`}>
-                                        {tx.type === 'credit' ? '+' : '-'}${tx.amount.toFixed(2)}
+                                    {/* FIX: The Transaction type does not have a 'type' property. Logic is now based on whether the amount is positive (credit) or negative (debit). */}
+                                    <p className={`font-semibold ${tx.amount >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        {tx.amount >= 0 ? '+' : ''}${tx.amount.toFixed(2)}
                                     </p>
                                 </div>
                             ))}

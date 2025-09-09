@@ -78,6 +78,24 @@ export enum SubscriptionStatus {
     TRIAL = 'TRIAL',
 }
 
+export enum TransactionCategory {
+    SESSION_PAYMENT = 'SESSION_PAYMENT',
+    SESSION_PAYOUT = 'SESSION_PAYOUT',
+    TIP_PAYMENT = 'TIP_PAYMENT',
+    TIP_PAYOUT = 'TIP_PAYOUT',
+    REFUND = 'REFUND',
+    ADD_FUNDS = 'ADD_FUNDS',
+    WITHDRAWAL = 'WITHDRAWAL',
+    PLATFORM_FEE = 'PLATFORM_FEE',
+}
+
+export enum TransactionStatus {
+    PENDING = 'PENDING',
+    COMPLETED = 'COMPLETED',
+    FAILED = 'FAILED',
+}
+
+
 export interface Subscription {
     plan: SubscriptionPlan;
     status: SubscriptionStatus;
@@ -100,10 +118,14 @@ export interface Room {
 export interface Transaction {
     id: string;
     description: string;
-    amount: number;
+    amount: number; // Positive for credit, negative for debit
     date: string;
-    type: 'credit' | 'debit';
+    category: TransactionCategory;
+    status: TransactionStatus;
+    relatedBookingId?: string;
+    relatedUserName?: string; // Name of the other party in the transaction
 }
+
 
 export interface Following {
     stoodioz: string[];
