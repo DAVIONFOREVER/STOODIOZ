@@ -13,7 +13,7 @@ interface PostFeedProps {
 const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onCommentOnPost, currentUser }) => {
     if (!posts || posts.length === 0) {
         return (
-            <div className="text-center text-slate-500 py-12 bg-white rounded-2xl shadow-lg border border-slate-200">
+            <div className="text-center text-slate-400 py-12 bg-zinc-800 rounded-2xl shadow-lg border border-zinc-700">
                 <p>No posts to display yet.</p>
             </div>
         );

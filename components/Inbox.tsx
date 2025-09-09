@@ -24,9 +24,9 @@ const ConversationList: React.FC<{
     selectedConversationId: string | null;
 }> = ({ conversations, onSelect, selectedConversationId }) => {
     return (
-        <div className="border-r border-slate-200 h-full overflow-y-auto">
-            <div className="p-4 border-b border-slate-200">
-                <h2 className="text-2xl font-bold text-slate-900">Inbox</h2>
+        <div className="border-r border-zinc-700/50 h-full overflow-y-auto">
+            <div className="p-4 border-b border-zinc-700/50">
+                <h2 className="text-2xl font-bold text-zinc-100">Inbox</h2>
             </div>
             <ul>
                 {conversations.map(convo => {
@@ -44,19 +44,19 @@ const ConversationList: React.FC<{
                     const isSelected = convo.id === selectedConversationId;
                     return (
                         <li key={convo.id} onClick={() => onSelect(convo.id)}>
-                            <div className={`p-4 flex items-center gap-4 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-orange-500/10' : 'hover:bg-slate-50'}`}>
+                            <div className={`p-4 flex items-center gap-4 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}>
                                 <div className="relative flex-shrink-0">
                                     <img loading="lazy" src={convo.participant.imageUrl} alt={convo.participant.name} className="w-14 h-14 rounded-xl object-cover"/>
                                     {convo.participant.isOnline && (
-                                        <span className="absolute -bottom-1 -right-1 block h-4 w-4 rounded-full bg-green-500 ring-2 ring-white" title="Online"></span>
+                                        <span className="absolute -bottom-1 -right-1 block h-4 w-4 rounded-full bg-green-500 ring-2 ring-zinc-800" title="Online"></span>
                                     )}
                                 </div>
                                 <div className="flex-grow overflow-hidden">
                                     <div className="flex justify-between items-center">
-                                        <p className="font-bold text-slate-900 truncate">{convo.participant.name}</p>
-                                        {lastMessage && <p className="text-xs text-slate-500 flex-shrink-0">{formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true })}</p>}
+                                        <p className="font-bold text-zinc-100 truncate">{convo.participant.name}</p>
+                                        {lastMessage && <p className="text-xs text-zinc-400 flex-shrink-0">{formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true })}</p>}
                                     </div>
-                                    <p className="text-sm text-slate-500 truncate">{lastMessageText}</p>
+                                    <p className="text-sm text-zinc-400 truncate">{lastMessageText}</p>
                                 </div>
                             </div>
                         </li>
@@ -122,22 +122,22 @@ const ChatThread: React.FC<{
     }
 
     return (
-        <div className="flex flex-col h-full bg-white">
+        <div className="flex flex-col h-full bg-zinc-900">
             {/* Header */}
-            <div className="flex items-center gap-4 p-3 border-b border-slate-200 bg-white sticky top-0 z-10">
-                <button onClick={onBack} className="md:hidden p-2 rounded-full hover:bg-slate-100">
+            <div className="flex items-center gap-4 p-3 border-b border-zinc-700/50 bg-zinc-900/70 backdrop-blur-sm sticky top-0 z-10">
+                <button onClick={onBack} className="md:hidden p-2 rounded-full hover:bg-zinc-800">
                     <ChevronLeftIcon className="w-6 h-6" />
                 </button>
                 <img src={conversation.participant.imageUrl} alt={conversation.participant.name} className="w-10 h-10 rounded-xl object-cover" />
-                <h3 className="font-bold text-lg text-slate-900">{conversation.participant.name}</h3>
+                <h3 className="font-bold text-lg text-zinc-100">{conversation.participant.name}</h3>
             </div>
             
             {/* Messages */}
-            <div className="flex-grow p-4 space-y-4 overflow-y-auto bg-slate-50">
+            <div className="flex-grow p-4 space-y-4 overflow-y-auto bg-zinc-900">
                 {booking && <BookingContextCard booking={booking} onNavigate={onNavigate}/>}
 
                 {conversation.messages.length === 0 && (
-                    <div className="text-center text-slate-500 text-sm mt-8">
+                    <div className="text-center text-zinc-500 text-sm mt-8">
                         This is the beginning of your conversation.
                     </div>
                 )}
@@ -146,7 +146,7 @@ const ChatThread: React.FC<{
                      return (
                         <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
                             {!isUser && <img loading="lazy" src={conversation.participant.imageUrl} className="w-6 h-6 rounded-full self-start"/>}
-                            <div className={`max-w-xs md:max-w-md lg:max-w-lg p-1 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-slate-200 text-slate-800 rounded-bl-lg'}`}>
+                            <div className={`max-w-xs md:max-w-md lg:max-w-lg p-1 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-zinc-200 rounded-bl-lg'}`}>
                                 {msg.type === 'image' && msg.imageUrl && (
                                     <div className="p-2">
                                         <img loading="lazy" src={msg.imageUrl} alt={msg.text || 'Sent image'} className="rounded-xl w-full h-auto" />
@@ -154,7 +154,7 @@ const ChatThread: React.FC<{
                                     </div>
                                 )}
                                 {msg.type === 'link' && msg.link && (
-                                    <a href={msg.link.url} target="_blank" rel="noopener noreferrer" className="block p-3 hover:bg-black/10 rounded-xl">
+                                    <a href={msg.link.url} target="_blank" rel="noopener noreferrer" className="block p-3 hover:bg-black/20 rounded-xl">
                                         <p className="font-bold">{msg.link.title}</p>
                                         <p className="text-xs opacity-80">{msg.link.url}</p>
                                         {msg.text && <p className="pt-2 text-sm">{msg.text}</p>}
@@ -178,12 +178,12 @@ const ChatThread: React.FC<{
 
             {/* Smart Replies */}
             {(isSmartRepliesLoading || smartReplies.length > 0) && (
-                 <div className="px-4 pb-2 flex items-center gap-2 overflow-x-auto bg-slate-50">
+                 <div className="px-4 pb-2 flex items-center gap-2 overflow-x-auto">
                     {isSmartRepliesLoading ? (
-                        <div className="text-sm text-slate-500 italic">Generating replies...</div>
+                        <div className="text-sm text-zinc-400 italic">Generating replies...</div>
                     ) : (
                         smartReplies.map((reply, i) => (
-                            <button key={i} onClick={() => handleSmartReplyClick(reply)} className="flex-shrink-0 text-sm bg-slate-200 hover:bg-slate-300 text-slate-700 py-1.5 px-3 rounded-full transition-colors">
+                            <button key={i} onClick={() => handleSmartReplyClick(reply)} className="flex-shrink-0 text-sm bg-zinc-700 hover:bg-zinc-600 text-zinc-200 py-1.5 px-3 rounded-full transition-colors">
                                 {reply}
                             </button>
                         ))
@@ -193,16 +193,16 @@ const ChatThread: React.FC<{
 
 
             {/* Input Area */}
-            <div className="relative p-4 bg-white border-t border-slate-200">
+            <div className="relative p-4 bg-zinc-900/70 backdrop-blur-sm border-t border-zinc-700/50">
                 {isAttachmentMenuOpen && (
-                    <div className="absolute bottom-20 left-4 bg-white p-2 rounded-lg border border-slate-200 shadow-xl flex flex-col gap-1 z-20 text-slate-700">
-                        <button onClick={() => handleSendAttachment('image')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-slate-100"><PhotoIcon className="w-5 h-5 text-slate-500" /> Send Photo</button>
-                        <button onClick={() => handleSendAttachment('link')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-slate-100"><LinkIcon className="w-5 h-5 text-slate-500" /> Send Link</button>
-                        <button onClick={() => handleSendAttachment('audio')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-slate-100"><MusicNoteIcon className="w-5 h-5 text-slate-500" /> Send Music</button>
+                    <div className="absolute bottom-20 left-4 bg-zinc-800 p-2 rounded-lg border border-zinc-700 shadow-xl flex flex-col gap-1 z-20 text-zinc-200">
+                        <button onClick={() => handleSendAttachment('image')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PhotoIcon className="w-5 h-5 text-zinc-400" /> Send Photo</button>
+                        <button onClick={() => handleSendAttachment('link')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><LinkIcon className="w-5 h-5 text-zinc-400" /> Send Link</button>
+                        <button onClick={() => handleSendAttachment('audio')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><MusicNoteIcon className="w-5 h-5 text-zinc-400" /> Send Music</button>
                     </div>
                 )}
                 <form onSubmit={handleSubmit} className="flex items-center gap-2">
-                     <button type="button" onClick={() => setIsAttachmentMenuOpen(prev => !prev)} className="text-slate-500 hover:text-orange-400 p-2">
+                     <button type="button" onClick={() => setIsAttachmentMenuOpen(prev => !prev)} className="text-zinc-400 hover:text-orange-400 p-2">
                         <PaperclipIcon className="w-6 h-6"/>
                      </button>
                      <input
@@ -210,9 +210,9 @@ const ChatThread: React.FC<{
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         placeholder="Type a message..."
-                        className="w-full bg-slate-100 border-slate-200 text-slate-900 rounded-full py-2 px-4 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full bg-zinc-800 border-zinc-700 text-zinc-100 rounded-full py-2 px-4 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     />
-                    <button type="submit" disabled={!newMessage.trim()} className="bg-orange-500 text-white p-2 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-slate-400 disabled:cursor-not-allowed">
+                    <button type="submit" disabled={!newMessage.trim()} className="bg-orange-500 text-white p-2 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-zinc-600 disabled:cursor-not-allowed">
                         <PaperAirplaneIcon className="w-6 h-6" />
                     </button>
                 </form>
@@ -247,7 +247,7 @@ const Inbox: React.FC<InboxProps> = ({ conversations, bookings, onSendMessage, s
     const showListView = !isMobile || !selectedConversation;
 
     return (
-        <div className="h-[calc(100vh-128px)] bg-white rounded-xl shadow-lg border border-slate-200 flex overflow-hidden">
+        <div className="h-[calc(100vh-128px)] bg-zinc-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-zinc-700/50 flex overflow-hidden animate-fade-in">
             {showListView && (
                  <div className={`w-full md:w-1/3 lg:w-1/4 ${showDetailView ? 'hidden md:block' : ''}`}>
                     <ConversationList
@@ -271,8 +271,8 @@ const Inbox: React.FC<InboxProps> = ({ conversations, bookings, onSendMessage, s
                         isSmartRepliesLoading={isSmartRepliesLoading}
                     />
                 ) : (
-                    <div className="h-full flex items-center justify-center bg-slate-50">
-                        <div className="text-center text-slate-500">
+                    <div className="h-full flex items-center justify-center bg-zinc-900">
+                        <div className="text-center text-zinc-500">
                             <p className="text-lg font-semibold">Select a conversation</p>
                             <p>Start chatting with your connections.</p>
                         </div>

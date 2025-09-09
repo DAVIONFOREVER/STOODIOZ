@@ -27,31 +27,33 @@ const RoomFormModal: React.FC<{
         };
         onSave(finalRoom);
     };
+    
+    const inputClasses = "w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-200">
-                <div className="p-6 border-b border-slate-200 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-slate-900">{room?.id ? 'Edit Room' : 'Add New Room'}</h2>
-                    <button onClick={onClose}><CloseIcon className="w-6 h-6 text-slate-500 hover:text-slate-800" /></button>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-zinc-900/80 backdrop-blur-lg rounded-xl shadow-2xl w-full max-w-lg border border-zinc-700/50">
+                <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-zinc-100">{room?.id ? 'Edit Room' : 'Add New Room'}</h2>
+                    <button onClick={onClose}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="p-6 space-y-4">
                         <div>
-                            <label htmlFor="room-name" className="block text-sm font-medium text-slate-700 mb-1">Room Name</label>
-                            <input type="text" id="room-name" value={name} onChange={e => setName(e.target.value)} required className="w-full p-2 bg-slate-100 border-slate-300 rounded-md"/>
+                            <label htmlFor="room-name" className="block text-sm font-medium text-zinc-300 mb-1">Room Name</label>
+                            <input type="text" id="room-name" value={name} onChange={e => setName(e.target.value)} required className={inputClasses}/>
                         </div>
                         <div>
-                            <label htmlFor="room-desc" className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                            <textarea id="room-desc" value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full p-2 bg-slate-100 border-slate-300 rounded-md"></textarea>
+                            <label htmlFor="room-desc" className="block text-sm font-medium text-zinc-300 mb-1">Description</label>
+                            <textarea id="room-desc" value={description} onChange={e => setDescription(e.target.value)} rows={3} className={inputClasses}></textarea>
                         </div>
                         <div>
-                            <label htmlFor="room-rate" className="block text-sm font-medium text-slate-700 mb-1">Hourly Rate ($)</label>
-                            <input type="number" id="room-rate" value={hourlyRate} onChange={e => setHourlyRate(Number(e.target.value))} required className="w-full p-2 bg-slate-100 border-slate-300 rounded-md"/>
+                            <label htmlFor="room-rate" className="block text-sm font-medium text-zinc-300 mb-1">Hourly Rate ($)</label>
+                            <input type="number" id="room-rate" value={hourlyRate} onChange={e => setHourlyRate(Number(e.target.value))} required className={inputClasses}/>
                         </div>
                     </div>
-                    <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
+                    <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-end gap-2">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600">Cancel</button>
                         <button type="submit" className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600">Save Room</button>
                     </div>
                 </form>
@@ -92,9 +94,9 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) =
     };
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
              <div className="flex justify-between items-center mb-6">
-                 <h1 className="text-2xl font-bold text-slate-900">Manage Rooms</h1>
+                 <h1 className="text-2xl font-bold text-zinc-100">Manage Rooms</h1>
                  <button onClick={() => handleOpenModal({})} className="flex items-center gap-2 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm">
                     <PlusCircleIcon className="w-5 h-5"/>
                     Add Room
@@ -103,21 +105,21 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) =
             
             <div className="space-y-4">
                 {stoodio.rooms.length > 0 ? stoodio.rooms.map(room => (
-                    <div key={room.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div key={room.id} className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex-grow">
-                            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><HouseIcon className="w-5 h-5 text-orange-500"/> {room.name}</h3>
-                            <p className="text-sm text-slate-600 mt-1 mb-2">{room.description}</p>
-                            <div className="text-sm font-semibold text-green-600 flex items-center gap-1">
+                            <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><HouseIcon className="w-5 h-5 text-orange-400"/> {room.name}</h3>
+                            <p className="text-sm text-zinc-400 mt-1 mb-2">{room.description}</p>
+                            <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
                                 <DollarSignIcon className="w-4 h-4" /> ${room.hourlyRate}/hr
                             </div>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-2">
-                             <button onClick={() => handleOpenModal(room)} className="p-2 text-slate-500 hover:text-orange-500 rounded-full bg-slate-200 hover:bg-orange-100"><EditIcon className="w-5 h-5"/></button>
-                             <button onClick={() => handleDeleteRoom(room.id)} className="p-2 text-slate-500 hover:text-red-500 rounded-full bg-slate-200 hover:bg-red-100"><TrashIcon className="w-5 h-5"/></button>
+                             <button onClick={() => handleOpenModal(room)} className="p-2 text-zinc-400 hover:text-orange-400 rounded-full bg-zinc-800 hover:bg-orange-500/10"><EditIcon className="w-5 h-5"/></button>
+                             <button onClick={() => handleDeleteRoom(room.id)} className="p-2 text-zinc-400 hover:text-red-400 rounded-full bg-zinc-800 hover:bg-red-500/10"><TrashIcon className="w-5 h-5"/></button>
                         </div>
                     </div>
                 )) : (
-                    <p className="text-center py-8 text-slate-500">You haven't added any rooms yet. Add your first room to get started!</p>
+                    <p className="text-center py-8 text-zinc-500">You haven't added any rooms yet. Add your first room to get started!</p>
                 )}
             </div>
             

@@ -63,7 +63,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
+        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
             <div className="flex items-start gap-4">
                 <img src={currentUser.imageUrl} alt={currentUser.name} className="w-12 h-12 rounded-xl object-cover" />
                 <div className="w-full">
@@ -72,7 +72,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                             value={text}
                             onChange={(e) => setText(e.target.value)}
                             placeholder="Share an update with your followers..."
-                            className="w-full bg-slate-100 border-slate-200 text-slate-800 placeholder:text-slate-500 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500"
+                            className="w-full bg-zinc-700 border-zinc-600 text-slate-200 placeholder:text-slate-400 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500"
                             rows={3}
                         />
 
@@ -94,9 +94,9 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                             </div>
                         )}
                         {link && (
-                             <div className="relative mt-2 p-3 bg-slate-100 rounded-lg border border-slate-200">
-                                <p className="font-semibold text-sm text-slate-800">{link.title}</p>
-                                <p className="text-xs text-slate-500 truncate">{link.url}</p>
+                             <div className="relative mt-2 p-3 bg-zinc-700 rounded-lg border border-zinc-600">
+                                <p className="font-semibold text-sm text-slate-100">{link.title}</p>
+                                <p className="text-xs text-slate-400 truncate">{link.url}</p>
                                  <button type="button" onClick={() => setLink(null)} className="absolute top-1 right-1 bg-black/50 rounded-full text-white">
                                     <CloseCircleIcon className="w-5 h-5" />
                                 </button>
@@ -105,15 +105,15 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                         
                         <div className="flex justify-between items-center mt-3">
                             <div className="flex items-center gap-1 sm:gap-2">
-                                <button type="button" onClick={handleAddPhoto} className="flex items-center gap-1.5 text-slate-500 hover:text-orange-500 p-2 rounded-lg transition-colors">
+                                <button type="button" onClick={handleAddPhoto} className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 p-2 rounded-lg transition-colors">
                                     <PhotoIcon className="w-5 h-5" />
                                     <span className="hidden sm:inline text-sm font-semibold">Photo</span>
                                 </button>
-                                 <button type="button" onClick={handleAddVideo} className="flex items-center gap-1.5 text-slate-500 hover:text-orange-500 p-2 rounded-lg transition-colors">
+                                 <button type="button" onClick={handleAddVideo} className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 p-2 rounded-lg transition-colors">
                                     <VideoCameraIcon className="w-5 h-5" />
                                     <span className="hidden sm:inline text-sm font-semibold">Video</span>
                                 </button>
-                                 <button type="button" onClick={() => setIsLinkModalOpen(!isLinkModalOpen)} className="flex items-center gap-1.5 text-slate-500 hover:text-orange-500 p-2 rounded-lg transition-colors">
+                                 <button type="button" onClick={() => setIsLinkModalOpen(!isLinkModalOpen)} className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 p-2 rounded-lg transition-colors">
                                     <LinkIcon className="w-5 h-5" />
                                     <span className="hidden sm:inline text-sm font-semibold">Link</span>
                                 </button>
@@ -121,7 +121,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                             <button
                                 type="submit"
                                 disabled={!text.trim() && !imageUrl && !link && !videoUrl}
-                                className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md disabled:bg-slate-400 disabled:cursor-not-allowed"
+                                className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 disabled:bg-slate-600 disabled:cursor-not-allowed"
                             >
                                 Post
                             </button>
@@ -129,11 +129,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                     </form>
                     {/* Link Modal */}
                     {isLinkModalOpen && (
-                         <form onSubmit={handleAddLink} className="mt-3 pt-3 border-t border-slate-200">
-                            <input type="text" value={linkTitle} onChange={e => setLinkTitle(e.target.value)} placeholder="Link Title" className="w-full text-sm p-2 rounded bg-slate-100 border-slate-300 text-slate-800 mb-2 focus:ring-orange-500 focus:border-orange-500"/>
-                            <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://example.com" className="w-full text-sm p-2 rounded bg-slate-100 border-slate-300 text-slate-800 mb-2 focus:ring-orange-500 focus:border-orange-500"/>
+                         <form onSubmit={handleAddLink} className="mt-3 pt-3 border-t border-zinc-600">
+                            <input type="text" value={linkTitle} onChange={e => setLinkTitle(e.target.value)} placeholder="Link Title" className="w-full text-sm p-2 rounded bg-zinc-700 border-zinc-600 text-slate-200 mb-2 focus:ring-orange-500 focus:border-orange-500"/>
+                            <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://example.com" className="w-full text-sm p-2 rounded bg-zinc-700 border-zinc-600 text-slate-200 mb-2 focus:ring-orange-500 focus:border-orange-500"/>
                             <div className="flex justify-end gap-2">
-                                <button type="button" onClick={() => setIsLinkModalOpen(false)} className="px-3 py-1 text-xs rounded bg-slate-200 hover:bg-slate-300 text-slate-700">Cancel</button>
+                                <button type="button" onClick={() => setIsLinkModalOpen(false)} className="px-3 py-1 text-xs rounded bg-zinc-600 hover:bg-zinc-500 text-slate-200">Cancel</button>
                                 <button type="submit" className="px-3 py-1 text-xs rounded bg-orange-500 hover:bg-orange-600 text-white">Add Link</button>
                             </div>
                         </form>

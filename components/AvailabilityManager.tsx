@@ -69,17 +69,17 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
 
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-200">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">Manage Availability</h2>
+        <div className="bg-zinc-800/50 rounded-2xl shadow-lg p-6 border border-zinc-700/50">
+            <h2 className="text-2xl font-bold text-zinc-100 mb-4">Manage Availability</h2>
             <div className="flex flex-col md:flex-row gap-6">
                 {/* Calendar */}
                 <div className="flex-1">
                     <div className="flex items-center justify-between mb-4">
-                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="p-2 rounded-full hover:bg-slate-100"><ChevronLeftIcon className="w-5 h-5 text-slate-600" /></button>
-                        <h3 className="font-bold text-lg text-slate-800">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="p-2 rounded-full hover:bg-slate-100"><ChevronRightIcon className="w-5 h-5 text-slate-600" /></button>
+                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="p-2 rounded-full hover:bg-zinc-700"><ChevronLeftIcon className="w-5 h-5 text-zinc-400" /></button>
+                        <h3 className="font-bold text-lg text-zinc-200">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="p-2 rounded-full hover:bg-zinc-700"><ChevronRightIcon className="w-5 h-5 text-zinc-400" /></button>
                     </div>
-                    <div className="grid grid-cols-7 gap-1 text-center text-sm text-slate-500 mb-2">
+                    <div className="grid grid-cols-7 gap-1 text-center text-sm text-zinc-500 mb-2">
                         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d}>{d}</div>)}
                     </div>
                     <div className="grid grid-cols-7 gap-1">
@@ -89,7 +89,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
                             const isAvailable = availabilityMap.has(dateString);
                             const isSelected = selectedDate === dateString;
                             return (
-                                <button key={dateString} onClick={() => handleDateClick(day)} className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors font-semibold ${isSelected ? 'bg-orange-500 text-white' : isAvailable ? 'bg-orange-100 text-orange-500 hover:bg-orange-200' : 'hover:bg-slate-100'}`}>
+                                <button key={dateString} onClick={() => handleDateClick(day)} className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors font-semibold ${isSelected ? 'bg-orange-500 text-white' : isAvailable ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30' : 'hover:bg-zinc-700 text-zinc-300'}`}>
                                     {day.getDate()}
                                 </button>
                             );
@@ -99,7 +99,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
 
                 {/* Time Slot Editor */}
                 <div className="w-full md:w-64 flex-shrink-0">
-                    <h3 className="font-bold text-lg text-center mb-2 text-slate-800">
+                    <h3 className="font-bold text-lg text-center mb-2 text-zinc-200">
                         {selectedDate ? `Slots for ${selectedDate}` : 'Select a date'}
                     </h3>
                     {selectedDate && (
@@ -109,15 +109,15 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
                                     type="time"
                                     value={newTime}
                                     onChange={e => setNewTime(e.target.value)}
-                                    className="w-full bg-slate-100 border-slate-300 text-slate-800 rounded-lg p-2 focus:ring-orange-500 focus:border-orange-500"
+                                    className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                 />
                                 <button type="submit" className="bg-orange-500 text-white p-2 rounded-lg hover:bg-orange-600"><PlusCircleIcon className="w-6 h-6"/></button>
                             </form>
                             <div className="space-y-2 max-h-48 overflow-y-auto">
                                 {[...(availabilityMap.get(selectedDate) || [])].map(time => (
-                                    <div key={time} className="bg-slate-100 flex justify-between items-center p-2 rounded-lg">
-                                        <span className="font-mono text-sm text-slate-700">{time}</span>
-                                        <button onClick={() => handleRemoveTime(time)} className="text-slate-500 hover:text-red-500"><CloseIcon className="w-4 h-4" /></button>
+                                    <div key={time} className="bg-zinc-700/50 flex justify-between items-center p-2 rounded-lg">
+                                        <span className="font-mono text-sm text-zinc-300">{time}</span>
+                                        <button onClick={() => handleRemoveTime(time)} className="text-zinc-500 hover:text-red-500"><CloseIcon className="w-4 h-4" /></button>
                                     </div>
                                 ))}
                             </div>

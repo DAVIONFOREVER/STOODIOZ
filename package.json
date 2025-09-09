@@ -1,5 +1,5 @@
 {
-  "name": "copy-of-stoodioz-a-better-way-to-book-(with-ai-integrations)",
+  "name": "stoodioz-design-2",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@google/genai": "^1.17.0",
-    "react-dom": "^19.1.1",
-    "react": "^19.1.1",
+    "react-dom": "^1.9.1.1",
+    "react": "^1.9.1.1",
     "date-fns": "^4.1.0"
   },
   "devDependencies": {

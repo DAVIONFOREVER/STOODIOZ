@@ -1,7 +1,7 @@
-
 import React from 'react';
 import type { Engineer } from '../types';
 import { UserPlusIcon, UserCheckIcon, StarIcon } from './icons';
+import { use3DTilt } from '../hooks/use3DTilt';
 
 interface EngineerCardProps {
     engineer: Engineer;
@@ -13,6 +13,8 @@ interface EngineerCardProps {
 }
 
 const EngineerCard: React.FC<EngineerCardProps> = ({ engineer, onSelectEngineer, onToggleFollow, isFollowing, isSelf, isLoggedIn }) => {
+    const tiltProps = use3DTilt();
+
      const handleFollowClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!isSelf) {
@@ -21,7 +23,11 @@ const EngineerCard: React.FC<EngineerCardProps> = ({ engineer, onSelectEngineer,
     };
     
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg border border-zinc-700 p-6 group transition-all duration-300 hover:border-orange-500/50 hover:-translate-y-1">
+        <div 
+            {...tiltProps}
+            className="tilt-card h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg p-6 group"
+        >
+            <div className="glare-effect rounded-2xl"></div>
             <button onClick={() => onSelectEngineer(engineer)} className="w-full text-center">
                 <img loading="lazy" src={engineer.imageUrl} alt={engineer.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-orange-500 transition-colors" />
                 <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400">{engineer.name}</h3>

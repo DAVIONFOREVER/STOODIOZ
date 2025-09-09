@@ -40,11 +40,11 @@ interface EngineerDashboardProps {
 type DashboardTab = 'dashboard' | 'jobs' | 'availability' | 'preferences' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-slate-50 p-4 rounded-xl flex items-center gap-4 border border-slate-200">
+    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
-            <p className="text-slate-500 text-sm font-medium">{label}</p>
-            <p className="text-2xl font-bold text-slate-800">{value}</p>
+            <p className="text-zinc-400 text-sm font-medium">{label}</p>
+            <p className="text-2xl font-bold text-zinc-100">{value}</p>
         </div>
     </div>
 );
@@ -52,20 +52,20 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.Re
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`px-4 py-3 font-semibold text-sm transition-colors ${isActive ? 'border-b-2 border-orange-500 text-orange-500' : 'text-slate-500 hover:text-slate-800'}`}
+        className={`px-4 py-3 font-semibold text-sm transition-colors whitespace-nowrap ${isActive ? 'border-b-2 border-orange-500 text-orange-400' : 'text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent'}`}
     >
         {label}
     </button>
 );
 
 const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
-    <div className="bg-gradient-to-r from-sky-500 to-indigo-500 p-6 rounded-2xl text-white text-center shadow-lg">
+    <div className="bg-gradient-to-r from-sky-500 to-indigo-500 p-6 rounded-2xl text-white text-center shadow-lg shadow-indigo-500/10">
         <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
         <h3 className="text-xl font-bold mb-2">Upgrade to Engineer Plus</h3>
         <p className="text-sm opacity-90 mb-4">Get enhanced visibility, access the job board, and showcase your profile to more artists.</p>
         <button 
             onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
-            className="bg-white text-indigo-500 font-bold py-2 px-6 rounded-lg hover:bg-slate-100 transition-all duration-300"
+            className="bg-white text-indigo-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
         >
             View Plans
         </button>
@@ -115,33 +115,33 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
             case 'jobs':
                 return (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                            <h2 className="text-xl font-bold text-slate-800 mb-4">Open Job Board</h2>
+                        <div className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-lg shadow-md border border-zinc-700/50">
+                            <h2 className="text-xl font-bold text-zinc-100 mb-4">Open Job Board</h2>
                             {openJobs.length > 0 ? (
                                 <div className="space-y-4 max-h-96 overflow-y-auto">
                                     {openJobs.map(job => (
-                                        <div key={job.id} className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                            <p className="font-bold text-slate-700">{job.stoodio.name}</p>
-                                            <p className="text-sm text-slate-500">{new Date(job.date + 'T00:00:00').toLocaleDateString()} at {job.startTime}</p>
-                                            <p className="text-sm text-green-600 font-semibold">${job.engineerPayRate}/hr for {job.duration} hrs</p>
+                                        <div key={job.id} className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
+                                            <p className="font-bold text-zinc-200">{job.stoodio.name}</p>
+                                            <p className="text-sm text-zinc-400">{new Date(job.date + 'T00:00:00').toLocaleDateString()} at {job.startTime}</p>
+                                            <p className="text-sm text-green-400 font-semibold">${job.engineerPayRate}/hr for {job.duration} hrs</p>
                                             <div className="flex gap-2 mt-2">
-                                                <button onClick={() => onAcceptBooking(job.id)} className="w-full bg-green-100 text-green-700 text-xs font-bold py-1 px-2 rounded hover:bg-green-200"><CheckCircleIcon className="w-4 h-4 inline mr-1"/>Accept</button>
-                                                {job.status === BookingStatus.PENDING_APPROVAL && <button onClick={() => onDenyBooking(job.id)} className="w-full bg-red-100 text-red-700 text-xs font-bold py-1 px-2 rounded hover:bg-red-200"><CloseCircleIcon className="w-4 h-4 inline mr-1"/>Deny</button>}
+                                                <button onClick={() => onAcceptBooking(job.id)} className="w-full bg-green-500/10 text-green-300 text-xs font-bold py-1 px-2 rounded hover:bg-green-500/20"><CheckCircleIcon className="w-4 h-4 inline mr-1"/>Accept</button>
+                                                {job.status === BookingStatus.PENDING_APPROVAL && <button onClick={() => onDenyBooking(job.id)} className="w-full bg-red-500/10 text-red-300 text-xs font-bold py-1 px-2 rounded hover:bg-red-500/20"><CloseCircleIcon className="w-4 h-4 inline mr-1"/>Deny</button>}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            ) : <p className="text-slate-500">No open jobs right now that match your criteria.</p>}
+                            ) : <p className="text-zinc-400">No open jobs right now that match your criteria.</p>}
                         </div>
-                        <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                            <h2 className="text-xl font-bold text-slate-800 mb-4">Upcoming Sessions</h2>
+                        <div className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-lg shadow-md border border-zinc-700/50">
+                            <h2 className="text-xl font-bold text-zinc-100 mb-4">Upcoming Sessions</h2>
                             {upcomingSessions.length > 0 ? (
                                 <div className="space-y-4 max-h-96 overflow-y-auto">
                                     {upcomingSessions.map(session => (
-                                        <div key={session.id} className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                            <p className="font-bold text-slate-700">{session.stoodio.name}</p>
-                                            <p className="text-sm text-slate-500">with {session.artist?.name || 'Studio Job'}</p>
-                                            <p className="text-sm text-slate-500">{new Date(session.date + 'T00:00:00').toLocaleDateString()} at {session.startTime}</p>
+                                        <div key={session.id} className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
+                                            <p className="font-bold text-zinc-200">{session.stoodio.name}</p>
+                                            <p className="text-sm text-zinc-400">with {session.artist?.name || 'Studio Job'}</p>
+                                            <p className="text-sm text-zinc-400">{new Date(session.date + 'T00:00:00').toLocaleDateString()} at {session.startTime}</p>
                                             <div className="flex gap-2 mt-2">
                                                 <button onClick={() => onNavigateToStudio(session.stoodio.coordinates)} className="w-full bg-green-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5 justify-center">
                                                     <RoadIcon className="w-4 h-4"/>
@@ -154,7 +154,7 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                                         </div>
                                     ))}
                                 </div>
-                            ) : <p className="text-slate-500">No upcoming sessions.</p>}
+                            ) : <p className="text-zinc-400">No upcoming sessions.</p>}
                         </div>
                     </div>
                 );
@@ -193,20 +193,20 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-lg">
+            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <img src={engineer.imageUrl} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-slate-200 flex-shrink-0" />
+                        <img src={engineer.imageUrl} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">{engineer.name}</h1>
-                            <p className="text-slate-500 mt-2">Engineer Dashboard</p>
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{engineer.name}</h1>
+                            <p className="text-zinc-400 mt-2">Engineer Dashboard</p>
                         </div>
                     </div>
                     <div className="flex-shrink-0 pt-2">
                         <label className="flex items-center cursor-pointer">
-                            <span className="text-sm font-medium text-slate-700 mr-3">Show on Map</span>
+                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
                             <div className="relative">
                                 <input 
                                     type="checkbox" 
@@ -214,22 +214,22 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                                     checked={engineer.showOnMap ?? false} 
                                     onChange={(e) => onUpdateEngineer({ showOnMap: e.target.checked })} 
                                 />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.showOnMap ? 'bg-orange-500' : 'bg-slate-300'}`}></div>
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
                                 <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.showOnMap ? 'translate-x-6' : ''}`}></div>
                             </div>
                         </label>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-                    <StatCard label="Wallet Balance" value={`$${engineer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-500" />} />
-                    <StatCard label="Upcoming Sessions" value={upcomingSessions.length} icon={<CalendarIcon className="w-6 h-6 text-orange-500" />} />
-                    <StatCard label="Avg Rating" value={engineer.rating.toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-500" />} />
-                    <StatCard label="Open Jobs" value={openJobs.length} icon={<BriefcaseIcon className="w-6 h-6 text-indigo-500" />} />
+                    <StatCard label="Wallet Balance" value={`$${engineer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                    <StatCard label="Upcoming Sessions" value={upcomingSessions.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                    <StatCard label="Avg Rating" value={engineer.rating.toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
+                    <StatCard label="Open Jobs" value={openJobs.length} icon={<BriefcaseIcon className="w-6 h-6 text-indigo-400" />} />
                 </div>
             </div>
             
-             <div className="bg-white rounded-xl border border-slate-200 shadow-lg">
-                <div className="flex border-b border-slate-200 overflow-x-auto">
+             <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
+                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Job Board" isActive={activeTab === 'jobs'} onClick={() => setActiveTab('jobs')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />

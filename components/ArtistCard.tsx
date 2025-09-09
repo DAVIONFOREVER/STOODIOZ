@@ -1,7 +1,7 @@
-
 import React from 'react';
 import type { Artist } from '../types';
 import { UserPlusIcon, UserCheckIcon } from './icons';
+import { use3DTilt } from '../hooks/use3DTilt';
 
 interface ArtistCardProps {
     artist: Artist;
@@ -13,6 +13,8 @@ interface ArtistCardProps {
 }
 
 const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSelectArtist, onToggleFollow, isFollowing, isSelf, isLoggedIn }) => {
+    const tiltProps = use3DTilt();
+    
     const handleFollowClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!isSelf) {
@@ -21,7 +23,11 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSelectArtist, onToggl
     };
 
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg border border-zinc-700 text-center p-6 group transition-all duration-300 hover:border-orange-500/50 hover:-translate-y-1">
+        <div 
+            {...tiltProps}
+            className="tilt-card h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg text-center p-6 group"
+        >
+            <div className="glare-effect rounded-2xl"></div>
             <button onClick={() => onSelectArtist(artist)} className="w-full">
                 <img loading="lazy" src={artist.imageUrl} alt={artist.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-orange-500 transition-colors" />
                 <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400">{artist.name}</h3>

@@ -125,8 +125,8 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
 
     return (
         <div className="relative w-full h-full">
-            <div className="w-full h-full bg-slate-200 rounded-2xl shadow-inner overflow-hidden border border-slate-300">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1568224348083-22ac64165d62?q=80&w=2574" alt="World Map" className="w-full h-full object-cover opacity-40" />
+            <div className="w-full h-full bg-zinc-800 rounded-2xl shadow-inner overflow-hidden border border-zinc-700">
+                <img loading="lazy" src="https://images.unsplash.com/photo-1568224348083-22ac64165d62?q=80&w=2574" alt="World Map" className="w-full h-full object-cover opacity-20" />
                 
                 {showStoodioz && stoodioz.filter(s => s.showOnMap).map(s => (
                     <MapPin key={`stoodio-${s.id}`} type="stoodio" entity={s} position={convertCoordsToPercent(s.coordinates)} onSelect={handleSelect} />
@@ -161,36 +161,36 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
 
             {/* Filter Panel */}
             <div className="absolute top-4 left-4 z-20 w-64">
-                 <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200">
-                    <button onClick={() => setIsFiltersOpen(!isFiltersOpen)} className="w-full flex justify-between items-center p-3 font-bold text-slate-900">
+                 <div className="bg-zinc-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-zinc-700">
+                    <button onClick={() => setIsFiltersOpen(!isFiltersOpen)} className="w-full flex justify-between items-center p-3 font-bold text-slate-100">
                         <span>Map Filters</span>
                         {isFiltersOpen ? <ChevronUpIcon className="w-5 h-5"/> : <ChevronDownIcon className="w-5 h-5"/>}
                     </button>
                     {isFiltersOpen && (
-                        <div className="p-4 border-t border-slate-200 space-y-3">
-                            <label className="flex items-center gap-3 text-slate-700 cursor-pointer">
-                                <input type="checkbox" checked={showStoodioz} onChange={() => setShowStoodioz(!showStoodioz)} className="w-5 h-5 rounded bg-slate-100 border-slate-300 text-orange-500 focus:ring-orange-500" />
+                        <div className="p-4 border-t border-zinc-700 space-y-3">
+                            <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
+                                <input type="checkbox" checked={showStoodioz} onChange={() => setShowStoodioz(!showStoodioz)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-orange-500 focus:ring-orange-500" />
                                 <HouseIcon className="w-5 h-5 text-orange-500"/>
                                 <span>Stoodioz</span>
                             </label>
-                             <label className="flex items-center gap-3 text-slate-700 cursor-pointer">
-                                <input type="checkbox" checked={showEngineers} onChange={() => setShowEngineers(!showEngineers)} className="w-5 h-5 rounded bg-slate-100 border-slate-300 text-amber-500 focus:ring-amber-500" />
+                             <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
+                                <input type="checkbox" checked={showEngineers} onChange={() => setShowEngineers(!showEngineers)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-amber-500 focus:ring-amber-500" />
                                 <SoundWaveIcon className="w-5 h-5 text-amber-500"/>
-                                <span>Engineers (Fuzzed)</span>
+                                <span>Engineers</span>
                             </label>
-                             <label className="flex items-center gap-3 text-slate-700 cursor-pointer">
-                                <input type="checkbox" checked={showArtists} onChange={() => setShowArtists(!showArtists)} className="w-5 h-5 rounded bg-slate-100 border-slate-300 text-green-500 focus:ring-green-500" />
+                             <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
+                                <input type="checkbox" checked={showArtists} onChange={() => setShowArtists(!showArtists)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-green-500 focus:ring-green-500" />
                                 <MicrophoneIcon className="w-5 h-5 text-green-500"/>
-                                <span>Artists (Fuzzed)</span>
+                                <span>Artists</span>
                             </label>
-                            <label className="flex items-center gap-3 text-slate-700 cursor-pointer">
-                                <input type="checkbox" checked={showJobs} onChange={() => setShowJobs(!showJobs)} className="w-5 h-5 rounded bg-slate-100 border-slate-300 text-indigo-500 focus:ring-indigo-500" />
+                            <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
+                                <input type="checkbox" checked={showJobs} onChange={() => setShowJobs(!showJobs)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-indigo-500 focus:ring-indigo-500" />
                                 <BriefcaseIcon className="w-5 h-5 text-indigo-500"/>
                                 <span>Active Jobs</span>
                             </label>
                             {vibeMatchResults && (
-                                <label className="flex items-center gap-3 text-slate-700 cursor-pointer">
-                                    <input type="checkbox" checked={showVibeMatches} onChange={() => setShowVibeMatches(!showVibeMatches)} className="w-5 h-5 rounded bg-slate-100 border-slate-300 text-pink-500 focus:ring-pink-500" />
+                                <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
+                                    <input type="checkbox" checked={showVibeMatches} onChange={() => setShowVibeMatches(!showVibeMatches)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-pink-500 focus:ring-pink-500" />
                                     <MagicWandIcon className="w-5 h-5 text-pink-500"/>
                                     <span>Vibe Match Results</span>
                                 </label>

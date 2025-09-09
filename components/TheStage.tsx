@@ -26,7 +26,7 @@ interface TheStageProps {
 }
 
 const QuickLink: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void }> = ({ icon, label, onClick }) => (
-    <button onClick={onClick} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-200 transition-colors">
+    <button onClick={onClick} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-zinc-700 transition-colors">
         {icon}
         <span className="font-semibold text-sm">{label}</span>
     </button>
@@ -96,13 +96,13 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 <aside className="lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
                        <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
-                       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-lg">
-                           <h3 className="font-bold text-slate-900 px-3 mb-2">Quick Links</h3>
+                       <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
+                           <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
                            <nav className="space-y-1">
-                               <QuickLink icon={<CalendarIcon className="w-5 h-5 text-orange-500"/>} label="My Bookings" onClick={() => onNavigate(AppView.MY_BOOKINGS)} />
-                               <QuickLink icon={<MicrophoneIcon className="w-5 h-5 text-green-500"/>} label="Discover Artists" onClick={() => onNavigate(AppView.ARTIST_LIST)} />
-                               <QuickLink icon={<SoundWaveIcon className="w-5 h-5 text-amber-500"/>} label="Discover Engineers" onClick={() => onNavigate(AppView.ENGINEER_LIST)} />
-                               <QuickLink icon={<HouseIcon className="w-5 h-5 text-red-500"/>} label="Discover Stoodioz" onClick={() => onNavigate(AppView.STOODIO_LIST)} />
+                               <QuickLink icon={<CalendarIcon className="w-5 h-5 text-orange-400"/>} label="My Bookings" onClick={() => onNavigate(AppView.MY_BOOKINGS)} />
+                               <QuickLink icon={<MicrophoneIcon className="w-5 h-5 text-green-400"/>} label="Discover Artists" onClick={() => onNavigate(AppView.ARTIST_LIST)} />
+                               <QuickLink icon={<SoundWaveIcon className="w-5 h-5 text-amber-400"/>} label="Discover Engineers" onClick={() => onNavigate(AppView.ENGINEER_LIST)} />
+                               <QuickLink icon={<HouseIcon className="w-5 h-5 text-red-400"/>} label="Discover Stoodioz" onClick={() => onNavigate(AppView.STOODIO_LIST)} />
                            </nav>
                        </div>
                     </div>

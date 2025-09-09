@@ -1155,7 +1155,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className={`min-h-screen bg-slate-100 text-slate-700 transition-colors duration-500`}>
+        <div className="main-container animate-fade-in">
             <Header
                 onNavigate={handleNavigate}
                 userRole={userRole}

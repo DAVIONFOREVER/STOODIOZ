@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { AppView, UserRole, type AppNotification, type Artist, type Engineer, type Stoodio } from '../types';
 import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon } from './icons';
@@ -34,7 +33,7 @@ const Header: React.FC<HeaderProps> = (props) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
 
-    const navLinkClasses = "text-slate-600 hover:text-orange-500 px-3 py-2 rounded-md text-sm font-semibold transition-colors whitespace-nowrap";
+    const navLinkClasses = "text-slate-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-semibold transition-colors whitespace-nowrap";
     const navButtonClasses = "p-2 rounded-full transition-colors";
     
     useEffect(() => {
@@ -99,22 +98,22 @@ const Header: React.FC<HeaderProps> = (props) => {
 
     return (
         <>
-            <header className="bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-md">
+            <header className="bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-50 relative">
                 <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-20">
                         {/* LEFT SECTION */}
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <button onClick={handleLogoClick} className="flex-shrink-0 flex items-center gap-3 group">
                                <StoodiozLogoIcon className="h-9 w-9 text-orange-500 group-hover:text-orange-400 transition-colors" />
-                               <span className="text-2xl font-bold text-slate-900 group-hover:text-orange-400 transition-colors tracking-tight hidden sm:inline">
+                               <span className="text-2xl font-bold text-slate-100 group-hover:text-orange-400 transition-colors tracking-tight hidden sm:inline">
                                     Stoodioz
                                 </span>
                             </button>
-                             <div className="flex items-center border-l border-slate-200 ml-2 sm:ml-4 pl-2 sm:pl-4">
-                                <button onClick={onGoBack} disabled={!canGoBack} className={`${navButtonClasses} ${canGoBack ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 cursor-not-allowed'}`}>
+                             <div className="flex items-center border-l border-zinc-700 ml-2 sm:ml-4 pl-2 sm:pl-4">
+                                <button onClick={onGoBack} disabled={!canGoBack} className={`${navButtonClasses} ${canGoBack ? 'text-slate-300 hover:bg-zinc-800' : 'text-slate-600 cursor-not-allowed'}`}>
                                     <ChevronLeftIcon className="w-6 h-6" />
                                 </button>
-                                <button onClick={onGoForward} disabled={!canGoForward} className={`${navButtonClasses} ${canGoForward ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 cursor-not-allowed'}`}>
+                                <button onClick={onGoForward} disabled={!canGoForward} className={`${navButtonClasses} ${canGoForward ? 'text-slate-300 hover:bg-zinc-800' : 'text-slate-600 cursor-not-allowed'}`}>
                                     <ChevronRightIcon className="w-6 h-6" />
                                 </button>
                             </div>
@@ -150,14 +149,14 @@ const Header: React.FC<HeaderProps> = (props) => {
                                         <MapIcon className="w-5 h-5" />
                                         <span>Map</span>
                                     </button>
-                                    <div ref={panelRef} className="border-l border-slate-200 ml-2 pl-2 flex items-center gap-1 flex-shrink-0 relative">
+                                    <div ref={panelRef} className="border-l border-zinc-700 ml-2 pl-2 flex items-center gap-1 flex-shrink-0 relative">
                                         <button onClick={() => onNavigate(AppView.INBOX)} className={`${navLinkClasses} flex items-center`}>
                                             <InboxIcon className="w-5 h-5" />
                                         </button>
                                         <button onClick={() => setIsPanelOpen(prev => !prev)} className={`${navLinkClasses} relative`}>
                                             <BellIcon className="w-6 h-6" />
                                             {unreadCount > 0 && (
-                                                <span className="absolute top-1 right-1 block h-4 w-4 rounded-full bg-red-500 text-white text-xs font-bold ring-2 ring-white">
+                                                <span className="absolute top-1 right-1 block h-4 w-4 rounded-full bg-red-500 text-white text-xs font-bold ring-2 ring-zinc-900">
                                                     {unreadCount}
                                                 </span>
                                             )}
@@ -182,32 +181,38 @@ const Header: React.FC<HeaderProps> = (props) => {
                                     <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className={navLinkClasses}>Find Stoodioz</button>
                                     <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className={navLinkClasses}>Find Engineers</button>
                                     <button onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)} className={navLinkClasses}>Pricing</button>
-                                    <button onClick={() => onNavigate(AppView.LOGIN)} className="text-slate-600 hover:text-orange-500 px-4 py-2 rounded-md text-sm font-semibold transition-colors">Login</button>
-                                    <button onClick={() => onNavigate(AppView.CHOOSE_PROFILE)} className="bg-orange-500 text-white font-bold py-2 px-5 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md">Get Started</button>
+                                    <button onClick={() => onNavigate(AppView.LOGIN)} className="text-slate-300 hover:text-orange-400 px-4 py-2 rounded-md text-sm font-semibold transition-colors">Login</button>
+                                    <button onClick={() => onNavigate(AppView.CHOOSE_PROFILE)} className="bg-orange-500 text-white font-bold py-2 px-5 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md shadow-orange-500/20">Get Started</button>
                                 </div>
                             )}
                         </div>
 
                         {/* RIGHT SECTION - MOBILE */}
                         <div className="md:hidden flex items-center">
-                            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-600 hover:text-orange-500">
+                            <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-300 hover:text-orange-400">
                                 <BentoIcon className="w-6 h-6"/>
                             </button>
                         </div>
                     </div>
                 </nav>
+                {/* The new glowing line effect */}
+                <div 
+                    className="absolute -bottom-px left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-indigo-500 to-sky-500 opacity-50" 
+                    style={{ filter: 'blur(12px)' }}
+                    aria-hidden="true"
+                ></div>
             </header>
 
             {/* MOBILE MENU */}
             {isMobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 z-[100] bg-white" role="dialog" aria-modal="true">
+                <div className="md:hidden fixed inset-0 z-[100] bg-zinc-900" role="dialog" aria-modal="true">
                     <div className="p-6 h-full flex flex-col">
                         <div className="flex items-center justify-between mb-8">
                              <button onClick={() => handleMobileNav(userRole ? AppView.THE_STAGE : AppView.LANDING_PAGE)} className="flex-shrink-0 flex items-center gap-3 group">
                                 <StoodiozLogoIcon className="h-8 w-8 text-orange-500" />
-                                <span className="text-xl font-bold text-slate-900">Stoodioz</span>
+                                <span className="text-xl font-bold text-slate-100">Stoodioz</span>
                             </button>
-                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-500 hover:text-slate-800">
+                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-100">
                                 <CloseIcon className="w-6 h-6"/>
                             </button>
                         </div>
@@ -218,7 +223,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                                     <MobileNavLink icon={<UserCircleIcon className="w-5 h-5"/>} label="My Dashboard" onClick={handleMobileDashboardNav} />
                                     <MobileNavLink icon={<MapIcon className="w-5 h-5"/>} label="Map View" onClick={() => handleMobileNav(AppView.MAP_VIEW)} />
                                     <MobileNavLink icon={<InboxIcon className="w-5 h-5"/>} label="Inbox" onClick={() => handleMobileNav(AppView.INBOX)} />
-                                    <div className="border-t border-slate-200 my-2"></div>
+                                    <div className="border-t border-zinc-700 my-2"></div>
                                     <MobileNavLink icon={<LogoutIcon className="w-5 h-5"/>} label="Logout" onClick={handleMobileLogout} />
                                 </>
                             ) : (
@@ -228,11 +233,11 @@ const Header: React.FC<HeaderProps> = (props) => {
                                         <MobileNavLink icon={<SoundWaveIcon className="w-5 h-5"/>} label="Find Engineers" onClick={() => handleMobileNav(AppView.ENGINEER_LIST)} />
                                         <MobileNavLink icon={<MicrophoneIcon className="w-5 h-5"/>} label="Find Artists" onClick={() => handleMobileNav(AppView.ARTIST_LIST)} />
                                     </div>
-                                     <div className="border-t border-slate-200 pt-4 mt-auto space-y-2">
-                                        <button onClick={() => handleMobileNav(AppView.LOGIN)} className="w-full text-center text-slate-600 hover:text-orange-500 px-4 py-3 rounded-md text-base font-semibold transition-colors">
+                                     <div className="border-t border-zinc-700 pt-4 mt-auto space-y-2">
+                                        <button onClick={() => handleMobileNav(AppView.LOGIN)} className="w-full text-center text-slate-300 hover:text-orange-400 px-4 py-3 rounded-md text-base font-semibold transition-colors">
                                             Login
                                         </button>
-                                        <button onClick={() => handleMobileNav(AppView.CHOOSE_PROFILE)} className="w-full text-center bg-orange-500 text-white font-bold py-3 px-5 rounded-lg hover:bg-orange-600 transition-all text-base shadow-md">
+                                        <button onClick={() => handleMobileNav(AppView.CHOOSE_PROFILE)} className="w-full text-center bg-orange-500 text-white font-bold py-3 px-5 rounded-lg hover:bg-orange-600 transition-all text-base shadow-md shadow-orange-500/20">
                                             Get Started
                                         </button>
                                      </div>
@@ -247,7 +252,7 @@ const Header: React.FC<HeaderProps> = (props) => {
 };
 
 const MobileNavLink: React.FC<{icon: React.ReactNode, label: string, onClick: () => void}> = ({ icon, label, onClick }) => (
-    <button onClick={onClick} className="flex items-center gap-4 text-slate-700 hover:bg-slate-200 p-3 rounded-lg text-base font-semibold transition-colors">
+    <button onClick={onClick} className="flex items-center gap-4 text-slate-200 hover:bg-zinc-800 p-3 rounded-lg text-base font-semibold transition-colors">
         {icon}
         <span>{label}</span>
     </button>

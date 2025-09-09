@@ -32,30 +32,32 @@ const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onP
             requiredSkills: requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
         });
     };
+    
+    const inputClasses = "mt-1 w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
-        <form onSubmit={handleSubmit} className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6">
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Post a New Job</h3>
+        <form onSubmit={handleSubmit} className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-xl border border-zinc-700/50 mb-6">
+            <h3 className="text-xl font-bold text-zinc-100 mb-4">Post a New Job</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-slate-600">Date</label>
-                    <input type="date" value={date} onChange={e => setDate(e.target.value)} min={today} className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                    <label className="block text-sm font-medium text-zinc-400">Date</label>
+                    <input type="date" value={date} onChange={e => setDate(e.target.value)} min={today} className={inputClasses} />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-600">Start Time</label>
-                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                    <label className="block text-sm font-medium text-zinc-400">Start Time</label>
+                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClasses} />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-600">Duration (hrs)</label>
-                    <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} min="1" className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                    <label className="block text-sm font-medium text-zinc-400">Duration (hrs)</label>
+                    <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} min="1" className={inputClasses} />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-600">Pay Rate ($/hr)</label>
-                    <input type="number" value={engineerPayRate} onChange={e => setEngineerPayRate(Number(e.target.value))} min="20" className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                    <label className="block text-sm font-medium text-zinc-400">Pay Rate ($/hr)</label>
+                    <input type="number" value={engineerPayRate} onChange={e => setEngineerPayRate(Number(e.target.value))} min="20" className={inputClasses} />
                 </div>
                 <div className="md:col-span-2 lg:col-span-5">
-                    <label className="block text-sm font-medium text-slate-600">Required Skills (optional, comma-separated)</label>
-                    <input type="text" value={requiredSkills} onChange={e => setRequiredSkills(e.target.value)} placeholder="e.g. Pro Tools, Vocal Tuning, Mixing" className="mt-1 w-full p-2 border border-slate-300 rounded-md" />
+                    <label className="block text-sm font-medium text-zinc-400">Required Skills (optional, comma-separated)</label>
+                    <input type="text" value={requiredSkills} onChange={e => setRequiredSkills(e.target.value)} placeholder="e.g. Pro Tools, Vocal Tuning, Mixing" className={inputClasses} />
                 </div>
                  <div className="lg:col-start-5">
                      <button type="submit" className="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">Post Job</button>
@@ -73,37 +75,37 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
     const getStatusInfo = (job: Booking) => {
         switch(job.status) {
             case BookingStatus.PENDING:
-                return { text: "Pending", color: "bg-yellow-100 text-yellow-800" };
+                return { text: "Pending", color: "bg-yellow-400/10 text-yellow-300" };
             case BookingStatus.CONFIRMED:
-                return { text: `Filled by ${job.engineer?.name}`, color: "bg-green-100 text-green-800" };
+                return { text: `Filled by ${job.engineer?.name}`, color: "bg-green-400/10 text-green-300" };
             case BookingStatus.COMPLETED:
-                return { text: "Completed", color: "bg-blue-100 text-blue-800" };
+                return { text: "Completed", color: "bg-blue-400/10 text-blue-300" };
             case BookingStatus.CANCELLED:
-                 return { text: "Cancelled", color: "bg-red-100 text-red-800" };
+                 return { text: "Cancelled", color: "bg-red-400/10 text-red-300" };
             default:
-                return { text: job.status, color: "bg-slate-100 text-slate-800" };
+                return { text: job.status, color: "bg-zinc-400/10 text-zinc-300" };
         }
     }
 
     return (
         <div>
             <JobPostForm onPostJob={onPostJob} />
-             <h3 className="text-xl font-bold text-slate-900 mb-4">Your Posted Jobs</h3>
+             <h3 className="text-xl font-bold text-zinc-100 mb-4">Your Posted Jobs</h3>
              <div className="space-y-4">
                 {postedJobs.length > 0 ? postedJobs.map(job => {
                     const status = getStatusInfo(job);
                     return (
-                        <div key={job.id} className="bg-slate-50 p-4 rounded-lg border border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                        <div key={job.id} className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
                             <div>
-                                <p className="text-xs text-slate-500">Date</p>
+                                <p className="text-xs text-zinc-400">Date</p>
                                 <p className="font-semibold">{new Date(job.date + 'T00:00:00').toLocaleDateString()}</p>
                             </div>
                              <div>
-                                <p className="text-xs text-slate-500">Payout</p>
-                                <p className="font-semibold text-green-600">${(job.engineerPayRate * job.duration).toFixed(2)}</p>
+                                <p className="text-xs text-zinc-400">Payout</p>
+                                <p className="font-semibold text-green-400">${(job.engineerPayRate * job.duration).toFixed(2)}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-slate-500">Status</p>
+                                <p className="text-xs text-zinc-400">Status</p>
                                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>{status.text}</span>
                             </div>
                             <div className="text-right">
@@ -112,7 +114,7 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
                         </div>
                     );
                 }) : (
-                    <p className="text-center py-8 text-slate-500">You haven't posted any jobs yet.</p>
+                    <p className="text-center py-8 text-zinc-500">You haven't posted any jobs yet.</p>
                 )}
              </div>
         </div>
@@ -120,13 +122,13 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
 };
 
 const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
-    <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 rounded-2xl text-white text-center shadow-lg">
+    <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 rounded-2xl text-white text-center shadow-lg shadow-orange-500/10">
         <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
         <h3 className="text-xl font-bold mb-2">Upgrade to Stoodio Pro</h3>
         <p className="text-sm opacity-90 mb-4">Unlock advanced features, lower service fees, and priority support to grow your business.</p>
         <button 
             onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
-            className="bg-white text-orange-500 font-bold py-2 px-6 rounded-lg hover:bg-slate-100 transition-all duration-300"
+            className="bg-white text-orange-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
         >
             View Plans
         </button>
@@ -160,11 +162,11 @@ interface StoodioDashboardProps {
 type DashboardTab = 'dashboard' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-slate-50 p-4 rounded-xl flex items-center gap-4 border border-slate-200">
+    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
-            <p className="text-slate-500 text-sm font-medium">{label}</p>
-            <p className="text-2xl font-bold text-slate-800">{value}</p>
+            <p className="text-zinc-400 text-sm font-medium">{label}</p>
+            <p className="text-2xl font-bold text-zinc-100">{value}</p>
         </div>
     </div>
 );
@@ -172,7 +174,7 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.Re
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
     <button
         onClick={onClick}
-        className={`px-4 py-3 font-semibold text-sm transition-colors ${isActive ? 'border-b-2 border-orange-500 text-orange-500' : 'text-slate-500 hover:text-slate-800'}`}
+        className={`px-4 py-3 font-semibold text-sm transition-colors whitespace-nowrap ${isActive ? 'border-b-2 border-orange-500 text-orange-400' : 'text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent'}`}
     >
         {label}
     </button>
@@ -222,16 +224,16 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 );
             case 'photos':
                 return (
-                    <div className="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
                         <h3 className="text-xl font-bold mb-4">Photo Management</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             {stoodio.photos.map((photo, index) => (
                                 <img key={index} src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
                             ))}
                         </div>
-                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-                            <PhotoIcon className="mx-auto h-12 w-12 text-slate-400" />
-                            <p className="mt-2 text-sm text-slate-600">Drag & drop photos here or click to upload</p>
+                        <div className="border-2 border-dashed border-zinc-600 rounded-lg p-8 text-center">
+                            <PhotoIcon className="mx-auto h-12 w-12 text-zinc-500" />
+                            <p className="mt-2 text-sm text-zinc-400">Drag & drop photos here or click to upload</p>
                             <button className="mt-4 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Upload Photos</button>
                         </div>
                     </div>
@@ -257,15 +259,15 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-lg">
+            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                      <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-slate-200 flex-shrink-0" />
+                        <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900">{stoodio.name}</h1>
-                            <p className="text-slate-500 mt-2">Stoodio Dashboard</p>
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
+                            <p className="text-zinc-400 mt-2">Stoodio Dashboard</p>
                         </div>
                     </div>
                     <div className="flex-shrink-0 flex flex-col gap-y-4">
@@ -277,7 +279,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                             Book a New Session
                         </button>
                         <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                            <span className="text-sm font-medium text-slate-700 mr-3">Show on Map</span>
+                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
                             <div className="relative">
                                 <input 
                                     type="checkbox" 
@@ -285,21 +287,21 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                                     checked={stoodio.showOnMap ?? false} 
                                     onChange={(e) => onUpdateStoodio({ showOnMap: e.target.checked })} 
                                 />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-slate-300'}`}></div>
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
                                 <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
                             </div>
                         </label>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                     <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-500" />} />
-                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-500" />} />
-                    <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-500" />} />
+                     <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                    <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-lg">
-                <div className="flex border-b border-slate-200 overflow-x-auto">
+            <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
+                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
                     <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />

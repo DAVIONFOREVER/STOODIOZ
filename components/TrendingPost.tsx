@@ -16,17 +16,17 @@ const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onLikePost, o
     const isLiked = currentUser ? post.likes.includes(currentUser.id) : false;
 
     return (
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-lg">
-            <h3 className="font-bold text-slate-900 px-1 mb-2">Trending on Stoodioz</h3>
-            <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+        <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
+            <h3 className="font-bold text-slate-100 px-1 mb-2">Trending on Stoodioz</h3>
+            <div className="bg-zinc-700/50 rounded-lg p-3 border border-zinc-600">
                 <button onClick={() => onSelectUser(author)} className="flex items-center gap-3 mb-2 text-left">
                      <img loading="lazy" src={author.imageUrl} alt={author.name} className="w-8 h-8 rounded-lg object-cover" />
                     <div>
-                        <p className="font-semibold text-sm text-slate-800">{author.name}</p>
+                        <p className="font-semibold text-sm text-slate-200">{author.name}</p>
                     </div>
                 </button>
-                <p className="text-sm text-slate-600 mb-3">{post.text.substring(0, 100)}{post.text.length > 100 ? '...' : ''}</p>
-                <div className="flex items-center gap-4 text-xs text-slate-500 font-semibold">
+                <p className="text-sm text-slate-300 mb-3">{post.text.substring(0, 100)}{post.text.length > 100 ? '...' : ''}</p>
+                <div className="flex items-center gap-4 text-xs text-slate-400 font-semibold">
                     <span className={`flex items-center gap-1 ${isLiked ? 'text-red-500' : ''}`}>
                         <HeartIcon className="w-4 h-4" /> {post.likes.length}
                     </span>

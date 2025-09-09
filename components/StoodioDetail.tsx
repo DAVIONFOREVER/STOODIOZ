@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import type { Stoodio, Artist, Review, Booking, Engineer, Post, Room } from '../types';
 import { UserRole, VerificationStatus } from '../types';
@@ -81,6 +83,7 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
         }
     };
 
+    // FIX: Allow studio owners to book their own studio
     const isBookingDisabled = !selectedTimeSlot || !selectedRoom || !currentUser || (userRole === UserRole.STOODIO && currentUser.id !== stoodio.id);
 
     const getButtonText = (mobile: boolean = false) => {

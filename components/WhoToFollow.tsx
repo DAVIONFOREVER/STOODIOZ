@@ -18,21 +18,21 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
     };
 
     return (
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-lg">
-            <h3 className="font-bold text-slate-900 px-3 mb-2">Who to Follow</h3>
+        <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
+            <h3 className="font-bold text-slate-100 px-3 mb-2">Who to Follow</h3>
             <div className="space-y-2">
                 {suggestions.map(user => (
-                    <div key={user.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-100">
+                    <div key={user.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-700/50">
                         <button onClick={() => onSelectUser(user)} className="flex items-center gap-3 text-left">
                             <img loading="lazy" src={user.imageUrl} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
                             <div>
-                                <p className="font-semibold text-sm text-slate-800">{user.name}</p>
-                                <p className="text-xs text-slate-500 capitalize">{getRole(user)}</p>
+                                <p className="font-semibold text-sm text-slate-200">{user.name}</p>
+                                <p className="text-xs text-slate-400 capitalize">{getRole(user)}</p>
                             </div>
                         </button>
                         <button 
                             onClick={() => onToggleFollow(getRole(user), user.id)}
-                            className="bg-slate-200 text-slate-700 hover:bg-slate-300 font-semibold p-2 rounded-full transition-colors"
+                            className="bg-zinc-700 text-slate-300 hover:bg-zinc-600 font-semibold p-2 rounded-full transition-colors"
                             aria-label={`Follow ${user.name}`}
                         >
                            <UserPlusIcon className="w-5 h-5"/>

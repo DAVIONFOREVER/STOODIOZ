@@ -1,130 +1,147 @@
 import React from 'react';
-import { AppView } from '../types';
 import type { Stoodio, Engineer, Artist, Booking, VibeMatchResult } from '../types';
-// FIX: Added MicrophoneIcon, SoundWaveIcon, and HouseIcon to the import.
-import { ChevronRightIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon } from './icons';
-import MapView from './MapView';
+import { AppView } from '../types';
+import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon } from './icons';
+import StoodioCard from './StudioCard';
+import EngineerCard from './EngineerCard';
+import ArtistCard from './ArtistCard';
+import AnimatedGradientText from './AnimatedGradientText';
+import AiHeroText from './AiHeroText';
+import DevNotificationButton from './DevNotificationButton';
 
 interface LandingPageProps {
     onNavigate: (view: AppView) => void;
+    onSelectStoodio: (stoodio: Stoodio) => void;
     stoodioz: Stoodio[];
     engineers: Engineer[];
     artists: Artist[];
     bookings: Booking[];
     vibeMatchResults: VibeMatchResult | null;
-    onSelectStoodio: (stoodio: Stoodio) => void;
 }
 
-const FeatureCard: React.FC<{ icon: React.ReactNode, title: string, description: string }> = ({ icon, title, description }) => (
-    <div className="bg-white p-6 rounded-xl border border-slate-200 text-center shadow-lg">
-        <div className="flex justify-center mb-4">
-            <div className="bg-orange-500/10 p-4 rounded-full">
-                {icon}
-            </div>
-        </div>
-        <h3 className="text-xl font-bold mb-2 text-slate-900">{title}</h3>
-        <p className="text-slate-600 text-sm">{description}</p>
+const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
+    <div className="text-center">
+        <p className="text-4xl lg:text-5xl font-extrabold text-orange-400">{value}</p>
+        <p className="text-sm lg:text-base text-zinc-400 mt-1">{label}</p>
     </div>
 );
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, stoodioz, engineers, artists, bookings, vibeMatchResults, onSelectStoodio }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, stoodioz, engineers, artists, bookings }) => {
+    
+    // Get some featured items
+    const featuredStoodioz = stoodioz.slice(0, 3);
+    const featuredEngineers = engineers.slice(0, 2);
+
     return (
-        <div>
-            <main>
-                {/* Hero Section */}
-                <section className="text-center py-24 sm:py-32 lg:py-40 px-4 bg-white">
-                    <div className="container mx-auto">
-                        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter text-slate-900">
-                           Your Sound, <span className="text-orange-500">On Demand.</span>
-                        </h1>
-                        <p className="max-w-2xl mx-auto mt-4 text-lg text-slate-600">
-                           The premiere marketplace for booking professional recording stoodioz and connecting with talented audio engineers.
-                        </p>
-                        <div className="mt-8 flex justify-center gap-4">
-                            <button 
-                                onClick={() => onNavigate(AppView.CHOOSE_PROFILE)} 
-                                className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 text-lg shadow-lg flex items-center gap-2"
-                            >
-                                Get Started <ChevronRightIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-                    </div>
-                </section>
-                
-                {/* How It Works Section */}
-                <section className="py-20 sm:py-24 bg-slate-50">
-                    <div className="container mx-auto px-4">
-                         <h2 className="text-4xl font-extrabold text-center mb-12 text-slate-900">How It Works</h2>
-                         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                           <div className="text-center">
-                               <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 bg-white border-2 border-orange-500 text-orange-400 rounded-full font-bold text-3xl shadow-md">1</div>
-                               <h3 className="text-xl font-bold mb-2 text-slate-900">Find Your Space</h3>
-                               <p className="text-slate-600">Browse and filter top-tier stoodioz by location, price, and amenities.</p>
-                           </div>
-                            <div className="text-center">
-                               <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 bg-white border-2 border-orange-500 text-orange-400 rounded-full font-bold text-3xl shadow-md">2</div>
-                               <h3 className="text-xl font-bold mb-2 text-slate-900">Book Your Session</h3>
-                               <p className="text-slate-600">Check live availability and book your session instantly. Hire an engineer or bring your own.</p>
-                           </div>
-                            <div className="text-center">
-                               <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 bg-white border-2 border-orange-500 text-orange-400 rounded-full font-bold text-3xl shadow-md">3</div>
-                               <h3 className="text-xl font-bold mb-2 text-slate-900">Create Your Masterpiece</h3>
-                               <p className="text-slate-600">We handle the logistics so you can focus on your art.</p>
-                           </div>
-                         </div>
-                    </div>
-                </section>
+        <div className="space-y-24 md:space-y-32">
+            {/* Hero Section */}
+            <section className="text-center pt-12 md:pt-20">
+                <AnimatedGradientText text="Your Sound, Connected." className="text-6xl md:text-8xl font-extrabold tracking-tighter" />
+                <p className="max-w-3xl mx-auto mt-6 text-lg md:text-xl text-zinc-300">
+                    The ultimate platform for artists, audio engineers, and recording stoodioz. Discover talent, book sessions, and collaborate on your next masterpiece.
+                </p>
+                <div className="mt-10 flex justify-center items-center gap-4">
+                    <button 
+                        onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
+                        className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg"
+                    >
+                        Get Started
+                    </button>
+                    <button 
+                        onClick={() => onNavigate(AppView.STOODIO_LIST)}
+                        className="bg-transparent border-2 border-zinc-600 text-zinc-100 font-bold py-3 px-8 rounded-lg hover:bg-zinc-800 hover:border-zinc-500 transition-all duration-300"
+                    >
+                        Browse Stoodioz
+                    </button>
+                </div>
+            </section>
+            
+             {/* Stats Section */}
+            <section className="max-w-4xl mx-auto">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <Stat value={stoodioz.length.toString()} label="Verified Stoodioz" />
+                    <Stat value={engineers.length.toString()} label="Pro Engineers" />
+                    <Stat value={artists.length.toString()} label="Talented Artists" />
+                    <Stat value={bookings.length.toLocaleString() + "+"} label="Sessions Booked" />
+                </div>
+            </section>
 
-                {/* Features Section */}
-                <section className="py-20 sm:py-24 bg-white">
-                    <div className="container mx-auto px-4">
-                        <h2 className="text-4xl font-extrabold text-center mb-4 text-slate-900">A Platform For Everyone</h2>
-                        <p className="text-center text-lg text-slate-600 mb-12 max-w-2xl mx-auto">Whether you're an artist, engineer, or stoodio owner, Stoodioz provides the tools you need to succeed.</p>
-                        <div className="grid md:grid-cols-3 gap-8">
-                             <FeatureCard 
-                                icon={<MicrophoneIcon className="w-8 h-8 text-green-400" />}
-                                title="For Artists"
-                                description="Discover unique recording spaces, find the perfect engineer for your sound, and connect with a community of creators."
-                            />
-                             <FeatureCard 
-                                icon={<SoundWaveIcon className="w-8 h-8 text-orange-400" />}
-                                title="For Engineers"
-                                description="Find freelance session work, showcase your skills with a professional portfolio, and get booked by artists in your area."
-                            />
-                            <FeatureCard 
-                                icon={<HouseIcon className="w-8 h-8 text-red-400" />}
-                                title="For Stoodioz"
-                                description="List your recording space, manage your calendar with ease, and connect with a vibrant community of artists and engineers."
-                            />
-                        </div>
+            {/* How it works */}
+            <section>
+                 <div className="text-center">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">How It Works</h2>
+                    <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-400">
+                        A seamless experience for every role in the music creation process.
+                    </p>
+                </div>
+                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
+                        <MicrophoneIcon className="w-12 h-12 text-green-400 mx-auto mb-4"/>
+                        <h3 className="text-2xl font-bold text-zinc-100">For Artists</h3>
+                        <p className="text-zinc-400 mt-2">Find the perfect space and sound engineer. Book sessions, manage projects, and collaborate.</p>
                     </div>
-                </section>
-                
-                 {/* Live Activity Map Section */}
-                <section className="py-20 sm:py-24 bg-slate-50">
-                    <div className="container mx-auto px-4">
-                        <h2 className="text-4xl font-extrabold text-center mb-4 text-slate-900">Live Activity Across the Nation</h2>
-                        <p className="text-center text-lg text-slate-600 mb-12 max-w-2xl mx-auto">See where sessions are happening and creators are connecting in real-time.</p>
-                        <div className="relative h-[50vh]">
-                             <MapView
-                                stoodioz={stoodioz}
-                                engineers={engineers}
-                                artists={artists}
-                                bookings={bookings}
-                                vibeMatchResults={vibeMatchResults}
-                                onSelectStoodio={onSelectStoodio}
-                            />
-                        </div>
+                     <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
+                        <SoundWaveIcon className="w-12 h-12 text-amber-400 mx-auto mb-4"/>
+                        <h3 className="text-2xl font-bold text-zinc-100">For Engineers</h3>
+                        <p className="text-zinc-400 mt-2">Showcase your portfolio, get discovered by artists, and manage your bookings effortlessly.</p>
                     </div>
-                </section>
+                     <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
+                        <HouseIcon className="w-12 h-12 text-orange-400 mx-auto mb-4"/>
+                        <h3 className="text-2xl font-bold text-zinc-100">For Stoodioz</h3>
+                        <p className="text-zinc-400 mt-2">List your space, manage your calendar, find in-house talent, and keep your rooms booked.</p>
+                    </div>
+                </div>
+            </section>
 
-                {/* Footer */}
-                <footer className="bg-white py-12">
-                    <div className="container mx-auto px-4 text-center text-slate-600">
-                        <p>&copy; {new Date().getFullYear()} Stoodioz. All rights reserved.</p>
-                    </div>
-                </footer>
-            </main>
+            {/* Featured Stoodioz Section */}
+            <section>
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Featured Stoodioz</h2>
+                    <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
+                        View All <ChevronRightIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {featuredStoodioz.map(stoodio => (
+                        <StoodioCard key={stoodio.id} stoodio={stoodio} onSelectStoodio={onSelectStoodio} />
+                    ))}
+                </div>
+            </section>
+            
+             {/* Featured Engineers Section */}
+            <section>
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Top Engineers</h2>
+                     <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
+                        View All <ChevronRightIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {featuredEngineers.map(engineer => (
+                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={() => {
+                            // a bit of a hack to navigate, a more robust solution would pass the select handler down
+                            onNavigate(AppView.ENGINEER_LIST); 
+                            setTimeout(() => onNavigate(AppView.ENGINEER_PROFILE), 0);
+                        }} onToggleFollow={()=>{}} isFollowing={false} isSelf={false} isLoggedIn={false} />
+                    ))}
+                </div>
+            </section>
+
+            {/* Call to Action */}
+            <section className="bg-zinc-800 rounded-2xl p-12 text-center border border-zinc-700">
+                <AnimatedGradientText text="Ready to Create?" className="text-4xl md:text-5xl font-extrabold" />
+                <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-300">
+                    Join a community of passionate music creators. Sign up today and take the next step in your musical journey.
+                </p>
+                <button 
+                    onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
+                    className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 shadow-lg"
+                >
+                    Sign Up for Free
+                </button>
+            </section>
+            
+            <DevNotificationButton />
         </div>
     );
 };

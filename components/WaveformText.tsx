@@ -76,30 +76,35 @@ interface WaveformTextProps {
     text: string;
     className?: string;
     as?: keyof JSX.IntrinsicElements;
-    fillId?: string; // ID of an external fill definition (e.g., a gradient)
 }
 
-const WaveformText: React.FC<WaveformTextProps> = ({ text, className = '', as: Component = 'h1', fillId }) => {
+const WaveformText: React.FC<WaveformTextProps> = ({ text, className = '', as: Component = 'h1' }) => {
     const { path: waveformPath, isLoading } = useWaveform(DEFAULT_AUDIO_URL);
     const uniqueId = React.useId();
     const patternId = `waveform-pattern-${uniqueId}`;
+    const gradientId = `waveform-gradient-${uniqueId}`;
     
     // Fallback while loading or in non-browser environment
     if (isLoading || !waveformPath) {
         return <Component className={className}>{text}</Component>;
     }
 
-    const fill = fillId ? `url(#${fillId})` : 'currentColor';
-
     return (
         <Component className={className}>
             <svg viewBox="0 0 400 60" className="w-full h-auto overflow-visible">
                 <defs>
+                    <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#f97316" />
+                        <stop offset="100%" stopColor="#fb923c" />
+                    </linearGradient>
+                    
                     <pattern id={patternId} patternUnits="userSpaceOnUse" width="1000" height="100">
                         <path
                             d={waveformPath}
-                            fill={fill}
-                        />
+                            fill={`url(#${gradientId})`}
+                        >
+                            <animate attributeName="x" from="-1000" to="0" dur="10s" repeatCount="indefinite" />
+                        </path>
                     </pattern>
                 </defs>
                 <text

@@ -8,8 +8,8 @@ interface SubscriptionPlansProps {
 
 const FeatureListItem: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <li className="flex items-start gap-3">
-        <CheckCircleIcon className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
-        <span className="text-slate-600">{children}</span>
+        <CheckCircleIcon className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
+        <span className="text-zinc-400">{children}</span>
     </li>
 );
 
@@ -22,16 +22,16 @@ const PlanCard: React.FC<{
     isFeatured?: boolean;
     onSelect: () => void;
 }> = ({ icon, title, price, description, features, isFeatured, onSelect }) => (
-    <div className={`border rounded-2xl p-8 flex flex-col ${isFeatured ? 'border-orange-500 bg-slate-50' : 'border-slate-200 bg-white'}`}>
+    <div className={`border rounded-2xl p-8 flex flex-col ${isFeatured ? 'border-orange-500/50 bg-zinc-900 shadow-2xl shadow-orange-500/10' : 'border-zinc-700/50 bg-zinc-800/50'}`}>
         <div className="flex-grow">
             <div className="flex items-center gap-3 mb-4">
                 {icon}
-                <h3 className="text-2xl font-bold text-slate-900">{title}</h3>
+                <h3 className="text-2xl font-bold text-zinc-100">{title}</h3>
             </div>
-            <p className="text-slate-500 mb-6">{description}</p>
+            <p className="text-zinc-400 mb-6">{description}</p>
             <div className="mb-8">
-                <span className="text-5xl font-extrabold text-slate-900">${price}</span>
-                <span className="text-slate-500 font-medium">/month</span>
+                <span className="text-5xl font-extrabold text-zinc-100">${price}</span>
+                <span className="text-zinc-400 font-medium">/month</span>
             </div>
             <ul className="space-y-4 mb-8">
                 {features.map((feature, index) => (
@@ -41,7 +41,7 @@ const PlanCard: React.FC<{
         </div>
         <button 
             onClick={onSelect}
-            className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${isFeatured ? 'bg-orange-500 text-white hover:bg-orange-600' : 'bg-slate-800 text-white hover:bg-slate-900'}`}
+            className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${isFeatured ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' : 'bg-zinc-700 text-white hover:bg-zinc-600'}`}
         >
             Choose {title}
         </button>
@@ -57,27 +57,27 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onNavigate }) => 
     };
 
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto animate-fade-in">
             <div className="text-center mb-16">
-                <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900">
+                <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-zinc-100">
                     Find the perfect plan
                 </h1>
-                <p className="max-w-2xl mx-auto mt-4 text-lg text-slate-600">
+                <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-400">
                     Unlock powerful tools to grow your career or business. Joining as an Artist is always free.
                 </p>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
                 {/* Artist Plan */}
-                <div className="border border-slate-200 bg-white rounded-2xl p-8 flex flex-col">
+                <div className="border border-zinc-700/50 bg-zinc-800/50 rounded-2xl p-8 flex flex-col">
                      <div className="flex-grow">
                         <div className="flex items-center gap-3 mb-4">
-                            <MicrophoneIcon className="w-8 h-8 text-green-500"/>
-                            <h3 className="text-2xl font-bold text-slate-900">Artist</h3>
+                            <MicrophoneIcon className="w-8 h-8 text-green-400"/>
+                            <h3 className="text-2xl font-bold text-zinc-100">Artist</h3>
                         </div>
-                        <p className="text-slate-500 mb-6">For creators looking to find their sound and collaborators.</p>
+                        <p className="text-zinc-400 mb-6">For creators looking to find their sound and collaborators.</p>
                         <div className="mb-8">
-                            <span className="text-5xl font-extrabold text-slate-900">Free</span>
+                            <span className="text-5xl font-extrabold text-zinc-100">Free</span>
                         </div>
                         <ul className="space-y-4 mb-8">
                             <FeatureListItem>Create a professional artist profile</FeatureListItem>
@@ -97,7 +97,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onNavigate }) => 
 
                 {/* Engineer Plan */}
                 <PlanCard
-                    icon={<SoundWaveIcon className="w-8 h-8 text-indigo-500"/>}
+                    icon={<SoundWaveIcon className="w-8 h-8 text-indigo-400"/>}
                     title="Engineer Plus"
                     price="19"
                     description="For freelance engineers looking to find work and build their reputation."
@@ -113,7 +113,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onNavigate }) => 
 
                 {/* Stoodio Plan */}
                 <PlanCard
-                    icon={<HouseIcon className="w-8 h-8 text-orange-500"/>}
+                    icon={<HouseIcon className="w-8 h-8 text-orange-400"/>}
                     title="Stoodio Pro"
                     price="49"
                     description="The all-in-one solution for stoodio owners to manage and grow their business."

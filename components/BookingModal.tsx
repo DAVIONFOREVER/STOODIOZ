@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, BookingRequest, Room } from '../types';
 import { BookingRequestType } from '../types';
@@ -80,14 +79,14 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
     }, [engineers, initialEngineer]);
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-2xl transform animate-slide-up border border-zinc-700 flex flex-col max-h-[90vh] sm:max-h-[85vh]" role="dialog" aria-modal="true">
-                <div className="p-6 border-b border-zinc-700 flex justify-between items-center flex-shrink-0">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true">
+            <div className="bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl w-full max-w-2xl transform animate-slide-up border border-zinc-700/50 flex flex-col max-h-[90vh] sm:max-h-[85vh]" >
+                <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center flex-shrink-0">
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-100">Book {stoodio.name}</h2>
+                        <h2 className="text-2xl font-bold text-zinc-100">Book {stoodio.name}</h2>
                         <p className="text-orange-400 font-semibold">{initialRoom.name}</p>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-200 transition-colors">
+                    <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200 transition-colors">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </div>
@@ -98,23 +97,23 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                             {/* Left Column: Date, Time, Duration */}
                             <div className="space-y-4">
                                 <div>
-                                    <label htmlFor="date" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><CalendarIcon className="w-4 h-4 mr-2" /> Date</label>
-                                    <input type="date" id="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
+                                    <label htmlFor="date" className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><CalendarIcon className="w-4 h-4 mr-2" /> Date</label>
+                                    <input type="date" id="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
                                 </div>
                                 <div>
-                                    <label htmlFor="startTime" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><ClockIcon className="w-4 h-4 mr-2" /> Start Time</label>
-                                    <input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
+                                    <label htmlFor="startTime" className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><ClockIcon className="w-4 h-4 mr-2" /> Start Time</label>
+                                    <input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
                                 </div>
                                 <div>
-                                    <label htmlFor="duration" className="flex items-center text-sm font-semibold text-slate-400 mb-2"><DurationIcon className="w-4 h-4 mr-2" /> Duration (hours)</label>
-                                    <input type="number" id="duration" value={duration} min="1" max="12" onChange={e => setDuration(parseInt(e.target.value))} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500" />
+                                    <label htmlFor="duration" className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><DurationIcon className="w-4 h-4 mr-2" /> Duration (hours)</label>
+                                    <input type="number" id="duration" value={duration} min="1" max="12" onChange={e => setDuration(parseInt(e.target.value))} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
                                 </div>
                             </div>
 
                             {/* Right Column: Engineer Options */}
                             <div className="space-y-4">
                                  <div>
-                                    <label className="flex items-center text-sm font-semibold text-slate-400 mb-2"><UserGroupIcon className="w-4 h-4 mr-2" /> Engineer</label>
+                                    <label className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><UserGroupIcon className="w-4 h-4 mr-2" /> Engineer</label>
                                     <div className="space-y-2">
                                         <RadioOption id="find" value={BookingRequestType.FIND_AVAILABLE} label="Find an Engineer for Me" description="Fastest response. We'll find an available engineer for you." checked={requestType === BookingRequestType.FIND_AVAILABLE} onChange={setRequestType} disabled={!!initialEngineer} />
                                         <RadioOption id="specific" value={BookingRequestType.SPECIFIC_ENGINEER} label="Choose a Specific Engineer" description="Send a request to an engineer of your choice." checked={requestType === BookingRequestType.SPECIFIC_ENGINEER} onChange={setRequestType} disabled={!!initialEngineer} />
@@ -124,7 +123,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                                 {requestType === BookingRequestType.SPECIFIC_ENGINEER && (
                                     <div className="animate-fade-in-fast">
                                         <label htmlFor="engineer-select" className="sr-only">Select Engineer</label>
-                                        <select id="engineer-select" value={requestedEngineerId} onChange={e => setRequestedEngineerId(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500 disabled:opacity-70" disabled={!!initialEngineer}>
+                                        <select id="engineer-select" value={requestedEngineerId} onChange={e => setRequestedEngineerId(e.target.value)} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:opacity-70" disabled={!!initialEngineer}>
                                             <option value="" disabled>-- Select an Engineer --</option>
                                             {engineerOptions.map(engineer => (
                                                 <option key={engineer.id} value={engineer.id}>{engineer.name}</option>
@@ -138,16 +137,16 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                         {/* Cost Summary */}
                         <div className="px-6 pb-6">
                             <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/20">
-                                <h3 className="text-lg font-bold mb-4 flex items-center text-slate-100"><PriceIcon className="w-5 h-5 mr-2 text-orange-400" />Cost Summary</h3>
-                                <div className="space-y-2 text-sm text-slate-200">
+                                <h3 className="text-lg font-bold mb-4 flex items-center text-zinc-100"><PriceIcon className="w-5 h-5 mr-2 text-orange-400" />Cost Summary</h3>
+                                <div className="space-y-2 text-sm text-zinc-200">
                                     <div className="flex justify-between"><span>{initialRoom.name} ({duration} hrs)</span> <span>${stoodioCost.toFixed(2)}</span></div>
-                                    <div className={`flex justify-between ${requestType === BookingRequestType.BRING_YOUR_OWN ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
+                                    <div className={`flex justify-between ${requestType === BookingRequestType.BRING_YOUR_OWN ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
                                         <span>Engineer Fee ({duration} hrs at ${effectivePayRate}/hr)</span>
                                         <span>${engineerFee.toFixed(2)}</span>
                                     </div>
                                     <div className="border-t border-orange-500/20 my-1 opacity-50"></div>
-                                    <div className="flex justify-between font-semibold text-slate-300"><span>Subtotal</span> <span>${subtotal.toFixed(2)}</span></div>
-                                    <div className="flex justify-between text-slate-300"><span>Service Fee (15%)</span> <span>+ ${serviceFee.toFixed(2)}</span></div>
+                                    <div className="flex justify-between font-semibold text-zinc-300"><span>Subtotal</span> <span>${subtotal.toFixed(2)}</span></div>
+                                    <div className="flex justify-between text-zinc-300"><span>Service Fee (15%)</span> <span>+ ${serviceFee.toFixed(2)}</span></div>
                                     <div className="border-t border-orange-500/20 my-2"></div>
                                     <div className="flex justify-between font-bold text-lg"><span>Total</span> <span className="text-orange-400">${totalCost.toFixed(2)}</span></div>
                                 </div>
@@ -156,11 +155,11 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                     </div>
 
 
-                    <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-xl flex justify-end flex-shrink-0">
-                        <button type="button" onClick={onClose} className="text-slate-300 bg-transparent hover:bg-zinc-700 font-bold rounded-lg text-sm px-5 py-3 text-center mr-2 transition-colors border border-zinc-600">
+                    <div className="p-6 bg-zinc-900/50 border-t border-zinc-700/50 rounded-b-2xl flex justify-end flex-shrink-0">
+                        <button type="button" onClick={onClose} className="text-zinc-300 bg-transparent hover:bg-zinc-700 font-bold rounded-lg text-sm px-5 py-3 text-center mr-2 transition-colors border border-zinc-600">
                             Cancel
                         </button>
-                        <button type="submit" disabled={!isFormValid || isLoading} className="text-white bg-orange-500 hover:bg-orange-600 disabled:bg-slate-500 disabled:text-slate-300 disabled:cursor-not-allowed focus:ring-4 focus:outline-none focus:ring-orange-300 font-bold rounded-lg text-sm px-5 py-3 text-center transition-all shadow-md hover:shadow-lg w-48">
+                        <button type="submit" disabled={!isFormValid || isLoading} className="text-white bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-600 disabled:text-zinc-400 disabled:cursor-not-allowed focus:ring-4 focus:outline-none focus:ring-orange-500/50 font-bold rounded-lg text-sm px-5 py-3 text-center transition-all shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 w-48">
                              {isLoading ? (
                                 <div className="flex items-center justify-center">
                                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -175,11 +174,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
                 </form>
             </div>
             <style>{`
-                @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-                @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
                 @keyframes fade-in-fast { from { opacity: 0; } to { opacity: 1; } }
-                .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
-                .animate-slide-up { animation: slide-up 0.4s ease-out forwards; }
                 .animate-fade-in-fast { animation: fade-in-fast 0.3s ease-out forwards; }
             `}</style>
         </div>
@@ -187,10 +182,10 @@ const BookingModal: React.FC<BookingModalProps> = ({ stoodio, engineers, onClose
 };
 
 const RadioOption: React.FC<{id: string, value: BookingRequestType, label: string, description: string, checked: boolean, onChange: (value: BookingRequestType) => void, disabled?: boolean}> = ({id, value, label, description, checked, onChange, disabled}) => (
-    <label htmlFor={id} className={`block p-3 rounded-lg border-2 transition-all ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${checked ? 'bg-orange-500/10 border-orange-500' : 'bg-zinc-700/50 border-zinc-600 hover:border-zinc-500'}`}>
+    <label htmlFor={id} className={`block p-3 rounded-lg border-2 transition-all ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${checked ? 'bg-orange-500/10 border-orange-500' : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-500'}`}>
         <input type="radio" name="requestType" id={id} value={value} checked={checked} onChange={() => onChange(value)} className="sr-only" disabled={disabled}/>
-        <p className={`font-bold ${checked ? 'text-orange-400' : 'text-slate-100'}`}>{label}</p>
-        <p className="text-xs text-slate-400">{description}</p>
+        <p className={`font-bold ${checked ? 'text-orange-400' : 'text-zinc-100'}`}>{label}</p>
+        <p className="text-xs text-zinc-400">{description}</p>
     </label>
 );
 

@@ -6,42 +6,150 @@
     <title>Stoodioz</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Preconnect to Google Fonts and Gstatic for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <!-- Preload the most critical font files to prevent FOUT/glitches -->
-    <link rel="preload" href="https://fonts.gstatic.com/s/poppins/v21/pxiEyp8kv8JHgFVrJJfecg.woff2" as="font" type="font/woff2" crossorigin> <!-- Poppins Regular 400 -->
-    <link rel="preload" href="https://fonts.gstatic.com/s/poppins/v21/pxiByp8kv8JHgFVrLCz7Z1xlFQ.woff2" as="font" type="font/woff2" crossorigin> <!-- Poppins Bold 700 -->
-    <link rel="preload" href="https://fonts.gstatic.com/s/poppins/v21/pxiByp8kv8JHgFVrLDD4Z1xlFQ.woff2" as="font" type="font/woff2" crossorigin> <!-- Poppins ExtraBold 800 -->
-
-    <!-- The stylesheet that defines and applies the font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f1f5f9; /* bg-slate-100 */
-            color: #334155; /* text-slate-700 */
+        :root {
+            --zinc-950: #09090b;
+            --zinc-900: #18181b;
+            --zinc-800: #27272a;
+            --zinc-700: #3f3f46;
+            --zinc-400: #a1a1aa;
+            --zinc-200: #e4e4e7;
+            --orange-500: #f97316;
+            --orange-400: #fb923c;
         }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--zinc-950);
+            color: var(--zinc-200);
+            overflow: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 200vmax;
+            height: 200vmax;
+            background-image: 
+                radial-gradient(circle at center, var(--orange-500), transparent 20%),
+                radial-gradient(circle at 25% 75%, #4f46e5, transparent 30%),
+                radial-gradient(circle at 75% 25%, #0ea5e9, transparent 30%);
+            z-index: -1;
+            opacity: 0.1;
+            transform: translate(-50%, -50%);
+            animation: rotate-background 120s linear infinite;
+            will-change: transform;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3e%3cg stroke='rgba(255,255,255,0.08)' stroke-width='1.2'%3e%3cpath d='M150 0 L150 70' /%3e%3cpath d='M150 70 L120 100' /%3e%3cpath d='M150 70 L180 100' /%3e%3cpath d='M180 100 L250 80' /%3e%3cpath d='M180 100 L180 150' /%3e%3cpath d='M10 150 L80 220' /%3e%3cpath d='M80 220 L150 210' /%3e%3cpath d='M80 220 L70 280' /%3e%3cpath d='M300 250 L220 380' /%3e%3cpath d='M220 380 L250 400' /%3e%3cpath d='M220 380 L180 390' /%3e%3c/g%3e%3c/svg%3e");
+            z-index: 5;
+            pointer-events: none;
+            mix-blend-mode: soft-light;
+            opacity: 0.7;
+        }
+
         h1, h2, h3, h4, .font-display {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Rajdhani', sans-serif;
             font-weight: 700;
+            letter-spacing: 0.025em;
+        }
+        
+        .main-container {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Card Interaction Styles */
+        .tilt-card {
+            border: 1px solid rgba(249, 115, 22, 0.3); /* Permanent orange border */
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                        box-shadow 0.3s ease-out;
+        }
+        .tilt-card:hover {
+            transform: scale(1.03); /* Subtle scale on hover */
+            box-shadow: 0 0 25px rgba(249, 115, 22, 0.4), /* Main glow */
+                        0 0 50px rgba(249, 115, 22, 0.25),  /* Wider, softer glow */
+                        inset 0 0 15px rgba(249, 115, 22, 0.15); /* Subtle inner glow */
+        }
+        .glare-effect {
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 40%);
+            opacity: 0;
+            transition: opacity 0.2s ease-out;
+            pointer-events: none;
+            mix-blend-mode: soft-light;
+        }
+        .tilt-card:hover .glare-effect {
+            opacity: 1;
+        }
+        
+        /* Animation Keyframes */
+        @keyframes rotate-background {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes fade-in {
+            to { opacity: 1; }
+        }
+        
+        @keyframes fade-in-up {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slide-up {
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes gradient-flow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* More robust animation classes */
+        .animate-fade-in { 
+            opacity: 0;
+            animation: fade-in 0.6s ease-out forwards; 
+        }
+        .animate-fade-in-up { 
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fade-in-up 0.6s ease-out forwards; 
+        }
+        .animate-slide-up { 
+            opacity: 0;
+            transform: translateY(30px);
+            animation: slide-up 0.5s ease-out forwards; 
         }
     </style>
 <script type="importmap">
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^1.9.1.1/",
+    "react/": "https://aistudiocdn.com/react@^1.9.1.1/",
+    "react": "https://aistudiocdn.com/react@^1.9.1.1",
     "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0"
   }
 }
 </script>
 </head>
-<body class="bg-slate-100 text-slate-700">
+<body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

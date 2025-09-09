@@ -62,24 +62,24 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onFocus={() => setIsActive(true)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-100 border-2 border-slate-200 rounded-full text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-zinc-800 border-2 border-zinc-700 rounded-full text-sm text-slate-200 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                     aria-label="Universal search"
                 />
             </div>
 
             {isActive && searchTerm.length >= 2 && (
-                <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-lg border border-slate-200 z-10 max-h-96 overflow-y-auto animate-fade-in-down">
+                <div className="absolute top-full mt-2 w-full bg-zinc-800 rounded-xl shadow-lg border border-zinc-700 z-10 max-h-96 overflow-y-auto animate-fade-in-down">
                     {filteredResults ? (
                         <>
                             {filteredResults.artists.length > 0 && (
                                 <div className="p-2">
-                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-500 uppercase">Artists</h3>
+                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-400 uppercase">Artists</h3>
                                     <ul>
                                         {filteredResults.artists.map(artist => (
                                             <li key={artist.id}>
-                                                <button onClick={() => handleSelect(artist, 'artist')} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100">
+                                                <button onClick={() => handleSelect(artist, 'artist')} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-zinc-700">
                                                     <img src={artist.imageUrl} alt={artist.name} className="w-8 h-8 rounded-md object-cover" />
-                                                    <span>{artist.name}</span>
+                                                    <span className="text-slate-100">{artist.name}</span>
                                                 </button>
                                             </li>
                                         ))}
@@ -88,13 +88,13 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                             )}
                              {filteredResults.engineers.length > 0 && (
                                 <div className="p-2">
-                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-500 uppercase">Engineers</h3>
+                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-400 uppercase">Engineers</h3>
                                     <ul>
                                         {filteredResults.engineers.map(engineer => (
                                             <li key={engineer.id}>
-                                                <button onClick={() => handleSelect(engineer, 'engineer')} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100">
+                                                <button onClick={() => handleSelect(engineer, 'engineer')} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-zinc-700">
                                                      <img src={engineer.imageUrl} alt={engineer.name} className="w-8 h-8 rounded-md object-cover" />
-                                                    <span>{engineer.name}</span>
+                                                    <span className="text-slate-100">{engineer.name}</span>
                                                 </button>
                                             </li>
                                         ))}
@@ -103,13 +103,13 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                             )}
                              {filteredResults.stoodioz.length > 0 && (
                                 <div className="p-2">
-                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-500 uppercase">Stoodioz</h3>
+                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-400 uppercase">Stoodioz</h3>
                                     <ul>
                                         {filteredResults.stoodioz.map(stoodio => (
                                             <li key={stoodio.id}>
-                                                <button onClick={() => handleSelect(stoodio, 'stoodio')} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-slate-100">
+                                                <button onClick={() => handleSelect(stoodio, 'stoodio')} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md hover:bg-zinc-700">
                                                      <img src={stoodio.imageUrl} alt={stoodio.name} className="w-8 h-8 rounded-md object-cover" />
-                                                    <span>{stoodio.name}</span>
+                                                    <span className="text-slate-100">{stoodio.name}</span>
                                                 </button>
                                             </li>
                                         ))}
