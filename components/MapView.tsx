@@ -1,22 +1,24 @@
 import React, { useState, useMemo } from 'react';
-import type { Stoodio, Engineer, Artist, Location, Booking, VibeMatchResult } from '../types';
+import type { Stoodio, Engineer, Artist, Location, Booking, VibeMatchResult, Producer } from '../types';
 import { BookingStatus } from '../types';
-import { HouseIcon, SoundWaveIcon, MicrophoneIcon, ChevronUpIcon, ChevronDownIcon, BriefcaseIcon, MagicWandIcon } from './icons';
+import { HouseIcon, SoundWaveIcon, MicrophoneIcon, ChevronUpIcon, ChevronDownIcon, BriefcaseIcon, MagicWandIcon, MusicNoteIcon } from './icons';
 import MapBookingPopup from './MapBookingPopup';
 
 interface MapViewProps {
     stoodioz: Stoodio[];
     engineers: Engineer[];
     artists: Artist[];
+    producers: Producer[];
     bookings: Booking[];
     vibeMatchResults: VibeMatchResult | null;
     onSelectStoodio?: (stoodio: Stoodio) => void;
     onSelectEngineer?: (engineer: Engineer) => void;
     onSelectArtist?: (artist: Artist) => void;
+    onSelectProducer?: (producer: Producer) => void;
     onInitiateBooking?: (engineer: Engineer, date: string, time: string) => void;
 }
 
-type PinType = 'stoodio' | 'engineer' | 'artist' | 'job' | 'vibe-match-stoodio' | 'vibe-match-engineer';
+type PinType = 'stoodio' | 'engineer' | 'artist' | 'job' | 'vibe-match-stoodio' | 'vibe-match-engineer' | 'producer' | 'vibe-match-producer';
 
 const MAP_BOUNDS = { minLat: 24.39, maxLat: 49.38, minLon: -125.0, maxLon: -66.94 };
 
@@ -47,7 +49,7 @@ const convertCoordsToPercent = (coords: Location): { top: string; left: string }
 
 const MapPin: React.FC<{
     type: PinType;
-    entity: Stoodio | Engineer | Artist | Booking;
+    entity: Stoodio | Engineer | Artist | Booking | Producer;
     position: { top: string; left: string };
     onSelect?: (entity: any, type: PinType) => void;
 }> = ({ type, entity, position, onSelect }) => {
@@ -55,9 +57,11 @@ const MapPin: React.FC<{
         stoodio: { icon: <HouseIcon className="w-4 h-4 text-white" />, color: 'bg-orange-500', zIndex: 10 },
         engineer: { icon: <SoundWaveIcon className="w-4 h-4 text-white" />, color: 'bg-amber-500', zIndex: 10 },
         artist: { icon: <MicrophoneIcon className="w-4 h-4 text-white" />, color: 'bg-green-500', zIndex: 10 },
+        producer: { icon: <MusicNoteIcon className="w-4 h-4 text-white" />, color: 'bg-purple-500', zIndex: 10 },
         job: { icon: <BriefcaseIcon className="w-4 h-4 text-white" />, color: 'bg-indigo-500', zIndex: 15 },
         'vibe-match-stoodio': { icon: <MagicWandIcon className="w-5 h-5 text-white" />, color: 'bg-pink-500', zIndex: 20 },
         'vibe-match-engineer': { icon: <MagicWandIcon className="w-5 h-5 text-white" />, color: 'bg-cyan-500', zIndex: 20 },
+        'vibe-match-producer': { icon: <MagicWandIcon className="w-5 h-5 text-white" />, color: 'bg-fuchsia-500', zIndex: 20 },
     };
 
     const { icon, color, zIndex } = iconMap[type];
@@ -65,7 +69,7 @@ const MapPin: React.FC<{
     const commonClasses = `absolute transform -translate-x-1/2 -translate-y-1/2 ${pinSize} rounded-full shadow-lg transition-transform duration-200`;
     const style = { ...position, zIndex };
 
-    const entityName = 'name' in entity ? entity.name : `Job at ${(entity as Booking).stoodio.name}`;
+    const entityName = 'name' in entity ? entity.name : `Job at ${(entity as Booking).stoodio?.name ?? 'a studio'}`;
 
     return (
         <button
@@ -79,10 +83,11 @@ const MapPin: React.FC<{
     );
 };
 
-const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, bookings, vibeMatchResults, onSelectStoodio, onSelectEngineer, onSelectArtist, onInitiateBooking }) => {
+const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, producers, bookings, vibeMatchResults, onSelectStoodio, onSelectEngineer, onSelectArtist, onSelectProducer, onInitiateBooking }) => {
     const [showStoodioz, setShowStoodioz] = useState(true);
     const [showEngineers, setShowEngineers] = useState(true);
     const [showArtists, setShowArtists] = useState(true);
+    const [showProducers, setShowProducers] = useState(true);
     const [showJobs, setShowJobs] = useState(true);
     const [showVibeMatches, setShowVibeMatches] = useState(true);
     const [isFiltersOpen, setIsFiltersOpen] = useState(true);
@@ -112,8 +117,14 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
             case 'artist':
                 onSelectArtist?.(entity as Artist);
                 break;
+            case 'producer':
+            case 'vibe-match-producer':
+                onSelectProducer?.(entity as Producer);
+                break;
             case 'job':
-                onSelectStoodio?.((entity as Booking).stoodio);
+                if ((entity as Booking).stoodio) {
+                    onSelectStoodio?.((entity as Booking).stoodio!);
+                }
                 break;
         }
     };
@@ -137,14 +148,17 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
                         <MapPin key={`eng-${e.id}`} type="engineer" entity={e} position={convertCoordsToPercent(positionCoords)} onSelect={handleSelect} />
                     );
                 })}
+                 {showProducers && producers.filter(p => p.showOnMap).map(p => (
+                    <MapPin key={`prod-${p.id}`} type="producer" entity={p} position={convertCoordsToPercent(p.coordinates)} onSelect={handleSelect} />
+                ))}
                 {showArtists && artists.filter(a => a.showOnMap).map(a => (
                     <MapPin key={`art-${a.id}`} type="artist" entity={a} position={convertCoordsToPercent(a.coordinates)} onSelect={handleSelect} />
                 ))}
                 {showJobs && activeAndFutureJobs.map(job => (
-                    <MapPin key={`job-${job.id}`} type="job" entity={job} position={convertCoordsToPercent(job.stoodio.coordinates)} onSelect={handleSelect} />
+                    job.stoodio && <MapPin key={`job-${job.id}`} type="job" entity={job} position={convertCoordsToPercent(job.stoodio.coordinates)} onSelect={handleSelect} />
                 ))}
                 {showVibeMatches && vibeMatchResults?.recommendations.map((rec, index) => {
-                    const type = rec.type === 'stoodio' ? 'vibe-match-stoodio' : 'vibe-match-engineer';
+                    const type = rec.type === 'stoodio' ? 'vibe-match-stoodio' : rec.type === 'engineer' ? 'vibe-match-engineer' : 'vibe-match-producer';
                     return (
                         <MapPin key={`vibe-${rec.entity.id}-${index}`} type={type} entity={rec.entity} position={convertCoordsToPercent(rec.entity.coordinates)} onSelect={handleSelect} />
                     );
@@ -177,6 +191,11 @@ const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, booking
                                 <input type="checkbox" checked={showEngineers} onChange={() => setShowEngineers(!showEngineers)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-amber-500 focus:ring-amber-500" />
                                 <SoundWaveIcon className="w-5 h-5 text-amber-500"/>
                                 <span>Engineers</span>
+                            </label>
+                             <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
+                                <input type="checkbox" checked={showProducers} onChange={() => setShowProducers(!showProducers)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-purple-500 focus:ring-purple-500" />
+                                <MusicNoteIcon className="w-5 h-5 text-purple-500"/>
+                                <span>Producers</span>
                             </label>
                              <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
                                 <input type="checkbox" checked={showArtists} onChange={() => setShowArtists(!showArtists)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-green-500 focus:ring-green-500" />

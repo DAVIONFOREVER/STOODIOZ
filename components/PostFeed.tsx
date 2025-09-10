@@ -1,13 +1,16 @@
+
+
 import React from 'react';
-import type { Post, Artist, Engineer, Stoodio } from '../types';
+// FIX: Update props to accept Producer type
+import type { Post, Artist, Engineer, Stoodio, Producer } from '../types';
 import PostCard from './PostCard';
 
 interface PostFeedProps {
     posts: Post[];
-    authors: Map<string, Artist | Engineer | Stoodio>;
+    authors: Map<string, Artist | Engineer | Stoodio | Producer>;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | null;
 }
 
 const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onCommentOnPost, currentUser }) => {

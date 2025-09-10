@@ -1,32 +1,38 @@
+
+
 import React from 'react';
-import type { Stoodio, Engineer, Artist } from '../types';
-import { UserRole } from '../types';
-import { HouseIcon, SoundWaveIcon, MicrophoneIcon } from './icons';
+import type { Stoodio, Engineer, Artist, Producer } from '../types';
+import { HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
 
 interface FollowersListProps {
-    followers: (Stoodio | Engineer | Artist)[];
+    followers: (Stoodio | Engineer | Artist | Producer)[];
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
+    onSelectProducer: (producer: Producer) => void;
 }
 
-const FollowersList: React.FC<FollowersListProps> = ({ followers, onSelectStoodio, onSelectArtist, onSelectEngineer }) => {
+const FollowersList: React.FC<FollowersListProps> = ({ followers, onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer }) => {
 
-    const handleSelect = (user: Stoodio | Engineer | Artist) => {
+    const handleSelect = (user: Stoodio | Engineer | Artist | Producer) => {
         if ('amenities' in user) { // Stoodio
             onSelectStoodio(user);
         } else if ('specialties' in user) { // Engineer
             onSelectEngineer(user);
+        } else if ('instrumentals' in user) { // Producer
+            onSelectProducer(user);
         } else { // Artist
             onSelectArtist(user);
         }
     }
 
-    const getRoleInfo = (user: Stoodio | Engineer | Artist) => {
+    const getRoleInfo = (user: Stoodio | Engineer | Artist | Producer) => {
         if ('amenities' in user) {
             return { role: 'Stoodio', icon: <HouseIcon className="w-4 h-4 text-red-400"/> };
         } else if ('specialties' in user) {
             return { role: 'Engineer', icon: <SoundWaveIcon className="w-4 h-4 text-orange-400"/> };
+        } else if ('instrumentals' in user) {
+            return { role: 'Producer', icon: <MusicNoteIcon className="w-4 h-4 text-purple-400"/> };
         } else {
             return { role: 'Artist', icon: <MicrophoneIcon className="w-4 h-4 text-green-400"/> };
         }

@@ -1,10 +1,11 @@
 
+
 import React, { useState } from 'react';
-import type { Artist, Engineer, Stoodio, LinkAttachment } from '../types';
+import type { Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { PhotoIcon, LinkIcon, CloseCircleIcon, VideoCameraIcon } from './icons';
 
 interface CreatePostProps {
-    currentUser: Artist | Engineer | Stoodio;
+    currentUser: Artist | Engineer | Stoodio | Producer;
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => void;
 }
 

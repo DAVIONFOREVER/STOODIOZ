@@ -1,8 +1,9 @@
+
 import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { differenceInHours } from 'date-fns';
-import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room } from './types';
-import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, TransactionCategory, TransactionStatus } from './types';
-import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE, MOCK_BOOKINGS } from './constants';
+import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room, Producer, Instrumental, MixingDetails } from './types';
+import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, TransactionCategory, TransactionStatus, SubscriptionPlan, SubscriptionStatus } from './types';
+import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE, MOCK_BOOKINGS, USER_SILHOUETTE_URL, STOODIO_ICON_URL, MOCK_PRODUCERS } from './constants';
 import { getVibeMatchResults, generateSmartReplies } from './services/geminiService';
 import { webSocketService } from './services/webSocketService';
 import { calculateDistance, estimateTravelTime } from './utils/location';
@@ -14,6 +15,7 @@ import VibeMatcherModal from './components/VibeMatcherModal';
 import BookingCancellationModal from './components/BookingCancellationModal';
 import AddFundsModal from './components/AddFundsModal';
 import RequestPayoutModal from './components/RequestPayoutModal';
+import MixingRequestModal from './components/MixingRequestModal';
 
 // --- Lazy Loaded Components ---
 const StoodioList = lazy(() => import('./components/StudioList'));
@@ -22,6 +24,8 @@ const BookingConfirmation = lazy(() => import('./components/BookingConfirmation'
 const MyBookings = lazy(() => import('./components/MyBookings'));
 const StoodioDashboard = lazy(() => import('./components/StoodioDashboard'));
 const EngineerDashboard = lazy(() => import('./components/EngineerDashboard'));
+const ProducerDashboard = lazy(() => import('./components/ProducerDashboard'));
+// FIX: Ensure lazy-loaded component has a default export
 const Inbox = lazy(() => import('./components/Inbox'));
 const ActiveSession = lazy(() => import('./components/ActiveSession'));
 const ArtistList = lazy(() => import('./components/ArtistList'));
@@ -29,11 +33,14 @@ const ArtistProfile = lazy(() => import('./components/ArtistProfile'));
 const ArtistDashboard = lazy(() => import('./components/ArtistDashboard'));
 const EngineerList = lazy(() => import('./components/EngineerList'));
 const EngineerProfile = lazy(() => import('./components/EngineerProfile'));
+const ProducerList = lazy(() => import('./components/ProducerList'));
+const ProducerProfile = lazy(() => import('./components/ProducerProfile'));
 const MapView = lazy(() => import('./components/MapView'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
 const ChooseProfile = lazy(() => import('./components/ChooseProfile'));
 const ArtistSetup = lazy(() => import('./components/ArtistSetup'));
 const EngineerSetup = lazy(() => import('./components/EngineerSetup'));
+const ProducerSetup = lazy(() => import('./components/ProducerSetup'));
 const StoodioSetup = lazy(() => import('./components/StoodioSetup'));
 const Login = lazy(() => import('./components/Login'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
@@ -60,13 +67,14 @@ const App: React.FC = () => {
     const [stoodioz, setStoodioz] = useState<Stoodio[]>(STOODIOZ);
     const [engineers, setEngineers] = useState<Engineer[]>(ENGINEERS);
     const [artists, setArtists] = useState<Artist[]>(MOCK_ARTISTS);
+    const [producers, setProducers] = useState<Producer[]>(MOCK_PRODUCERS);
     const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
     const [reviews] = useState<Review[]>(REVIEWS);
     const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     
     // --- Auth State ---
-    const [currentUser, setCurrentUser] = useState<Artist | Engineer | Stoodio | null>(null);
+    const [currentUser, setCurrentUser] = useState<Artist | Engineer | Stoodio | Producer | null>(null);
     const [loginError, setLoginError] = useState<string | null>(null);
     const [setupRole, setSetupRole] = useState<UserRole | null>(null);
 
@@ -74,6 +82,7 @@ const App: React.FC = () => {
     const [selectedStoodio, setSelectedStoodio] = useState<Stoodio | null>(null);
     const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
     const [selectedEngineer, setSelectedEngineer] = useState<Engineer | null>(null);
+    const [selectedProducer, setSelectedProducer] = useState<Producer | null>(null);
     const [latestBooking, setLatestBooking] = useState<Booking | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [bookingTime, setBookingTime] = useState<{ date: string, time: string, room: Room } | null>(null);
@@ -84,11 +93,13 @@ const App: React.FC = () => {
     const [isVibeMatcherOpen, setIsVibeMatcherOpen] = useState<boolean>(false);
     const [vibeMatchResults, setVibeMatchResults] = useState<VibeMatchResult | null>(null);
     const [isVibeMatcherLoading, setIsVibeMatcherLoading] = useState<boolean>(false);
-    const [bookingIntent, setBookingIntent] = useState<{ engineer: Engineer; date: string; time: string; } | null>(null);
+    // FIX: Add pullUpFee to bookingIntent type to carry over producer booking intent
+    const [bookingIntent, setBookingIntent] = useState<{ engineer?: Engineer; producer?: Producer; date?: string; time?: string; mixingDetails?: MixingDetails; pullUpFee?: number; } | null>(null);
     const [smartReplies, setSmartReplies] = useState<string[]>([]);
     const [isSmartRepliesLoading, setIsSmartRepliesLoading] = useState<boolean>(false);
     const [isAddFundsOpen, setIsAddFundsOpen] = useState(false);
     const [isPayoutOpen, setIsPayoutOpen] = useState(false);
+    const [isMixingModalOpen, setIsMixingModalOpen] = useState(false);
 
 
     // --- Derived State ---
@@ -99,6 +110,7 @@ const App: React.FC = () => {
 
     const userRole: UserRole | null = useMemo(() => {
         if (!currentUser) return null;
+        if ('instrumentals' in currentUser) return UserRole.PRODUCER;
         if ('specialties' in currentUser) return UserRole.ENGINEER;
         if ('amenities' in currentUser) return UserRole.STOODIO;
         return UserRole.ARTIST;
@@ -121,7 +133,7 @@ const App: React.FC = () => {
                 const prefs = engineer.notificationPreferences;
                 
                 // Only proceed if the engineer has alerts enabled
-                if (!prefs || !prefs.enabled) return;
+                if (!prefs || !prefs.enabled || !newBooking.stoodio) return;
 
                 const distance = calculateDistance(engineer.coordinates, newBooking.stoodio.coordinates);
 
@@ -167,10 +179,11 @@ const App: React.FC = () => {
         setHistory(newHistory);
         setHistoryIndex(newHistory.length - 1);
 
-        if (view === AppView.STOODIO_LIST || view === AppView.ARTIST_LIST || view === AppView.ENGINEER_LIST || view === AppView.MAP_VIEW) {
+        if (view === AppView.STOODIO_LIST || view === AppView.ARTIST_LIST || view === AppView.ENGINEER_LIST || view === AppView.PRODUCER_LIST || view === AppView.MAP_VIEW) {
             setSelectedStoodio(null);
             setSelectedArtist(null);
             setSelectedEngineer(null);
+            setSelectedProducer(null);
         }
     }, [history, historyIndex]);
 
@@ -189,7 +202,7 @@ const App: React.FC = () => {
     }, []);
 
     const handleArtistNavigation = useCallback((booking: Booking) => {
-        if (!currentUser || userRole !== UserRole.ARTIST) return;
+        if (!currentUser || userRole !== UserRole.ARTIST || !booking.stoodio) return;
 
         const artist = currentUser as Artist;
         const studio = booking.stoodio;
@@ -239,9 +252,22 @@ const App: React.FC = () => {
 
     // --- Auth Handlers ---
     const handleLogin = useCallback((email: string, password: string): void => {
-        const allUsers: (Artist | Engineer | Stoodio)[] = [...artists, ...engineers, ...stoodioz];
-        const user = allUsers.find(u => u.email === email && u.password === password);
+        // For app simulation: allow login with any non-empty credentials
+        if (!email.trim() || !password.trim()) {
+            setLoginError("Email and password cannot be empty.");
+            return;
+        }
 
+        const allUsers: (Artist | Engineer | Stoodio | Producer)[] = [...artists, ...engineers, ...stoodioz, ...producers];
+        
+        // Prioritize logging into a specific account if the email matches
+        let user = allUsers.find(u => u.email === email);
+
+        // If no user with that email is found, log in as a default user (the first artist) for easy testing
+        if (!user && artists.length > 0) {
+            user = artists[0]; 
+        }
+        
         if (user) {
             setCurrentUser(user);
              // Request notification permission on login for a better user experience
@@ -251,9 +277,10 @@ const App: React.FC = () => {
             setHistory([AppView.THE_STAGE]);
             setHistoryIndex(0);
         } else {
-            setLoginError("Invalid email or password.");
+            // Fallback error if no mock users exist at all
+            setLoginError("Login failed. No users are available in the system.");
         }
-    }, [artists, engineers, stoodioz]);
+    }, [artists, engineers, stoodioz, producers]);
 
     const handleLogout = useCallback(() => {
         setCurrentUser(null);
@@ -266,6 +293,14 @@ const App: React.FC = () => {
         if (role === UserRole.ARTIST) handleNavigate(AppView.ARTIST_SETUP);
         else if (role === UserRole.STOODIO) handleNavigate(AppView.STOODIO_SETUP);
         else if (role === UserRole.ENGINEER) handleNavigate(AppView.ENGINEER_SETUP);
+        else if (role === UserRole.PRODUCER) handleNavigate(AppView.PRODUCER_SETUP);
+    };
+
+    const handleSelectPlan = (role: UserRole) => {
+        if (role === UserRole.ARTIST) handleNavigate(AppView.ARTIST_SETUP);
+        else if (role === UserRole.STOODIO) handleNavigate(AppView.STOODIO_SETUP);
+        else if (role === UserRole.ENGINEER) handleNavigate(AppView.ENGINEER_SETUP);
+        else if (role === UserRole.PRODUCER) handleNavigate(AppView.PRODUCER_SETUP);
     };
     
     const handleCompleteArtistSetup = (name: string, bio: string, email: string, password: string) => {
@@ -275,9 +310,9 @@ const App: React.FC = () => {
             bio,
             email,
             password,
-            imageUrl: `https://picsum.photos/seed/${name.replace(/\s/g, '')}/100`,
+            imageUrl: USER_SILHOUETTE_URL,
             followers: 0,
-            following: { stoodioz: [], engineers: [], artists: [] },
+            following: { stoodioz: [], engineers: [], artists: [], producers: [] },
             followerIds: [],
             coordinates: { lat: 34.0522, lon: -118.2437 }, // Default to LA
             isSeekingSession: true,
@@ -297,19 +332,43 @@ const App: React.FC = () => {
             specialties: ['Mixing', 'Mastering'],
             rating: 5.0,
             sessionsCompleted: 0,
-            imageUrl: `https://picsum.photos/seed/${name.replace(/\s/g, '')}/200`,
+            imageUrl: USER_SILHOUETTE_URL,
             audioSampleUrl: 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-1-short.mp3',
             followers: 0,
-            following: { artists: [], engineers: [], stoodioz: [] },
+            following: { artists: [], engineers: [], stoodioz: [], producers: [] },
             followerIds: [],
             coordinates: { lat: 40.7128, lon: -74.0060 }, // Default to NY
             isAvailable: true,
             walletBalance: 100,
             walletTransactions: [],
             notificationPreferences: { radius: 50, enabled: true },
+            subscription: { plan: SubscriptionPlan.FREE, status: SubscriptionStatus.ACTIVE },
         };
         setEngineers(prev => [...prev, newEngineer]);
         setCurrentUser(newEngineer);
+        setHistory([AppView.THE_STAGE]);
+        setHistoryIndex(0);
+    };
+    
+    const handleCompleteProducerSetup = (name: string, bio: string, email: string, password: string) => {
+        const newProducer: Producer = {
+            id: `prod-${Date.now()}`,
+            name, bio, email, password,
+            genres: ['Hip-Hop', 'Trap', 'R&B'],
+            rating: 5.0,
+            imageUrl: USER_SILHOUETTE_URL,
+            followers: 0,
+            following: { artists: [], engineers: [], stoodioz: [], producers: [] },
+            followerIds: [],
+            coordinates: { lat: 33.7490, lon: -84.3880 }, // Default to Atlanta
+            isAvailable: true,
+            walletBalance: 50,
+            walletTransactions: [],
+            instrumentals: [],
+            subscription: { plan: SubscriptionPlan.FREE, status: SubscriptionStatus.ACTIVE },
+        };
+        setProducers(prev => [...prev, newProducer]);
+        setCurrentUser(newProducer);
         setHistory([AppView.THE_STAGE]);
         setHistoryIndex(0);
     };
@@ -322,13 +381,13 @@ const App: React.FC = () => {
             hourlyRate: 80,
             engineerPayRate: 40,
             rating: 5.0,
-            imageUrl: `https://picsum.photos/seed/${name.replace(/\s/g, '')}/600/400`,
+            imageUrl: STOODIO_ICON_URL,
             amenities: ['Vocal Booth', 'Lounge Area'],
             coordinates: { lat: 25.7617, lon: -80.1918 }, // Default to Miami
             availability: [],
             photos: [],
             followers: 0,
-            following: { artists: [], engineers: [], stoodioz: [] },
+            following: { artists: [], engineers: [], stoodioz: [], producers: [] },
             followerIds: [],
             walletBalance: 0,
             walletTransactions: [],
@@ -336,6 +395,7 @@ const App: React.FC = () => {
                 { id: `room-${Date.now()}`, name: 'Main Control Room', description: 'The primary recording and mixing space.', hourlyRate: 80, photos: [] }
             ],
             verificationStatus: VerificationStatus.UNVERIFIED,
+            subscription: { plan: SubscriptionPlan.FREE, status: SubscriptionStatus.ACTIVE },
         };
         setStoodioz(prev => [...prev, newStoodio]);
         setCurrentUser(newStoodio);
@@ -359,6 +419,11 @@ const App: React.FC = () => {
         setSelectedEngineer(engineer);
         handleNavigate(AppView.ENGINEER_PROFILE);
     }, [handleNavigate]);
+    
+    const handleViewProducerProfile = useCallback((producer: Producer) => {
+        setSelectedProducer(producer);
+        handleNavigate(AppView.PRODUCER_PROFILE);
+    }, [handleNavigate]);
 
     const handleOpenBookingModal = useCallback((date: string, time: string, room: Room) => {
         if (!selectedStoodio) return;
@@ -379,58 +444,173 @@ const App: React.FC = () => {
         }]);
     }, [handleNavigate, currentUser]);
 
-    const handleConfirmBooking = useCallback(async (bookingRequest: BookingRequest) => {
-        if (!selectedStoodio || !userRole || !currentUser || ![UserRole.ARTIST, UserRole.ENGINEER, UserRole.STOODIO].includes(userRole)) return;
-        
-        if (userRole === UserRole.STOODIO && currentUser.id !== selectedStoodio.id) {
-            setNotifications(prev => [...prev, {
-                id: `notif-error-${Date.now()}`,
-                userId: currentUser!.id,
-                message: "Error: Studio owners can only book sessions at their own studio.",
+    const handleInitiateBookingWithProducer = useCallback((producer: Producer) => {
+        // FIX: Add pullUpFee to bookingIntent
+        setBookingIntent({ producer, pullUpFee: producer.pullUpPrice });
+        handleNavigate(AppView.STOODIO_LIST);
+        setNotifications(prev => [...prev, {
+            id: `notif-${Date.now()}`,
+            userId: currentUser!.id,
+            message: `Now, select a studio for your session with ${producer.name}.`,
+            timestamp: new Date().toISOString(),
+            type: NotificationType.GENERAL,
+            read: false,
+        }]);
+    }, [handleNavigate, currentUser]);
+
+    const createSessionChat = useCallback((booking: Booking) => {
+        if (booking.status !== BookingStatus.CONFIRMED) return;
+
+        const participants = [
+            booking.artist,
+            booking.engineer,
+            booking.stoodio,
+            booking.producer
+        ].filter((p): p is Artist | Engineer | Stoodio | Producer => p !== null && p !== undefined);
+
+        if (participants.length > 1) {
+            const sessionTimeInfo = booking.mixingDetails
+                ? `Remote mix confirmed on ${booking.date}.`
+                : `Session confirmed for ${booking.date} at ${booking.startTime}.`;
+            
+            const systemMessage: Message = {
+                id: `msg-system-${Date.now()}`,
+                senderId: 'system',
+                type: 'system',
+                text: `${sessionTimeInfo} Participants: ${participants.map(p => p.name).join(', ')}.`,
                 timestamp: new Date().toISOString(),
-                type: NotificationType.GENERAL,
-                read: false
-            }]);
-            return;
+            };
+
+            const chatTitle = booking.stoodio ? `Session: ${booking.stoodio.name}` : `Remote Mix: ${booking.engineer?.name}`;
+            const chatImage = booking.stoodio ? booking.stoodio.imageUrl : booking.engineer?.imageUrl;
+
+            const newConversation: Conversation = {
+                id: `convo-${booking.id}`,
+                participants,
+                messages: [systemMessage],
+                unreadCount: 0,
+                bookingId: booking.id,
+                title: chatTitle,
+                imageUrl: chatImage,
+            };
+            
+            setConversations(prev => [newConversation, ...prev]);
+            
+            participants.forEach(p => {
+                if (p.id !== currentUser?.id) {
+                     setNotifications(prev => [...prev, {
+                        id: `notif-chat-${p.id}-${Date.now()}`,
+                        userId: p.id,
+                        message: `You've been added to a group chat for your upcoming session.`,
+                        timestamp: new Date().toISOString(),
+                        type: NotificationType.GENERAL,
+                        read: false,
+                        link: { view: AppView.INBOX }
+                    }]);
+                }
+            });
+        }
+    }, [setConversations, setNotifications, currentUser]);
+
+    const handleConfirmBooking = useCallback(async (bookingRequest: BookingRequest) => {
+        if (!selectedStoodio || !userRole || !currentUser || ![UserRole.ARTIST, UserRole.ENGINEER, UserRole.STOODIO, UserRole.PRODUCER].includes(userRole)) return;
+        
+        if (userRole === UserRole.STOODIO) {
+            if (currentUser.id !== selectedStoodio.id) {
+                 setNotifications(prev => [...prev, {
+                    id: `notif-error-${Date.now()}`,
+                    userId: currentUser!.id,
+                    message: "Error: Studio owners can only book sessions at their own studio.",
+                    timestamp: new Date().toISOString(),
+                    type: NotificationType.GENERAL,
+                    read: false
+                }]);
+                return;
+            }
+        }
+        
+        if (userRole === UserRole.ENGINEER || userRole === UserRole.STOODIO) {
+            const userWithSub = currentUser as Engineer | Stoodio;
+            if (!userWithSub.subscription || userWithSub.subscription.plan === SubscriptionPlan.FREE) {
+                handleNavigate(AppView.SUBSCRIPTION_PLANS);
+                setNotifications(prev => [...prev, {
+                    id: `notif-sub-${Date.now()}`,
+                    userId: currentUser.id,
+                    message: "Please upgrade your plan to book sessions.",
+                    timestamp: new Date().toISOString(),
+                    type: NotificationType.GENERAL,
+                    read: false,
+                }]);
+                if (currentView === AppView.BOOKING_MODAL) {
+                    handleGoBack();
+                }
+                return;
+            }
         }
 
         setIsLoading(true);
 
-        const getInitialStatus = () => {
-            if (bookingRequest.requestType === BookingRequestType.BRING_YOUR_OWN) return BookingStatus.CONFIRMED;
-            if (bookingRequest.requestType === BookingRequestType.SPECIFIC_ENGINEER) return BookingStatus.PENDING_APPROVAL;
-            return BookingStatus.PENDING;
-        };
+        const isProducerBooking = !!bookingRequest.producerId;
+        let status = BookingStatus.PENDING;
+        let engineer: Engineer | null = null;
+
+        if (isProducerBooking) {
+            status = BookingStatus.CONFIRMED;
+            if (bookingRequest.requestType === BookingRequestType.FIND_AVAILABLE) {
+                engineer = engineers.find(e => e.isAvailable) || null;
+            } else if (bookingRequest.requestType === BookingRequestType.SPECIFIC_ENGINEER && bookingRequest.requestedEngineerId) {
+                engineer = engineers.find(e => e.id === bookingRequest.requestedEngineerId) || null;
+            }
+        } else {
+            if (bookingRequest.requestType === BookingRequestType.BRING_YOUR_OWN) {
+                status = BookingStatus.CONFIRMED;
+            } else if (bookingRequest.requestType === BookingRequestType.SPECIFIC_ENGINEER) {
+                status = BookingStatus.PENDING_APPROVAL;
+            } else {
+                status = BookingStatus.PENDING;
+            }
+        }
 
         const newBooking: Booking = {
             id: `BKG-${Date.now()}`,
             ...bookingRequest,
             stoodio: selectedStoodio,
-            engineer: null,
+            engineer: engineer,
+            producer: bookingRequest.producerId ? producers.find(p => p.id === bookingRequest.producerId) || null : null,
             artist: userRole === UserRole.ARTIST ? (currentUser as Artist) : null,
-            status: getInitialStatus(),
+            status: status,
             requestedEngineerId: bookingRequest.requestedEngineerId || null,
             bookedById: currentUser.id,
             bookedByRole: userRole,
+            instrumentalsPurchased: bookingRequest.instrumentalsToPurchase || [],
+            pullUpFee: bookingRequest.pullUpFee || 0,
         };
 
         setBookings(prev => [...prev, newBooking]);
         setLatestBooking(newBooking);
         
-        if (newBooking.requestType !== BookingRequestType.BRING_YOUR_OWN) {
+        if (status === BookingStatus.CONFIRMED) {
+            createSessionChat(newBooking);
+        }
+        
+        if (newBooking.requestType !== BookingRequestType.BRING_YOUR_OWN && !isProducerBooking) {
             webSocketService.emit('new-booking', newBooking);
         }
 
-        // --- SIMULATION FOR "FIND AN ENGINEER" ---
-        if (newBooking.requestType === BookingRequestType.FIND_AVAILABLE) {
+        if (!isProducerBooking && newBooking.requestType === BookingRequestType.FIND_AVAILABLE) {
             setTimeout(() => {
                 const availableEngineer = engineers.find(e => e.isAvailable);
                 if (availableEngineer) {
-                    setBookings(prev => prev.map(b => 
-                        b.id === newBooking.id 
-                        ? { ...b, status: BookingStatus.CONFIRMED, engineer: availableEngineer } 
-                        : b
-                    ));
+                    let updatedBooking: Booking | null = null;
+                    setBookings(prev => prev.map(b => {
+                        if (b.id === newBooking.id) {
+                            updatedBooking = { ...b, status: BookingStatus.CONFIRMED, engineer: availableEngineer };
+                            return updatedBooking;
+                        }
+                        return b;
+                    }));
+                    if (updatedBooking) createSessionChat(updatedBooking);
+
                     setNotifications(prev => [...prev, {
                         id: `notif-found-${Date.now()}`,
                         userId: currentUser.id,
@@ -441,11 +621,9 @@ const App: React.FC = () => {
                         link: { view: AppView.MY_BOOKINGS }
                     }]);
                 }
-            }, 4000); // 4-second delay to simulate searching
+            }, 4000);
         }
-        // --- END SIMULATION ---
         
-        // Use a short timeout for the UI transition to the confirmation page
         setTimeout(() => {
             try {
                 handleNavigate(AppView.CONFIRMATION);
@@ -457,11 +635,24 @@ const App: React.FC = () => {
             }
         }, 500); 
 
-    }, [selectedStoodio, currentUser, userRole, handleNavigate, engineers]);
+    }, [selectedStoodio, currentUser, userRole, handleNavigate, engineers, producers, currentView, handleGoBack, createSessionChat]);
     
     const handlePostJob = useCallback((jobRequest: JobPostData) => {
         if (!currentUser || userRole !== UserRole.STOODIO) return;
+
         const stoodio = currentUser as Stoodio;
+        if (!stoodio.subscription || stoodio.subscription.plan === SubscriptionPlan.FREE) {
+            handleNavigate(AppView.SUBSCRIPTION_PLANS);
+            setNotifications(prev => [...prev, {
+                id: `notif-sub-${Date.now()}`,
+                userId: currentUser.id,
+                message: "A Stoodio Pro plan is required to post jobs.",
+                timestamp: new Date().toISOString(),
+                type: NotificationType.GENERAL,
+                read: false,
+            }]);
+            return;
+        }
         
         const engineerPayout = jobRequest.engineerPayRate * jobRequest.duration;
         const mainRoom = stoodio.rooms[0] || { id: 'default-room', name: 'Main Room', hourlyRate: stoodio.hourlyRate, description: '', photos: [] };
@@ -476,6 +667,7 @@ const App: React.FC = () => {
             stoodio: stoodio,
             artist: null,
             engineer: null,
+            producer: null,
             status: BookingStatus.PENDING,
             postedBy: UserRole.STOODIO,
             requestType: BookingRequestType.FIND_AVAILABLE,
@@ -487,7 +679,6 @@ const App: React.FC = () => {
         };
         setBookings(prev => [...prev, newJob]);
 
-        // Emit the new job for real-time alerts
         webSocketService.emit('new-booking', newJob);
     
         setNotifications(prev => [...prev, {
@@ -499,20 +690,20 @@ const App: React.FC = () => {
             read: false
         }]);
     
-    }, [currentUser, userRole]);
+    }, [currentUser, userRole, handleNavigate]);
 
     const handleConfirmCancellation = useCallback((bookingId: string) => {
         const bookingToCancel = bookings.find(b => b.id === bookingId);
-        if (!bookingToCancel || currentUser?.id !== bookingToCancel.bookedById) return;
+        if (!bookingToCancel || !bookingToCancel.stoodio || currentUser?.id !== bookingToCancel.bookedById) return;
 
         const bookingStartTime = new Date(`${bookingToCancel.date}T${bookingToCancel.startTime}`);
         const hoursUntilSession = differenceInHours(bookingStartTime, new Date());
 
         let refundPercentage = 0;
         if (hoursUntilSession > 48) {
-            refundPercentage = 1.0; // 100% refund
+            refundPercentage = 1.0;
         } else if (hoursUntilSession > 24) {
-            refundPercentage = 0.5; // 50% refund
+            refundPercentage = 0.5;
         }
 
         const refundAmount = bookingToCancel.totalCost * refundPercentage;
@@ -591,18 +782,15 @@ const App: React.FC = () => {
             }
         };
 
-        // 1. Set status to Pending
         updateStoodioState(stoodioId, {
             verificationStatus: VerificationStatus.PENDING,
             googleBusinessProfileUrl: data.googleBusinessProfileUrl,
             websiteUrl: data.websiteUrl,
         });
 
-        // 2. Simulate admin review and approval
         setTimeout(() => {
             updateStoodioState(stoodioId, { verificationStatus: VerificationStatus.VERIFIED });
             
-            // 3. Send notification
             setNotifications(prev => [...prev, {
                 id: `notif-verified-${Date.now()}`,
                 userId: stoodioId,
@@ -611,7 +799,7 @@ const App: React.FC = () => {
                 type: NotificationType.GENERAL,
                 read: false,
             }]);
-        }, 4000); // 4-second delay for simulation
+        }, 4000);
     };
     
     const handleUpdateEngineer = (updatedProfile: Partial<Engineer>) => {
@@ -619,6 +807,13 @@ const App: React.FC = () => {
         const updatedEngineer = { ...currentUser as Engineer, ...updatedProfile };
         setCurrentUser(updatedEngineer);
         setEngineers(prev => prev.map(e => e.id === updatedEngineer.id ? updatedEngineer : e));
+    };
+    
+    const handleUpdateProducer = (updatedProfile: Partial<Producer>) => {
+        if (userRole !== UserRole.PRODUCER) return;
+        const updatedProducer = { ...currentUser as Producer, ...updatedProfile };
+        setCurrentUser(updatedProducer);
+        setProducers(prev => prev.map(p => p.id === updatedProducer.id ? updatedProducer : p));
     };
 
     const handleUpdateArtistProfile = (updatedProfile: Partial<Artist>) => {
@@ -639,6 +834,19 @@ const App: React.FC = () => {
         if (userRole !== UserRole.ENGINEER || !currentUser) return;
     
         const engineer = currentUser as Engineer;
+        if (!engineer.subscription || engineer.subscription.plan === SubscriptionPlan.FREE) {
+            handleNavigate(AppView.SUBSCRIPTION_PLANS);
+            setNotifications(prev => [...prev, {
+                id: `notif-sub-${Date.now()}`,
+                userId: currentUser.id,
+                message: "Upgrade to Engineer Plus to accept jobs.",
+                timestamp: new Date().toISOString(),
+                type: NotificationType.GENERAL,
+                read: false,
+            }]);
+            return;
+        }
+
         const bookingIndex = bookings.findIndex(b => b.id === bookingId);
         if (bookingIndex === -1) return;
     
@@ -654,15 +862,14 @@ const App: React.FC = () => {
                 engineer: engineer,
             };
     
-            const newBookings = [...bookings];
-            newBookings[bookingIndex] = updatedBooking;
-            setBookings(newBookings);
+            setBookings(prev => prev.map(b => b.id === bookingId ? updatedBooking : b));
+            createSessionChat(updatedBooking);
     
             if (updatedBooking.artist) {
                 const notification: AppNotification = {
                     id: `notif-${Date.now()}`,
                     userId: updatedBooking.artist!.id,
-                    message: `Your session at ${updatedBooking.stoodio.name} is confirmed with engineer ${engineer.name}!`,
+                    message: `Your session at ${updatedBooking.stoodio?.name || 'a remote session'} is confirmed with engineer ${engineer.name}!`,
                     timestamp: new Date().toISOString(),
                     type: NotificationType.BOOKING_CONFIRMED,
                     read: false,
@@ -680,7 +887,7 @@ const App: React.FC = () => {
             };
             setNotifications(prev => [...prev, notification]);
         }
-    }, [bookings, currentUser, userRole]);
+    }, [bookings, currentUser, userRole, handleNavigate, createSessionChat]);
     
     const handleDenyBooking = useCallback((bookingId: string) => {
         if (userRole !== UserRole.ENGINEER || !currentUser) return;
@@ -697,9 +904,7 @@ const App: React.FC = () => {
             requestedEngineerId: null,
         };
     
-        const newBookings = [...bookings];
-        newBookings[bookingIndex] = updatedBooking;
-        setBookings(newBookings);
+        setBookings(prev => prev.map(b => b.id === bookingId ? updatedBooking : b));
     
         if (updatedBooking.artist) {
             const notification: AppNotification = {
@@ -714,65 +919,31 @@ const App: React.FC = () => {
         }
     }, [bookings, currentUser, userRole]);
     
-    const handleToggleFollow = useCallback((type: 'stoodio' | 'engineer' | 'artist', id: string) => {
+    const handleToggleFollow = useCallback((type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => {
         if (!currentUser) return;
     
-        if (userRole === UserRole.ARTIST) {
-            const currentArtist = currentUser as Artist;
-            if (type === 'artist' && id === currentArtist.id) return;
-            let updatedFollowing: Artist['following'];
+        const updateUserFollowing = (user: any, updateFn: (updatedUser: any) => void) => {
+            let updatedFollowing = { ...user.following };
+            const list = `${type}s` as keyof typeof updatedFollowing;
+            const isFollowing = updatedFollowing[list]?.includes(id);
+
+            updatedFollowing[list] = isFollowing
+                ? (updatedFollowing[list] || []).filter((followedId: string) => followedId !== id)
+                : [...(updatedFollowing[list] || []), id];
             
-            if (type === 'stoodio') {
-                const isFollowing = currentArtist.following.stoodioz.includes(id);
-                updatedFollowing = { ...currentArtist.following, stoodioz: isFollowing ? currentArtist.following.stoodioz.filter(s => s !== id) : [...currentArtist.following.stoodioz, id] };
-            } else if (type === 'engineer') {
-                const isFollowing = currentArtist.following.engineers.includes(id);
-                updatedFollowing = { ...currentArtist.following, engineers: isFollowing ? currentArtist.following.engineers.filter(e => e !== id) : [...currentArtist.following.engineers, id] };
-            } else if (type === 'artist') {
-                const isFollowing = currentArtist.following.artists.includes(id);
-                updatedFollowing = { ...currentArtist.following, artists: isFollowing ? currentArtist.following.artists.filter(a => a !== id) : [...currentArtist.following.artists, id] };
-            } else {
-                return;
-            }
-            handleUpdateArtistProfile({ following: updatedFollowing });
+            updateFn({ following: updatedFollowing });
+        };
+
+        if (userRole === UserRole.ARTIST) {
+            updateUserFollowing(currentUser, handleUpdateArtistProfile);
         } else if (userRole === UserRole.STOODIO) {
-            const managedStoodio = currentUser as Stoodio;
-            let updatedFollowing: Stoodio['following'];
-    
-            if (type === 'artist') {
-                const isFollowing = managedStoodio.following.artists.includes(id);
-                updatedFollowing = { ...managedStoodio.following, artists: isFollowing ? managedStoodio.following.artists.filter(a => a !== id) : [...managedStoodio.following.artists, id] };
-            } else if (type === 'engineer') {
-                const isFollowing = managedStoodio.following.engineers.includes(id);
-                updatedFollowing = { ...managedStoodio.following, engineers: isFollowing ? managedStoodio.following.engineers.filter(e => e !== id) : [...managedStoodio.following.engineers, id] };
-            } else if (type === 'stoodio') {
-                if (id === managedStoodio.id) return;
-                const isFollowing = managedStoodio.following.stoodioz.includes(id);
-                updatedFollowing = { ...managedStoodio.following, stoodioz: isFollowing ? managedStoodio.following.stoodioz.filter(s => s !== id) : [...managedStoodio.following.stoodioz, id] };
-            } else {
-                return;
-            }
-            handleUpdateStoodio({ following: updatedFollowing });
+            updateUserFollowing(currentUser, handleUpdateStoodio);
         } else if (userRole === UserRole.ENGINEER) {
-            const currentEngineer = currentUser as Engineer;
-            let updatedFollowing: Engineer['following'];
-    
-            if (type === 'artist') {
-                const isFollowing = currentEngineer.following.artists.includes(id);
-                updatedFollowing = { ...currentEngineer.following, artists: isFollowing ? currentEngineer.following.artists.filter(a => a !== id) : [...currentEngineer.following.artists, id] };
-            } else if (type === 'engineer') {
-                if (id === currentEngineer.id) return;
-                const isFollowing = currentEngineer.following.engineers.includes(id);
-                updatedFollowing = { ...currentEngineer.following, engineers: isFollowing ? currentEngineer.following.engineers.filter(e => e !== id) : [...currentEngineer.following.engineers, id] };
-            } else if (type === 'stoodio') {
-                const isFollowing = currentEngineer.following.stoodioz.includes(id);
-                updatedFollowing = { ...currentEngineer.following, stoodioz: isFollowing ? currentEngineer.following.stoodioz.filter(s => s !== id) : [...currentEngineer.following.stoodioz, id] };
-            } else {
-                return;
-            }
-            handleUpdateEngineer({ following: updatedFollowing });
+            updateUserFollowing(currentUser, handleUpdateEngineer);
+        } else if (userRole === UserRole.PRODUCER) {
+            updateUserFollowing(currentUser, handleUpdateProducer);
         }
-    }, [userRole, currentUser, handleUpdateArtistProfile, handleUpdateStoodio, handleUpdateEngineer]);
+    }, [userRole, currentUser, handleUpdateArtistProfile, handleUpdateStoodio, handleUpdateEngineer, handleUpdateProducer]);
 
     const handleCreatePost = useCallback((postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => {
         if (!currentUser || !userRole) return;
@@ -791,20 +962,17 @@ const App: React.FC = () => {
             comments: [],
         };
         
-        if (userRole === UserRole.ARTIST) {
-            const updatedArtist = { ...currentUser as Artist, posts: [newPost, ...((currentUser as Artist).posts || [])] };
-            setCurrentUser(updatedArtist);
-            setArtists(prev => prev.map(a => a.id === updatedArtist.id ? updatedArtist : a));
-        } else if (userRole === UserRole.ENGINEER) {
-            const updatedEngineer = { ...currentUser as Engineer, posts: [newPost, ...((currentUser as Engineer).posts || [])] };
-            setCurrentUser(updatedEngineer);
-            setEngineers(prev => prev.map(e => e.id === updatedEngineer.id ? updatedEngineer : e));
-        } else if (userRole === UserRole.STOODIO) {
-            const updatedStoodio = { ...currentUser as Stoodio, posts: [newPost, ...((currentUser as Stoodio).posts || [])] };
-            setCurrentUser(updatedStoodio);
-            // FIX: Corrected a typo. The variable should be 's', not 'a'.
-            setStoodioz(prev => prev.map(s => s.id === updatedStoodio.id ? updatedStoodio : s));
-        }
+        const updateUserPosts = (user: any, setUserList: React.Dispatch<React.SetStateAction<any[]>>) => {
+            const updatedUser = { ...user, posts: [newPost, ...(user.posts || [])] };
+            setCurrentUser(updatedUser);
+            setUserList(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+        };
+        
+        if (userRole === UserRole.ARTIST) updateUserPosts(currentUser, setArtists);
+        else if (userRole === UserRole.ENGINEER) updateUserPosts(currentUser, setEngineers);
+        else if (userRole === UserRole.STOODIO) updateUserPosts(currentUser, setStoodioz);
+        else if (userRole === UserRole.PRODUCER) updateUserPosts(currentUser, setProducers);
+
     }, [currentUser, userRole]);
     
     const handleLikePost = useCallback((postId: string) => {
@@ -825,6 +993,7 @@ const App: React.FC = () => {
         setArtists(prev => prev.map(a => ({ ...a, posts: updateLikes(a.posts) })));
         setEngineers(prev => prev.map(e => ({ ...e, posts: updateLikes(e.posts) })));
         setStoodioz(prev => prev.map(s => ({ ...s, posts: updateLikes(s.posts) })));
+        setProducers(prev => prev.map(p => ({ ...p, posts: updateLikes(p.posts) })));
     }, [currentUser]);
     
     const handleCommentOnPost = useCallback((postId: string, text: string) => {
@@ -845,6 +1014,7 @@ const App: React.FC = () => {
         setArtists(prev => prev.map(a => ({ ...a, posts: updateComments(a.posts) })));
         setEngineers(prev => prev.map(e => ({ ...e, posts: updateComments(e.posts) })));
         setStoodioz(prev => prev.map(s => ({ ...s, posts: updateComments(s.posts) })));
+        setProducers(prev => prev.map(p => ({ ...p, posts: updateComments(p.posts) })));
     }, [currentUser]);
 
     const handleStartSession = useCallback((booking: Booking) => {
@@ -863,7 +1033,7 @@ const App: React.FC = () => {
             return b;
         }));
 
-        if (updatedBooking) {
+        if (updatedBooking && updatedBooking.stoodio) {
             const booking = updatedBooking;
             const bookerName = artists.find(a => a.id === booking.bookedById)?.name || engineers.find(e => e.id === booking.bookedById)?.name || stoodioz.find(s => s.id === booking.bookedById)?.name;
             const now = new Date().toISOString();
@@ -875,23 +1045,22 @@ const App: React.FC = () => {
             } // Simplified for demo, add engineer/studio logic if they can book
 
             // Payee Logic
-            const stoodioPayout = booking.room.hourlyRate * booking.duration;
+            const stoodioPayout = booking.room!.hourlyRate * booking.duration;
             const stoodioPayoutTx: Transaction = { id: `txn-payout-s-${Date.now()}`, description: `Payout from ${bookerName || 'session'}`, amount: stoodioPayout, date: now, category: TransactionCategory.SESSION_PAYOUT, status: TransactionStatus.PENDING, relatedBookingId: booking.id, relatedUserName: bookerName };
-            setStoodioz(prev => prev.map(s => s.id === booking.stoodio.id ? { ...s, walletBalance: s.walletBalance + stoodioPayout, walletTransactions: [stoodioPayoutTx, ...s.walletTransactions] } : s));
+            setStoodioz(prev => prev.map(s => s.id === booking.stoodio!.id ? { ...s, walletBalance: s.walletBalance + stoodioPayout, walletTransactions: [stoodioPayoutTx, ...s.walletTransactions] } : s));
 
             if (booking.engineer) {
                 const engineerPayout = booking.engineerPayRate * booking.duration;
                 const engineerPayoutTx: Transaction = { id: `txn-payout-e-${Date.now()}`, description: `Payout from ${bookerName || 'session'}`, amount: engineerPayout, date: now, category: TransactionCategory.SESSION_PAYOUT, status: TransactionStatus.PENDING, relatedBookingId: booking.id, relatedUserName: bookerName };
                 setEngineers(prev => prev.map(e => e.id === booking.engineer!.id ? { ...e, walletBalance: e.walletBalance + engineerPayout, walletTransactions: [engineerPayoutTx, ...e.walletTransactions] } : e));
                 
-                // Simulate payout processing
                 setTimeout(() => {
                     setEngineers(prev => prev.map(e => e.id === booking.engineer!.id ? { ...e, walletTransactions: e.walletTransactions.map(tx => tx.id === engineerPayoutTx.id ? {...tx, status: TransactionStatus.COMPLETED} : tx) } : e));
                 }, 3000);
             }
             
             setTimeout(() => {
-                setStoodioz(prev => prev.map(s => s.id === booking.stoodio.id ? { ...s, walletTransactions: s.walletTransactions.map(tx => tx.id === stoodioPayoutTx.id ? {...tx, status: TransactionStatus.COMPLETED} : tx) } : s));
+                setStoodioz(prev => prev.map(s => s.id === booking.stoodio!.id ? { ...s, walletTransactions: s.walletTransactions.map(tx => tx.id === stoodioPayoutTx.id ? {...tx, status: TransactionStatus.COMPLETED} : tx) } : s));
             }, 3000);
         }
 
@@ -939,6 +1108,7 @@ const App: React.FC = () => {
         if (userRole === UserRole.ARTIST) setArtists(prev => prev.map(a => a.id === currentUser.id ? updatedUser as Artist : a));
         else if (userRole === UserRole.ENGINEER) setEngineers(prev => prev.map(e => e.id === currentUser.id ? updatedUser as Engineer : e));
         else if (userRole === UserRole.STOODIO) setStoodioz(prev => prev.map(s => s.id === currentUser.id ? updatedUser as Stoodio : s));
+        else if (userRole === UserRole.PRODUCER) setProducers(prev => prev.map(p => p.id === currentUser.id ? updatedUser as Producer : p));
         
         setCurrentUser(updatedUser);
         setIsAddFundsOpen(false);
@@ -962,23 +1132,23 @@ const App: React.FC = () => {
 
         if (userRole === UserRole.ENGINEER) setEngineers(prev => prev.map(e => e.id === currentUser.id ? updatedUser as Engineer : e));
         else if (userRole === UserRole.STOODIO) setStoodioz(prev => prev.map(s => s.id === currentUser.id ? updatedUser as Stoodio : s));
+        else if (userRole === UserRole.PRODUCER) setProducers(prev => prev.map(p => p.id === currentUser.id ? updatedUser as Producer : p));
         
         setCurrentUser(updatedUser);
         setIsPayoutOpen(false);
 
-        // Simulate processing
         setTimeout(() => {
-            const completeTx = (user: Stoodio | Engineer) => ({
+            const completeTx = (user: Stoodio | Engineer | Producer) => ({
                 ...user,
                 walletTransactions: user.walletTransactions.map(tx => tx.id === newTx.id ? { ...tx, status: TransactionStatus.COMPLETED } : tx)
             });
 
-            // FIX: Cast the result of completeTx to the appropriate type to resolve TypeScript error.
-             if (userRole === UserRole.ENGINEER) setEngineers(prev => prev.map(e => e.id === currentUser.id ? completeTx(e) as Engineer : e));
+            if (userRole === UserRole.ENGINEER) setEngineers(prev => prev.map(e => e.id === currentUser.id ? completeTx(e) as Engineer : e));
             else if (userRole === UserRole.STOODIO) setStoodioz(prev => prev.map(s => s.id === currentUser.id ? completeTx(s) as Stoodio : s));
+            else if (userRole === UserRole.PRODUCER) setProducers(prev => prev.map(p => p.id === currentUser.id ? completeTx(p) as Producer : p));
             
             if (currentUser?.id === updatedUser.id) {
-                setCurrentUser(prev => completeTx(prev as Engineer | Stoodio));
+                setCurrentUser(prev => completeTx(prev as Engineer | Stoodio | Producer));
             }
         }, 5000);
     };
@@ -990,16 +1160,15 @@ const App: React.FC = () => {
         setIsVibeMatcherLoading(true);
         setIsVibeMatcherOpen(false);
         try {
-            const results = await getVibeMatchResults(songUrl, stoodioz, engineers);
+            const results = await getVibeMatchResults(songUrl, stoodioz, engineers, producers);
             setVibeMatchResults(results);
             handleNavigate(AppView.VIBE_MATCHER_RESULTS);
         } catch (error) {
             console.error("Vibe Match failed", error);
-            // Optionally show a notification toast on failure
         } finally {
             setIsVibeMatcherLoading(false);
         }
-    }, [stoodioz, engineers, handleNavigate]);
+    }, [stoodioz, engineers, producers, handleNavigate]);
 
     const handleMarkAsRead = useCallback((id: string) => {
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -1054,9 +1223,8 @@ const App: React.FC = () => {
         if (updatedConversation) {
             handleFetchSmartReplies(updatedConversation.messages);
             
-            // Mock a reply from the other person after a short delay
             setTimeout(() => {
-                const participant = updatedConversation?.participant;
+                const participant = updatedConversation?.participants.find(p => p.id !== currentUser.id);
                 if (participant) {
                      const replyMessage: Message = {
                         id: `msg-${Date.now() + 1}`,
@@ -1071,6 +1239,96 @@ const App: React.FC = () => {
 
         }
     }, [currentUser, handleFetchSmartReplies]);
+    
+    const handleStartConversation = useCallback((participant: Artist | Engineer | Stoodio | Producer) => {
+        if (!currentUser) return;
+
+        // A 1-on-1 conversation is identified by having exactly two participants: the current user and the other person.
+        const existingConvo = conversations.find(c => {
+            const participantIds = new Set(c.participants.map(p => p.id));
+            return participantIds.size === 2 && participantIds.has(currentUser.id) && participantIds.has(participant.id);
+        });
+
+        if (existingConvo) {
+            setSelectedConversationId(existingConvo.id);
+            handleNavigate(AppView.INBOX);
+        } else {
+            // Create a new 1-on-1 conversation
+            const newConversation: Conversation = {
+                id: `convo-${currentUser.id}-${participant.id}-${Date.now()}`,
+                participants: [currentUser, participant],
+                messages: [],
+                unreadCount: 0,
+                title: participant.name,
+                imageUrl: participant.imageUrl,
+            };
+
+            setConversations(prev => [newConversation, ...prev]);
+            setSelectedConversationId(newConversation.id);
+            handleNavigate(AppView.INBOX);
+        }
+    }, [currentUser, conversations, handleNavigate]);
+
+    const handleConfirmRemoteMix = useCallback(async (bookingRequest: BookingRequest) => {
+        if (!currentUser || !bookingRequest.requestedEngineerId) return;
+        setIsLoading(true);
+        const engineer = engineers.find(e => e.id === bookingRequest.requestedEngineerId);
+        if (!engineer) {
+            setIsLoading(false);
+            return;
+        }
+
+        const newBooking: Booking = {
+            id: `BKG-MIX-${Date.now()}`,
+            date: bookingRequest.date,
+            startTime: 'N/A',
+            duration: 0,
+            totalCost: bookingRequest.totalCost,
+            engineerPayRate: bookingRequest.totalCost,
+            requestType: BookingRequestType.SPECIFIC_ENGINEER,
+            status: BookingStatus.PENDING_APPROVAL,
+            stoodio: undefined,
+            room: undefined,
+            artist: userRole === UserRole.ARTIST ? (currentUser as Artist) : null,
+            engineer: null,
+            producer: userRole === UserRole.PRODUCER ? (currentUser as Producer) : null,
+            requestedEngineerId: engineer.id,
+            bookedById: currentUser.id,
+            bookedByRole: userRole!,
+            mixingDetails: bookingRequest.mixingDetails,
+        };
+
+        setBookings(prev => [newBooking, ...prev]);
+        setNotifications(prev => [...prev, {
+            id: `notif-mix-${Date.now()}`,
+            userId: engineer.id,
+            message: `${currentUser.name} has requested a remote mixing session with you.`,
+            timestamp: new Date().toISOString(),
+            type: NotificationType.BOOKING_REQUEST,
+            read: false,
+            link: { view: AppView.ENGINEER_DASHBOARD }
+        }]);
+
+        setLatestBooking(newBooking);
+        setIsMixingModalOpen(false);
+        handleNavigate(AppView.CONFIRMATION);
+        setIsLoading(false);
+    }, [currentUser, userRole, engineers, handleNavigate]);
+
+    const handleInitiateInStudioMix = useCallback((engineer: Engineer, mixingDetails: MixingDetails) => {
+        setBookingIntent({ engineer, mixingDetails });
+        setIsMixingModalOpen(false);
+        handleNavigate(AppView.STOODIO_LIST);
+        setNotifications(prev => [...prev, {
+            id: `notif-${Date.now()}`,
+            userId: currentUser!.id,
+            message: `Now, select a studio for your mixing session with ${engineer.name}.`,
+            timestamp: new Date().toISOString(),
+            type: NotificationType.GENERAL,
+            read: false,
+        }]);
+    }, [handleNavigate, currentUser]);
+
 
     const renderAppContent = () => {
         const handleGuestInteraction = () => handleNavigate(AppView.LOGIN);
@@ -1078,7 +1336,7 @@ const App: React.FC = () => {
         switch (currentView) {
             // --- Unauthenticated Views ---
             case AppView.LANDING_PAGE:
-                return <LandingPage onNavigate={handleNavigate} onSelectStoodio={handleViewStoodioDetails} stoodioz={stoodioz} engineers={engineers} artists={artists} bookings={bookings} vibeMatchResults={vibeMatchResults} />;
+                return <LandingPage onNavigate={handleNavigate} onSelectStoodio={handleViewStoodioDetails} stoodioz={stoodioz} engineers={engineers} artists={artists} producers={producers} bookings={bookings} vibeMatchResults={vibeMatchResults} onSelectProducer={handleViewProducerProfile} />;
             case AppView.LOGIN:
                 return <Login onLogin={handleLogin} error={loginError} onNavigate={handleNavigate} />;
             case AppView.CHOOSE_PROFILE:
@@ -1087,54 +1345,64 @@ const App: React.FC = () => {
                 return <ArtistSetup onCompleteSetup={handleCompleteArtistSetup} onNavigate={handleNavigate} />;
             case AppView.ENGINEER_SETUP:
                 return <EngineerSetup onCompleteSetup={handleCompleteEngineerSetup} onNavigate={handleNavigate} />;
+            case AppView.PRODUCER_SETUP:
+                return <ProducerSetup onCompleteSetup={handleCompleteProducerSetup} onNavigate={handleNavigate} />;
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={handleCompleteStoodioSetup} onNavigate={handleNavigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={handleGoBack} />;
             case AppView.SUBSCRIPTION_PLANS:
-                return <SubscriptionPlans onNavigate={handleNavigate} />;
+                return <SubscriptionPlans onSelect={handleSelectPlan} />;
 
             // --- Shared (Auth & Guest) Views ---
             case AppView.STOODIO_LIST:
                 return <StoodioList stoodioz={stoodioz} onSelectStoodio={handleViewStoodioDetails} />;
             case AppView.BOOKING_MODAL:
             case AppView.STOODIO_DETAIL:
-                return selectedStoodio ? <StoodioDetail stoodio={selectedStoodio} onBook={currentUser ? handleOpenBookingModal : handleGuestInteraction} onBack={handleGoBack} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} reviews={reviews} bookings={bookings.filter(b => b.stoodio.id === selectedStoodio.id)} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onStartConversation={currentUser ? () => {} : handleGuestInteraction} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} /> : <StoodioList stoodioz={stoodioz} onSelectStoodio={handleViewStoodioDetails} />;
+                return selectedStoodio ? <StoodioDetail stoodio={selectedStoodio} onBook={currentUser ? handleOpenBookingModal : handleGuestInteraction} onBack={handleGoBack} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} reviews={reviews} bookings={bookings.filter(b => b.stoodio?.id === selectedStoodio.id)} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onSelectProducer={handleViewProducerProfile} onStartConversation={currentUser ? handleStartConversation : handleGuestInteraction} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} /> : <StoodioList stoodioz={stoodioz} onSelectStoodio={handleViewStoodioDetails} />;
             case AppView.ENGINEER_LIST:
                 return <EngineerList engineers={engineers} onSelectEngineer={handleViewEngineerProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} />;
             case AppView.ENGINEER_PROFILE:
-                return selectedEngineer ? <EngineerProfile engineer={selectedEngineer} onBack={handleGoBack} reviews={reviews} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} isFollowing={currentUser && 'following' in currentUser ? currentUser.following.engineers.includes(selectedEngineer.id) : false} userRole={userRole} bookings={bookings} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onStartNavigation={handleNavigateToStudio} onStartConversation={()=>{}} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onInitiateBooking={handleInitiateBookingWithEngineer} /> : <EngineerList engineers={engineers} onSelectEngineer={handleViewEngineerProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} />;
+                return selectedEngineer ? <EngineerProfile engineer={selectedEngineer} onBack={handleGoBack} reviews={reviews} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} isFollowing={currentUser && 'following' in currentUser ? currentUser.following.engineers.includes(selectedEngineer.id) : false} userRole={userRole} bookings={bookings} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onSelectProducer={handleViewProducerProfile} onStartNavigation={handleNavigateToStudio} onStartConversation={currentUser ? handleStartConversation : handleGuestInteraction} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onInitiateBooking={handleInitiateBookingWithEngineer} onOpenMixingModal={() => setIsMixingModalOpen(true)} /> : <EngineerList engineers={engineers} onSelectEngineer={handleViewEngineerProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} />;
+            case AppView.PRODUCER_LIST:
+                return <ProducerList producers={producers} onSelectProducer={handleViewProducerProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} />;
+            case AppView.PRODUCER_PROFILE:
+                return selectedProducer ? <ProducerProfile producer={selectedProducer} onBack={handleGoBack} reviews={reviews} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} isFollowing={currentUser && 'following' in currentUser ? currentUser.following.producers.includes(selectedProducer.id) : false} userRole={userRole} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onSelectProducer={handleViewProducerProfile} onStartConversation={currentUser ? handleStartConversation : handleGuestInteraction} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onInitiateBookingWithProducer={handleInitiateBookingWithProducer} /> : <ProducerList producers={producers} onSelectProducer={handleViewProducerProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole} />;
             case AppView.ARTIST_LIST:
                  return <ArtistList artists={artists} onSelectArtist={handleViewArtistProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole}/>;
             case AppView.ARTIST_PROFILE:
-                return selectedArtist ? <ArtistProfile artist={selectedArtist} onBack={handleGoBack} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} isFollowing={currentUser && 'following' in currentUser ? currentUser.following.artists.includes(selectedArtist.id) : false} userRole={userRole} onStartNavigation={()=>{}} onStartConversation={()=>{}} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} /> : <ArtistList artists={artists} onSelectArtist={handleViewArtistProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole}/>;
+                return selectedArtist ? <ArtistProfile artist={selectedArtist} onBack={handleGoBack} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} isFollowing={currentUser && 'following' in currentUser ? currentUser.following.artists.includes(selectedArtist.id) : false} userRole={userRole} onStartNavigation={()=>{}} onStartConversation={currentUser ? handleStartConversation : handleGuestInteraction} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onSelectProducer={handleViewProducerProfile} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} /> : <ArtistList artists={artists} onSelectArtist={handleViewArtistProfile} onToggleFollow={currentUser ? handleToggleFollow : handleGuestInteraction} currentUser={currentUser} userRole={userRole}/>;
             case AppView.MAP_VIEW:
-                return <MapView stoodioz={stoodioz} engineers={engineers} artists={artists} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectArtist={handleViewArtistProfile} bookings={bookings} vibeMatchResults={vibeMatchResults} onInitiateBooking={currentUser ? handleInitiateBookingWithEngineer : undefined} />;
+                return <MapView stoodioz={stoodioz} engineers={engineers} artists={artists} producers={producers} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectArtist={handleViewArtistProfile} onSelectProducer={handleViewProducerProfile} bookings={bookings} vibeMatchResults={vibeMatchResults} onInitiateBooking={currentUser ? handleInitiateBookingWithEngineer : undefined} />;
             
             // --- Authenticated Views ---
             case AppView.THE_STAGE:
-                if (currentUser) return <TheStage currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onToggleFollow={handleToggleFollow} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onNavigate={handleNavigate} />;
+                if (currentUser) return <TheStage currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onToggleFollow={handleToggleFollow} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onSelectProducer={handleViewProducerProfile} onNavigate={handleNavigate} />;
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
             case AppView.CONFIRMATION:
                 if (latestBooking) return <BookingConfirmation booking={latestBooking} onDone={() => handleNavigate(AppView.MY_BOOKINGS)} engineers={engineers}/>;
                 return <StoodioList stoodioz={stoodioz} onSelectStoodio={handleViewStoodioDetails} />;
             case AppView.MY_BOOKINGS:
-                const userBookings = bookings.filter(b => b.bookedById === currentUser?.id);
+                const userBookings = bookings.filter(b => b.bookedById === currentUser?.id || b.artist?.id === currentUser?.id || b.engineer?.id === currentUser?.id || b.stoodio?.id === currentUser?.id);
                 return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={handleNavigateToStudio} onOpenCancelModal={setBookingToCancel} onArtistNavigate={handleArtistNavigation} userRole={userRole} />;
 
             case AppView.STOODIO_DASHBOARD:
-                if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onVerificationSubmit={handleVerificationSubmit} onNavigate={handleNavigate} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onOpenPayoutModal={() => setIsPayoutOpen(true)} onViewBooking={handleViewBooking} />;
+                if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio?.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectProducer={handleViewProducerProfile} onVerificationSubmit={handleVerificationSubmit} onNavigate={handleNavigate} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onOpenPayoutModal={() => setIsPayoutOpen(true)} onViewBooking={handleViewBooking} />;
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.ENGINEER_DASHBOARD:
                 if (userRole === UserRole.ENGINEER) {
                     const engineerBookings = bookings.filter(b => b.engineer?.id === currentUser?.id || b.status === BookingStatus.PENDING || (b.status === BookingStatus.PENDING_APPROVAL && b.requestedEngineerId === currentUser?.id));
-                    return <EngineerDashboard engineer={currentUser as Engineer} reviews={reviews.filter(r => r.engineerId === currentUser?.id)} bookings={engineerBookings} onUpdateEngineer={handleUpdateEngineer} onAcceptBooking={handleAcceptBooking} onDenyBooking={handleDenyBooking} onStartSession={handleStartSession} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onToggleFollow={handleToggleFollow} onNavigateToStudio={handleNavigateToStudio} onStartConversation={()=>{}} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onNavigate={handleNavigate} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onOpenPayoutModal={() => setIsPayoutOpen(true)} onViewBooking={handleViewBooking} />;
+                    return <EngineerDashboard engineer={currentUser as Engineer} reviews={reviews.filter(r => r.engineerId === currentUser?.id)} bookings={engineerBookings} onUpdateEngineer={handleUpdateEngineer} onAcceptBooking={handleAcceptBooking} onDenyBooking={handleDenyBooking} onStartSession={handleStartSession} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onSelectProducer={handleViewProducerProfile} onToggleFollow={handleToggleFollow} onNavigateToStudio={handleNavigateToStudio} onStartConversation={handleStartConversation} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onNavigate={handleNavigate} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onOpenPayoutModal={() => setIsPayoutOpen(true)} onViewBooking={handleViewBooking} />;
                 }
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
+            case AppView.PRODUCER_DASHBOARD:
+                if (userRole === UserRole.PRODUCER) return <ProducerDashboard producer={currentUser as Producer} onUpdateProducer={handleUpdateProducer} currentUser={currentUser} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectStoodio={handleViewStoodioDetails} onSelectProducer={handleViewProducerProfile} onToggleFollow={handleToggleFollow} onStartConversation={handleStartConversation} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} onNavigate={handleNavigate} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onOpenPayoutModal={() => setIsPayoutOpen(true)} onViewBooking={handleViewBooking} onOpenVibeMatcher={handleOpenVibeMatcher} />;
+                return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
+
             case AppView.ARTIST_DASHBOARD:
-                if (userRole === UserRole.ARTIST) return <ArtistDashboard artist={currentUser as Artist} bookings={bookings.filter(b => b.artist?.id === currentUser?.id)} conversations={conversations} onNavigate={handleNavigate} onUpdateProfile={handleUpdateArtistProfile} allStoodioz={stoodioz} allEngineers={engineers} allArtists={artists} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectArtist={handleViewArtistProfile} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onOpenVibeMatcher={handleOpenVibeMatcher} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onViewBooking={handleViewBooking} />;
+                if (userRole === UserRole.ARTIST) return <ArtistDashboard artist={currentUser as Artist} bookings={bookings.filter(b => b.artist?.id === currentUser?.id)} conversations={conversations} onNavigate={handleNavigate} onUpdateProfile={handleUpdateArtistProfile} allStoodioz={stoodioz} allEngineers={engineers} allArtists={artists} allProducers={producers} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectArtist={handleViewArtistProfile} onSelectProducer={handleViewProducerProfile} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onOpenVibeMatcher={handleOpenVibeMatcher} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onViewBooking={handleViewBooking} />;
                  return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.INBOX:
@@ -1146,11 +1414,11 @@ const App: React.FC = () => {
                  return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             case AppView.VIBE_MATCHER_RESULTS:
-                if (vibeMatchResults) return <VibeMatcherResults results={vibeMatchResults} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onBack={handleGoBack} />;
+                if (vibeMatchResults) return <VibeMatcherResults results={vibeMatchResults} onSelectStoodio={handleViewStoodioDetails} onSelectEngineer={handleViewEngineerProfile} onSelectProducer={handleViewProducerProfile} onBack={handleGoBack} />;
                 return <Login onLogin={handleLogin} error={null} onNavigate={handleNavigate} />;
 
             default:
-                return <LandingPage onNavigate={handleNavigate} onSelectStoodio={handleViewStoodioDetails} stoodioz={stoodioz} engineers={engineers} artists={artists} bookings={bookings} vibeMatchResults={vibeMatchResults} />;
+                return <LandingPage onNavigate={handleNavigate} onSelectStoodio={handleViewStoodioDetails} stoodioz={stoodioz} engineers={engineers} artists={artists} producers={producers} bookings={bookings} vibeMatchResults={vibeMatchResults} onSelectProducer={handleViewProducerProfile} />;
         }
     };
 
@@ -1170,9 +1438,11 @@ const App: React.FC = () => {
                 onMarkAllAsRead={handleMarkAllAsRead}
                 allArtists={artists}
                 allEngineers={engineers}
+                allProducers={producers}
                 allStoodioz={stoodioz}
                 onSelectArtist={handleViewArtistProfile}
                 onSelectEngineer={handleViewEngineerProfile}
+                onSelectProducer={handleViewProducerProfile}
                 onSelectStoodio={handleViewStoodioDetails}
             />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1180,18 +1450,19 @@ const App: React.FC = () => {
                     {renderAppContent()}
                 </Suspense>
 
-                {/* --- Modals --- */}
                 {currentView === AppView.BOOKING_MODAL && selectedStoodio && bookingTime && (
                     <BookingModal 
                         stoodio={selectedStoodio} 
                         engineers={engineers}
+                        producers={producers}
+                        currentUser={currentUser}
                         onClose={handleGoBack}
                         onConfirm={handleConfirmBooking}
                         isLoading={isLoading}
                         initialDate={bookingTime.date}
                         initialTime={bookingTime.time}
                         initialRoom={bookingTime.room}
-                        initialEngineer={bookingIntent?.engineer}
+                        bookingIntent={bookingIntent}
                     />
                 )}
                 {tipModalBooking && (
@@ -1226,6 +1497,15 @@ const App: React.FC = () => {
                         onClose={() => setIsPayoutOpen(false)}
                         onConfirm={handleRequestPayout}
                         currentBalance={currentUser.walletBalance}
+                    />
+                )}
+                {isMixingModalOpen && selectedEngineer && (
+                    <MixingRequestModal
+                        engineer={selectedEngineer}
+                        onClose={() => setIsMixingModalOpen(false)}
+                        onConfirm={handleConfirmRemoteMix}
+                        onInitiateInStudio={handleInitiateInStudioMix}
+                        isLoading={isLoading}
                     />
                 )}
                 

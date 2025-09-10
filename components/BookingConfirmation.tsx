@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Booking, Engineer } from '../types';
 import { BookingRequestType, BookingStatus } from '../types';
-import { CheckCircleIcon, CogIcon, ClockIcon } from './icons';
+import { CheckCircleIcon, CogIcon, ClockIcon, DownloadIcon, MusicNoteIcon } from './icons';
 
 interface BookingConfirmationProps {
     booking: Booking;
@@ -18,30 +18,41 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDo
     const requestedEngineer = engineers.find(e => e.id === requestedEngineerId);
 
     const getTitleAndMessage = () => {
-        switch (requestType) {
-            case BookingRequestType.FIND_AVAILABLE:
+        const atStoodio = stoodio ? `at ${stoodio.name}` : '';
+        switch (booking.status) {
+            case BookingStatus.PENDING:
                 return {
                     icon: <ClockIcon className="w-20 h-20 text-yellow-500" />,
                     title: 'Request Sent!',
-                    message: `We're finding an available engineer for your session at ${stoodio.name}. We'll notify you once confirmed!`
+                    message: `We're finding an available engineer for your session ${atStoodio}. We'll notify you once confirmed!`
                 };
-            case BookingRequestType.SPECIFIC_ENGINEER:
+            case BookingStatus.PENDING_APPROVAL:
+                 const approver = requestedEngineer?.name || 'the engineer';
+                 if(booking.mixingDetails?.type === 'REMOTE') {
+                     return {
+                        icon: <ClockIcon className="w-20 h-20 text-yellow-500" />,
+                        title: 'Mix Request Sent!',
+                        message: `Your request for a remote mix has been sent to ${approver}. We'll notify you of their response.`
+                    };
+                 }
                  return {
                     icon: <ClockIcon className="w-20 h-20 text-yellow-500" />,
                     title: 'Request Sent!',
-                    message: `Your session request has been sent to ${requestedEngineer?.name}. We'll notify you of their response.`
+                    message: `Your session request ${atStoodio} has been sent to ${approver}. We'll notify you of their response.`
                 };
-            case BookingRequestType.BRING_YOUR_OWN:
-                 return {
-                    icon: <CheckCircleIcon className="w-20 h-20 text-green-500" />,
-                    title: 'Booking Confirmed!',
-                    message: `Your session at ${stoodio.name} is locked in. Don't forget to bring your engineer!`
-                };
+            case BookingStatus.CONFIRMED:
             default:
-                return {
+                if (requestType === BookingRequestType.BRING_YOUR_OWN) {
+                    return {
+                        icon: <CheckCircleIcon className="w-20 h-20 text-green-500" />,
+                        title: 'Booking Confirmed!',
+                        message: `Your session ${atStoodio} is locked in. Don't forget to bring your engineer!`
+                    };
+                }
+                 return {
                     icon: <CheckCircleIcon className="w-20 h-20 text-green-500" />,
                     title: 'Booking Confirmed!',
-                    message: `Your session at ${stoodio.name} is locked in. Get ready to create!`
+                    message: `Your session ${atStoodio} is locked in. Get ready to create!`
                 };
         }
     };
@@ -67,12 +78,15 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDo
                     <div>
                         <h3 className="font-bold text-lg text-orange-400 mb-3">Session Details</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-slate-300">
-                            <p><strong>Stoodio:</strong> {stoodio.name}</p>
-                            <p><strong>Location:</strong> {stoodio.location}</p>
+                            {stoodio && <p><strong>Stoodio:</strong> {stoodio.name}</p>}
+                            {stoodio && <p><strong>Location:</strong> {stoodio.location}</p>}
+                            {booking.mixingDetails?.type === 'REMOTE' && <p><strong>Service:</strong> Remote Mixing ({booking.mixingDetails.trackCount} tracks)</p>}
+                            {booking.mixingDetails?.type === 'IN_STUDIO' && <p><strong>Add-on:</strong> In-Studio Mixing ({booking.mixingDetails.trackCount} tracks)</p>}
                             <p><strong>Date:</strong> {formattedDate}</p>
-                            <p><strong>Time:</strong> {startTime} for {duration} hours</p>
+                            {startTime !== 'N/A' && <p><strong>Time:</strong> {startTime} for {duration} hours</p>}
                             <p><strong>Total Paid:</strong> <span className="font-bold">${totalCost.toFixed(2)}</span></p>
                             <p><strong>Engineer:</strong> {requestType === BookingRequestType.BRING_YOUR_OWN ? 'Provided by Artist' : (engineer?.name || 'To be assigned')}</p>
+                             {booking.producer && <p><strong>Producer:</strong> {booking.producer.name}</p>}
                         </div>
                     </div>
 
@@ -98,6 +112,28 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDo
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                     {booking.instrumentalsPurchased && booking.instrumentalsPurchased.length > 0 && (
+                        <>
+                            <div className="border-t border-zinc-700"></div>
+                            <div>
+                                <h3 className="font-bold text-lg text-orange-400 mb-4">Download Your Beats</h3>
+                                <div className="space-y-2">
+                                    {booking.instrumentalsPurchased.map(beat => (
+                                        <div key={beat.id} className="bg-zinc-700/50 p-3 rounded-md flex justify-between items-center">
+                                            <div className="flex items-center gap-2">
+                                                <MusicNoteIcon className="w-5 h-5 text-purple-400"/>
+                                                <span className="font-semibold text-slate-200">{beat.title}</span>
+                                            </div>
+                                            <a href={beat.audioUrl} download={`${beat.title.replace(/\s+/g, '_')}.mp3`} className="bg-green-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-green-600 transition-all text-sm flex items-center gap-1.5">
+                                                <DownloadIcon className="w-4 h-4"/>
+                                                Download
+                                            </a>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </>

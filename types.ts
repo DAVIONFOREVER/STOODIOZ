@@ -4,9 +4,11 @@ export enum AppView {
     LANDING_PAGE = 'LANDING_PAGE',
     LOGIN = 'LOGIN',
     CHOOSE_PROFILE = 'CHOOSE_PROFILE',
+    CHOOSE_ACTIVE_PROFILE = 'CHOOSE_ACTIVE_PROFILE',
     ARTIST_SETUP = 'ARTIST_SETUP',
     ENGINEER_SETUP = 'ENGINEER_SETUP',
     STOODIO_SETUP = 'STOODIO_SETUP',
+    PRODUCER_SETUP = 'PRODUCER_SETUP',
     PRIVACY_POLICY = 'PRIVACY_POLICY',
     SUBSCRIPTION_PLANS = 'SUBSCRIPTION_PLANS',
     THE_STAGE = 'THE_STAGE',
@@ -16,6 +18,8 @@ export enum AppView {
     ENGINEER_PROFILE = 'ENGINEER_PROFILE',
     ARTIST_LIST = 'ARTIST_LIST',
     ARTIST_PROFILE = 'ARTIST_PROFILE',
+    PRODUCER_LIST = 'PRODUCER_LIST',
+    PRODUCER_PROFILE = 'PRODUCER_PROFILE',
     MAP_VIEW = 'MAP_VIEW',
     BOOKING_MODAL = 'BOOKING_MODAL',
     CONFIRMATION = 'CONFIRMATION',
@@ -23,6 +27,7 @@ export enum AppView {
     STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
     ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
     ARTIST_DASHBOARD = 'ARTIST_DASHBOARD',
+    PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
     INBOX = 'INBOX',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
     VIBE_MATCHER_RESULTS = 'VIBE_MATCHER_RESULTS',
@@ -32,6 +37,7 @@ export enum UserRole {
     ARTIST = 'ARTIST',
     STOODIO = 'STOODIO',
     ENGINEER = 'ENGINEER',
+    PRODUCER = 'PRODUCER',
 }
 
 export enum BookingStatus {
@@ -70,6 +76,7 @@ export enum SubscriptionPlan {
     FREE = 'FREE',
     STOODIO_PRO = 'STOODIO_PRO',
     ENGINEER_PLUS = 'ENGINEER_PLUS',
+    PRODUCER_PRO = 'PRODUCER_PRO',
 }
 
 export enum SubscriptionStatus {
@@ -87,6 +94,10 @@ export enum TransactionCategory {
     ADD_FUNDS = 'ADD_FUNDS',
     WITHDRAWAL = 'WITHDRAWAL',
     PLATFORM_FEE = 'PLATFORM_FEE',
+    BEAT_SALE = 'BEAT_SALE',
+    BEAT_PURCHASE = 'BEAT_PURCHASE',
+    MIXING_PAYMENT = 'MIXING_PAYMENT',
+    MIXING_PAYOUT = 'MIXING_PAYOUT',
 }
 
 export enum TransactionStatus {
@@ -131,6 +142,7 @@ export interface Following {
     stoodioz: string[];
     engineers: string[];
     artists: string[];
+    producers: string[];
 }
 
 export interface Link {
@@ -189,6 +201,13 @@ export interface Artist extends BaseUser {
     showOnMap?: boolean;
 }
 
+export interface MixingServices {
+    isEnabled: boolean;
+    pricePerTrack: number;
+    description: string;
+    turnaroundTime: string; // e.g., "3-5 business days"
+}
+
 export interface Engineer extends BaseUser {
     bio: string;
     specialties: string[];
@@ -205,6 +224,34 @@ export interface Engineer extends BaseUser {
     };
     minimumPayRate?: number;
     subscription?: Subscription;
+    mixingServices?: MixingServices;
+}
+
+export interface Instrumental {
+    id: string;
+    title: string;
+    audioUrl: string;
+    coverArtUrl?: string;
+    priceLease: number;
+    priceExclusive: number;
+    genre: string;
+    bpm?: number;
+    key?: string;
+    tags: string[];
+    isFreeDownloadAvailable?: boolean;
+}
+
+export interface Producer extends BaseUser {
+    bio: string;
+    genres: string[];
+    rating: number;
+    imageUrl: string;
+    isAvailable: boolean;
+    showOnMap?: boolean;
+    availability?: { date: string; times: string[] }[];
+    instrumentals: Instrumental[];
+    subscription?: Subscription;
+    pullUpPrice?: number;
 }
 
 export interface InHouseEngineerInfo {
@@ -230,8 +277,14 @@ export interface Stoodio extends BaseUser {
     subscription?: Subscription;
 }
 
+export interface MixingDetails {
+    type: 'REMOTE' | 'IN_STUDIO';
+    trackCount: number;
+    notes: string;
+}
+
 export interface BookingRequest {
-    room: Room;
+    room?: Room;
     date: string;
     startTime: string;
     duration: number;
@@ -240,11 +293,15 @@ export interface BookingRequest {
     requestType: BookingRequestType;
     requestedEngineerId?: string;
     requiredSkills?: string[];
+    producerId?: string;
+    instrumentalsToPurchase?: Instrumental[];
+    pullUpFee?: number;
+    mixingDetails?: MixingDetails;
 }
 
 export interface Booking {
     id: string;
-    room: Room;
+    room?: Room;
     date: string;
     startTime: string;
     duration: number;
@@ -252,15 +309,19 @@ export interface Booking {
     engineerPayRate: number;
     requestType: BookingRequestType;
     status: BookingStatus;
-    stoodio: Stoodio;
+    stoodio?: Stoodio;
     artist: Artist | null;
     engineer: Engineer | null;
+    producer: Producer | null;
     requestedEngineerId: string | null;
     bookedById: string;
     bookedByRole: UserRole;
     requiredSkills?: string[];
     postedBy?: UserRole;
     tip?: number;
+    instrumentalsPurchased?: Instrumental[];
+    pullUpFee?: number;
+    mixingDetails?: MixingDetails;
 }
 
 export interface Review {
@@ -274,12 +335,18 @@ export interface Review {
     date: string;
 }
 
+export interface FileAttachment {
+    name: string;
+    url: string;
+    size: string;
+}
+
 export interface Message {
     id: string;
     senderId: string;
     text?: string;
     timestamp: string;
-    type: 'text' | 'image' | 'link' | 'audio';
+    type: 'text' | 'image' | 'link' | 'audio' | 'agreement' | 'files' | 'system';
     imageUrl?: string;
     link?: LinkAttachment;
     audioUrl?: string;
@@ -287,14 +354,17 @@ export interface Message {
         filename: string;
         duration: string;
     };
+    files?: FileAttachment[];
 }
 
 export interface Conversation {
     id: string;
-    participant: Artist | Engineer | Stoodio;
+    participants: (Artist | Engineer | Stoodio | Producer)[];
     messages: Message[];
     unreadCount: number;
     bookingId?: string;
+    title?: string;
+    imageUrl?: string;
 }
 
 export interface AppNotification {
@@ -318,8 +388,8 @@ export interface VibeMatchResult {
     vibeDescription: string;
     tags: string[];
     recommendations: {
-        type: 'stoodio' | 'engineer';
-        entity: Stoodio | Engineer;
+        type: 'stoodio' | 'engineer' | 'producer';
+        entity: Stoodio | Engineer | Producer;
         reason: string;
     }[];
 }

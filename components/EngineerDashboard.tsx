@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import type { Engineer, Review, Booking, Artist, Stoodio, Transaction } from '../types';
+import type { Engineer, Review, Booking, Artist, Stoodio, Transaction, Producer } from '../types';
 import { BookingStatus, AppView, SubscriptionPlan, UserRole } from '../types';
-import { DollarSignIcon, CalendarIcon, StarIcon, CheckCircleIcon, CloseCircleIcon, BriefcaseIcon, RoadIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, StarIcon, CheckCircleIcon, CloseCircleIcon, BriefcaseIcon, RoadIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import Following from './Following';
@@ -9,6 +9,7 @@ import FollowersList from './FollowersList';
 import AvailabilityManager from './AvailabilityManager';
 import NotificationSettings from './NotificationSettings';
 import Wallet from './Wallet';
+import MixingServicesManager from './MixingServicesManager';
 
 interface EngineerDashboardProps {
     engineer: Engineer;
@@ -20,16 +21,18 @@ interface EngineerDashboardProps {
     allArtists: Artist[];
     allEngineers: Engineer[];
     allStoodioz: Stoodio[];
+    allProducers: Producer[];
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
-    onToggleFollow: (type: 'artist' | 'engineer' | 'stoodio', id: string) => void;
+    onSelectProducer: (producer: Producer) => void;
+    onToggleFollow: (type: 'artist' | 'engineer' | 'stoodio' | 'producer', id: string) => void;
     onNavigateToStudio: (location: any) => void;
     onStartConversation: (participant: Artist | Stoodio | Engineer) => void;
     onPost: (postData: any) => void;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | null;
     onStartSession: (booking: Booking) => void;
     onNavigate: (view: AppView) => void;
     onOpenAddFundsModal: () => void;
@@ -37,7 +40,7 @@ interface EngineerDashboardProps {
     onViewBooking: (bookingId: string) => void;
 }
 
-type DashboardTab = 'dashboard' | 'jobs' | 'availability' | 'preferences' | 'wallet' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'jobs' | 'availability' | 'preferences' | 'wallet' | 'followers' | 'following' | 'mixing';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
@@ -74,7 +77,7 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 
 
 const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
-    const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer, onNavigate, onNavigateToStudio, onOpenAddFundsModal, onOpenPayoutModal, onViewBooking } = props;
+    const { engineer, bookings, onAcceptBooking, onDenyBooking, onStartSession, currentUser, allArtists, allEngineers, allStoodioz, allProducers, onSelectArtist, onSelectEngineer, onSelectStoodio, onSelectProducer, onToggleFollow, onPost, onLikePost, onCommentOnPost, onUpdateEngineer, onNavigate, onNavigateToStudio, onOpenAddFundsModal, onOpenPayoutModal, onViewBooking } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
     const openJobs = bookings.filter(job => {
@@ -85,14 +88,11 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
             return false;
         }
         
-        // Always show direct requests regardless of pay rate
         if (job.status === BookingStatus.PENDING_APPROVAL) {
             return true;
         }
         
-        // For open jobs, check against minimum pay rate
         if (job.status === BookingStatus.PENDING) {
-            // If engineer has a min pay rate, filter jobs that pay less.
             if (engineer.minimumPayRate && job.engineerPayRate < engineer.minimumPayRate) {
                 return false;
             }
@@ -103,10 +103,11 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
     
     const upcomingSessions = bookings.filter(b => b.engineer?.id === engineer.id && b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date());
 
-    const followers = [...allArtists, ...allEngineers, ...allStoodioz].filter(u => u.followerIds.includes(engineer.id));
+    const followers = [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers].filter(u => u.followerIds.includes(engineer.id));
     const followedStoodioz = allStoodioz.filter(s => engineer.following.stoodioz.includes(s.id));
     const followedEngineers = allEngineers.filter(e => engineer.following.engineers.includes(e.id));
     const followedArtists = allArtists.filter(a => engineer.following.artists.includes(a.id));
+    const followedProducers = allProducers.filter(p => engineer.following.producers.includes(p.id));
     
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
 
@@ -121,7 +122,7 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                                 <div className="space-y-4 max-h-96 overflow-y-auto">
                                     {openJobs.map(job => (
                                         <div key={job.id} className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
-                                            <p className="font-bold text-zinc-200">{job.stoodio.name}</p>
+                                            <p className="font-bold text-zinc-200">{job.stoodio?.name || 'Remote Mix Request'}</p>
                                             <p className="text-sm text-zinc-400">{new Date(job.date + 'T00:00:00').toLocaleDateString()} at {job.startTime}</p>
                                             <p className="text-sm text-green-400 font-semibold">${job.engineerPayRate}/hr for {job.duration} hrs</p>
                                             <div className="flex gap-2 mt-2">
@@ -139,14 +140,14 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                                 <div className="space-y-4 max-h-96 overflow-y-auto">
                                     {upcomingSessions.map(session => (
                                         <div key={session.id} className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
-                                            <p className="font-bold text-zinc-200">{session.stoodio.name}</p>
+                                            <p className="font-bold text-zinc-200">{session.stoodio?.name || 'Remote Mix'}</p>
                                             <p className="text-sm text-zinc-400">with {session.artist?.name || 'Studio Job'}</p>
                                             <p className="text-sm text-zinc-400">{new Date(session.date + 'T00:00:00').toLocaleDateString()} at {session.startTime}</p>
                                             <div className="flex gap-2 mt-2">
-                                                <button onClick={() => onNavigateToStudio(session.stoodio.coordinates)} className="w-full bg-green-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5 justify-center">
+                                                {session.stoodio && <button onClick={() => onNavigateToStudio(session.stoodio!.coordinates)} className="w-full bg-green-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5 justify-center">
                                                     <RoadIcon className="w-4 h-4"/>
                                                     Navigate
-                                                </button>
+                                                </button>}
                                                 <button onClick={() => onStartSession(session)} className="w-full bg-orange-500 text-white font-bold py-2 px-3 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md">
                                                     Start Session
                                                 </button>
@@ -158,6 +159,8 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                         </div>
                     </div>
                 );
+            case 'mixing':
+                return <MixingServicesManager engineer={engineer} onUpdateEngineer={onUpdateEngineer} />;
              case 'availability':
                 return <AvailabilityManager user={engineer} onUpdateUser={onUpdateEngineer} />;
             case 'preferences':
@@ -173,15 +176,15 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                     />
                 );
             case 'followers':
-                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} />;
+                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} onSelectProducer={onSelectProducer} />;
             case 'following':
-                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} />;
+                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectProducer={onSelectProducer} />;
             case 'dashboard':
             default:
                 return (
                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={currentUser!} onPost={onPost} />
+                            <CreatePost currentUser={currentUser as Engineer} onPost={onPost} />
                             <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
                         </div>
                         <div className="lg:col-span-1 space-y-6">
@@ -232,6 +235,7 @@ const EngineerDashboard: React.FC<EngineerDashboardProps> = (props) => {
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Job Board" isActive={activeTab === 'jobs'} onClick={() => setActiveTab('jobs')} />
+                    <TabButton label="Mixing Services" isActive={activeTab === 'mixing'} onClick={() => setActiveTab('mixing')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Job Preferences" isActive={activeTab === 'preferences'} onClick={() => setActiveTab('preferences')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />

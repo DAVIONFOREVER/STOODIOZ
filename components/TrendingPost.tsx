@@ -1,15 +1,16 @@
 
+
 import React from 'react';
-import type { Post, Artist, Engineer, Stoodio } from '../types';
+import type { Post, Artist, Engineer, Stoodio, Producer } from '../types';
 import { HeartIcon, ChatBubbleIcon } from './icons';
 
 interface TrendingPostProps {
     post: Post;
-    author: Artist | Engineer | Stoodio;
+    author: Artist | Engineer | Stoodio | Producer;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | null;
-    onSelectUser: (user: Artist | Engineer | Stoodio) => void;
+    currentUser: Artist | Engineer | Stoodio | Producer | null;
+    onSelectUser: (user: Artist | Engineer | Stoodio | Producer) => void;
 }
 
 const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onLikePost, onCommentOnPost, currentUser, onSelectUser }) => {

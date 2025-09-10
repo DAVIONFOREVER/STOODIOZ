@@ -1,5 +1,7 @@
+
+
 import React, { useState } from 'react';
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction } from '../types';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon } from './icons';
 import CreatePost from './CreatePost';
@@ -142,15 +144,17 @@ interface StoodioDashboardProps {
     allArtists: Artist[];
     allEngineers: Engineer[];
     allStoodioz: Stoodio[];
+    allProducers: Producer[];
     onUpdateStoodio: (updatedProfile: Partial<Stoodio>) => void;
-    onToggleFollow: (type: 'artist' | 'engineer' | 'stoodio', id: string) => void;
+    onToggleFollow: (type: 'artist' | 'engineer' | 'stoodio' | 'producer', id: string) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
+    onSelectProducer: (producer: Producer) => void;
     onPost: (postData: { text: string; imageUrl?: string; link?: LinkAttachment }) => void;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | null;
     onPostJob: (jobRequest: JobPostData) => void;
     onVerificationSubmit: (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => void;
     onNavigate: (view: AppView) => void;
@@ -181,17 +185,18 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
-    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer, onVerificationSubmit, onNavigate, onOpenAddFundsModal, onOpenPayoutModal, onViewBooking } = props;
+    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, allProducers, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer, onVerificationSubmit, onNavigate, onOpenAddFundsModal, onOpenPayoutModal, onViewBooking } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
 
     const upcomingBookingsCount = bookings
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    const followers = [...allArtists, ...allEngineers, ...allStoodioz].filter(u => u.followerIds.includes(stoodio.id));
+    const followers = [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers].filter(u => u.followerIds.includes(stoodio.id));
     const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
     const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
     const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
+    const followedProducers = allProducers.filter(p => stoodio.following.producers.includes(p.id));
 
     const handleBookSession = () => {
         onSelectStoodio(stoodio);
@@ -239,15 +244,15 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     </div>
                 );
             case 'followers':
-                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} />;
+                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} onSelectProducer={onSelectProducer} />;
             case 'following':
-                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} />;
+                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectProducer={onSelectProducer} />;
             case 'dashboard':
             default:
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={currentUser!} onPost={onPost} />
+                            <CreatePost currentUser={currentUser as Stoodio} onPost={onPost} />
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">

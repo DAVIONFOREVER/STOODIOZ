@@ -1,18 +1,22 @@
+
+
 import React from 'react';
-import type { Stoodio, Engineer, Artist } from '../types';
-import { UserCheckIcon, LocationIcon } from './icons';
+import type { Stoodio, Engineer, Artist, Producer } from '../types';
+import { UserCheckIcon, LocationIcon, MusicNoteIcon } from './icons';
 
 interface FollowingProps {
     studios: Stoodio[];
     engineers: Engineer[];
     artists: Artist[];
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist', id: string) => void;
+    producers: Producer[];
+    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
     onSelectStudio: (studio: Stoodio) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
+    onSelectProducer: (producer: Producer) => void;
 }
 
-const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, onToggleFollow, onSelectStudio, onSelectArtist, onSelectEngineer }) => {
+const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, producers, onToggleFollow, onSelectStudio, onSelectArtist, onSelectEngineer, onSelectProducer }) => {
     return (
         <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
             <h1 className="text-2xl font-bold mb-6 text-zinc-100">Following</h1>
@@ -99,6 +103,33 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, onTo
                         </div>
                     ) : (
                         <p className="text-zinc-500 text-sm">You're not following any artists yet.</p>
+                    )}
+                </div>
+
+                {/* Followed Producers */}
+                <div>
+                    <h2 className="text-xl font-semibold mb-4 text-zinc-300">Producers</h2>
+                     {producers.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-4">
+                            {producers.map(producer => (
+                                <div key={producer.id} className="bg-zinc-900/50 rounded-xl p-3 flex items-center gap-4 border border-zinc-700">
+                                    <img src={producer.imageUrl} alt={producer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                                    <div className="flex-grow">
+                                        <button onClick={() => onSelectProducer(producer)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{producer.name}</button>
+                                        <p className="text-sm text-zinc-400 truncate">{producer.genres.join(', ')}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => onToggleFollow('producer', producer.id)}
+                                        className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 bg-orange-500/20 text-orange-300"
+                                    >
+                                        <UserCheckIcon className="w-4 h-4" />
+                                        Following
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-zinc-500 text-sm">You're not following any producers yet.</p>
                     )}
                 </div>
             </div>

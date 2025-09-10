@@ -4,7 +4,7 @@
 import type { PlatformUser, DashboardStats } from '../types';
 import { UserRole } from '../../types';
 import type { Booking } from '../../types';
-import { MOCK_ARTISTS, ENGINEERS, STOODIOZ } from '../../constants';
+import { MOCK_ARTISTS, ENGINEERS, STOODIOZ, MOCK_PRODUCERS } from '../../constants';
 import { BookingStatus, BookingRequestType } from '../../types';
 
 // Let's create some more mock data for a richer admin experience
@@ -24,6 +24,7 @@ const generateMockBookings = (): Booking[] => {
             stoodio,
             artist,
             engineer,
+            producer: null,
             room: stoodio.rooms[0],
             date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             startTime: `${Math.floor(Math.random() * 10) + 10}:00`,
@@ -44,6 +45,7 @@ const allUsers: PlatformUser[] = [
     ...MOCK_ARTISTS.map(a => ({...a, role: UserRole.ARTIST, joinedDate: new Date().toISOString() })),
     ...ENGINEERS.map(e => ({...e, role: UserRole.ENGINEER, joinedDate: new Date().toISOString() })),
     ...STOODIOZ.map(s => ({...s, role: UserRole.STOODIO, joinedDate: new Date().toISOString() })),
+    ...MOCK_PRODUCERS.map(p => ({...p, role: UserRole.PRODUCER, joinedDate: new Date().toISOString() })),
 ];
 
 const allBookings = generateMockBookings();
@@ -69,6 +71,7 @@ export const apiService = {
             artistCount: MOCK_ARTISTS.length,
             engineerCount: ENGINEERS.length,
             stoodioCount: STOODIOZ.length,
+            producerCount: MOCK_PRODUCERS.length,
             totalBookings: allBookings.length,
         };
         return new Promise(resolve => setTimeout(() => resolve(stats), 300));

@@ -8,7 +8,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <style>
         :root {
@@ -23,10 +23,9 @@
         }
 
         body {
-            font-family: 'Rajdhani', sans-serif;
+            font-family: 'Inter', sans-serif;
             background-color: var(--zinc-950);
             color: var(--zinc-200);
-            overflow: hidden;
         }
         
         body::before {
@@ -47,21 +46,9 @@
             will-change: transform;
         }
 
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background-image: url("data:image/svg+xml,%3csvg width='400' height='400' xmlns='http://www.w3.org/2000/svg'%3e%3cg stroke='rgba(255,255,255,0.08)' stroke-width='1.2'%3e%3cpath d='M150 0 L150 70' /%3e%3cpath d='M150 70 L120 100' /%3e%3cpath d='M150 70 L180 100' /%3e%3cpath d='M180 100 L250 80' /%3e%3cpath d='M180 100 L180 150' /%3e%3cpath d='M10 150 L80 220' /%3e%3cpath d='M80 220 L150 210' /%3e%3cpath d='M80 220 L70 280' /%3e%3cpath d='M300 250 L220 380' /%3e%3cpath d='M220 380 L250 400' /%3e%3cpath d='M220 380 L180 390' /%3e%3c/g%3e%3c/svg%3e");
-            z-index: 5;
-            pointer-events: none;
-            mix-blend-mode: soft-light;
-            opacity: 0.7;
-        }
-
         h1, h2, h3, h4, .font-display {
-            font-family: 'Rajdhani', sans-serif;
+            font-family: 'Inter', sans-serif;
             font-weight: 700;
-            letter-spacing: 0.025em;
         }
         
         .main-container {
@@ -69,32 +56,8 @@
             z-index: 1;
             height: 100vh;
             overflow-y: auto;
+            overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
-        }
-
-        /* Card Interaction Styles */
-        .tilt-card {
-            border: 1px solid rgba(249, 115, 22, 0.3); /* Permanent orange border */
-            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                        box-shadow 0.3s ease-out;
-        }
-        .tilt-card:hover {
-            transform: scale(1.03); /* Subtle scale on hover */
-            box-shadow: 0 0 25px rgba(249, 115, 22, 0.4), /* Main glow */
-                        0 0 50px rgba(249, 115, 22, 0.25),  /* Wider, softer glow */
-                        inset 0 0 15px rgba(249, 115, 22, 0.15); /* Subtle inner glow */
-        }
-        .glare-effect {
-            position: absolute;
-            inset: 0;
-            background-image: radial-gradient(circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 40%);
-            opacity: 0;
-            transition: opacity 0.2s ease-out;
-            pointer-events: none;
-            mix-blend-mode: soft-light;
-        }
-        .tilt-card:hover .glare-effect {
-            opacity: 1;
         }
         
         /* Animation Keyframes */
@@ -141,9 +104,9 @@
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.17.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^1.9.1.1/",
-    "react/": "https://aistudiocdn.com/react@^1.9.1.1/",
-    "react": "https://aistudiocdn.com/react@^1.9.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
     "date-fns": "https://aistudiocdn.com/date-fns@^4.1.0"
   }
 }

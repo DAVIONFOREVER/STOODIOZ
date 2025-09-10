@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import type { PlatformUser } from '../types';
 import { UserRole } from '../../types';
@@ -27,9 +29,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users }) => {
     }, [users, searchTerm, roleFilter]);
 
     const roleStyles: Record<UserRole, string> = {
-        [UserRole.ARTIST]: 'bg-purple-500/20 text-purple-300',
+        [UserRole.ARTIST]: 'bg-green-500/20 text-green-300',
         [UserRole.ENGINEER]: 'bg-orange-500/20 text-orange-300',
         [UserRole.STOODIO]: 'bg-red-500/20 text-red-300',
+        [UserRole.PRODUCER]: 'bg-purple-500/20 text-purple-300',
     };
     
     const handleAction = (action: string, userId: string) => {
@@ -63,6 +66,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users }) => {
                     <option value={UserRole.ARTIST}>Artist</option>
                     <option value={UserRole.ENGINEER}>Engineer</option>
                     <option value={UserRole.STOODIO}>Stoodio</option>
+                    <option value={UserRole.PRODUCER}>Producer</option>
                 </select>
             </div>
 

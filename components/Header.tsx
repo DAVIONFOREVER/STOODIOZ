@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppView, UserRole, type AppNotification, type Artist, type Engineer, type Stoodio } from '../types';
-import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon } from './icons';
+import { AppView, UserRole, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
+import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon } from './icons';
 import NotificationPanel from './NotificationPanel';
 import UniversalSearch from './UniversalSearch';
 
@@ -18,16 +18,18 @@ interface HeaderProps {
     onMarkAllAsRead: () => void;
     allArtists: Artist[];
     allEngineers: Engineer[];
+    allProducers: Producer[];
     allStoodioz: Stoodio[];
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
+    onSelectProducer: (producer: Producer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
 }
 
 const Header: React.FC<HeaderProps> = (props) => {
     const { 
         onNavigate, userRole, notifications, unreadCount, onGoBack, onGoForward, canGoBack, canGoForward, onLogout, onMarkAsRead, onMarkAllAsRead,
-        allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio
+        allArtists, allEngineers, allProducers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio
     } = props;
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -75,6 +77,9 @@ const Header: React.FC<HeaderProps> = (props) => {
             case UserRole.ENGINEER:
                 onNavigate(AppView.ENGINEER_DASHBOARD);
                 break;
+            case UserRole.PRODUCER:
+                onNavigate(AppView.PRODUCER_DASHBOARD);
+                break;
             case UserRole.STOODIO:
                 onNavigate(AppView.STOODIO_DASHBOARD);
                 break;
@@ -104,8 +109,8 @@ const Header: React.FC<HeaderProps> = (props) => {
                         {/* LEFT SECTION */}
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <button onClick={handleLogoClick} className="flex-shrink-0 flex items-center gap-3 group">
-                               <StoodiozLogoIcon className="h-9 w-9 text-orange-500 group-hover:text-orange-400 transition-colors" />
-                               <span className="text-2xl font-bold text-slate-100 group-hover:text-orange-400 transition-colors tracking-tight hidden sm:inline">
+                               <StoodiozLogoIcon className="h-10 w-10 text-orange-500 group-hover:text-orange-400 transition-colors" />
+                               <span className="text-3xl font-bold text-slate-100 group-hover:text-orange-400 transition-colors tracking-tight hidden sm:inline">
                                     Stoodioz
                                 </span>
                             </button>
@@ -119,22 +124,32 @@ const Header: React.FC<HeaderProps> = (props) => {
                             </div>
                         </div>
                         
-                        {/* CENTER SECTION (Search) */}
-                         {userRole && (
-                            <div className="flex-1 flex justify-center px-4">
+                        {/* CENTER SECTION */}
+                        <div className="hidden lg:flex flex-1 justify-center items-center px-4">
+                            {userRole ? (
                                 <UniversalSearch 
                                     allArtists={allArtists}
                                     allEngineers={allEngineers}
+                                    allProducers={allProducers}
                                     allStoodioz={allStoodioz}
                                     onSelectArtist={onSelectArtist}
                                     onSelectEngineer={onSelectEngineer}
+                                    onSelectProducer={onSelectProducer}
                                     onSelectStoodio={onSelectStoodio}
                                 />
-                            </div>
-                        )}
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className={navLinkClasses}>Find Stoodioz</button>
+                                    <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className={navLinkClasses}>Find Engineers</button>
+                                    <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className={navLinkClasses}>Find Producers</button>
+                                    <button onClick={() => onNavigate(AppView.ARTIST_LIST)} className={navLinkClasses}>Find Artists</button>
+                                    <button onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)} className={navLinkClasses}>Pricing</button>
+                                </div>
+                            )}
+                        </div>
                         
                         {/* RIGHT SECTION - DESKTOP */}
-                        <div className="hidden md:flex items-center justify-end">
+                        <div className="hidden lg:flex items-center justify-end flex-shrink-0">
                             {userRole ? (
                                 <div className="flex items-center space-x-1">
                                     <button onClick={() => onNavigate(AppView.THE_STAGE)} className={`${navLinkClasses} flex items-center gap-1.5`}>
@@ -178,9 +193,6 @@ const Header: React.FC<HeaderProps> = (props) => {
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
-                                    <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className={navLinkClasses}>Find Stoodioz</button>
-                                    <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className={navLinkClasses}>Find Engineers</button>
-                                    <button onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)} className={navLinkClasses}>Pricing</button>
                                     <button onClick={() => onNavigate(AppView.LOGIN)} className="text-slate-300 hover:text-orange-400 px-4 py-2 rounded-md text-sm font-semibold transition-colors">Login</button>
                                     <button onClick={() => onNavigate(AppView.CHOOSE_PROFILE)} className="bg-orange-500 text-white font-bold py-2 px-5 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md shadow-orange-500/20">Get Started</button>
                                 </div>
@@ -188,7 +200,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                         </div>
 
                         {/* RIGHT SECTION - MOBILE */}
-                        <div className="md:hidden flex items-center">
+                        <div className="lg:hidden flex items-center">
                             <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-300 hover:text-orange-400">
                                 <BentoIcon className="w-6 h-6"/>
                             </button>
@@ -205,12 +217,12 @@ const Header: React.FC<HeaderProps> = (props) => {
 
             {/* MOBILE MENU */}
             {isMobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 z-[100] bg-zinc-900" role="dialog" aria-modal="true">
+                <div className="lg:hidden fixed inset-0 z-[100] bg-zinc-900" role="dialog" aria-modal="true">
                     <div className="p-6 h-full flex flex-col">
                         <div className="flex items-center justify-between mb-8">
                              <button onClick={() => handleMobileNav(userRole ? AppView.THE_STAGE : AppView.LANDING_PAGE)} className="flex-shrink-0 flex items-center gap-3 group">
-                                <StoodiozLogoIcon className="h-8 w-8 text-orange-500" />
-                                <span className="text-xl font-bold text-slate-100">Stoodioz</span>
+                                <StoodiozLogoIcon className="h-9 w-9 text-orange-500" />
+                                <span className="text-2xl font-bold text-slate-100">Stoodioz</span>
                             </button>
                             <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-100">
                                 <CloseIcon className="w-6 h-6"/>
@@ -231,6 +243,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                                     <div>
                                         <MobileNavLink icon={<HouseIcon className="w-5 h-5"/>} label="Find Stoodioz" onClick={() => handleMobileNav(AppView.STOODIO_LIST)} />
                                         <MobileNavLink icon={<SoundWaveIcon className="w-5 h-5"/>} label="Find Engineers" onClick={() => handleMobileNav(AppView.ENGINEER_LIST)} />
+                                        <MobileNavLink icon={<MusicNoteIcon className="w-5 h-5"/>} label="Find Producers" onClick={() => handleMobileNav(AppView.PRODUCER_LIST)} />
                                         <MobileNavLink icon={<MicrophoneIcon className="w-5 h-5"/>} label="Find Artists" onClick={() => handleMobileNav(AppView.ARTIST_LIST)} />
                                     </div>
                                      <div className="border-t border-zinc-700 pt-4 mt-auto space-y-2">

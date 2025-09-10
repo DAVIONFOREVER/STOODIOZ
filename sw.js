@@ -25,9 +25,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'Stoodioz';
     const options = {
       body: data.body,
-      // Using placeholder icons as no assets are available
-      icon: 'https://source.unsplash.com/seeded/icon/192x192', 
-      badge: 'https://source.unsplash.com/seeded/badge/72x72', 
+      icon: 'https://picsum.photos/seed/stoodiozicon/192/192', 
+      badge: 'https://picsum.photos/seed/stoodiozbadge/72/72', 
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
@@ -36,8 +35,8 @@ self.addEventListener('push', (event) => {
       const title = 'Stoodioz';
       const options = {
           body: event.data.text(),
-          icon: 'https://source.unsplash.com/seeded/icon/192x192',
-          badge: 'https://source.unsplash.com/seeded/badge/72x72',
+          icon: 'https://picsum.photos/seed/stoodiozicon/192/192',
+          badge: 'https://picsum.photos/seed/stoodiozbadge/72/72',
       };
       event.waitUntil(self.registration.showNotification(title, options));
   }

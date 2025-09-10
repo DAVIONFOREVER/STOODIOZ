@@ -56,8 +56,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ session, onEndSession, on
                     <img src="https://source.unsplash.com/seeded/map-route/1200x500" alt="Map route to stoodio" className="w-full h-64 md:h-80 object-cover" />
                     <div className="absolute top-0 left-0 w-full h-full bg-black/30"></div>
                     <div className="absolute top-4 left-4 bg-zinc-800/80 backdrop-blur-sm p-4 rounded-lg shadow-lg">
-                        <h2 className="text-2xl font-bold text-slate-100">{session.stoodio.name}</h2>
-                        <p className="text-slate-300 flex items-center gap-2 mt-1"><LocationIcon className="w-5 h-5" /> {session.stoodio.location}</p>
+                        <h2 className="text-2xl font-bold text-slate-100">{session.stoodio?.name}</h2>
+                        <p className="text-slate-300 flex items-center gap-2 mt-1"><LocationIcon className="w-5 h-5" /> {session.stoodio?.location}</p>
                     </div>
                      <div className="absolute bottom-4 right-4 bg-zinc-800/80 backdrop-blur-sm p-3 rounded-lg shadow-lg text-center">
                         <p className="text-sm text-slate-400">ETA</p>

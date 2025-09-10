@@ -121,7 +121,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ stoodioz, onSelectStoodio }) 
                 </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {filteredStoodioz.map((stoodio, index) => (
                     <div key={stoodio.id} className="animate-fade-in-up" style={{ animationDelay: `${index * 50}ms`}}>
                         <StoodioCard 

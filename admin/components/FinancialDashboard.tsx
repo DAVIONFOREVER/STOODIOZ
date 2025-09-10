@@ -1,7 +1,8 @@
 
+
 import React from 'react';
 import type { DashboardStats } from '../types';
-import { MoneyIcon, UsersIcon, CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon } from './icons';
+import { MoneyIcon, UsersIcon, CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons';
 
 interface FinancialDashboardProps {
     stats: DashboardStats | null;
@@ -66,6 +67,12 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ stats }) => {
                     value={stats.stoodioCount.toLocaleString()}
                     icon={<HouseIcon className="w-7 h-7 text-red-300" />}
                     color="bg-red-500/20"
+                />
+                <StatCard 
+                    label="Producers" 
+                    value={stats.producerCount.toLocaleString()}
+                    icon={<MusicNoteIcon className="w-7 h-7 text-purple-300" />}
+                    color="bg-purple-500/20"
                 />
             </div>
 

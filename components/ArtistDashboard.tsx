@@ -1,5 +1,7 @@
+
+
 import React, { useState } from 'react';
-import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
+import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon } from './icons';
 import CreatePost from './CreatePost';
@@ -17,14 +19,16 @@ interface ArtistDashboardProps {
     allStoodioz: Stoodio[];
     allEngineers: Engineer[];
     allArtists: Artist[];
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist', id: string) => void;
+    allProducers: Producer[];
+    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectArtist: (artist: Artist) => void;
+    onSelectProducer: (producer: Producer) => void;
     onPost: (postData: { text: string; imageUrl?: string; link?: LinkAttachment }) => void;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | null;
     onOpenVibeMatcher: () => void;
     onOpenAddFundsModal: () => void;
     onViewBooking: (bookingId: string) => void;
@@ -52,13 +56,14 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const ArtistDashboard: React.FC<ArtistDashboardProps> = (props) => {
-    const { artist, bookings, onPost, onLikePost, onCommentOnPost, currentUser, allStoodioz, allEngineers, allArtists, onToggleFollow, onSelectStoodio, onSelectEngineer, onSelectArtist, onOpenVibeMatcher, onUpdateProfile, onOpenAddFundsModal, onViewBooking } = props;
+    const { artist, bookings, onPost, onLikePost, onCommentOnPost, currentUser, allStoodioz, allEngineers, allArtists, allProducers, onToggleFollow, onSelectStoodio, onSelectEngineer, onSelectArtist, onSelectProducer, onOpenVibeMatcher, onUpdateProfile, onOpenAddFundsModal, onViewBooking } = props;
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
     
-    const followers = [...allArtists, ...allEngineers, ...allStoodioz].filter(u => u.followerIds.includes(artist.id));
+    const followers = [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers].filter(u => u.followerIds.includes(artist.id));
     const followedStoodioz = allStoodioz.filter(s => artist.following.stoodioz.includes(s.id));
     const followedEngineers = allEngineers.filter(e => artist.following.engineers.includes(e.id));
     const followedArtists = allArtists.filter(a => artist.following.artists.includes(a.id));
+    const followedProducers = allProducers.filter(p => artist.following.producers.includes(p.id));
     
     const renderContent = () => {
         switch (activeTab) {
@@ -72,15 +77,15 @@ const ArtistDashboard: React.FC<ArtistDashboardProps> = (props) => {
                     />
                 );
             case 'followers':
-                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} />;
+                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} onSelectProducer={onSelectProducer} />;
             case 'following':
-                 return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} />;
+                 return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectProducer={onSelectProducer} />;
             case 'dashboard':
             default:
                 return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={currentUser!} onPost={onPost} />
+                            <CreatePost currentUser={currentUser as Artist} onPost={onPost} />
                             <PostFeed
                                 posts={artist.posts || []}
                                 authors={new Map([[artist.id, artist]])}

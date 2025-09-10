@@ -1,4 +1,4 @@
-import type { Artist, Engineer, Stoodio, UserRole } from '../types';
+import type { Artist, Engineer, Stoodio, UserRole, Producer } from '../types';
 
 export enum AdminView {
     DASHBOARD = 'DASHBOARD',
@@ -12,7 +12,7 @@ export interface AdminUser {
     email: string;
 }
 
-export type PlatformUser = (Artist | Engineer | Stoodio) & { role: UserRole, joinedDate: string };
+export type PlatformUser = (Artist | Engineer | Stoodio | Producer) & { role: UserRole, joinedDate: string };
 
 export interface DashboardStats {
     totalRevenue: number;
@@ -20,5 +20,6 @@ export interface DashboardStats {
     artistCount: number;
     engineerCount: number;
     stoodioCount: number;
+    producerCount: number;
     totalBookings: number;
 }

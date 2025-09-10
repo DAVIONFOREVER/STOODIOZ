@@ -1,9 +1,10 @@
+
 import React from 'react';
-import type { Artist, Engineer, Stoodio } from '../types';
+import type { Artist, Engineer, Stoodio, Producer } from '../types';
 import { AppView, UserRole } from '../types';
 
 interface UserProfileCardProps {
-    user: Artist | Engineer | Stoodio;
+    user: Artist | Engineer | Stoodio | Producer;
     onNavigate: (view: AppView) => void;
 }
 
@@ -12,6 +13,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, onNavigate }) =
     const handleNavigateToDashboard = () => {
         if ('amenities' in user) onNavigate(AppView.STOODIO_DASHBOARD);
         else if ('specialties' in user) onNavigate(AppView.ENGINEER_DASHBOARD);
+        else if ('instrumentals' in user) onNavigate(AppView.PRODUCER_DASHBOARD);
         else onNavigate(AppView.ARTIST_DASHBOARD);
     };
 

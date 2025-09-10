@@ -1,20 +1,22 @@
 import React from 'react';
-import type { Stoodio, Engineer, Artist, Booking, VibeMatchResult } from '../types';
+import type { Stoodio, Engineer, Artist, Booking, VibeMatchResult, Producer } from '../types';
 import { AppView } from '../types';
-import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon } from './icons';
+import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons';
 import StoodioCard from './StudioCard';
 import EngineerCard from './EngineerCard';
 import ArtistCard from './ArtistCard';
+import ProducerCard from './ProducerCard';
 import AnimatedGradientText from './AnimatedGradientText';
-import AiHeroText from './AiHeroText';
-import DevNotificationButton from './DevNotificationButton';
+import ProductTour from './ProductTour';
 
 interface LandingPageProps {
     onNavigate: (view: AppView) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
+    onSelectProducer: (producer: Producer) => void;
     stoodioz: Stoodio[];
     engineers: Engineer[];
     artists: Artist[];
+    producers: Producer[];
     bookings: Booking[];
     vibeMatchResults: VibeMatchResult | null;
 }
@@ -26,11 +28,12 @@ const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
     </div>
 );
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, stoodioz, engineers, artists, bookings }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, stoodioz, engineers, artists, producers, bookings }) => {
     
     // Get some featured items
     const featuredStoodioz = stoodioz.slice(0, 3);
-    const featuredEngineers = engineers.slice(0, 2);
+    const featuredEngineers = engineers.slice(0, 3);
+    const featuredProducers = producers.slice(0, 3);
 
     return (
         <div className="space-y-24 md:space-y-32">
@@ -55,14 +58,37 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                     </button>
                 </div>
             </section>
+
+            {/* Product Tour Section */}
+            <section>
+                 <div className="text-center mb-12">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Discover the Stoodioz Workflow</h2>
+                </div>
+                <ProductTour />
+            </section>
             
+            {/* Featured Stoodioz Section */}
+            <section>
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Featured Stoodioz</h2>
+                    <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
+                        View All <ChevronRightIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {featuredStoodioz.map(stoodio => (
+                        <StoodioCard key={stoodio.id} stoodio={stoodio} onSelectStoodio={onSelectStoodio} />
+                    ))}
+                </div>
+            </section>
+
              {/* Stats Section */}
             <section className="max-w-4xl mx-auto">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                     <Stat value={stoodioz.length.toString()} label="Verified Stoodioz" />
                     <Stat value={engineers.length.toString()} label="Pro Engineers" />
-                    <Stat value={artists.length.toString()} label="Talented Artists" />
-                    <Stat value={bookings.length.toLocaleString() + "+"} label="Sessions Booked" />
+                    <Stat value={producers.length.toString()} label="Top Producers" />
+                    <Stat value={artists.length.toString()} label="Artists" />
                 </div>
             </section>
 
@@ -74,7 +100,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                         A seamless experience for every role in the music creation process.
                     </p>
                 </div>
-                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
                         <MicrophoneIcon className="w-12 h-12 text-green-400 mx-auto mb-4"/>
                         <h3 className="text-2xl font-bold text-zinc-100">For Artists</h3>
@@ -90,21 +116,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                         <h3 className="text-2xl font-bold text-zinc-100">For Stoodioz</h3>
                         <p className="text-zinc-400 mt-2">List your space, manage your calendar, find in-house talent, and keep your rooms booked.</p>
                     </div>
-                </div>
-            </section>
-
-            {/* Featured Stoodioz Section */}
-            <section>
-                <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Featured Stoodioz</h2>
-                    <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
-                        View All <ChevronRightIcon className="w-5 h-5"/>
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {featuredStoodioz.map(stoodio => (
-                        <StoodioCard key={stoodio.id} stoodio={stoodio} onSelectStoodio={onSelectStoodio} />
-                    ))}
+                    <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
+                        <MusicNoteIcon className="w-12 h-12 text-purple-400 mx-auto mb-4"/>
+                        <h3 className="text-2xl font-bold text-zinc-100">For Producers</h3>
+                        <p className="text-zinc-400 mt-2">Monetize your instrumentals, manage your beat store, and get hired for custom production work.</p>
+                    </div>
                 </div>
             </section>
             
@@ -116,13 +132,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                         View All <ChevronRightIcon className="w-5 h-5"/>
                     </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {featuredEngineers.map(engineer => (
                         <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={() => {
                             // a bit of a hack to navigate, a more robust solution would pass the select handler down
                             onNavigate(AppView.ENGINEER_LIST); 
                             setTimeout(() => onNavigate(AppView.ENGINEER_PROFILE), 0);
-                        }} onToggleFollow={()=>{}} isFollowing={false} isSelf={false} isLoggedIn={false} />
+                        }} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
+                    ))}
+                </div>
+            </section>
+
+             {/* Featured Producers Section */}
+            <section>
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Featured Producers</h2>
+                    <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
+                        View All <ChevronRightIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {featuredProducers.map(producer => (
+                        <ProducerCard key={producer.id} producer={producer} onSelectProducer={onSelectProducer} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
                     ))}
                 </div>
             </section>
@@ -140,8 +171,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                     Sign Up for Free
                 </button>
             </section>
-            
-            <DevNotificationButton />
         </div>
     );
 };

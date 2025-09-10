@@ -1,34 +1,40 @@
 // FIX: Implemented the EngineerProfile component which was previously a placeholder file, causing import errors.
 import React, { useState, useMemo } from 'react';
-import type { Engineer, Review, Artist, Stoodio, UserRole, Booking, Location } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, RoadIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon } from './icons';
+// FIX: Update currentUser to accept Producer
+// FIX: Separated UserRole enum from type-only import to use it as a value.
+import type { Engineer, Review, Artist, Stoodio, Booking, Location, Producer, MixingDetails } from '../types';
+import { UserRole } from '../types';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, RoadIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
 import PostFeed from './PostFeed';
 
 interface EngineerProfileProps {
     engineer: Engineer;
     onBack: () => void;
     reviews: Review[];
-    onToggleFollow: (type: 'engineer', id: string) => void;
+    onToggleFollow: (type: 'engineer' | 'artist' | 'stoodio' | 'producer', id: string) => void;
     isFollowing: boolean;
     userRole: UserRole | null;
     bookings: Booking[];
     allArtists: Artist[];
     allEngineers: Engineer[];
     allStoodioz: Stoodio[];
+    allProducers: Producer[];
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
+    onSelectProducer: (producer: Producer) => void;
     onStartNavigation: (location: Location) => void;
     onStartConversation: (participant: Engineer) => void;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | null;
     onInitiateBooking: (engineer: Engineer, date: string, time: string) => void;
+    onOpenMixingModal: () => void;
 }
 
 const ProfileCard: React.FC<{
-    profile: Stoodio | Engineer | Artist;
-    type: 'stoodio' | 'engineer' | 'artist';
+    profile: Stoodio | Engineer | Artist | Producer;
+    type: 'stoodio' | 'engineer' | 'artist' | 'producer';
     onClick: () => void;
 }> = ({ profile, type, onClick }) => {
     let icon;
@@ -39,7 +45,10 @@ const ProfileCard: React.FC<{
     } else if (type === 'engineer') {
         icon = <SoundWaveIcon className="w-4 h-4" />;
         details = (profile as Engineer).specialties.join(', ');
-    } else {
+    } else if (type === 'producer') {
+        icon = <MusicNoteIcon className="w-4 h-4" />;
+        details = (profile as Producer).genres.join(', ');
+    } else { // artist
         icon = <MicrophoneIcon className="w-4 h-4" />;
         details = (profile as Artist).bio;
     }
@@ -57,25 +66,29 @@ const ProfileCard: React.FC<{
 
 
 const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
-    const { engineer, onBack, reviews, onToggleFollow, isFollowing, currentUser, onStartConversation, onLikePost, onCommentOnPost, onInitiateBooking, onStartNavigation, allArtists, allEngineers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectStoodio } = props;
+    const { engineer, onBack, reviews, onToggleFollow, isFollowing, userRole, currentUser, onStartConversation, onLikePost, onCommentOnPost, onInitiateBooking, onStartNavigation, allArtists, allEngineers, allStoodioz, allProducers, onSelectArtist, onSelectEngineer, onSelectStoodio, onSelectProducer, onOpenMixingModal } = props;
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState('12:00');
 
     const engineerReviews = reviews.filter(r => r.engineerId === engineer.id);
     
-    const allUsers = useMemo(() => [...allArtists, ...allEngineers, ...allStoodioz], [allArtists, allEngineers, allStoodioz]);
+    const allUsers = useMemo(() => [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers], [allArtists, allEngineers, allStoodioz, allProducers]);
     const followers = useMemo(() => allUsers.filter(u => engineer.followerIds.includes(u.id)), [allUsers, engineer.followerIds]);
 
     const followedArtists = useMemo(() => allArtists.filter(a => engineer.following.artists.includes(a.id)), [allArtists, engineer.following.artists]);
     const followedEngineers = useMemo(() => allEngineers.filter(e => engineer.following.engineers.includes(e.id)), [allEngineers, engineer.following.engineers]);
     const followedStoodioz = useMemo(() => allStoodioz.filter(s => engineer.following.stoodioz.includes(s.id)), [allStoodioz, engineer.following.stoodioz]);
-    const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length;
+    const followedProducers = useMemo(() => allProducers.filter(p => engineer.following.producers.includes(p.id)), [allProducers, engineer.following.producers]);
+    const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const sortedPosts = useMemo(() => (engineer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [engineer.posts]);
 
     const handleBookClick = () => {
         onInitiateBooking(engineer, date, time);
     };
+
+    const canRequestMix = engineer.mixingServices?.isEnabled && currentUser && currentUser.id !== engineer.id && (userRole === UserRole.ARTIST || userRole === UserRole.PRODUCER || userRole === UserRole.ENGINEER || userRole === UserRole.STOODIO);
+
 
     return (
         <div>
@@ -95,13 +108,12 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                                 <span className="text-slate-400 text-sm">({engineerReviews.length} reviews)</span>
                             </div>
                             <p className="text-slate-300 leading-relaxed mt-4">{engineer.bio}</p>
-                            <div className="flex justify-center sm:justify-start gap-2 mt-6">
-                                <button
-                                    onClick={() => onStartNavigation(engineer.coordinates)}
-                                    className="px-4 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <RoadIcon className="w-5 h-5" />
-                                </button>
+                            <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
+                                {canRequestMix && (
+                                    <button onClick={onOpenMixingModal} className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-indigo-500 text-white hover:bg-indigo-600">
+                                        <SoundWaveIcon className="w-5 h-5"/> Request Mix
+                                    </button>
+                                )}
                                 <button 
                                     onClick={() => currentUser && onStartConversation(engineer)}
                                     disabled={!currentUser || currentUser.id === engineer.id}
@@ -130,10 +142,18 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                             ))}
                         </div>
                     </div>
+                     {engineer.audioSampleUrl && (
+                        <div className="mt-6">
+                            <h3 className="text-xl font-bold mb-3 text-orange-400">Audio Sample</h3>
+                            <audio controls src={engineer.audioSampleUrl} className="w-full h-10 rounded-lg">
+                                Your browser does not support the audio element.
+                            </audio>
+                        </div>
+                    )}
                 </div>
 
                  <div className="bg-zinc-800 rounded-2xl shadow-lg p-8 border border-zinc-700">
-                    <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><CalendarIcon className="w-6 h-6"/>Book a Session</h3>
+                    <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><CalendarIcon className="w-6 h-6"/>Book an In-Studio Session</h3>
                     <div className="grid sm:grid-cols-3 gap-4 items-end">
                         <div>
                             <label htmlFor="date" className="block text-sm font-medium text-slate-400 mb-1">Date</label>
@@ -171,8 +191,13 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                     {followers.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {followers.map(f => {
-                                const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'artist';
-                                const onClick = () => type === 'artist' ? onSelectArtist(f as Artist) : type === 'engineer' ? onSelectEngineer(f as Engineer) : onSelectStoodio(f as Stoodio);
+                                const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
+                                const onClick = () => {
+                                    if (type === 'artist') onSelectArtist(f as Artist);
+                                    else if (type === 'engineer') onSelectEngineer(f as Engineer);
+                                    else if (type === 'stoodio') onSelectStoodio(f as Stoodio);
+                                    else if (type === 'producer') onSelectProducer(f as Producer);
+                                };
                                 return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
                             })}
                         </div>
@@ -186,6 +211,7 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                             {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
                             {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
                             {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
+                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => onSelectProducer(p)} />)}
                         </div>
                     ) : <p className="text-slate-400">Not following anyone yet.</p>}
                 </div>

@@ -1,15 +1,17 @@
 
+
 import React, { useState } from 'react';
-import type { Post, Artist, Engineer, Stoodio, Comment } from '../types';
+// FIX: Update props to accept Producer type
+import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon } from './icons';
 
 interface PostCardProps {
     post: Post;
-    author: Artist | Engineer | Stoodio;
+    author: Artist | Engineer | Stoodio | Producer;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | null;
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onCommentOnPost, currentUser }) => {

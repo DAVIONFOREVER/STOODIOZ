@@ -1,8 +1,7 @@
 import React from 'react';
 import type { Booking, Location, Engineer } from '../types';
 import { BookingStatus, BookingRequestType, UserRole } from '../types';
-import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon, SoundWaveIcon, HouseIcon } from './icons';
-import { USER_SILHOUETTE_URL } from '../constants';
+import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon } from './icons';
 
 interface MyBookingsProps {
     bookings: Booking[];
@@ -49,17 +48,6 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                 return { statusText: booking.status, statusColor: 'text-slate-400', participantName: null };
         }
     };
-    
-    const getBookingImage = (booking: Booking): string => {
-        if (booking.stoodio?.imageUrl) return booking.stoodio.imageUrl;
-        if (booking.engineer?.imageUrl) return booking.engineer.imageUrl;
-        if (booking.requestedEngineerId) {
-            const reqEngineer = engineers.find(e => e.id === booking.requestedEngineerId);
-            if (reqEngineer?.imageUrl) return reqEngineer.imageUrl;
-        }
-        return USER_SILHOUETTE_URL;
-    }
-
 
     return (
         <div>
@@ -79,7 +67,7 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                         return (
                         <div key={booking.id} className={`bg-zinc-800 rounded-2xl shadow-lg p-6 flex flex-col md:flex-row gap-6 border border-zinc-700 hover:border-orange-500/50 transition-colors duration-300 ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
                             <div className="flex-shrink-0">
-                                <img src={getBookingImage(booking)} alt={booking.stoodio?.name || booking.engineer?.name} className="w-full md:w-48 h-32 object-cover rounded-xl" />
+                                <img src={booking.stoodio?.imageUrl || booking.engineer?.imageUrl} alt={booking.stoodio?.name || booking.engineer?.name} className="w-full md:w-48 h-32 object-cover rounded-xl" />
                             </div>
                             <div className="flex-grow">
                                 <div className="flex items-center gap-4 mb-1">
@@ -110,12 +98,6 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                                         <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                         {statusText}
                                     </div>
-                                    {booking.mixingDetails && (
-                                        <div className="flex items-center">
-                                            <SoundWaveIcon className="w-5 h-5 mr-2 text-slate-400" />
-                                            <span>{booking.mixingDetails.type === 'IN_STUDIO' ? 'In-Studio' : 'Remote'} Mix: {booking.mixingDetails.trackCount} tracks</span>
-                                        </div>
-                                    )}
                                 </div>
                                 {booking.instrumentalsPurchased && booking.instrumentalsPurchased.length > 0 && (
                                     <div className="mt-4 pt-3 border-t border-zinc-700">

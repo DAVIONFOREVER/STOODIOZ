@@ -1,27 +1,32 @@
 
 
 import React, { useMemo } from 'react';
-import type { Post, Artist, Engineer, Stoodio, LinkAttachment } from '../types';
+// FIX: Update currentUser to accept Producer
+import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { AppView } from '../types';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import UserProfileCard from './UserProfileCard';
 import WhoToFollow from './WhoToFollow';
 import TrendingPost from './TrendingPost';
-import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon } from './icons';
+import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons';
 
 interface TheStageProps {
-    currentUser: Artist | Engineer | Stoodio;
+    currentUser: Artist | Engineer | Stoodio | Producer;
     allArtists: Artist[];
     allEngineers: Engineer[];
     allStoodioz: Stoodio[];
+    allProducers: Producer[];
     onPost: (postData: { text: string; imageUrl?: string; link?: LinkAttachment }) => void;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist', id: string) => void;
+// FIX: Update onToggleFollow to accept 'producer'
+    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
+// FIX: Add onSelectProducer prop
+    onSelectProducer: (producer: Producer) => void;
     onNavigate: (view: AppView) => void;
 }
 
@@ -37,7 +42,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         currentUser, 
         allArtists, 
         allEngineers, 
-        allStoodioz, 
+        allStoodioz,
+        allProducers, 
         onPost, 
         onLikePost, 
         onCommentOnPost,
@@ -45,12 +51,13 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         onSelectArtist,
         onSelectEngineer,
         onSelectStoodio,
+        onSelectProducer,
         onNavigate
     } = props;
 
     const { feedPosts, authorsMap, suggestions, trendingPost, trendingPostAuthor } = useMemo(() => {
-        const allUsers = [...allArtists, ...allEngineers, ...allStoodioz];
-        const authorsMap = new Map<string, Artist | Engineer | Stoodio>();
+        const allUsers = [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers];
+        const authorsMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
         allUsers.forEach(u => authorsMap.set(u.id, u));
 
         if (!currentUser || !('following' in currentUser)) {
@@ -61,6 +68,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
             ...currentUser.following.artists,
             ...currentUser.following.engineers,
             ...currentUser.following.stoodioz,
+            ...currentUser.following.producers,
             currentUser.id
         ]);
         
@@ -81,11 +89,12 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
 
         return { feedPosts, authorsMap, suggestions, trendingPost, trendingPostAuthor };
-    }, [currentUser, allArtists, allEngineers, allStoodioz]);
+    }, [currentUser, allArtists, allEngineers, allStoodioz, allProducers]);
 
-    const handleSelectUser = (user: Artist | Engineer | Stoodio) => {
+    const handleSelectUser = (user: Artist | Engineer | Stoodio | Producer) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
+        else if ('instrumentals' in user) onSelectProducer(user as Producer);
         else onSelectArtist(user as Artist);
     };
 
@@ -95,6 +104,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Left Sidebar */}
                 <aside className="lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
+{/* FIX: Update user prop for UserProfileCard to handle Producer type */}
                        <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
                        <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
                            <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
@@ -102,6 +112,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                                <QuickLink icon={<CalendarIcon className="w-5 h-5 text-orange-400"/>} label="My Bookings" onClick={() => onNavigate(AppView.MY_BOOKINGS)} />
                                <QuickLink icon={<MicrophoneIcon className="w-5 h-5 text-green-400"/>} label="Discover Artists" onClick={() => onNavigate(AppView.ARTIST_LIST)} />
                                <QuickLink icon={<SoundWaveIcon className="w-5 h-5 text-amber-400"/>} label="Discover Engineers" onClick={() => onNavigate(AppView.ENGINEER_LIST)} />
+                               <QuickLink icon={<MusicNoteIcon className="w-5 h-5 text-purple-400"/>} label="Discover Producers" onClick={() => onNavigate(AppView.PRODUCER_LIST)} />
                                <QuickLink icon={<HouseIcon className="w-5 h-5 text-red-400"/>} label="Discover Stoodioz" onClick={() => onNavigate(AppView.STOODIO_LIST)} />
                            </nav>
                        </div>

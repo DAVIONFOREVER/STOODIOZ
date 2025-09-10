@@ -1,11 +1,10 @@
-
-
-import React, { useState } from 'react';
-import type { Stoodio, Artist, Review, Booking, Engineer, Post, Room } from '../types';
+import React, { useState, useMemo } from 'react';
+// FIX: Update currentUser to accept Producer and onStartConversation to accept Producer
+import type { Stoodio, Artist, Review, Booking, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
-import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon } from './icons';
+import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon } from './icons';
 
 interface StoodioDetailProps {
     stoodio: Stoodio;
@@ -14,22 +13,24 @@ interface StoodioDetailProps {
     allArtists: Artist[];
     allEngineers: Engineer[];
     allStoodioz: Stoodio[];
+    allProducers: Producer[];
     onBook: (date: string, time: string, room: Room) => void;
     onBack: () => void;
-    currentUser: Artist | Engineer | Stoodio | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | null;
     userRole: UserRole | null;
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist', id: string) => void;
+    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
-    onStartConversation: (participant: Stoodio | Artist | Engineer) => void;
+    onSelectProducer: (producer: Producer) => void;
+    onStartConversation: (participant: Stoodio | Artist | Engineer | Producer) => void;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
 }
 
 const ProfileCard: React.FC<{
-    profile: Stoodio | Engineer | Artist;
-    type: 'stoodio' | 'engineer' | 'artist';
+    profile: Stoodio | Engineer | Artist | Producer;
+    type: 'stoodio' | 'engineer' | 'artist' | 'producer';
     onClick: () => void;
 }> = ({ profile, type, onClick }) => {
     let icon;
@@ -40,7 +41,10 @@ const ProfileCard: React.FC<{
     } else if (type === 'engineer') {
         icon = <SoundWaveIcon className="w-4 h-4" />;
         details = (profile as Engineer).specialties.join(', ');
-    } else {
+    } else if (type === 'producer') {
+        icon = <MusicNoteIcon className="w-4 h-4" />;
+        details = (profile as Producer).genres.join(', ');
+    } else { // artist
         icon = <MicrophoneIcon className="w-4 h-4" />;
         details = (profile as Artist).bio;
     }
@@ -57,7 +61,8 @@ const ProfileCard: React.FC<{
 };
 
 
-const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, bookings, allArtists, allEngineers, allStoodioz, onBook, onBack, currentUser, userRole, onToggleFollow, onSelectArtist, onSelectEngineer, onSelectStoodio, onStartConversation, onLikePost, onCommentOnPost }) => {
+const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
+    const { stoodio, reviews, bookings, allArtists, allEngineers, allStoodioz, allProducers, onBook, onBack, currentUser, userRole, onToggleFollow, onSelectArtist, onSelectEngineer, onSelectStoodio, onSelectProducer, onStartConversation, onLikePost, onCommentOnPost } = props;
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ date: string, time: string } | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio.rooms[0] || null);
 
@@ -70,7 +75,8 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
         .filter((artist): artist is Artist => artist !== undefined)
         .slice(0, 5);
 
-    const followers = allArtists.filter(a => a.following.stoodioz.includes(stoodio.id));
+    const allUsers = useMemo(() => [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers], [allArtists, allEngineers, allStoodioz, allProducers]);
+    const followers = useMemo(() => allUsers.filter(u => stoodio.followerIds.includes(u.id)), [allUsers, stoodio.followerIds]);
     const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
     const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
     const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
@@ -88,6 +94,7 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
 
     const getButtonText = (mobile: boolean = false) => {
         if (!currentUser) return 'Login to Book';
+        // FIX: Update button text logic to reflect that studio owners can book their own studio
         if (userRole === UserRole.STOODIO && currentUser.id !== stoodio.id) return 'Cannot Book Other Stoodioz';
         if (!selectedRoom) return 'Select a Room';
         if (!selectedTimeSlot) return 'Select a Time Slot';
@@ -181,9 +188,19 @@ const StoodioDetail: React.FC<StoodioDetailProps> = ({ stoodio, reviews, booking
                         <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><UsersIcon className="w-6 h-6" /> Followers</h3>
                         {followers.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {followers.map(artist => (
-                                    <ProfileCard key={artist.id} profile={artist} type="artist" onClick={() => onSelectArtist(artist)} />
-                                ))}
+                                {followers.map(user => {
+                                    const type = 'amenities' in user ? 'stoodio'
+                                        : 'specialties' in user ? 'engineer'
+                                        : 'instrumentals' in user ? 'producer'
+                                        : 'artist';
+                                    const onClick = () => {
+                                        if (type === 'stoodio') onSelectStoodio(user as Stoodio);
+                                        else if (type === 'engineer') onSelectEngineer(user as Engineer);
+                                        else if (type === 'producer') onSelectProducer(user as Producer)
+                                        else onSelectArtist(user as Artist);
+                                    };
+                                    return <ProfileCard key={user.id} profile={user} type={type} onClick={onClick} />;
+                                })}
                             </div>
                         ) : (
                             <p className="text-slate-400">No followers yet.</p>

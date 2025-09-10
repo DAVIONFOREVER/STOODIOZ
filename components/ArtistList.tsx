@@ -17,7 +17,7 @@ const ArtistList: React.FC<ArtistListProps> = ({ artists, onSelectArtist, onTogg
                 Find Artists
             </h1>
             <p className="text-center text-lg text-slate-500 mb-12">Connect and collaborate with talented artists.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-8">
                 {artists.map(artist => {
                     const isFollowing = currentUser && 'following' in currentUser ? (currentUser.following.artists || []).includes(artist.id) : false;
                     return (

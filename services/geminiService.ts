@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Stoodio, Engineer, Message, VibeMatchResult } from '../types';
+import type { Stoodio, Engineer, Message, VibeMatchResult, Producer } from '../types';
 
 // FIX: Initialized Gemini API client as per guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
@@ -11,7 +11,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 export const getVibeMatchResults = async (
     songUrl: string,
     stoodioz: Stoodio[],
-    engineers: Engineer[]
+    engineers: Engineer[],
+    producers: Producer[]
 ): Promise<VibeMatchResult> => {
     console.log("Analyzing vibe for:", songUrl);
 
@@ -20,7 +21,7 @@ export const getVibeMatchResults = async (
 
     const prompt = `
         Analyze the musical vibe of the song at this URL: ${songUrl}.
-        Based on the vibe, recommend up to 2 stoodioz and 2 engineers from the lists provided.
+        Based on the vibe, recommend up to 2 stoodioz, 2 engineers, and 2 producers from the lists provided.
         Provide a short, compelling reason for each recommendation.
         Also, give a one-sentence description of the song's overall vibe and 3-5 descriptive tags.
 
@@ -29,6 +30,9 @@ export const getVibeMatchResults = async (
 
         Available Engineers:
         ${JSON.stringify(engineers.map(e => ({ id: e.id, name: e.name, bio: e.bio, specialties: e.specialties })), null, 2)}
+
+        Available Producers:
+        ${JSON.stringify(producers.map(p => ({ id: p.id, name: p.name, bio: p.bio, genres: p.genres })), null, 2)}
         
         Return the response in a JSON format.
     `;
@@ -71,11 +75,13 @@ export const getVibeMatchResults = async (
         const jsonResponse = JSON.parse(response.text);
 
         const recommendations = jsonResponse.recommendations.map((rec: any) => {
-            let entity: Stoodio | Engineer | undefined;
+            let entity: Stoodio | Engineer | Producer | undefined;
             if (rec.type === 'stoodio') {
                 entity = stoodioz.find(s => s.id === rec.entityId);
-            } else {
+            } else if (rec.type === 'engineer') {
                 entity = engineers.find(e => e.id === rec.entityId);
+            } else if (rec.type === 'producer') {
+                entity = producers.find(p => p.id === rec.entityId);
             }
             return entity ? { ...rec, entity } : null;
         }).filter(Boolean);
@@ -104,6 +110,11 @@ export const getVibeMatchResults = async (
                     type: 'engineer',
                     entity: engineers[0],
                     reason: 'Alex Robinson specializes in indie rock and has a great ear for atmospheric textures.',
+                },
+                {
+                    type: 'producer',
+                    entity: producers[0],
+                    reason: 'Metro Boomin is a master of this genre and can elevate the track.',
                 },
             ],
         };

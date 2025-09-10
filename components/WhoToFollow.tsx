@@ -1,19 +1,21 @@
 
+
 import React from 'react';
-import type { Artist, Engineer, Stoodio } from '../types';
+import type { Artist, Engineer, Stoodio, Producer } from '../types';
 import { UserPlusIcon } from './icons';
 
 interface WhoToFollowProps {
-    suggestions: (Artist | Engineer | Stoodio)[];
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist', id: string) => void;
-    onSelectUser: (user: Artist | Engineer | Stoodio) => void;
+    suggestions: (Artist | Engineer | Stoodio | Producer)[];
+    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
+    onSelectUser: (user: Artist | Engineer | Stoodio | Producer) => void;
 }
 
 const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, onSelectUser }) => {
     
-    const getRole = (user: Artist | Engineer | Stoodio): 'artist' | 'engineer' | 'stoodio' => {
+    const getRole = (user: Artist | Engineer | Stoodio | Producer): 'artist' | 'engineer' | 'stoodio' | 'producer' => {
         if ('amenities' in user) return 'stoodio';
         if ('specialties' in user) return 'engineer';
+        if ('instrumentals' in user) return 'producer';
         return 'artist';
     };
 

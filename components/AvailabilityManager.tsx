@@ -1,10 +1,13 @@
+
+
 import React, { useState, useMemo } from 'react';
-import type { Stoodio, Engineer } from '../types';
+// FIX: Update props to accept Producer type
+import type { Stoodio, Engineer, Producer } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PlusCircleIcon, CloseIcon } from './icons';
 
 interface AvailabilityManagerProps {
-    user: Stoodio | Engineer;
-    onUpdateUser: (updatedProfile: Partial<Stoodio | Engineer>) => void;
+    user: Stoodio | Engineer | Producer;
+    onUpdateUser: (updatedProfile: Partial<Stoodio | Engineer | Producer>) => void;
 }
 
 const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdateUser }) => {

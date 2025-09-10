@@ -3,7 +3,6 @@ import type { Stoodio } from '../types';
 import { VerificationStatus } from '../types';
 import { LocationIcon, StarIcon, VerifiedIcon } from './icons';
 import { estimateTravelTime } from '../utils/location';
-import { use3DTilt } from '../hooks/use3DTilt';
 
 interface StoodioCardProps {
     stoodio: Stoodio;
@@ -12,12 +11,9 @@ interface StoodioCardProps {
 }
 
 const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio, distance }) => {
-    const tiltProps = use3DTilt();
-
     return (
         <div
-            {...tiltProps}
-            className="tilt-card h-full bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden cursor-pointer group"
+            className="bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-all duration-300 border border-zinc-700/50 hover:border-orange-500/50 hover:shadow-orange-500/10"
             onClick={() => onSelectStoodio(stoodio)}
         >
             <div className="relative">
@@ -36,7 +32,22 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio, dis
                     <StarIcon className="w-4 h-4" />
                     <span>{stoodio.rating.toFixed(1)}</span>
                 </div>
-                <div className="glare-effect rounded-2xl"></div>
+            </div>
+            <div className="p-4">
+                <p className="text-zinc-400 text-sm mb-3 h-10 overflow-hidden">{stoodio.description}</p>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <p className="text-zinc-400 text-xs">From</p>
+                        <p className="text-xl font-bold text-zinc-100">${stoodio.hourlyRate}<span className="text-sm font-normal text-zinc-400">/hr</span></p>
+                    </div>
+                    {distance !== undefined && (
+                        <div className="text-right">
+                             <p className="text-zinc-400 text-xs">Distance</p>
+                             <p className="text-lg font-bold text-zinc-100">{distance.toFixed(1)} mi</p>
+                             <p className="text-xs text-zinc-400">{estimateTravelTime(distance)}</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
