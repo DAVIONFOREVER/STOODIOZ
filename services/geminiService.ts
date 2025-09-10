@@ -1,128 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Stoodio, Engineer, Message, VibeMatchResult, Producer } from '../types';
+import type { Message } from '../types';
 
 // FIX: Initialized Gemini API client as per guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
-
-/**
- * Analyzes a song's vibe and recommends stoodioz and engineers.
- */
-export const getVibeMatchResults = async (
-    songUrl: string,
-    stoodioz: Stoodio[],
-    engineers: Engineer[],
-    producers: Producer[]
-): Promise<VibeMatchResult> => {
-    console.log("Analyzing vibe for:", songUrl);
-
-    // FIX: Using gemini-2.5-flash model.
-    const model = 'gemini-2.5-flash';
-
-    const prompt = `
-        Analyze the musical vibe of the song at this URL: ${songUrl}.
-        Based on the vibe, recommend up to 2 stoodioz, 2 engineers, and 2 producers from the lists provided.
-        Provide a short, compelling reason for each recommendation.
-        Also, give a one-sentence description of the song's overall vibe and 3-5 descriptive tags.
-
-        Available Stoodioz:
-        ${JSON.stringify(stoodioz.map(s => ({ id: s.id, name: s.name, description: s.description, amenities: s.amenities })), null, 2)}
-
-        Available Engineers:
-        ${JSON.stringify(engineers.map(e => ({ id: e.id, name: e.name, bio: e.bio, specialties: e.specialties })), null, 2)}
-
-        Available Producers:
-        ${JSON.stringify(producers.map(p => ({ id: p.id, name: p.name, bio: p.bio, genres: p.genres })), null, 2)}
-        
-        Return the response in a JSON format.
-    `;
-
-    try {
-        const responseSchema = {
-            type: Type.OBJECT,
-            properties: {
-                vibeDescription: { type: Type.STRING },
-                tags: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                },
-                recommendations: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            type: { type: Type.STRING },
-                            entityId: { type: Type.STRING },
-                            reason: { type: Type.STRING },
-                        },
-                        required: ["type", "entityId", "reason"],
-                    },
-                },
-            },
-             required: ["vibeDescription", "tags", "recommendations"],
-        };
-
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema,
-            }
-        });
-
-        // FIX: Extracting text output directly from response.text property.
-        const jsonResponse = JSON.parse(response.text);
-
-        const recommendations = jsonResponse.recommendations.map((rec: any) => {
-            let entity: Stoodio | Engineer | Producer | undefined;
-            if (rec.type === 'stoodio') {
-                entity = stoodioz.find(s => s.id === rec.entityId);
-            } else if (rec.type === 'engineer') {
-                entity = engineers.find(e => e.id === rec.entityId);
-            } else if (rec.type === 'producer') {
-                entity = producers.find(p => p.id === rec.entityId);
-            }
-            return entity ? { ...rec, entity } : null;
-        }).filter(Boolean);
-
-        const result: VibeMatchResult = {
-            vibeDescription: jsonResponse.vibeDescription,
-            tags: jsonResponse.tags,
-            recommendations: recommendations,
-        };
-
-        return result;
-
-    } catch (error) {
-        console.error("Error calling Gemini API for vibe match:", error);
-        // Fallback to a mock result on error
-        return {
-            vibeDescription: 'A dreamy, atmospheric track with lo-fi beats and ethereal vocals.',
-            tags: ['Dream Pop', 'Lo-fi', 'Indie', 'Chillwave'],
-            recommendations: [
-                {
-                    type: 'stoodio',
-                    entity: stoodioz[0],
-                    reason: 'Echo Chamber has vintage gear perfect for capturing that warm, hazy sound.',
-                },
-                {
-                    type: 'engineer',
-                    entity: engineers[0],
-                    reason: 'Alex Robinson specializes in indie rock and has a great ear for atmospheric textures.',
-                },
-                {
-                    type: 'producer',
-                    entity: producers[0],
-                    reason: 'Metro Boomin is a master of this genre and can elevate the track.',
-                },
-            ],
-        };
-    }
-};
-
 /**
  * Generates smart replies for a conversation.
+ * NOTE: In a production application, this function should also be moved to a secure backend
+ * to protect your API key. It is left here for demonstration purposes.
  */
 export const generateSmartReplies = async (
     messages: Message[],

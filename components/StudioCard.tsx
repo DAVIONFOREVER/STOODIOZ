@@ -2,15 +2,13 @@ import React from 'react';
 import type { Stoodio } from '../types';
 import { VerificationStatus } from '../types';
 import { LocationIcon, StarIcon, VerifiedIcon } from './icons';
-import { estimateTravelTime } from '../utils/location';
 
 interface StoodioCardProps {
     stoodio: Stoodio;
     onSelectStoodio: (stoodio: Stoodio) => void;
-    distance?: number;
 }
 
-const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio, distance }) => {
+const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) => {
     return (
         <div
             className="bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-all duration-300 border border-zinc-700/50 hover:border-orange-500/50 hover:shadow-orange-500/10"
@@ -40,13 +38,6 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio, dis
                         <p className="text-zinc-400 text-xs">From</p>
                         <p className="text-xl font-bold text-zinc-100">${stoodio.hourlyRate}<span className="text-sm font-normal text-zinc-400">/hr</span></p>
                     </div>
-                    {distance !== undefined && (
-                        <div className="text-right">
-                             <p className="text-zinc-400 text-xs">Distance</p>
-                             <p className="text-lg font-bold text-zinc-100">{distance.toFixed(1)} mi</p>
-                             <p className="text-xs text-zinc-400">{estimateTravelTime(distance)}</p>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

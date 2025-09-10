@@ -1,20 +1,19 @@
-
 import React, { useState } from 'react';
-import { CloseIcon, LinkIcon } from './icons';
+import { CloseIcon, MagicWandIcon } from './icons';
 
 interface VibeMatcherModalProps {
     onClose: () => void;
-    onAnalyze: (songUrl: string) => void;
+    onAnalyze: (vibeDescription: string) => void;
     isLoading: boolean;
 }
 
 const VibeMatcherModal: React.FC<VibeMatcherModalProps> = ({ onClose, onAnalyze, isLoading }) => {
-    const [songUrl, setSongUrl] = useState('');
+    const [vibeDescription, setVibeDescription] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (songUrl.trim()) {
-            onAnalyze(songUrl);
+        if (vibeDescription.trim()) {
+            onAnalyze(vibeDescription);
         }
     };
 
@@ -30,30 +29,35 @@ const VibeMatcherModal: React.FC<VibeMatcherModalProps> = ({ onClose, onAnalyze,
                 <form onSubmit={handleSubmit}>
                     <div className="p-6">
                         <p className="text-slate-300 mb-4">
-                            Paste a link to a reference track (e.g., from YouTube, Spotify, SoundCloud) to find stoodioz and engineers that match its vibe.
+                            Describe the vibe, genre, or feel of a song you like. Our AI will recommend stoodioz, engineers, and producers that match.
                         </p>
-                         <label htmlFor="song-url" className="sr-only">Song URL</label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                               <LinkIcon className="h-5 w-5 text-slate-400" />
-                            </div>
-                            <input
-                                type="url"
-                                id="song-url"
-                                value={songUrl}
-                                onChange={(e) => setSongUrl(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg focus:ring-orange-500 focus:border-orange-500"
-                                placeholder="https://www.youtube.com/watch?v=..."
-                                required
-                            />
-                        </div>
+                         <label htmlFor="vibe-description" className="sr-only">Vibe Description</label>
+                         <textarea
+                            id="vibe-description"
+                            value={vibeDescription}
+                            onChange={(e) => setVibeDescription(e.target.value)}
+                            rows={4}
+                            className="w-full p-3 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg focus:ring-orange-500 focus:border-orange-500"
+                            placeholder="e.g., 'A dreamy, atmospheric track with lo-fi beats and ethereal female vocals, similar to Clairo or beabadoobee.'"
+                            required
+                         />
                     </div>
                     <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-xl flex justify-end">
                         <button type="button" onClick={onClose} className="text-slate-300 bg-transparent hover:bg-zinc-700 font-bold rounded-lg text-sm px-5 py-3 text-center mr-2 transition-colors border border-zinc-600">
                             Cancel
                         </button>
-                        <button type="submit" disabled={!songUrl.trim() || isLoading} className="text-white bg-orange-500 hover:bg-orange-600 disabled:bg-slate-600 disabled:cursor-not-allowed focus:ring-4 focus:outline-none focus:ring-orange-300 font-bold rounded-lg text-sm px-5 py-3 text-center transition-all shadow-md shadow-orange-500/20">
-                            {isLoading ? 'Analyzing...' : 'Find My Vibe'}
+                        <button type="submit" disabled={!vibeDescription.trim() || isLoading} className="text-white bg-orange-500 hover:bg-orange-600 disabled:bg-slate-600 disabled:cursor-not-allowed focus:ring-4 focus:outline-none focus:ring-orange-300 font-bold rounded-lg text-sm px-5 py-3 text-center transition-all shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 w-40">
+                            {isLoading ? (
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            ) : (
+                                <>
+                                 <MagicWandIcon className="w-5 h-5" />
+                                 Find My Vibe
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

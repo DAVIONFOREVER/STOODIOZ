@@ -1,12 +1,9 @@
-
 import React, { useState, useCallback, useMemo, useEffect, lazy, Suspense } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Stoodio, Booking, BookingRequest, Engineer, Location, Review, Conversation, Message, Artist, AppNotification, Post, LinkAttachment, Comment, Transaction, VibeMatchResult, Room, Producer, Instrumental, MixingDetails } from './types';
 import { AppView, UserRole, BookingStatus, BookingRequestType, NotificationType, VerificationStatus, TransactionCategory, TransactionStatus, SubscriptionPlan, SubscriptionStatus } from './types';
-import { STOODIOZ, ENGINEERS, REVIEWS, CONVERSATIONS, MOCK_ARTISTS, SERVICE_FEE_PERCENTAGE, MOCK_BOOKINGS, USER_SILHOUETTE_URL, STOODIO_ICON_URL, MOCK_PRODUCERS } from './constants';
-import { getVibeMatchResults, generateSmartReplies } from './services/geminiService';
-import { webSocketService } from './services/webSocketService';
-import { calculateDistance, estimateTravelTime } from './utils/location';
+import { USER_SILHOUETTE_URL, STOODIO_ICON_URL, SERVICE_FEE_PERCENTAGE } from './constants';
+import { generateSmartReplies } from './services/geminiService';
 import Header from './components/Header';
 import BookingModal from './components/BookingModal';
 import TipModal from './components/TipModal';
@@ -64,13 +61,13 @@ const App: React.FC = () => {
     // --- App State ---
     const [history, setHistory] = useState<AppView[]>([AppView.LANDING_PAGE]);
     const [historyIndex, setHistoryIndex] = useState<number>(0);
-    const [stoodioz, setStoodioz] = useState<Stoodio[]>(STOODIOZ);
-    const [engineers, setEngineers] = useState<Engineer[]>(ENGINEERS);
-    const [artists, setArtists] = useState<Artist[]>(MOCK_ARTISTS);
-    const [producers, setProducers] = useState<Producer[]>(MOCK_PRODUCERS);
-    const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
-    const [reviews] = useState<Review[]>(REVIEWS);
-    const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
+    const [stoodioz, setStoodioz] = useState<Stoodio[]>([]);
+    const [engineers, setEngineers] = useState<Engineer[]>([]);
+    const [artists, setArtists] = useState<Artist[]>([]);
+    const [producers, setProducers] = useState<Producer[]>([]);
+    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [reviews] = useState<Review[]>([]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     
     // --- Auth State ---
@@ -93,7 +90,6 @@ const App: React.FC = () => {
     const [isVibeMatcherOpen, setIsVibeMatcherOpen] = useState<boolean>(false);
     const [vibeMatchResults, setVibeMatchResults] = useState<VibeMatchResult | null>(null);
     const [isVibeMatcherLoading, setIsVibeMatcherLoading] = useState<boolean>(false);
-    // FIX: Add pullUpFee to bookingIntent type to carry over producer booking intent
     const [bookingIntent, setBookingIntent] = useState<{ engineer?: Engineer; producer?: Producer; date?: string; time?: string; mixingDetails?: MixingDetails; pullUpFee?: number; } | null>(null);
     const [smartReplies, setSmartReplies] = useState<string[]>([]);
     const [isSmartRepliesLoading, setIsSmartRepliesLoading] = useState<boolean>(false);
@@ -115,60 +111,39 @@ const App: React.FC = () => {
         if ('amenities' in currentUser) return UserRole.STOODIO;
         return UserRole.ARTIST;
     }, [currentUser]);
-
-    // --- "Uber-like" Real-time Job Notification Logic ---
+    
+    // --- Data Fetching Simulation ---
     useEffect(() => {
-        const showPushNotification = (title: string, options: NotificationOptions) => {
-            if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.showNotification(title, options);
-                });
-            }
+        // Simulate fetching initial data from a backend on app load
+        const fetchData = () => {
+            setIsLoading(true);
+
+            // This data would come from your API / Firebase
+            const mockArtists: Artist[] = [
+                { id: 'artist-1', name: 'Luna Vance', email: 'artist@stoodioz.com', password: 'password', bio: 'Dream-pop artist from Los Angeles.', imageUrl: USER_SILHOUETTE_URL, followers: 1258, following: { stoodioz: [], engineers: [], artists: [], producers: [] }, followerIds: [], coordinates: { lat: 34.0522, lon: -118.2437 }, isSeekingSession: true, walletBalance: 1500, walletTransactions: [] }
+            ];
+            const mockEngineers: Engineer[] = [
+                { id: 'eng-1', name: 'Alex Robinson', email: 'engineer@stoodioz.com', password: 'password', bio: 'Seasoned audio engineer.', specialties: ['Indie Rock', 'Hip-Hop'], rating: 4.9, sessionsCompleted: 238, imageUrl: USER_SILHOUETTE_URL, audioSampleUrl: 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-1-short.mp3', followers: 841, following: { artists: [], engineers: [], stoodioz: [], producers: [] }, followerIds: [], coordinates: { lat: 34.06, lon: -118.25 }, isAvailable: true, walletBalance: 5800, walletTransactions: [], notificationPreferences: { radius: 50, enabled: true }, subscription: { plan: SubscriptionPlan.ENGINEER_PLUS, status: SubscriptionStatus.ACTIVE } }
+            ];
+            const mockProducers: Producer[] = [
+                { id: 'prod-1', name: 'Metro Boomin', email: 'producer@stoodioz.com', password: 'password', bio: 'Grammy-nominated producer from Atlanta.', genres: ['Trap', 'Hip-Hop', 'R&B'], rating: 5.0, imageUrl: USER_SILHOUETTE_URL, followers: 15200, following: { stoodioz: [], engineers: [], artists: [], producers: [] }, followerIds: [], coordinates: { lat: 33.7490, lon: -84.3880 }, isAvailable: true, walletBalance: 12500, walletTransactions: [], instrumentals: [], subscription: { plan: SubscriptionPlan.PRODUCER_PRO, status: SubscriptionStatus.ACTIVE }, pullUpPrice: 500 }
+            ];
+            const mockStoodioz: Stoodio[] = [
+                { id: 'studio-1', name: 'Echo Chamber Stoodioz', email: 'stoodio@stoodioz.com', password: 'password', description: 'A state-of-the-art recording facility.', location: 'Los Angeles, CA', hourlyRate: 120, engineerPayRate: 50, rating: 4.8, imageUrl: STOODIO_ICON_URL, amenities: ['Neve 8078 Console', 'Vocal Booth'], coordinates: { lat: 34.05, lon: -118.25 }, availability: [], photos: [], followers: 432, following: { artists: [], engineers: [], stoodioz: [], producers: [] }, followerIds: [], walletBalance: 12500, walletTransactions: [], rooms: [{ id: 'room-1a', name: 'Control Room A', description: 'Main mixing room.', hourlyRate: 120, photos: [] }], verificationStatus: VerificationStatus.VERIFIED, subscription: { plan: SubscriptionPlan.STOODIO_PRO, status: SubscriptionStatus.ACTIVE } }
+            ];
+
+            // Simulate network delay
+            setTimeout(() => {
+                setArtists(mockArtists);
+                setEngineers(mockEngineers);
+                setProducers(mockProducers);
+                setStoodioz(mockStoodioz);
+                setIsLoading(false);
+            }, 1000);
         };
 
-        const handleNewBooking = (newBooking: Booking) => {
-            // This logic runs for all users, but we only notify relevant engineers.
-            if (userRole === UserRole.ENGINEER && currentUser) {
-                const engineer = currentUser as Engineer;
-                const prefs = engineer.notificationPreferences;
-                
-                // Only proceed if the engineer has alerts enabled
-                if (!prefs || !prefs.enabled || !newBooking.stoodio) return;
-
-                const distance = calculateDistance(engineer.coordinates, newBooking.stoodio.coordinates);
-
-                // Check if the job is within the engineer's preferred radius
-                if (distance <= prefs.radius) {
-                    const message = `New ${newBooking.duration}hr session available at ${newBooking.stoodio.name}. Payout: $${(newBooking.engineerPayRate * newBooking.duration).toFixed(2)}.`;
-                    
-                    // 1. Create an in-app notification
-                    setNotifications(prev => [...prev, {
-                        id: `notif-${Date.now()}`,
-                        userId: engineer.id,
-                        message: `Job Alert: ${message}`,
-                        timestamp: new Date().toISOString(),
-                        type: NotificationType.BOOKING_REQUEST,
-                        read: false,
-                        link: { view: AppView.ENGINEER_DASHBOARD }
-                    }]);
-                    
-                    // 2. Trigger a system push notification
-                    showPushNotification('New Session Available!', {
-                        body: message,
-                        icon: '/logo192.png', // Assuming a logo exists in public folder
-                        tag: newBooking.id, // Tag prevents multiple notifications for the same booking
-                    });
-                }
-            }
-        };
-        
-        // Subscribe to the mock websocket service
-        const unsubscribe = webSocketService.on('new-booking', handleNewBooking);
-
-        // Clean up the subscription on component unmount
-        return () => unsubscribe();
-
-    }, [currentUser, userRole]);
+        fetchData();
+    }, []); // Empty dependency array ensures this runs only once on mount
 
 
     // --- Navigation Handlers ---
@@ -201,86 +176,29 @@ const App: React.FC = () => {
         window.open(url, '_blank', 'noopener,noreferrer');
     }, []);
 
-    const handleArtistNavigation = useCallback((booking: Booking) => {
-        if (!currentUser || userRole !== UserRole.ARTIST || !booking.stoodio) return;
-
-        const artist = currentUser as Artist;
-        const studio = booking.stoodio;
-        
-        // Calculate distance and ETA
-        const distance = calculateDistance(artist.coordinates, studio.coordinates);
-        const eta = estimateTravelTime(distance);
-
-        const newNotifications: AppNotification[] = [];
-
-        // Notify the studio
-        newNotifications.push({
-            id: `notif-nav-studio-${Date.now()}`,
-            userId: studio.id,
-            message: `${artist.name} is on their way to your studio for their session at ${booking.startTime}. ETA: ${eta}.`,
-            timestamp: new Date().toISOString(),
-            type: NotificationType.GENERAL,
-            read: false,
-            link: { view: AppView.STOODIO_DASHBOARD }
-        });
-
-        // Notify the engineer, if one is assigned
-        if (booking.engineer) {
-            newNotifications.push({
-                id: `notif-nav-eng-${Date.now()}`,
-                userId: booking.engineer.id,
-                message: `${artist.name} is on their way to ${studio.name} for your session. ETA: ${eta}.`,
-                timestamp: new Date().toISOString(),
-                type: NotificationType.GENERAL,
-                read: false,
-                link: { view: AppView.ENGINEER_DASHBOARD }
-            });
-        }
-
-        setNotifications(prev => [...prev, ...newNotifications]);
-        
-        // Trigger navigation
-        handleNavigateToStudio(studio.coordinates);
-
-    }, [currentUser, userRole, handleNavigateToStudio]);
-    
     const handleViewBooking = (bookingId: string) => {
-        // In a real app, you might navigate to a specific booking detail view.
-        // For simplicity, we navigate to the list view.
         handleNavigate(AppView.MY_BOOKINGS);
     };
 
     // --- Auth Handlers ---
     const handleLogin = useCallback((email: string, password: string): void => {
-        // For app simulation: allow login with any non-empty credentials
-        if (!email.trim() || !password.trim()) {
-            setLoginError("Email and password cannot be empty.");
-            return;
-        }
+        // In a real app, this would be an API call to your backend for authentication.
+        // For this prepared version, we simulate logging in by searching through the fetched data.
+        const allUsers: (Artist | Engineer | Stoodio | Producer)[] = [...artists, ...engineers, ...producers, ...stoodioz];
+        const user = allUsers.find(u => u.email === email && u.password === password);
 
-        const allUsers: (Artist | Engineer | Stoodio | Producer)[] = [...artists, ...engineers, ...stoodioz, ...producers];
-        
-        // Prioritize logging into a specific account if the email matches
-        let user = allUsers.find(u => u.email === email);
-
-        // If no user with that email is found, log in as a default user (the first artist) for easy testing
-        if (!user && artists.length > 0) {
-            user = artists[0]; 
-        }
-        
         if (user) {
             setCurrentUser(user);
-             // Request notification permission on login for a better user experience
+            // Request notification permission on login for a better user experience
             if ('Notification' in window && Notification.permission !== 'denied') {
                 Notification.requestPermission();
             }
             setHistory([AppView.THE_STAGE]);
             setHistoryIndex(0);
         } else {
-            // Fallback error if no mock users exist at all
-            setLoginError("Login failed. No users are available in the system.");
+            setLoginError("Login failed. Try 'artist@stoodioz.com', 'engineer@stoodioz.com', etc., with password 'password'.");
         }
-    }, [artists, engineers, stoodioz, producers]);
+    }, [artists, engineers, producers, stoodioz]);
 
     const handleLogout = useCallback(() => {
         setCurrentUser(null);
@@ -445,7 +363,6 @@ const App: React.FC = () => {
     }, [handleNavigate, currentUser]);
 
     const handleInitiateBookingWithProducer = useCallback((producer: Producer) => {
-        // FIX: Add pullUpFee to bookingIntent
         setBookingIntent({ producer, pullUpFee: producer.pullUpPrice });
         handleNavigate(AppView.STOODIO_LIST);
         setNotifications(prev => [...prev, {
@@ -567,7 +484,9 @@ const App: React.FC = () => {
             } else if (bookingRequest.requestType === BookingRequestType.SPECIFIC_ENGINEER) {
                 status = BookingStatus.PENDING_APPROVAL;
             } else {
-                status = BookingStatus.PENDING;
+                // For "Find Available", we will confirm it client-side immediately with the first available engineer for simplicity
+                status = BookingStatus.CONFIRMED;
+                engineer = engineers.find(e => e.isAvailable) || null;
             }
         }
 
@@ -591,37 +510,17 @@ const App: React.FC = () => {
         
         if (status === BookingStatus.CONFIRMED) {
             createSessionChat(newBooking);
-        }
-        
-        if (newBooking.requestType !== BookingRequestType.BRING_YOUR_OWN && !isProducerBooking) {
-            webSocketService.emit('new-booking', newBooking);
-        }
-
-        if (!isProducerBooking && newBooking.requestType === BookingRequestType.FIND_AVAILABLE) {
-            setTimeout(() => {
-                const availableEngineer = engineers.find(e => e.isAvailable);
-                if (availableEngineer) {
-                    let updatedBooking: Booking | null = null;
-                    setBookings(prev => prev.map(b => {
-                        if (b.id === newBooking.id) {
-                            updatedBooking = { ...b, status: BookingStatus.CONFIRMED, engineer: availableEngineer };
-                            return updatedBooking;
-                        }
-                        return b;
-                    }));
-                    if (updatedBooking) createSessionChat(updatedBooking);
-
-                    setNotifications(prev => [...prev, {
-                        id: `notif-found-${Date.now()}`,
-                        userId: currentUser.id,
-                        message: `Great news! ${availableEngineer.name} is confirmed for your session at ${selectedStoodio.name}.`,
-                        timestamp: new Date().toISOString(),
-                        type: NotificationType.BOOKING_CONFIRMED,
-                        read: false,
-                        link: { view: AppView.MY_BOOKINGS }
-                    }]);
-                }
-            }, 4000);
+             if (engineer) {
+                 setNotifications(prev => [...prev, {
+                    id: `notif-found-${Date.now()}`,
+                    userId: currentUser.id,
+                    message: `Great news! ${engineer.name} is confirmed for your session at ${selectedStoodio.name}.`,
+                    timestamp: new Date().toISOString(),
+                    type: NotificationType.BOOKING_CONFIRMED,
+                    read: false,
+                    link: { view: AppView.MY_BOOKINGS }
+                }]);
+            }
         }
         
         setTimeout(() => {
@@ -678,8 +577,6 @@ const App: React.FC = () => {
             bookedByRole: userRole,
         };
         setBookings(prev => [...prev, newJob]);
-
-        webSocketService.emit('new-booking', newJob);
     
         setNotifications(prev => [...prev, {
             id: `notif-${Date.now()}`, 
@@ -1156,15 +1053,47 @@ const App: React.FC = () => {
     const handleOpenVibeMatcher = useCallback(() => setIsVibeMatcherOpen(true), []);
     const handleCloseVibeMatcher = useCallback(() => setIsVibeMatcherOpen(false), []);
 
-    const handleVibeMatch = useCallback(async (songUrl: string) => {
+    const handleVibeMatch = useCallback(async (vibeDescription: string) => {
         setIsVibeMatcherLoading(true);
         setIsVibeMatcherOpen(false);
         try {
-            const results = await getVibeMatchResults(songUrl, stoodioz, engineers, producers);
-            setVibeMatchResults(results);
+            // This is now a placeholder for calling your backend Cloud Function.
+            // In a real app, you would use the Firebase SDK to call the 'vibeMatcher' function.
+            // e.g., const functions = getFunctions(); const vibeMatcher = httpsCallable(functions, 'vibeMatcher');
+            console.log("Calling backend vibe matcher with:", vibeDescription);
+            console.log("Context being sent:", {
+                stoodioz: stoodioz.map(s => ({ id: s.id, name: s.name, description: s.description, amenities: s.amenities })),
+                engineers: engineers.map(e => ({ id: e.id, name: e.name, bio: e.bio, specialties: e.specialties })),
+                producers: producers.map(p => ({ id: p.id, name: p.name, bio: p.bio, genres: p.genres }))
+            });
+
+            // Simulate the API call delay and response structure.
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const mockBackendResponse = {
+                vibeDescription: `Refined: ${vibeDescription}`,
+                tags: ['mock', 'backend', 'response'],
+                recommendations: [
+                    { type: 'stoodio', entityId: 'studio-1', reason: 'Matches the described vibe perfectly.' },
+                    { type: 'engineer', entityId: 'eng-1', reason: 'Specializes in this genre.' }
+                ]
+            };
+            
+            const results = {
+                ...mockBackendResponse,
+                recommendations: mockBackendResponse.recommendations.map((rec: any) => {
+                    let entity;
+                    if (rec.type === 'stoodio') entity = stoodioz.find(s => s.id === rec.entityId);
+                    else if (rec.type === 'engineer') entity = engineers.find(e => e.id === rec.entityId);
+                    else if (rec.type === 'producer') entity = producers.find(p => p.id === rec.entityId);
+                    return entity ? { ...rec, entity } : null;
+                }).filter(Boolean)
+            };
+
+            setVibeMatchResults(results as VibeMatchResult);
             handleNavigate(AppView.VIBE_MATCHER_RESULTS);
         } catch (error) {
             console.error("Vibe Match failed", error);
+            // You can add a notification here to inform the user of the error.
         } finally {
             setIsVibeMatcherLoading(false);
         }
@@ -1384,7 +1313,7 @@ const App: React.FC = () => {
                 return <StoodioList stoodioz={stoodioz} onSelectStoodio={handleViewStoodioDetails} />;
             case AppView.MY_BOOKINGS:
                 const userBookings = bookings.filter(b => b.bookedById === currentUser?.id || b.artist?.id === currentUser?.id || b.engineer?.id === currentUser?.id || b.stoodio?.id === currentUser?.id);
-                return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={handleNavigateToStudio} onOpenCancelModal={setBookingToCancel} onArtistNavigate={handleArtistNavigation} userRole={userRole} />;
+                return <MyBookings bookings={userBookings} engineers={engineers} onOpenTipModal={setTipModalBooking} onNavigateToStudio={handleNavigateToStudio} onOpenCancelModal={setBookingToCancel} userRole={userRole} />;
 
             case AppView.STOODIO_DASHBOARD:
                 if (userRole === UserRole.STOODIO) return <StoodioDashboard stoodio={currentUser as Stoodio} bookings={bookings.filter(b => b.stoodio?.id === currentUser?.id)} onUpdateStoodio={handleUpdateStoodio} onPost={handleCreatePost} onLikePost={handleLikePost} onCommentOnPost={handleCommentOnPost} currentUser={currentUser} onPostJob={handlePostJob} allArtists={artists} allEngineers={engineers} allStoodioz={stoodioz} allProducers={producers} onToggleFollow={handleToggleFollow} onSelectStoodio={handleViewStoodioDetails} onSelectArtist={handleViewArtistProfile} onSelectEngineer={handleViewEngineerProfile} onSelectProducer={handleViewProducerProfile} onVerificationSubmit={handleVerificationSubmit} onNavigate={handleNavigate} onOpenAddFundsModal={() => setIsAddFundsOpen(true)} onOpenPayoutModal={() => setIsPayoutOpen(true)} onViewBooking={handleViewBooking} />;
@@ -1447,7 +1376,7 @@ const App: React.FC = () => {
             />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Suspense fallback={<LoadingSpinner />}>
-                    {renderAppContent()}
+                    {isLoading && currentView === AppView.LANDING_PAGE ? <LoadingSpinner /> : renderAppContent()}
                 </Suspense>
 
                 {currentView === AppView.BOOKING_MODAL && selectedStoodio && bookingTime && (

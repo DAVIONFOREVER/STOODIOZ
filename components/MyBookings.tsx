@@ -10,11 +10,10 @@ interface MyBookingsProps {
     onOpenTipModal: (booking: Booking) => void;
     onNavigateToStudio: (location: Location) => void;
     onOpenCancelModal: (booking: Booking) => void;
-    onArtistNavigate: (booking: Booking) => void;
     userRole: UserRole | null;
 }
 
-const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipModal, onNavigateToStudio, onOpenCancelModal, onArtistNavigate, userRole }) => {
+const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipModal, onNavigateToStudio, onOpenCancelModal, userRole }) => {
 
     const getStatusAndParticipant = (booking: Booking) => {
         const requestedEngineer = booking.requestedEngineerId ? engineers.find(e => e.id === booking.requestedEngineerId) : null;
@@ -139,13 +138,7 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                                  </div>
                                  {booking.stoodio && booking.status === BookingStatus.CONFIRMED && isUpcoming && (
                                      <button 
-                                        onClick={() => {
-                                            if (userRole === UserRole.ARTIST) {
-                                                onArtistNavigate(booking);
-                                            } else {
-                                                onNavigateToStudio(booking.stoodio!.coordinates);
-                                            }
-                                        }}
+                                        onClick={() => onNavigateToStudio(booking.stoodio!.coordinates)}
                                         className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
                                      >
                                         <RoadIcon className="w-4 h-4"/>
