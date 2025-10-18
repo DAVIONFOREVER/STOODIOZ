@@ -1,23 +1,28 @@
-import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
-    return {
-      server: {
-        port: 3000,
-        host: '0.0.0.0',
+// This configuration is based on the user's instructions to proxy API calls
+// during local development to the Supabase emulator.
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api/supabase': {
+        target: 'http://localhost:54321',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/supabase/, ''),
       },
-      plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+      '/api/aria': {
+        target: 'http://localhost:54321/functions/v1/aria',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/aria/, ''),
       },
-      resolve: {
-        alias: {
-          '@': path.resolve(__dirname, '.'),
-        }
+      '/api/stripe': {
+        target: 'http://localhost:54321/functions/v1/stripe',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/stripe/, ''),
       }
-    };
+    }
+  }
 });

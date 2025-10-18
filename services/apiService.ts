@@ -1,28 +1,64 @@
+// import { supabase } from '../lib/supabase'; // This was causing errors by trying to connect to a proxy that doesn't exist in this environment.
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Transaction, Post, Comment } from '../types';
 import { BookingStatus, BookingRequestType, TransactionCategory, TransactionStatus, VerificationStatus } from '../types';
 import { differenceInHours } from 'date-fns';
 
-const API_BASE_URL = '/api'; // In a real app, this would be your backend URL. For this demo, it points to the public/api folder.
-
 // --- DATA FETCHING (GET Requests) ---
 
-const fetchData = async <T>(endpoint: string): Promise<T> => {
-    // In a real app, you might have headers for authentication, etc.
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch ${endpoint}: ${response.statusText}`);
-    }
-    return await response.json();
-}
+// NOTE: Switched to fetching local mock data to resolve API errors.
+// The app was previously configured to use a Supabase backend via a proxy,
+// which is not available in the current setup. These functions now load
+// the sample data from the `public/api/` directory.
 
-export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData('stoodioz.json');
-export const fetchArtists = (): Promise<Artist[]> => fetchData('artists.json');
-export const fetchEngineers = (): Promise<Engineer[]> => fetchData('engineers.json');
-export const fetchProducers = (): Promise<Producer[]> => fetchData('producers.json');
+export const fetchStoodioz = async (): Promise<Stoodio[]> => {
+    try {
+        const response = await fetch('/api/stoodioz.json');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching studios:", error);
+        throw error;
+    }
+};
+
+export const fetchArtists = async (): Promise<Artist[]> => {
+    try {
+        const response = await fetch('/api/artists.json');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching artists:", error);
+        throw error;
+    }
+};
+
+export const fetchEngineers = async (): Promise<Engineer[]> => {
+    try {
+        const response = await fetch('/api/engineers.json');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching engineers:", error);
+        throw error;
+    }
+};
+
+export const fetchProducers = async (): Promise<Producer[]> => {
+    try {
+        const response = await fetch('/api/producers.json');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching producers:", error);
+        throw error;
+    }
+};
+
 
 // --- DATA MUTATION (POST, PUT, DELETE simulations) ---
 // These functions simulate backend operations by taking the current state,
 // performing mutations, and returning the newly updated state objects.
+// These will be refactored to use Supabase Edge Functions in a later step.
 
 export const createBooking = async (
     bookingRequest: BookingRequest,
