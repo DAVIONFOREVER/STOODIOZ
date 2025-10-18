@@ -1,9 +1,9 @@
 import React from 'react';
 import type { VibeMatchResult, Stoodio, Engineer, Producer } from '../types';
 import { ChevronLeftIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface VibeMatcherResultsProps {
-    results: VibeMatchResult;
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectProducer: (producer: Producer) => void;
@@ -55,7 +55,11 @@ const RecommendationCard: React.FC<{
     );
 };
 
-const VibeMatcherResults: React.FC<VibeMatcherResultsProps> = ({ results, onSelectStoodio, onSelectEngineer, onSelectProducer, onBack }) => {
+const VibeMatcherResults: React.FC<VibeMatcherResultsProps> = ({ onSelectStoodio, onSelectEngineer, onSelectProducer, onBack }) => {
+    const { vibeMatchResults } = useAppState();
+
+    if (!vibeMatchResults) return null;
+
     return (
         <div>
             <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
@@ -66,10 +70,10 @@ const VibeMatcherResults: React.FC<VibeMatcherResultsProps> = ({ results, onSele
             <div className="bg-zinc-800 rounded-2xl shadow-xl p-8 border border-zinc-700 mb-8">
                 <h1 className="text-5xl font-extrabold text-center mb-2 tracking-tight text-orange-500">Your Vibe Match</h1>
                 <p className="text-center text-lg text-slate-300 mb-6 max-w-3xl mx-auto">
-                    {results.vibeDescription}
+                    {vibeMatchResults.vibeDescription}
                 </p>
                 <div className="flex justify-center flex-wrap gap-2">
-                    {results.tags.map(tag => (
+                    {vibeMatchResults.tags.map(tag => (
                         <span key={tag} className="bg-zinc-700 text-orange-300 text-sm font-semibold px-3 py-1 rounded-full">
                             {tag}
                         </span>
@@ -79,7 +83,7 @@ const VibeMatcherResults: React.FC<VibeMatcherResultsProps> = ({ results, onSele
             
             <h2 className="text-3xl font-bold mb-6 text-slate-100">AI Recommendations</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {results.recommendations.map((rec, index) => (
+                {vibeMatchResults.recommendations.map((rec, index) => (
                     <RecommendationCard 
                         key={`${rec.entity.id}-${index}`}
                         rec={rec}

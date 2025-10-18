@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { AppView, UserRole, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
 import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon } from './icons';
 import NotificationPanel from './NotificationPanel';
 import UniversalSearch from './UniversalSearch';
+import { useAppState } from '../contexts/AppContext';
 
 interface HeaderProps {
     onNavigate: (view: AppView) => void;
-    userRole: UserRole | null;
-    notifications: AppNotification[];
-    unreadCount: number;
     onGoBack: () => void;
     onGoForward: () => void;
     canGoBack: boolean;
@@ -16,10 +14,6 @@ interface HeaderProps {
     onLogout: () => void;
     onMarkAsRead: (id: string) => void;
     onMarkAllAsRead: () => void;
-    allArtists: Artist[];
-    allEngineers: Engineer[];
-    allProducers: Producer[];
-    allStoodioz: Stoodio[];
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectProducer: (producer: Producer) => void;
@@ -28,12 +22,15 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = (props) => {
     const { 
-        onNavigate, userRole, notifications, unreadCount, onGoBack, onGoForward, canGoBack, canGoForward, onLogout, onMarkAsRead, onMarkAllAsRead,
-        allArtists, allEngineers, allProducers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio
+        onNavigate, onGoBack, onGoForward, canGoBack, canGoForward, onLogout, onMarkAsRead, onMarkAllAsRead,
+        onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio
     } = props;
+    const { userRole, notifications, artists, engineers, producers, stoodioz } = useAppState();
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
+
+    const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
     const navLinkClasses = "text-slate-300 hover:text-orange-400 px-3 py-2 rounded-md text-sm font-semibold transition-colors whitespace-nowrap";
     const navButtonClasses = "p-2 rounded-full transition-colors";
@@ -71,16 +68,16 @@ const Header: React.FC<HeaderProps> = (props) => {
     const handleDashboardNavigate = () => {
         if (!userRole) return;
         switch (userRole) {
-            case UserRole.ARTIST:
+            case 'ARTIST':
                 onNavigate(AppView.ARTIST_DASHBOARD);
                 break;
-            case UserRole.ENGINEER:
+            case 'ENGINEER':
                 onNavigate(AppView.ENGINEER_DASHBOARD);
                 break;
-            case UserRole.PRODUCER:
+            case 'PRODUCER':
                 onNavigate(AppView.PRODUCER_DASHBOARD);
                 break;
-            case UserRole.STOODIO:
+            case 'STOODIO':
                 onNavigate(AppView.STOODIO_DASHBOARD);
                 break;
         }
@@ -128,10 +125,10 @@ const Header: React.FC<HeaderProps> = (props) => {
                         <div className="hidden lg:flex flex-1 justify-center items-center px-4">
                             {userRole ? (
                                 <UniversalSearch 
-                                    allArtists={allArtists}
-                                    allEngineers={allEngineers}
-                                    allProducers={allProducers}
-                                    allStoodioz={allStoodioz}
+                                    allArtists={artists}
+                                    allEngineers={engineers}
+                                    allProducers={producers}
+                                    allStoodioz={stoodioz}
                                     onSelectArtist={onSelectArtist}
                                     onSelectEngineer={onSelectEngineer}
                                     onSelectProducer={onSelectProducer}
@@ -181,7 +178,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                                                 notifications={notifications}
                                                 onMarkAsRead={onMarkAsRead}
                                                 onMarkAllAsRead={onMarkAllAsRead}
-                                                onNavigate={onNavigate}
+                                                onNavigate={() => {}}
                                                 onClose={() => setIsPanelOpen(false)}
                                             />
                                         )}

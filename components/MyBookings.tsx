@@ -1,19 +1,30 @@
-import React from 'react';
-import type { Booking, Location, Engineer } from '../types';
-import { BookingStatus, BookingRequestType, UserRole } from '../types';
-import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon, SoundWaveIcon, HouseIcon } from './icons';
+import React, { useMemo } from 'react';
+import type { Booking, Location } from '../types';
+import { BookingStatus, BookingRequestType } from '../types';
+import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon, SoundWaveIcon } from './icons';
 import { USER_SILHOUETTE_URL } from '../constants';
+import { useAppState } from '../contexts/AppContext';
 
 interface MyBookingsProps {
-    bookings: Booking[];
-    engineers: Engineer[];
     onOpenTipModal: (booking: Booking) => void;
     onNavigateToStudio: (location: Location) => void;
     onOpenCancelModal: (booking: Booking) => void;
-    userRole: UserRole | null;
 }
 
-const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipModal, onNavigateToStudio, onOpenCancelModal, userRole }) => {
+const MyBookings: React.FC<MyBookingsProps> = ({ onOpenTipModal, onNavigateToStudio, onOpenCancelModal }) => {
+    const { bookings, engineers, userRole, currentUser } = useAppState();
+    
+    const userBookings = useMemo(() => {
+        if (!currentUser) return [];
+        return bookings
+            .filter(b => 
+                b.bookedById === currentUser.id || 
+                b.artist?.id === currentUser.id || 
+                b.engineer?.id === currentUser.id || 
+                b.stoodio?.id === currentUser.id
+            )
+            .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [bookings, currentUser]);
 
     const getStatusAndParticipant = (booking: Booking) => {
         const requestedEngineer = booking.requestedEngineerId ? engineers.find(e => e.id === booking.requestedEngineerId) : null;
@@ -64,14 +75,14 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
         <div>
             <h1 className="text-5xl font-extrabold text-center mb-2 tracking-tight text-orange-500">My Bookings</h1>
             <p className="text-center text-lg text-slate-500 mb-12">Here are your upcoming and past stoodio sessions.</p>
-            {bookings.length === 0 ? (
+            {userBookings.length === 0 ? (
                 <div className="text-center py-16 bg-zinc-800 rounded-lg border border-zinc-700">
                     <h2 className="text-2xl font-semibold text-slate-100">No Bookings Yet</h2>
                     <p className="text-slate-400 mt-2">Time to book a stoodio and make some magic happen!</p>
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {bookings.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(booking => {
+                    {userBookings.map(booking => {
                         const { statusText, statusColor, participantName } = getStatusAndParticipant(booking);
                         const isUpcoming = new Date(`${booking.date}T${booking.startTime}`) >= new Date();
                         const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;

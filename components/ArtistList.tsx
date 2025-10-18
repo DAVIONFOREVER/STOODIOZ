@@ -1,16 +1,15 @@
 import React from 'react';
-import type { Artist, UserRole } from '../types';
+import type { Artist } from '../types';
 import ArtistCard from './ArtistCard';
+import { useAppState } from '../contexts/AppContext';
 
 interface ArtistListProps {
-    artists: Artist[];
     onSelectArtist: (artist: Artist) => void;
     onToggleFollow: (type: 'artist', id: string) => void;
-    currentUser: Artist | any | null;
-    userRole: UserRole | null;
 }
 
-const ArtistList: React.FC<ArtistListProps> = ({ artists, onSelectArtist, onToggleFollow, currentUser }) => {
+const ArtistList: React.FC<ArtistListProps> = ({ onSelectArtist, onToggleFollow }) => {
+    const { artists, currentUser } = useAppState();
     return (
         <div>
             <h1 className="text-5xl md:text-6xl font-extrabold text-center mb-2 tracking-tight text-orange-500">

@@ -2,63 +2,63 @@
 
 import React, { useState } from 'react';
 import type { Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
-import { PhotoIcon, LinkIcon, CloseCircleIcon, VideoCameraIcon } from './icons';
+import { LinkIcon, CloseCircleIcon } from './icons';
+import { fetchLinkMetadata } from '../services/geminiService';
 
 interface CreatePostProps {
     currentUser: Artist | Engineer | Stoodio | Producer;
-    onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => void;
+    onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
 }
 
 const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     const [text, setText] = useState('');
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
-    const [videoUrl, setVideoUrl] = useState<string | null>(null);
-    const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
     const [link, setLink] = useState<LinkAttachment | null>(null);
     const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-    const [linkTitle, setLinkTitle] = useState('');
     const [linkUrl, setLinkUrl] = useState('');
+    const [isFetchingPreview, setIsFetchingPreview] = useState(false);
+    const [linkPreview, setLinkPreview] = useState<LinkAttachment | null>(null);
+    const [isPosting, setIsPosting] = useState(false);
 
     const clearAttachments = () => {
-        setImageUrl(null);
-        setVideoUrl(null);
-        setVideoThumbnailUrl(null);
         setLink(null);
-        setIsLinkModalOpen(false);
+        setLinkPreview(null);
+        setLinkUrl('');
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (text.trim() || imageUrl || link || videoUrl) {
-            onPost({ 
+        if ((text.trim() || link) && !isPosting) {
+            setIsPosting(true);
+            await onPost({ 
                 text: text.trim(), 
-                imageUrl: imageUrl || undefined, 
-                videoUrl: videoUrl || undefined,
-                videoThumbnailUrl: videoThumbnailUrl || undefined,
                 link: link || undefined 
             });
             setText('');
             clearAttachments();
+            setIsPosting(false);
         }
     };
 
-    const handleAddPhoto = () => {
-        clearAttachments();
-        setImageUrl(`https://picsum.photos/seed/post-${Date.now()}/800/600`);
+    const handleFetchPreview = async () => {
+        if (linkUrl.trim()) {
+            setIsFetchingPreview(true);
+            const metadata = await fetchLinkMetadata(linkUrl);
+            setLinkPreview(metadata);
+            setIsFetchingPreview(false);
+        }
     };
-
-    const handleAddVideo = () => {
-        clearAttachments();
-        setVideoUrl('https://storage.googleapis.com/studiogena-assets/waves_video.mp4');
-        setVideoThumbnailUrl(`https://picsum.photos/seed/video-thumb-${Date.now()}/800/450`);
-    };
-
+    
     const handleAddLink = (e: React.FormEvent) => {
         e.preventDefault();
-        if (linkTitle.trim() && linkUrl.trim()) {
-            clearAttachments();
-            setLink({ title: linkTitle, url: linkUrl });
-            setLinkTitle('');
+        if (linkPreview) {
+            setLink(linkPreview);
+            setIsLinkModalOpen(false);
+            setLinkPreview(null);
+            setLinkUrl('');
+        } else if (linkUrl) {
+            // If fetching fails or there's no preview, add the raw URL
+            setLink({ url: linkUrl, title: linkUrl });
+            setIsLinkModalOpen(false);
             setLinkUrl('');
         }
     };
@@ -72,30 +72,14 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                         <textarea
                             value={text}
                             onChange={(e) => setText(e.target.value)}
-                            placeholder="Share an update with your followers..."
+                            placeholder="Share an update, a new track, or a session video..."
                             className="w-full bg-zinc-700 border-zinc-600 text-slate-200 placeholder:text-slate-400 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500"
                             rows={3}
                         />
 
-                        {/* Previews */}
-                        {imageUrl && (
-                            <div className="relative mt-2">
-                                <img src={imageUrl} alt="Preview" className="rounded-lg max-h-40 w-auto" />
-                                <button type="button" onClick={() => setImageUrl(null)} className="absolute top-1 right-1 bg-black/50 rounded-full text-white">
-                                    <CloseCircleIcon className="w-6 h-6" />
-                                </button>
-                            </div>
-                        )}
-                        {videoUrl && (
-                            <div className="relative mt-2">
-                                <video src={videoUrl} poster={videoThumbnailUrl || ''} controls className="rounded-lg w-full" />
-                                <button type="button" onClick={() => { setVideoUrl(null); setVideoThumbnailUrl(null); }} className="absolute top-1 right-1 bg-black/50 rounded-full text-white">
-                                    <CloseCircleIcon className="w-6 h-6" />
-                                </button>
-                            </div>
-                        )}
                         {link && (
                              <div className="relative mt-2 p-3 bg-zinc-700 rounded-lg border border-zinc-600">
+                                {link.imageUrl && <img src={link.imageUrl} alt="Link preview" className="rounded-md w-full h-32 object-cover mb-2" />}
                                 <p className="font-semibold text-sm text-slate-100">{link.title}</p>
                                 <p className="text-xs text-slate-400 truncate">{link.url}</p>
                                  <button type="button" onClick={() => setLink(null)} className="absolute top-1 right-1 bg-black/50 rounded-full text-white">
@@ -106,34 +90,48 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                         
                         <div className="flex justify-between items-center mt-3">
                             <div className="flex items-center gap-1 sm:gap-2">
-                                <button type="button" onClick={handleAddPhoto} className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 p-2 rounded-lg transition-colors">
-                                    <PhotoIcon className="w-5 h-5" />
-                                    <span className="hidden sm:inline text-sm font-semibold">Photo</span>
-                                </button>
-                                 <button type="button" onClick={handleAddVideo} className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 p-2 rounded-lg transition-colors">
-                                    <VideoCameraIcon className="w-5 h-5" />
-                                    <span className="hidden sm:inline text-sm font-semibold">Video</span>
-                                </button>
-                                 <button type="button" onClick={() => setIsLinkModalOpen(!isLinkModalOpen)} className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 p-2 rounded-lg transition-colors">
+                                <button type="button" onClick={() => setIsLinkModalOpen(!isLinkModalOpen)} className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 p-2 rounded-lg transition-colors">
                                     <LinkIcon className="w-5 h-5" />
-                                    <span className="hidden sm:inline text-sm font-semibold">Link</span>
+                                    <span className="text-sm font-semibold">Add Link</span>
                                 </button>
                             </div>
-                            <button
-                                type="submit"
-                                disabled={!text.trim() && !imageUrl && !link && !videoUrl}
-                                className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 disabled:bg-slate-600 disabled:cursor-not-allowed"
-                            >
-                                Post
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <p className="text-xs text-zinc-500 hidden sm:block">Posts are subject to Community Guidelines.</p>
+                                <button
+                                    type="submit"
+                                    disabled={(!text.trim() && !link) || isPosting}
+                                    className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 disabled:bg-zinc-600 disabled:cursor-not-allowed"
+                                >
+                                    {isPosting ? 'Posting...' : 'Post'}
+                                </button>
+                            </div>
                         </div>
                     </form>
                     {/* Link Modal */}
                     {isLinkModalOpen && (
                          <form onSubmit={handleAddLink} className="mt-3 pt-3 border-t border-zinc-600">
-                            <input type="text" value={linkTitle} onChange={e => setLinkTitle(e.target.value)} placeholder="Link Title" className="w-full text-sm p-2 rounded bg-zinc-700 border-zinc-600 text-slate-200 mb-2 focus:ring-orange-500 focus:border-orange-500"/>
-                            <input type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://example.com" className="w-full text-sm p-2 rounded bg-zinc-700 border-zinc-600 text-slate-200 mb-2 focus:ring-orange-500 focus:border-orange-500"/>
-                            <div className="flex justify-end gap-2">
+                            <div className="flex gap-2">
+                                <input 
+                                    type="url" 
+                                    value={linkUrl} 
+                                    onChange={e => { setLinkUrl(e.target.value); setLinkPreview(null); }} 
+                                    placeholder="https://youtube.com/watch?v=..." 
+                                    className="w-full text-sm p-2 rounded bg-zinc-700 border-zinc-600 text-slate-200 focus:ring-orange-500 focus:border-orange-500"
+                                />
+                                <button type="button" onClick={handleFetchPreview} className="px-3 py-1 text-xs rounded bg-zinc-600 hover:bg-zinc-500 text-slate-200">Preview</button>
+                            </div>
+
+                            {isFetchingPreview && <p className="text-xs text-zinc-400 mt-2 text-center">Fetching preview...</p>}
+
+                            {linkPreview && (
+                                <div className="mt-2 p-2 bg-zinc-700/50 rounded-lg border border-zinc-600">
+                                    {linkPreview.imageUrl && <img src={linkPreview.imageUrl} alt="Link preview" className="rounded-md w-full h-24 object-cover mb-2" />}
+                                    <p className="font-semibold text-xs text-slate-100">{linkPreview.title}</p>
+                                    <p className="text-xs text-slate-400 truncate">{linkPreview.description}</p>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end gap-2 mt-3">
                                 <button type="button" onClick={() => setIsLinkModalOpen(false)} className="px-3 py-1 text-xs rounded bg-zinc-600 hover:bg-zinc-500 text-slate-200">Cancel</button>
                                 <button type="submit" className="px-3 py-1 text-xs rounded bg-orange-500 hover:bg-orange-600 text-white">Add Link</button>
                             </div>

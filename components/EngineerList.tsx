@@ -1,16 +1,15 @@
 import React from 'react';
-import type { Engineer, UserRole, Artist } from '../types';
+import type { Engineer } from '../types';
 import EngineerCard from './EngineerCard';
+import { useAppState } from '../contexts/AppContext';
 
 interface EngineerListProps {
-    engineers: Engineer[];
     onSelectEngineer: (engineer: Engineer) => void;
     onToggleFollow: (type: 'engineer', id: string) => void;
-    currentUser: Artist | Engineer | any | null;
-    userRole: UserRole | null;
 }
 
-const EngineerList: React.FC<EngineerListProps> = ({ engineers, onSelectEngineer, onToggleFollow, currentUser }) => {
+const EngineerList: React.FC<EngineerListProps> = ({ onSelectEngineer, onToggleFollow }) => {
+    const { engineers, currentUser } = useAppState();
     return (
         <div>
             <h1 className="text-5xl md:text-6xl font-extrabold text-center mb-2 tracking-tight text-orange-500">

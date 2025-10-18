@@ -1,16 +1,28 @@
 import React from 'react';
-import type { Booking, Engineer } from '../types';
+import type { Engineer } from '../types';
 import { BookingRequestType, BookingStatus } from '../types';
 import { CheckCircleIcon, CogIcon, ClockIcon, DownloadIcon, MusicNoteIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface BookingConfirmationProps {
-    booking: Booking;
     onDone: () => void;
-    engineers: Engineer[];
 }
 
-const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDone, engineers }) => {
-    const { stoodio, engineer, date, startTime, duration, totalCost, requestType, requestedEngineerId } = booking;
+const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => {
+    const { latestBooking, engineers } = useAppState();
+
+    if (!latestBooking) {
+        // This should ideally not happen if navigation is correct
+        return (
+            <div className="text-center">
+                <p>No booking information found.</p>
+                <button onClick={onDone} className="mt-4 bg-orange-500 text-white font-bold py-2 px-4 rounded-lg">Go to My Bookings</button>
+            </div>
+        );
+    }
+    
+    const { stoodio, engineer, date, startTime, duration, totalCost, requestType, requestedEngineerId } = latestBooking;
+    
     const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
@@ -19,7 +31,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDo
 
     const getTitleAndMessage = () => {
         const atStoodio = stoodio ? `at ${stoodio.name}` : '';
-        switch (booking.status) {
+        switch (latestBooking.status) {
             case BookingStatus.PENDING:
                 return {
                     icon: <ClockIcon className="w-20 h-20 text-yellow-500" />,
@@ -28,7 +40,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDo
                 };
             case BookingStatus.PENDING_APPROVAL:
                  const approver = requestedEngineer?.name || 'the engineer';
-                 if(booking.mixingDetails?.type === 'REMOTE') {
+                 if(latestBooking.mixingDetails?.type === 'REMOTE') {
                      return {
                         icon: <ClockIcon className="w-20 h-20 text-yellow-500" />,
                         title: 'Mix Request Sent!',
@@ -58,7 +70,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDo
     };
     
     const { icon, title, message } = getTitleAndMessage();
-    const isConfirmedWithStoodiozEngineer = booking.status === BookingStatus.CONFIRMED && requestType !== BookingRequestType.BRING_YOUR_OWN;
+    const isConfirmedWithStoodiozEngineer = latestBooking.status === BookingStatus.CONFIRMED && requestType !== BookingRequestType.BRING_YOUR_OWN;
 
     return (
         <div className="max-w-3xl mx-auto text-center">
@@ -80,13 +92,13 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDo
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-slate-300">
                             {stoodio && <p><strong>Stoodio:</strong> {stoodio.name}</p>}
                             {stoodio && <p><strong>Location:</strong> {stoodio.location}</p>}
-                            {booking.mixingDetails?.type === 'REMOTE' && <p><strong>Service:</strong> Remote Mixing ({booking.mixingDetails.trackCount} tracks)</p>}
-                            {booking.mixingDetails?.type === 'IN_STUDIO' && <p><strong>Add-on:</strong> In-Studio Mixing ({booking.mixingDetails.trackCount} tracks)</p>}
+                            {latestBooking.mixingDetails?.type === 'REMOTE' && <p><strong>Service:</strong> Remote Mixing ({latestBooking.mixingDetails.trackCount} tracks)</p>}
+                            {latestBooking.mixingDetails?.type === 'IN_STUDIO' && <p><strong>Add-on:</strong> In-Studio Mixing ({latestBooking.mixingDetails.trackCount} tracks)</p>}
                             <p><strong>Date:</strong> {formattedDate}</p>
                             {startTime !== 'N/A' && <p><strong>Time:</strong> {startTime} for {duration} hours</p>}
                             <p><strong>Total Paid:</strong> <span className="font-bold">${totalCost.toFixed(2)}</span></p>
                             <p><strong>Engineer:</strong> {requestType === BookingRequestType.BRING_YOUR_OWN ? 'Provided by Artist' : (engineer?.name || 'To be assigned')}</p>
-                             {booking.producer && <p><strong>Producer:</strong> {booking.producer.name}</p>}
+                             {latestBooking.producer && <p><strong>Producer:</strong> {latestBooking.producer.name}</p>}
                         </div>
                     </div>
 
@@ -116,13 +128,13 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ booking, onDo
                             </div>
                         </>
                     )}
-                     {booking.instrumentalsPurchased && booking.instrumentalsPurchased.length > 0 && (
+                     {latestBooking.instrumentalsPurchased && latestBooking.instrumentalsPurchased.length > 0 && (
                         <>
                             <div className="border-t border-zinc-700"></div>
                             <div>
                                 <h3 className="font-bold text-lg text-orange-400 mb-4">Download Your Beats</h3>
                                 <div className="space-y-2">
-                                    {booking.instrumentalsPurchased.map(beat => (
+                                    {latestBooking.instrumentalsPurchased.map(beat => (
                                         <div key={beat.id} className="bg-zinc-700/50 p-3 rounded-md flex justify-between items-center">
                                             <div className="flex items-center gap-2">
                                                 <MusicNoteIcon className="w-5 h-5 text-purple-400"/>

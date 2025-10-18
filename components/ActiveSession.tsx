@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import type { Booking, Artist } from '../types';
+import type { Artist } from '../types';
 import { LocationIcon, NavigationArrowIcon, ClockIcon, DollarSignIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface ActiveSessionProps {
-    session: Booking;
     onEndSession: (bookingId: string) => void;
     onSelectArtist: (artist: Artist) => void;
 }
@@ -19,8 +19,11 @@ const TimelineStep: React.FC<{ title: string; isComplete: boolean; isCurrent: bo
     );
 };
 
-const ActiveSession: React.FC<ActiveSessionProps> = ({ session, onEndSession, onSelectArtist }) => {
+const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArtist }) => {
+    const { activeSession: session } = useAppState();
     const [progress, setProgress] = useState<'EN_ROUTE' | 'IN_SESSION'>('EN_ROUTE');
+    
+    if (!session) return null;
 
     const engineerPayout = session.totalCost * 0.20;
 

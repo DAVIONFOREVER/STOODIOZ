@@ -3,13 +3,14 @@ import type { Stoodio } from '../types';
 import { VerificationStatus } from '../types';
 import StoodioCard from './StudioCard';
 import { SearchIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface StoodioListProps {
-    stoodioz: Stoodio[];
     onSelectStoodio: (stoodio: Stoodio) => void;
 }
 
-const StoodioList: React.FC<StoodioListProps> = ({ stoodioz, onSelectStoodio }) => {
+const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
+    const { stoodioz } = useAppState();
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [showVerifiedOnly, setShowVerifiedOnly] = useState<boolean>(false);
 

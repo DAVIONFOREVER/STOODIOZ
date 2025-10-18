@@ -1,7 +1,4 @@
-
-
 import React, { useMemo } from 'react';
-// FIX: Update currentUser to accept Producer
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { AppView } from '../types';
 import CreatePost from './CreatePost';
@@ -10,22 +7,16 @@ import UserProfileCard from './UserProfileCard';
 import WhoToFollow from './WhoToFollow';
 import TrendingPost from './TrendingPost';
 import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface TheStageProps {
-    currentUser: Artist | Engineer | Stoodio | Producer;
-    allArtists: Artist[];
-    allEngineers: Engineer[];
-    allStoodioz: Stoodio[];
-    allProducers: Producer[];
-    onPost: (postData: { text: string; imageUrl?: string; link?: LinkAttachment }) => void;
+    onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-// FIX: Update onToggleFollow to accept 'producer'
     onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
-// FIX: Add onSelectProducer prop
     onSelectProducer: (producer: Producer) => void;
     onNavigate: (view: AppView) => void;
 }
@@ -39,11 +30,6 @@ const QuickLink: React.FC<{ icon: React.ReactNode; label: string; onClick: () =>
 
 const TheStage: React.FC<TheStageProps> = (props) => {
     const { 
-        currentUser, 
-        allArtists, 
-        allEngineers, 
-        allStoodioz,
-        allProducers, 
         onPost, 
         onLikePost, 
         onCommentOnPost,
@@ -54,9 +40,10 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         onSelectProducer,
         onNavigate
     } = props;
+    const { currentUser, artists, engineers, stoodioz, producers } = useAppState();
 
     const { feedPosts, authorsMap, suggestions, trendingPost, trendingPostAuthor } = useMemo(() => {
-        const allUsers = [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers];
+        const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
         const authorsMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
         allUsers.forEach(u => authorsMap.set(u.id, u));
 
@@ -74,22 +61,19 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         
         const allPosts = allUsers.flatMap(user => user.posts || []);
         
-        // The stage now shows a global feed of all posts, sorted by newest first.
-        const feedPosts = [...allPosts] // Create a copy before sorting
+        const feedPosts = [...allPosts]
             .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
         
-        // Mock suggestion logic: find users not followed by current user
         const suggestions = allUsers.filter(u => !followedIds.has(u.id) && u.id !== currentUser.id).slice(0, 4);
 
-        // Mock trending post logic: find the most popular post overall
-        const trendingPost = [...allPosts] // Create another copy for a different sort
+        const trendingPost = [...allPosts]
             .sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0] || null;
             
         const trendingPostAuthor = trendingPost ? authorsMap.get(trendingPost.authorId) : null;
 
 
         return { feedPosts, authorsMap, suggestions, trendingPost, trendingPostAuthor };
-    }, [currentUser, allArtists, allEngineers, allStoodioz, allProducers]);
+    }, [currentUser, artists, engineers, stoodioz, producers]);
 
     const handleSelectUser = (user: Artist | Engineer | Stoodio | Producer) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
@@ -98,13 +82,14 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         else onSelectArtist(user as Artist);
     };
 
+    if (!currentUser) return null;
+
     return (
         <div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left Sidebar */}
                 <aside className="lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
-{/* FIX: Update user prop for UserProfileCard to handle Producer type */}
                        <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
                        <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
                            <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
@@ -128,7 +113,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                             authors={authorsMap}
                             onLikePost={onLikePost}
                             onCommentOnPost={onCommentOnPost}
-                            currentUser={currentUser}
+                            onSelectAuthor={handleSelectUser}
                         />
                     </div>
                 </main>
@@ -149,7 +134,6 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                                 author={trendingPostAuthor}
                                 onLikePost={onLikePost}
                                 onCommentOnPost={onCommentOnPost}
-                                currentUser={currentUser}
                                 onSelectUser={handleSelectUser}
                             />
                         )}

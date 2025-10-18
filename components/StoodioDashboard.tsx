@@ -1,9 +1,7 @@
-
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -13,6 +11,7 @@ import RoomManager from './RoomManager';
 import EngineerManager from './EngineerManager';
 import VerificationManager from './VerificationManager';
 import Wallet from './Wallet';
+import { useAppState } from '../contexts/AppContext';
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -71,7 +70,7 @@ const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onP
 
 const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; onPostJob: (data: JobPostData) => void; }> = ({ stoodio, bookings, onPostJob }) => {
     const postedJobs = bookings
-        .filter(b => b.postedBy === UserRole.STOODIO && b.stoodio.id === stoodio.id)
+        .filter(b => b.postedBy === UserRole.STOODIO && b.stoodio?.id === stoodio.id)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const getStatusInfo = (job: Booking) => {
@@ -137,32 +136,6 @@ const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onN
     </div>
 );
 
-
-interface StoodioDashboardProps {
-    stoodio: Stoodio;
-    bookings: Booking[];
-    allArtists: Artist[];
-    allEngineers: Engineer[];
-    allStoodioz: Stoodio[];
-    allProducers: Producer[];
-    onUpdateStoodio: (updatedProfile: Partial<Stoodio>) => void;
-    onToggleFollow: (type: 'artist' | 'engineer' | 'stoodio' | 'producer', id: string) => void;
-    onSelectArtist: (artist: Artist) => void;
-    onSelectEngineer: (engineer: Engineer) => void;
-    onSelectStoodio: (stoodio: Stoodio) => void;
-    onSelectProducer: (producer: Producer) => void;
-    onPost: (postData: { text: string; imageUrl?: string; link?: LinkAttachment }) => void;
-    onLikePost: (postId: string) => void;
-    onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
-    onPostJob: (jobRequest: JobPostData) => void;
-    onVerificationSubmit: (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => void;
-    onNavigate: (view: AppView) => void;
-    onOpenAddFundsModal: () => void;
-    onOpenPayoutModal: () => void;
-    onViewBooking: (bookingId: string) => void;
-}
-
 type DashboardTab = 'dashboard' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -184,19 +157,57 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
     </button>
 );
 
-const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
-    const { stoodio, bookings, onUpdateStoodio, onPost, onLikePost, onCommentOnPost, currentUser, onPostJob, allArtists, allEngineers, allStoodioz, allProducers, onToggleFollow, onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer, onVerificationSubmit, onNavigate, onOpenAddFundsModal, onOpenPayoutModal, onViewBooking } = props;
+const StoodioDashboard: React.FC = () => {
+    const { 
+        currentUser, bookings, artists, engineers, stoodioz, producers 
+    } = useAppState();
+    const stoodio = currentUser as Stoodio;
+    
+    // Mock handlers defined inside component
+    const onUpdateStoodio = (updates: Partial<Stoodio>) => console.log('Update Stoodio:', updates);
+    const onToggleFollow = (type: string, id: string) => console.log(`Toggle follow ${type}:`, id);
+    const onSelectArtist = (a: Artist) => console.log('Select artist:', a.name);
+    const onSelectEngineer = (e: Engineer) => console.log('Select engineer:', e.name);
+    const onSelectStoodio = (s: Stoodio) => console.log('Select stoodio:', s.name);
+    const onSelectProducer = (p: Producer) => console.log('Select producer:', p.name);
+    const onPost = (postData: any) => console.log('New Post:', postData);
+    const onLikePost = (postId: string) => console.log('Like post:', postId);
+    const onCommentOnPost = (postId: string, text: string) => console.log('Comment on post:', postId, text);
+    const onPostJob = (jobData: JobPostData) => console.log('Post job:', jobData);
+    const onVerificationSubmit = (id: string, data: any) => console.log('Submit verification:', id, data);
+    const onNavigate = (view: AppView) => console.log('Navigate to:', view);
+    const onOpenAddFundsModal = () => console.log('Open add funds');
+    const onOpenPayoutModal = () => console.log('Open payout');
+    const onViewBooking = (id: string) => console.log('View booking:', id);
+
     const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageUrl = e.target?.result as string;
+                onUpdateStoodio({ imageUrl });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const upcomingBookingsCount = bookings
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    const followers = [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers].filter(u => u.followerIds.includes(stoodio.id));
-    const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
-    const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
-    const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
-    const followedProducers = allProducers.filter(p => stoodio.following.producers.includes(p.id));
+    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => u.followerIds.includes(stoodio.id));
+    const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
+    const followedEngineers = engineers.filter(e => stoodio.following.engineers.includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
+    const followedProducers = producers.filter(p => stoodio.following.producers.includes(p.id));
 
     const handleBookSession = () => {
         onSelectStoodio(stoodio);
@@ -216,7 +227,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
             case 'rooms':
                 return <RoomManager stoodio={stoodio} onUpdateStoodio={onUpdateStoodio} />;
             case 'engineers':
-                return <EngineerManager stoodio={stoodio} allEngineers={allEngineers} onUpdateStoodio={onUpdateStoodio} />;
+                return <EngineerManager stoodio={stoodio} allEngineers={engineers} onUpdateStoodio={onUpdateStoodio} />;
             case 'wallet':
                 return (
                      <Wallet
@@ -252,8 +263,8 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={currentUser as Stoodio} onPost={onPost} />
-                            <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} currentUser={currentUser} />
+                            <CreatePost currentUser={currentUser!} onPost={onPost} />
+                            <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} onSelectAuthor={onSelectStoodio} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
                             {!isProPlan && <UpgradeProCard onNavigate={onNavigate} />}
@@ -269,7 +280,23 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
             <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                      <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                        <div className="relative group flex-shrink-0">
+                            <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
+                             <button 
+                                onClick={handleImageUploadClick} 
+                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                aria-label="Change profile photo"
+                            >
+                                <EditIcon className="w-8 h-8 text-white" />
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept="image/*"
+                            />
+                        </div>
                         <div className="text-center sm:text-left">
                             <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
                             <p className="text-zinc-400 mt-2">Stoodio Dashboard</p>

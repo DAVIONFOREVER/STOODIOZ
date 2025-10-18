@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Stoodioz</title>
-    <link rel="stylesheet" href="/output.css">
+    <!-- <link rel="stylesheet" href="/output.css"> -->
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +21,102 @@
   }
 }
 </script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          'zinc-950': '#09090b',
+          'zinc-900': '#18181b',
+          'zinc-800': '#27272a',
+          'zinc-700': '#3f3f46',
+          'zinc-400': '#a1a1aa',
+          'zinc-200': '#e4e4e7',
+          'orange-500': '#f97316',
+          'orange-400': '#fb923c',
+        },
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+          display: ['Inter', 'sans-serif'],
+        },
+        animation: {
+          'gradient-flow': 'gradient-flow 4s ease infinite',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  @keyframes rotate-background {
+    from { transform: translate(-50%, -50%) rotate(0deg) }
+    to { transform: translate(-50%, -50%) rotate(360deg) }
+  }
+  @keyframes fade-in {
+    from { opacity: 0 }
+    to { opacity: 1 }
+  }
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(20px) }
+    to { opacity: 1; transform: translateY(0) }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(30px) }
+    to { opacity: 1; transform: translateY(0) }
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #09090b;
+    color: #e4e4e7;
+  }
+
+  body::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 200vmax;
+      height: 200vmax;
+      background-image:
+          radial-gradient(circle at center, #f97316, transparent 20%),
+          radial-gradient(circle at 25% 75%, #4f46e5, transparent 30%),
+          radial-gradient(circle at 75% 25%, #0ea5e9, transparent 30%);
+      z-index: -1;
+      opacity: 0.1;
+      animation: rotate-background 120s linear infinite;
+      will-change: transform;
+  }
+  
+  h1, h2, h3, h4, .font-display {
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+  }
+
+  .main-container {
+      position: relative;
+      z-index: 1;
+      height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+  }
+
+  .animate-fade-in {
+    opacity: 0;
+    animation: fade-in 0.6s ease-out forwards;
+  }
+  .animate-fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+  .animate-slide-up {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: slide-up 0.5s ease-out forwards;
+  }
+</style>
 </head>
 <body>
     <div id="root"></div>

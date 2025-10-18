@@ -1,9 +1,11 @@
+
 import React from 'react';
 
 interface AnimatedGradientTextProps {
     text: string;
     className?: string;
-    as?: keyof JSX.IntrinsicElements;
+    // FIX: Fully qualify the JSX namespace to resolve "Cannot find namespace 'JSX'" error.
+    as?: keyof React.JSX.IntrinsicElements;
 }
 
 const AnimatedGradientText: React.FC<AnimatedGradientTextProps> = ({ text, className = '', as: Component = 'h1' }) => {

@@ -3,14 +3,9 @@ import type { Stoodio, Engineer, Artist, Location, Booking, VibeMatchResult, Pro
 import { BookingStatus } from '../types';
 import { HouseIcon, SoundWaveIcon, MicrophoneIcon, ChevronUpIcon, ChevronDownIcon, BriefcaseIcon, MagicWandIcon, MusicNoteIcon } from './icons';
 import MapBookingPopup from './MapBookingPopup';
+import { useAppState } from '../contexts/AppContext';
 
 interface MapViewProps {
-    stoodioz: Stoodio[];
-    engineers: Engineer[];
-    artists: Artist[];
-    producers: Producer[];
-    bookings: Booking[];
-    vibeMatchResults: VibeMatchResult | null;
     onSelectStoodio?: (stoodio: Stoodio) => void;
     onSelectEngineer?: (engineer: Engineer) => void;
     onSelectArtist?: (artist: Artist) => void;
@@ -22,9 +17,6 @@ type PinType = 'stoodio' | 'engineer' | 'artist' | 'job' | 'vibe-match-stoodio' 
 
 const MAP_BOUNDS = { minLat: 24.39, maxLat: 49.38, minLon: -125.0, maxLon: -66.94 };
 
-/**
- * Adds a random offset to coordinates to obscure the exact location.
- */
 const fuzzCoordinates = (coords: Location): Location => {
     const latOffset = (Math.random() - 0.5) * 0.2; // ~7 miles
     const lonOffset = (Math.random() - 0.5) * 0.25; // ~7 miles
@@ -83,7 +75,8 @@ const MapPin: React.FC<{
     );
 };
 
-const MapView: React.FC<MapViewProps> = ({ stoodioz, engineers, artists, producers, bookings, vibeMatchResults, onSelectStoodio, onSelectEngineer, onSelectArtist, onSelectProducer, onInitiateBooking }) => {
+const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, onSelectArtist, onSelectProducer, onInitiateBooking }) => {
+    const { stoodioz, engineers, artists, producers, bookings, vibeMatchResults } = useAppState();
     const [showStoodioz, setShowStoodioz] = useState(true);
     const [showEngineers, setShowEngineers] = useState(true);
     const [showArtists, setShowArtists] = useState(true);

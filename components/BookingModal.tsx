@@ -1,31 +1,25 @@
-
 import React, { useState, useMemo } from 'react';
-import type { Stoodio, Engineer, BookingRequest, Room, Producer, Instrumental, Artist, MixingDetails } from '../types';
-import { BookingRequestType, UserRole } from '../types';
+import type { BookingRequest, Room, Instrumental } from '../types';
+import { BookingRequestType } from '../types';
 import { SERVICE_FEE_PERCENTAGE } from '../constants';
 import { CloseIcon, CalendarIcon, ClockIcon, DurationIcon, PriceIcon, UserGroupIcon, MusicNoteIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface BookingModalProps {
-    stoodio: Stoodio;
-    engineers: Engineer[];
-    producers: Producer[];
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
     onClose: () => void;
     onConfirm: (bookingRequest: BookingRequest) => void;
-    isLoading: boolean;
-    initialDate?: string;
-    initialTime?: string;
-    initialRoom: Room;
-    // FIX: Add pullUpFee to bookingIntent type to resolve property access error
-    bookingIntent: { engineer?: Engineer; producer?: Producer; date?: string; time?: string; mixingDetails?: MixingDetails; pullUpFee?: number; } | null;
 }
 
 const BookingModal: React.FC<BookingModalProps> = (props) => {
-    const { stoodio, engineers, producers, currentUser, onClose, onConfirm, isLoading, initialDate, initialTime, initialRoom, bookingIntent } = props;
-    
+    const { onClose, onConfirm } = props;
+    const { stoodioz, engineers, producers, currentUser, isLoading, bookingTime, bookingIntent, selectedStoodio } = useAppState();
+
+    const stoodio = selectedStoodio!;
+    const initialRoom = bookingTime!.room;
+
     const today = new Date().toISOString().split('T')[0];
-    const [date, setDate] = useState<string>(initialDate || bookingIntent?.date || today);
-    const [startTime, setStartTime] = useState<string>(initialTime || bookingIntent?.time || '12:00');
+    const [date, setDate] = useState<string>(bookingTime?.date || bookingIntent?.date || today);
+    const [startTime, setStartTime] = useState<string>(bookingTime?.time || bookingIntent?.time || '12:00');
     const [duration, setDuration] = useState<number>(2);
     const [requestType, setRequestType] = useState<BookingRequestType>(
         bookingIntent?.engineer ? BookingRequestType.SPECIFIC_ENGINEER : BookingRequestType.FIND_AVAILABLE
@@ -101,7 +95,6 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     const handleConfirmBooking = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Prioritize mixing details from the intent, otherwise calculate from the modal state.
         const finalMixingDetails = bookingIntent?.mixingDetails || (addMixing && canOfferMixing && selectedEngineerForMixing ? {
             type: 'IN_STUDIO',
             trackCount: mixTrackCount,
@@ -127,7 +120,6 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 
     const isFormValid = date && startTime && duration > 0 && (requestType !== BookingRequestType.SPECIFIC_ENGINEER || requestedEngineerId);
     
-    // Clear selected beats and pull-up option if producer is changed/removed
     React.useEffect(() => {
         if(bookingIntent?.producer?.id !== selectedProducerId) {
             setSelectedBeats([]);
@@ -135,11 +127,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
         }
     }, [selectedProducerId, bookingIntent]);
     
-    // Clear mixing selection if engineer changes
     React.useEffect(() => {
-        // Don't clear if it was set by an intent
         if(bookingIntent?.mixingDetails) return;
-
         setAddMixing(false);
     }, [requestedEngineerId, bookingIntent]);
 

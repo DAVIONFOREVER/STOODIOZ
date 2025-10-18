@@ -1,24 +1,20 @@
 import React from 'react';
-import type { Stoodio, Engineer, Artist, Booking, VibeMatchResult, Producer } from '../types';
+import type { Stoodio, Producer } from '../types';
 import { AppView } from '../types';
 import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons';
 import StoodioCard from './StudioCard';
 import EngineerCard from './EngineerCard';
-import ArtistCard from './ArtistCard';
 import ProducerCard from './ProducerCard';
-import AnimatedGradientText from './AnimatedGradientText';
+import AiHeroText from './AiHeroText';
 import ProductTour from './ProductTour';
+import AriaCantataHero from './AriaHero';
+import { useAppState } from '../contexts/AppContext';
 
 interface LandingPageProps {
     onNavigate: (view: AppView) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectProducer: (producer: Producer) => void;
-    stoodioz: Stoodio[];
-    engineers: Engineer[];
-    artists: Artist[];
-    producers: Producer[];
-    bookings: Booking[];
-    vibeMatchResults: VibeMatchResult | null;
+    onOpenAriaCantata: () => void;
 }
 
 const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
@@ -28,9 +24,9 @@ const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
     </div>
 );
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, stoodioz, engineers, artists, producers, bookings }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, onOpenAriaCantata }) => {
+    const { stoodioz, engineers, artists, producers } = useAppState();
     
-    // Get some featured items
     const featuredStoodioz = stoodioz.slice(0, 3);
     const featuredEngineers = engineers.slice(0, 3);
     const featuredProducers = producers.slice(0, 3);
@@ -39,10 +35,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
         <div className="space-y-24 md:space-y-32">
             {/* Hero Section */}
             <section className="text-center pt-12 md:pt-20">
-                <AnimatedGradientText text="Your Sound, Connected." className="text-6xl md:text-8xl font-extrabold tracking-tighter" />
+                <AiHeroText text="Discover. Book. Create." className="text-6xl md:text-8xl font-extrabold tracking-tighter" />
+
                 <p className="max-w-3xl mx-auto mt-6 text-lg md:text-xl text-zinc-300">
-                    The ultimate platform for artists, audio engineers, and recording stoodioz. Discover talent, book sessions, and collaborate on your next masterpiece.
+                   The all-in-one platform for artists, producers, and engineers. Find top-tier studios, collaborate with talent, and bring your projects to life—all powered by Aria Cantata, your personal AI assistant.
                 </p>
+                
+                <AriaCantataHero onOpenAriaCantata={onOpenAriaCantata} />
+
                 <div className="mt-10 flex justify-center items-center gap-4">
                     <button 
                         onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
@@ -134,11 +134,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {featuredEngineers.map(engineer => (
-                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={() => {
-                            // a bit of a hack to navigate, a more robust solution would pass the select handler down
-                            onNavigate(AppView.ENGINEER_LIST); 
-                            setTimeout(() => onNavigate(AppView.ENGINEER_PROFILE), 0);
-                        }} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
+                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={() => onNavigate(AppView.ENGINEER_PROFILE)} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
                     ))}
                 </div>
             </section>
@@ -160,7 +156,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
 
             {/* Call to Action */}
             <section className="bg-zinc-800 rounded-2xl p-12 text-center border border-zinc-700">
-                <AnimatedGradientText text="Ready to Create?" className="text-4xl md:text-5xl font-extrabold" />
+                <AiHeroText text="Ready to Create?" className="text-4xl md:text-5xl font-extrabold" />
                 <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-300">
                     Join a community of passionate music creators. Sign up today and take the next step in your musical journey.
                 </p>

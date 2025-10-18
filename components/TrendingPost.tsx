@@ -1,19 +1,18 @@
-
-
 import React from 'react';
 import type { Post, Artist, Engineer, Stoodio, Producer } from '../types';
 import { HeartIcon, ChatBubbleIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface TrendingPostProps {
     post: Post;
     author: Artist | Engineer | Stoodio | Producer;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
     onSelectUser: (user: Artist | Engineer | Stoodio | Producer) => void;
 }
 
-const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onLikePost, onCommentOnPost, currentUser, onSelectUser }) => {
+const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onSelectUser }) => {
+    const { currentUser } = useAppState();
     const isLiked = currentUser ? post.likes.includes(currentUser.id) : false;
 
     return (

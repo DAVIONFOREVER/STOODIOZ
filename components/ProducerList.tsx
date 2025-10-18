@@ -1,16 +1,15 @@
 import React from 'react';
-import type { Producer, UserRole } from '../types';
+import type { Producer } from '../types';
 import ProducerCard from './ProducerCard';
+import { useAppState } from '../contexts/AppContext';
 
 interface ProducerListProps {
-    producers: Producer[];
     onSelectProducer: (producer: Producer) => void;
     onToggleFollow: (type: 'producer', id: string) => void;
-    currentUser: any | null;
-    userRole: UserRole | null;
 }
 
-const ProducerList: React.FC<ProducerListProps> = ({ producers, onSelectProducer, onToggleFollow, currentUser }) => {
+const ProducerList: React.FC<ProducerListProps> = ({ onSelectProducer, onToggleFollow }) => {
+    const { producers, currentUser } = useAppState();
     return (
         <div>
             <h1 className="text-5xl md:text-6xl font-extrabold text-center mb-2 tracking-tight text-orange-500">

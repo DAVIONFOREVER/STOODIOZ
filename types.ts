@@ -1,5 +1,3 @@
-// FIX: Created the full type definitions for the application based on usage in other files. This file was previously a placeholder.
-
 export enum AppView {
     LANDING_PAGE = 'LANDING_PAGE',
     LOGIN = 'LOGIN',
@@ -151,8 +149,10 @@ export interface Link {
 }
 
 export interface LinkAttachment {
-    title: string;
     url: string;
+    title: string;
+    description?: string;
+    imageUrl?: string;
 }
 
 export interface Comment {
@@ -176,6 +176,8 @@ export interface Post {
     timestamp: string;
     likes: string[];
     comments: Comment[];
+    moderationStatus?: 'approved' | 'pending' | 'rejected';
+    moderationReason?: string;
 }
 
 interface BaseUser {
@@ -393,3 +395,21 @@ export interface VibeMatchResult {
         reason: string;
     }[];
 }
+
+export interface AriaCantataMessage {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
+
+
+export type AriaActionResponse = 
+    | { type: 'text'; text: string }
+    | { type: 'function'; action: 'startConversation'; payload: { participant: Artist | Engineer | Stoodio | Producer }; text: string; }
+    | { type: 'function'; action: 'startGroupConversation'; payload: { participants: (Artist | Engineer | Stoodio | Producer)[], conversationTitle: string }; text: string; }
+    | { type: 'function'; action: 'bookStudio'; payload: { bookingDetails: Omit<Booking, 'id' | 'status'> }; text: string; }
+    | { type: 'function'; action: 'showVibeMatchResults'; payload: { results: VibeMatchResult }; text: string; }
+    | { type: 'function'; action: 'updateProfile'; payload: { updates: Partial<Artist | Engineer | Stoodio | Producer> }; text: string; }
+    | { type: 'function'; action: 'assistAccountSetup'; payload: { role: UserRole }; text: string; }
+    | { type: 'function'; action: 'sendMessage'; payload: { recipientName: string; messageText: string }; text: string; }
+    | { type: 'function'; action: 'navigateApp'; payload: { view: AppView; entityName?: string }; text: string; }
+    | { type: 'function'; action: 'getDirections'; payload: { entityName: string }; text: string; };

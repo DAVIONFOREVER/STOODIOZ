@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, InHouseEngineerInfo } from '../types';
 import { SoundWaveIcon, DollarSignIcon, TrashIcon, PlusCircleIcon } from './icons';
@@ -117,5 +118,4 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
     );
 };
 
-// FIX: Added default export to resolve import error.
 export default EngineerManager;
