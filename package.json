@@ -3,6 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "echo \"Build step not required; using Tailwind CDN.\""
+    "build": "vite build"
   }
 }
