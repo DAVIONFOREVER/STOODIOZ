@@ -4,6 +4,7 @@ module.exports = {
     "./index.html",
     "./*.{js,ts,jsx,tsx}",
     "./components/*.{js,ts,jsx,tsx}",
+    "./hooks/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -23,27 +24,25 @@ module.exports = {
       },
       animation: {
         'gradient-flow': 'gradient-flow 4s ease infinite',
-        'rotate-background': 'rotate-background 120s linear infinite',
         'fade-in': 'fade-in 0.6s ease-out forwards',
         'fade-in-up': 'fade-in-up 0.6s ease-out forwards',
         'slide-up': 'slide-up 0.5s ease-out forwards',
       },
-      keyframes: {
+       keyframes: {
         'gradient-flow': {
             '0%, 100%': { backgroundPosition: '0% 50%' },
             '50%': { backgroundPosition: '100% 50%' },
         },
-        'rotate-background': {
-            'from': { transform: 'translate(-50%, -50%) rotate(0deg)' },
-            'to': { transform: 'translate(-50%, -50%) rotate(360deg)' },
-        },
         'fade-in': {
+            'from': { opacity: 0 },
             'to': { opacity: '1' },
         },
         'fade-in-up': {
+            'from': { opacity: 0, transform: 'translateY(20px)' },
             'to': { opacity: '1', transform: 'translateY(0)' },
         },
         'slide-up': {
+            'from': { opacity: 0, transform: 'translateY(30px)' },
             'to': { transform: 'translateY(0)', opacity: '1' },
         }
       }

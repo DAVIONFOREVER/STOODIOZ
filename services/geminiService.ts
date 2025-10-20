@@ -1,9 +1,28 @@
+
+
+
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole, SmokingPolicy } from '../types';
 import { SERVICE_FEE_PERCENTAGE, ARIA_CANTATA_IMAGE_URL } from '../constants';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+let ai: GoogleGenAI | null = null;
+/**
+ * Lazily initializes and returns the GoogleGenAI client instance.
+ * This prevents the "API Key must be set" error on startup by delaying initialization
+ * until an API call is actually made (which is after the ApiKeyGate has checked for the key).
+ */
+const getGenAIClient = (): GoogleGenAI => {
+    if (!ai) {
+        if (!process.env.API_KEY) {
+            // This is a safeguard; the ApiKeyGate should prevent this from being thrown.
+            throw new Error("API Key not found. Please configure it in your environment secrets.");
+        }
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    }
+    return ai;
+};
+
 
 /**
  * Simulates fetching metadata (title, description, image) for a URL.
@@ -89,6 +108,7 @@ export const getAriaNudge = async (user: Artist | Engineer | Stoodio | Producer,
     }
 
     try {
+        const ai = getGenAIClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt
@@ -116,6 +136,7 @@ export const generateSmartReplies = async (messages: Message[], currentUserId: s
         Your smart replies:`;
 
     try {
+        const ai = getGenAIClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
@@ -267,6 +288,8 @@ export const askAriaCantata = async (
 
     const systemInstruction = user ? loggedInSystemInstruction : guestSystemInstruction;
     const tools = user ? allTools : [assistAccountSetup];
+    
+    const ai = getGenAIClient();
 
     const chat = ai.chats.create({
         model: 'gemini-2.5-flash',
