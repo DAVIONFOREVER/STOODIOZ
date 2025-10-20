@@ -1,6 +1,5 @@
 
 
-
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole, SmokingPolicy } from '../types';
@@ -14,11 +13,13 @@ let ai: GoogleGenAI | null = null;
  */
 const getGenAIClient = (): GoogleGenAI => {
     if (!ai) {
-        if (!process.env.API_KEY) {
+        // Check for the key in both Vite/Vercel and the live preview environments.
+        const apiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+        if (!apiKey || apiKey.startsWith('{{')) {
             // This is a safeguard; the ApiKeyGate should prevent this from being thrown.
-            throw new Error("API Key not found. Please configure it in your environment secrets.");
+            throw new Error("API Key not found or is a placeholder. Please configure VITE_API_KEY for Vercel or select a key in the live preview.");
         }
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        ai = new GoogleGenAI({ apiKey });
     }
     return ai;
 };
