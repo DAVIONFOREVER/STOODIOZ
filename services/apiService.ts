@@ -1,5 +1,5 @@
 // import { supabase } from '../lib/supabase'; // This was causing errors by trying to connect to a proxy that doesn't exist in this environment.
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Transaction, Post, Comment } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Transaction, Post, Comment, Review } from '../types';
 import { BookingStatus, BookingRequestType, TransactionCategory, TransactionStatus, VerificationStatus } from '../types';
 import { differenceInHours } from 'date-fns';
 
@@ -50,6 +50,59 @@ export const fetchProducers = async (): Promise<Producer[]> => {
         return await response.json();
     } catch (error) {
         console.error("Error fetching producers:", error);
+        throw error;
+    }
+};
+
+// FIX: Add a mock fetchReviews function as it was missing.
+export const fetchReviews = async (): Promise<Review[]> => {
+    try {
+        // NOTE: In a real app, this would fetch from an endpoint.
+        // As reviews.json is not provided, mock data is returned.
+        console.log("Simulating fetchReviews with mock data.");
+        await new Promise(resolve => setTimeout(resolve, 50)); // simulate network delay
+        return [
+            {
+                id: 'review-1',
+                reviewerName: 'Luna Vance',
+                artistId: 'artist-luna-vance',
+                stoodioId: 'studio-echo-chamber',
+                engineerId: 'eng-alex-reid',
+                rating: 5,
+                comment: 'Amazing studio with top-notch gear. Alex is a wizard!',
+                date: '2023-10-15',
+            },
+            {
+                id: 'review-2',
+                reviewerName: 'Jax',
+                artistId: 'artist-jax',
+                stoodioId: 'studio-the-mixing-pot',
+                engineerId: 'eng-maya-chen',
+                rating: 4.5,
+                comment: 'Great vibe and very professional. The vocal booth is fantastic.',
+                date: '2023-10-12',
+            },
+            {
+                id: 'review-3',
+                reviewerName: 'Aria Cantata',
+                artistId: 'artist-aria-cantata',
+                stoodioId: 'studio-echo-chamber',
+                rating: 5,
+                comment: 'A truly flawless experience, as expected. The acoustics are simply divine.',
+                date: '2023-10-20',
+            },
+             {
+                id: 'review-4',
+                reviewerName: 'Jax',
+                artistId: 'artist-jax',
+                engineerId: 'eng-alex-reid',
+                rating: 5,
+                comment: 'Alex is the best in the business. My tracks have never sounded better.',
+                date: '2023-09-28',
+            },
+        ];
+    } catch (error) {
+        console.error("Error fetching reviews:", error);
         throw error;
     }
 };

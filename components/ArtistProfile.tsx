@@ -1,30 +1,11 @@
-// FIX: Implemented the ArtistProfile component which was previously a placeholder file, causing import errors.
 import React, { useMemo } from 'react';
-// FIX: Update currentUser to accept Producer
-import type { Artist, Engineer, Stoodio, UserRole, Producer } from '../types';
+import type { Artist, Engineer, Stoodio, Producer } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon } from './icons';
 import PostFeed from './PostFeed';
-
-interface ArtistProfileProps {
-    artist: Artist;
-    onBack: () => void;
-    onToggleFollow: (type: 'artist' | 'stoodio' | 'engineer' | 'producer', id: string) => void;
-    isFollowing: boolean;
-    userRole: UserRole | null;
-    onStartNavigation: () => void;
-    onStartConversation: (participant: Artist) => void;
-    allArtists: Artist[];
-    allEngineers: Engineer[];
-    allStoodioz: Stoodio[];
-    allProducers: Producer[];
-    onSelectArtist: (artist: Artist) => void;
-    onSelectEngineer: (engineer: Engineer) => void;
-    onSelectStoodio: (stoodio: Stoodio) => void;
-    onSelectProducer: (producer: Producer) => void;
-    onLikePost: (postId: string) => void;
-    onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
-}
+import { useAppState } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useMessaging } from '../hooks/useMessaging';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -58,23 +39,47 @@ const ProfileCard: React.FC<{
     );
 };
 
-const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
-    const { artist, onBack, onToggleFollow, isFollowing, currentUser, onStartConversation, onLikePost, onCommentOnPost, allArtists, allEngineers, allStoodioz, allProducers, onSelectArtist, onSelectEngineer, onSelectStoodio, onSelectProducer } = props;
+const ArtistProfile: React.FC = () => {
+    const { 
+        selectedArtist, 
+        currentUser,
+        artists,
+        engineers,
+        stoodioz,
+        producers,
+    } = useAppState();
+
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
+    const { toggleFollow, likePost, commentOnPost } = useSocial();
+    const { startConversation } = useMessaging(useNavigation().navigate);
+
+    const artist = selectedArtist;
+
+    if (!artist) {
+        return (
+            <div className="text-center text-zinc-400">
+                <p>Artist not found.</p>
+                <button onClick={goBack} className="mt-4 text-orange-400">Go Back</button>
+            </div>
+        );
+    }
     
-    const allUsers = useMemo(() => [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers], [allArtists, allEngineers, allStoodioz, allProducers]);
+    const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.artists || []).includes(artist.id)) : false;
+    
+    const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     const followers = useMemo(() => allUsers.filter(u => artist.followerIds.includes(u.id)), [allUsers, artist.followerIds]);
 
-    const followedArtists = useMemo(() => allArtists.filter(a => artist.following.artists.includes(a.id)), [allArtists, artist.following.artists]);
-    const followedEngineers = useMemo(() => allEngineers.filter(e => artist.following.engineers.includes(e.id)), [allEngineers, artist.following.engineers]);
-    const followedStoodioz = useMemo(() => allStoodioz.filter(s => artist.following.stoodioz.includes(s.id)), [allStoodioz, artist.following.stoodioz]);
-    const followedProducers = useMemo(() => allProducers.filter(p => artist.following.producers.includes(p.id)), [allProducers, artist.following.producers]);
+    const followedArtists = useMemo(() => artists.filter(a => artist.following.artists.includes(a.id)), [artists, artist.following.artists]);
+    const followedEngineers = useMemo(() => engineers.filter(e => artist.following.engineers.includes(e.id)), [engineers, artist.following.engineers]);
+    const followedStoodioz = useMemo(() => stoodioz.filter(s => artist.following.stoodioz.includes(s.id)), [stoodioz, artist.following.stoodioz]);
+    const followedProducers = useMemo(() => producers.filter(p => artist.following.producers.includes(p.id)), [producers, artist.following.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const sortedPosts = useMemo(() => (artist.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [artist.posts]);
 
     return (
         <div>
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
+            <button onClick={goBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
                 <ChevronLeftIcon className="w-5 h-5" />
                 Back to Artists
             </button>
@@ -87,7 +92,7 @@ const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
                             <p className="text-slate-300 leading-relaxed mt-4">{artist.bio}</p>
                             <div className="flex justify-center sm:justify-start gap-2 mt-6">
                                 <button 
-                                    onClick={() => currentUser && onStartConversation(artist)}
+                                    onClick={() => currentUser && startConversation(artist)}
                                     disabled={!currentUser || currentUser.id === artist.id}
                                     className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -95,7 +100,7 @@ const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
                                     Message
                                 </button>
                                 <button 
-                                    onClick={() => currentUser && onToggleFollow('artist', artist.id)}
+                                    onClick={() => currentUser && toggleFollow('artist', artist.id)}
                                     disabled={!currentUser || currentUser.id === artist.id}
                                     className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
                                 >
@@ -131,10 +136,10 @@ const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
                             {followers.map(f => {
                                 const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
                                 const onClick = () => {
-                                    if (type === 'artist') onSelectArtist(f as Artist);
-                                    else if (type === 'engineer') onSelectEngineer(f as Engineer);
-                                    else if (type === 'stoodio') onSelectStoodio(f as Stoodio);
-                                    else if (type === 'producer') onSelectProducer(f as Producer);
+                                    if (type === 'artist') viewArtistProfile(f as Artist);
+                                    else if (type === 'engineer') viewEngineerProfile(f as Engineer);
+                                    else if (type === 'stoodio') viewStoodioDetails(f as Stoodio);
+                                    else if (type === 'producer') viewProducerProfile(f as Producer);
                                 };
                                 return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
                             })}
@@ -146,10 +151,10 @@ const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
                     <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-6 h-6" /> Following ({followingCount})</h3>
                     {followingCount > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
-                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
-                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
-                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => onSelectProducer(p)} />)}
+                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
+                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
+                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
+                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
                         </div>
                     ) : <p className="text-slate-400">Not following anyone yet.</p>}
                 </div>
@@ -159,9 +164,9 @@ const ArtistProfile: React.FC<ArtistProfileProps> = (props) => {
                      <PostFeed 
                         posts={sortedPosts}
                         authors={new Map([[artist.id, artist]])}
-                        onLikePost={onLikePost}
-                        onCommentOnPost={onCommentOnPost}
-                        currentUser={currentUser}
+                        onLikePost={likePost}
+                        onCommentOnPost={commentOnPost}
+                        onSelectAuthor={() => viewArtistProfile(artist)}
                      />
                 </div>
             </div>

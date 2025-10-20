@@ -104,6 +104,11 @@ export enum TransactionStatus {
     FAILED = 'FAILED',
 }
 
+export enum SmokingPolicy {
+    SMOKING_ALLOWED = 'SMOKING_ALLOWED',
+    NON_SMOKING = 'NON_SMOKING',
+}
+
 
 export interface Subscription {
     plan: SubscriptionPlan;
@@ -122,6 +127,7 @@ export interface Room {
     description: string;
     hourlyRate: number;
     photos: string[];
+    smokingPolicy?: SmokingPolicy;
 }
 
 export interface Transaction {
@@ -411,5 +417,6 @@ export type AriaActionResponse =
     | { type: 'function'; action: 'updateProfile'; payload: { updates: Partial<Artist | Engineer | Stoodio | Producer> }; text: string; }
     | { type: 'function'; action: 'assistAccountSetup'; payload: { role: UserRole }; text: string; }
     | { type: 'function'; action: 'sendMessage'; payload: { recipientName: string; messageText: string }; text: string; }
-    | { type: 'function'; action: 'navigateApp'; payload: { view: AppView; entityName?: string }; text: string; }
+    | { type: 'function'; action: 'navigateApp'; payload: { view: AppView; entityName?: string; tab?: string; }; text: string; }
+    | { type: 'function'; action: 'sendDocumentMessage'; payload: { recipient: Artist | Engineer | Stoodio | Producer; documentContent: string; fileName: string }; text: string; }
     | { type: 'function'; action: 'getDirections'; payload: { entityName: string }; text: string; };

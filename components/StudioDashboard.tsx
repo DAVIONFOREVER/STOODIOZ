@@ -144,15 +144,12 @@ interface StoodioDashboardProps {
     allArtists: Artist[];
     allEngineers: Engineer[];
     allStoodioz: Stoodio[];
-// FIX: Add allProducers to props
     allProducers: Producer[];
     onUpdateStoodio: (updatedProfile: Partial<Stoodio>) => void;
-// FIX: Update onToggleFollow to include 'producer'
     onToggleFollow: (type: 'artist' | 'engineer' | 'stoodio' | 'producer', id: string) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
-// FIX: Add onSelectProducer to props
     onSelectProducer: (producer: Producer) => void;
     onPost: (postData: { text: string; imageUrl?: string; link?: LinkAttachment }) => void;
     onLikePost: (postId: string) => void;
@@ -247,10 +244,8 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     </div>
                 );
             case 'followers':
-// FIX: Pass missing onSelectProducer prop to FollowersList
                  return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} onSelectProducer={onSelectProducer} />;
             case 'following':
-// FIX: Pass missing producers and onSelectProducer props to Following
                 return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectProducer={onSelectProducer} />;
             case 'dashboard':
             default:

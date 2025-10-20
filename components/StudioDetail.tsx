@@ -1,32 +1,16 @@
 
 import React, { useState, useMemo } from 'react';
-import type { Stoodio, Artist, Review, Booking, Engineer, Post, Room, Producer } from '../types';
-import { UserRole, VerificationStatus } from '../types';
+import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
+import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
-import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon } from './icons';
-
-interface StoodioDetailProps {
-    stoodio: Stoodio;
-    reviews: Review[];
-    bookings: Booking[];
-    allArtists: Artist[];
-    allEngineers: Engineer[];
-    allStoodioz: Stoodio[];
-    allProducers: Producer[];
-    onBook: (date: string, time: string, room: Room) => void;
-    onBack: () => void;
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
-    userRole: UserRole | null;
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
-    onSelectArtist: (artist: Artist) => void;
-    onSelectEngineer: (engineer: Engineer) => void;
-    onSelectStoodio: (stoodio: Stoodio) => void;
-    onSelectProducer: (producer: Producer) => void;
-    onStartConversation: (participant: Stoodio | Artist | Engineer | Producer) => void;
-    onLikePost: (postId: string) => void;
-    onCommentOnPost: (postId: string, text: string) => void;
-}
+import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon, SmokingIcon, NoSmokingIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useBookings } from '../hooks/useBookings';
+import { useSocial } from '../hooks/useSocial';
+import { useMessaging } from '../hooks/useMessaging';
+import { AppView } from '../types';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -61,26 +45,43 @@ const ProfileCard: React.FC<{
 };
 
 
-const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
-    const { stoodio, reviews, bookings, allArtists, allEngineers, allStoodioz, allProducers, onBook, onBack, currentUser, userRole, onToggleFollow, onSelectArtist, onSelectEngineer, onSelectStoodio, onSelectProducer, onStartConversation, onLikePost, onCommentOnPost } = props;
+const StoodioDetail: React.FC = () => {
+    const { selectedStoodio, reviews, bookings, artists, engineers, stoodioz, producers, currentUser, userRole } = useAppState();
+    
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, navigate } = useNavigation();
+    const { openBookingModal } = useBookings(navigate);
+    const { toggleFollow, likePost, commentOnPost } = useSocial();
+    const { startConversation } = useMessaging(navigate);
+    
+    const stoodio = selectedStoodio;
+
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ date: string, time: string } | null>(null);
-    const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio.rooms[0] || null);
+    const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio?.rooms[0] || null);
+    
+    if (!stoodio) {
+         return (
+            <div className="text-center text-zinc-400">
+                <p>Stoodio not found.</p>
+                <button onClick={goBack} className="mt-4 text-orange-400">Go Back</button>
+            </div>
+        );
+    }
 
     const isFollowing = currentUser && 'following' in currentUser ? (currentUser.following.stoodioz || []).includes(stoodio.id) : false;
 
     const stoodioReviews = reviews.filter(r => r.stoodioId === stoodio.id);
     
-    const hostedArtists = Array.from(new Set(bookings.filter(b => b.stoodio.id === stoodio.id && b.artist).map(b => b.artist!.id)))
-        .map(id => allArtists.find(a => a.id === id))
+    const hostedArtists = Array.from(new Set(bookings.filter(b => b.stoodio?.id === stoodio.id && b.artist).map(b => b.artist!.id)))
+        .map(id => artists.find(a => a.id === id))
         .filter((artist): artist is Artist => artist !== undefined)
         .slice(0, 5);
 
-    const allUsers = useMemo(() => [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers], [allArtists, allEngineers, allStoodioz, allProducers]);
+    const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     const followers = useMemo(() => allUsers.filter(u => stoodio.followerIds.includes(u.id)), [allUsers, stoodio.followerIds]);
-    const followedArtists = allArtists.filter(a => stoodio.following.artists.includes(a.id));
-    const followedEngineers = allEngineers.filter(e => stoodio.following.engineers.includes(e.id));
-    const followedStoodioz = allStoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
-    const followedProducers = allProducers.filter(p => stoodio.following.producers.includes(p.id));
+    const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
+    const followedEngineers = engineers.filter(e => stoodio.following.engineers.includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
+    const followedProducers = producers.filter(p => stoodio.following.producers.includes(p.id));
 
     const handleSelectTimeSlot = (date: string, time: string) => {
         if (selectedTimeSlot?.date === date && selectedTimeSlot?.time === time) {
@@ -89,12 +90,22 @@ const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
             setSelectedTimeSlot({ date, time });
         }
     };
+    
+    const handleGuestInteraction = () => navigate(AppView.LOGIN);
 
-    const isBookingDisabled = !selectedTimeSlot || !selectedRoom || !currentUser || (userRole === UserRole.STOODIO && currentUser.id !== stoodio.id);
+    const onBook = (date: string, time: string, room: Room) => {
+        if (currentUser) {
+            openBookingModal(date, time, room);
+        } else {
+            handleGuestInteraction();
+        }
+    }
+
+    const isBookingDisabled = !selectedTimeSlot || !selectedRoom || !currentUser || (userRole === UserRole.STOODIO && currentUser.id === stoodio.id);
 
     const getButtonText = (mobile: boolean = false) => {
         if (!currentUser) return 'Login to Book';
-        if (userRole === UserRole.STOODIO && currentUser.id !== stoodio.id) return 'Cannot Book Other Stoodioz';
+        if (userRole === UserRole.STOODIO) return 'Cannot Book a Stoodio';
         if (!selectedRoom) return 'Select a Room';
         if (!selectedTimeSlot) return 'Select a Time Slot';
         return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom.name}: ${selectedTimeSlot.time}`;
@@ -102,7 +113,7 @@ const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
     
     return (
         <div>
-             <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
+             <button onClick={goBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
                 <ChevronLeftIcon className="w-5 h-5" />
                 Back to Stoodioz
             </button>
@@ -123,16 +134,16 @@ const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
                         </div>
                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                             <button 
-                                onClick={() => currentUser && onStartConversation(stoodio)}
-                                disabled={!currentUser}
+                                onClick={() => currentUser ? startConversation(stoodio) : handleGuestInteraction()}
+                                disabled={!currentUser || currentUser.id === stoodio.id}
                                 className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <MessageIcon className="w-5 h-5" />
                                 Message
                             </button>
                             <button 
-                                onClick={() => currentUser && onToggleFollow('stoodio', stoodio.id)}
-                                disabled={!currentUser}
+                                onClick={() => currentUser ? toggleFollow('stoodio', stoodio.id) : handleGuestInteraction()}
+                                disabled={!currentUser || currentUser.id === stoodio.id}
                                 className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
                             >
                                 {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
@@ -143,26 +154,39 @@ const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
 
                     <p className="text-slate-300 leading-relaxed mb-8">{stoodio.description}</p>
                     
-                    <h3 className="text-2xl font-bold mb-4 text-orange-400">Amenities</h3>
-                    <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-slate-200 mb-10">
-                        {stoodio.amenities.map(amenity => (
-                            <li key={amenity} className="flex items-center">
-                                <svg className="w-5 h-5 mr-3 text-orange-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
-                                {amenity}
-                            </li>
-                        ))}
-                    </ul>
+                    <div className="flex gap-10">
+                        <div>
+                            <h3 className="text-2xl font-bold mb-4 text-orange-400">Amenities</h3>
+                            <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-slate-200 mb-10">
+                                {stoodio.amenities.map(amenity => (
+                                    <li key={amenity} className="flex items-center">
+                                        <svg className="w-5 h-5 mr-3 text-orange-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
+                                        {amenity}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        {/* FIX: Use selectedRoom.smokingPolicy instead of stoodio.smokingPolicy and make the block conditional. */}
+                        {selectedRoom && (
+                            <div>
+                                <h3 className="text-2xl font-bold mb-4 text-orange-400">Policies for {selectedRoom.name}</h3>
+                                <ul className="grid grid-cols-1 gap-y-3 text-slate-200 mb-10">
+                                    <li className="flex items-center">
+                                        {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED)
+                                            ? <SmokingIcon className="w-5 h-5 mr-3 text-green-400" />
+                                            : <NoSmokingIcon className="w-5 h-5 mr-3 text-red-400" />
+                                        }
+                                        {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED) ? 'Smoking Allowed' : 'Non-Smoking'}
+                                    </li>
+                                </ul>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Posts & Updates */}
                     <div className="mb-10">
                         <h3 className="text-2xl font-bold mb-4 text-orange-400">Posts & Updates</h3>
-                        <PostFeed 
-                            posts={stoodio.posts || []} 
-                            authors={new Map([[stoodio.id, stoodio]])}
-                            onLikePost={onLikePost}
-                            onCommentOnPost={onCommentOnPost}
-                            currentUser={currentUser}
-                        />
+                        <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewStoodioDetails} />
                     </div>
 
                      {/* Recently Hosted Artists */}
@@ -171,7 +195,7 @@ const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
                         {hostedArtists.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {hostedArtists.map(artist => (
-                                    <button key={artist.id} onClick={() => onSelectArtist(artist)} className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors">
+                                    <button key={artist.id} onClick={() => viewArtistProfile(artist)} className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors">
                                         <img src={artist.imageUrl} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
                                         <span className="font-semibold text-sm text-slate-200">{artist.name}</span>
                                     </button>
@@ -193,10 +217,10 @@ const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
                                         : 'instrumentals' in user ? 'producer'
                                         : 'artist';
                                     const onClick = () => {
-                                        if (type === 'stoodio') onSelectStoodio(user as Stoodio);
-                                        else if (type === 'engineer') onSelectEngineer(user as Engineer);
-                                        else if (type === 'producer') onSelectProducer(user as Producer)
-                                        else onSelectArtist(user as Artist);
+                                        if (type === 'stoodio') viewStoodioDetails(user as Stoodio);
+                                        else if (type === 'engineer') viewEngineerProfile(user as Engineer);
+                                        else if (type === 'producer') viewProducerProfile(user as Producer)
+                                        else viewArtistProfile(user as Artist);
                                     };
                                     return <ProfileCard key={user.id} profile={user} type={type} onClick={onClick} />;
                                 })}
@@ -211,10 +235,10 @@ const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
                         <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><UserCheckIcon className="w-6 h-6" /> Following</h3>
                         {[...followedArtists, ...followedEngineers, ...followedStoodioz, ...followedProducers].length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
-                                {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
-                                {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
-                                {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => onSelectProducer(p)} />)}
+                                {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
+                                {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
+                                {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
+                                {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
                             </div>
                         ) : (
                             <p className="text-slate-400">Not following anyone yet.</p>
@@ -227,12 +251,12 @@ const StoodioDetail: React.FC<StoodioDetailProps> = (props) => {
                         {stoodioReviews.length > 0 ? (
                             <ul className="space-y-5">
                                 {stoodioReviews.map(review => {
-                                    const artist = review.artistId ? allArtists.find(a => a.id === review.artistId) : null;
+                                    const artist = review.artistId ? artists.find(a => a.id === review.artistId) : null;
                                     return (
                                     <li key={review.id} className="border-b border-zinc-700 pb-4 last:border-b-0">
                                         <div className="flex justify-between items-center mb-1">
                                             {artist ? (
-                                                <button onClick={() => onSelectArtist(artist)} className="font-semibold text-slate-200 text-left hover:text-orange-400 transition-colors">
+                                                <button onClick={() => viewArtistProfile(artist)} className="font-semibold text-slate-200 text-left hover:text-orange-400 transition-colors">
                                                     {review.reviewerName}
                                                 </button>
                                             ) : (

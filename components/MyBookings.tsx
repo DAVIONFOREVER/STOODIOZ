@@ -2,17 +2,16 @@ import React, { useMemo } from 'react';
 import type { Booking, Location } from '../types';
 import { BookingStatus, BookingRequestType } from '../types';
 import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon, SoundWaveIcon } from './icons';
-import { USER_SILHOUETTE_URL } from '../constants';
-import { useAppState } from '../contexts/AppContext';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
 
-interface MyBookingsProps {
-    onOpenTipModal: (booking: Booking) => void;
-    onNavigateToStudio: (location: Location) => void;
-    onOpenCancelModal: (booking: Booking) => void;
-}
+const MyBookings: React.FC = () => {
+    const { bookings, engineers, currentUser } = useAppState();
+    const dispatch = useAppDispatch();
+    const { navigateToStudio } = useNavigation();
 
-const MyBookings: React.FC<MyBookingsProps> = ({ onOpenTipModal, onNavigateToStudio, onOpenCancelModal }) => {
-    const { bookings, engineers, userRole, currentUser } = useAppState();
+    const onOpenTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
+    const onOpenCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
     
     const userBookings = useMemo(() => {
         if (!currentUser) return [];
@@ -67,7 +66,7 @@ const MyBookings: React.FC<MyBookingsProps> = ({ onOpenTipModal, onNavigateToStu
             const reqEngineer = engineers.find(e => e.id === booking.requestedEngineerId);
             if (reqEngineer?.imageUrl) return reqEngineer.imageUrl;
         }
-        return USER_SILHOUETTE_URL;
+        return `https://source.unsplash.com/random/400x300?music-studio&${booking.id}`;
     }
 
 
@@ -84,7 +83,7 @@ const MyBookings: React.FC<MyBookingsProps> = ({ onOpenTipModal, onNavigateToStu
                 <div className="space-y-6">
                     {userBookings.map(booking => {
                         const { statusText, statusColor, participantName } = getStatusAndParticipant(booking);
-                        const isUpcoming = new Date(`${booking.date}T${booking.startTime}`) >= new Date();
+                        const isUpcoming = new Date(`${booking.date}T${booking.startTime || '00:00'}`) >= new Date();
                         const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;
                         return (
                         <div key={booking.id} className={`bg-zinc-800 rounded-2xl shadow-lg p-6 flex flex-col md:flex-row gap-6 border border-zinc-700 hover:border-orange-500/50 transition-colors duration-300 ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
@@ -149,7 +148,7 @@ const MyBookings: React.FC<MyBookingsProps> = ({ onOpenTipModal, onNavigateToStu
                                  </div>
                                  {booking.stoodio && booking.status === BookingStatus.CONFIRMED && isUpcoming && (
                                      <button 
-                                        onClick={() => onNavigateToStudio(booking.stoodio!.coordinates)}
+                                        onClick={() => navigateToStudio(booking.stoodio!.coordinates)}
                                         className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
                                      >
                                         <RoadIcon className="w-4 h-4"/>

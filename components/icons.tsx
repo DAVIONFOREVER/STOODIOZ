@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
@@ -346,5 +344,18 @@ export const DownloadIcon: React.FC<IconProps> = (props) => (
 export const FlagIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
+    </svg>
+);
+
+export const SmokingIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5h.01m.99.01h.01m-2.01 0h.01m1.99 0h.01M12 6.75v3.75m-3.75 0h7.5M12 21a8.25 8.25 0 006.216-13.626-2.25 2.25 0 00-4.048-1.597 3 3 0 01-5.912 0 2.25 2.25 0 00-4.048 1.597A8.25 8.25 0 0012 21z" />
+    </svg>
+);
+  
+export const NoSmokingIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5h.01m.99.01h.01m-2.01 0h.01m1.99 0h.01M12 6.75v3.75m-3.75 0h7.5M12 21a8.25 8.25 0 006.216-13.626-2.25 2.25 0 00-4.048-1.597 3 3 0 01-5.912 0 2.25 2.25 0 00-4.048 1.597A8.25 8.25 0 0012 21z" />
     </svg>
 );

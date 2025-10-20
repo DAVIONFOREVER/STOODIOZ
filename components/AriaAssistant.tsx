@@ -15,9 +15,10 @@ interface AriaCantataAssistantProps {
     onNavigateRequest: (view: AppView, entityName?: string) => void;
     onStartSetupRequest: (role: UserRole) => void;
     onSendMessageRequest: (recipientName: string, messageText: string) => void;
+    onSendDocument: (recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => void;
     onGetDirectionsRequest: (entityName: string) => void;
     history: AriaCantataMessage[];
-    setHistory: React.Dispatch<React.SetStateAction<AriaCantataMessage[]>>;
+    setHistory: (history: AriaCantataMessage[]) => void;
     initialPrompt: string | null;
     clearInitialPrompt: () => void;
 }
@@ -34,9 +35,9 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     const { 
         isOpen, onClose, onStartConversation, onStartGroupConversation, onUpdateProfile,
         onBookStudio, onShowVibeMatchResults, onNavigateRequest, onStartSetupRequest, onSendMessageRequest,
-        onGetDirectionsRequest, history, setHistory, initialPrompt, clearInitialPrompt 
+        onGetDirectionsRequest, onSendDocument, history, setHistory, initialPrompt, clearInitialPrompt 
     } = props;
-    const { currentUser, artists, engineers, producers, stoodioz } = useAppState();
+    const { currentUser, artists, engineers, producers, stoodioz, bookings } = useAppState();
     
     const getInitialMessage = () => {
         const greetings = [
@@ -86,17 +87,20 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
         if (!question || isLoading) return;
 
         const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text: question }] };
-        const newHistory = [...history, userMessage];
+        const historyBeforeSend = history; // Capture history before optimistic update
         
-        setHistory(newHistory);
+        setHistory([...historyBeforeSend, userMessage]); // Optimistic UI update
         setInputValue('');
         setIsLoading(true);
 
         try {
-            const response = await askAriaCantata(newHistory, question, currentUser, { artists, engineers, producers, stoodioz });
+            // Pass the OLD history and the new question string to the service
+            const response = await askAriaCantata(historyBeforeSend, question, currentUser, { artists, engineers, producers, stoodioz, bookings });
             
             const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
-            setHistory(prev => [...prev, ariaResponse]);
+            
+            // Final state update with the model's response
+            setHistory([...historyBeforeSend, userMessage, ariaResponse]);
 
             if (response.type === 'function') {
                 setTimeout(() => {
@@ -121,13 +125,16 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
                         onClose();
                     } else if (response.action === 'sendMessage') {
                         onSendMessageRequest(response.payload.recipientName, response.payload.messageText);
+                    } else if (response.action === 'sendDocumentMessage') {
+                        onSendDocument(response.payload.recipient, response.payload.documentContent, response.payload.fileName);
                     }
                 }, 1500);
             }
 
         } catch (error) {
             const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I encountered an error. Please try again." }] };
-            setHistory(prev => [...prev, errorResponse]);
+            // On error, also update the history correctly
+            setHistory([...historyBeforeSend, userMessage, errorResponse]);
         } finally {
             setIsLoading(false);
         }

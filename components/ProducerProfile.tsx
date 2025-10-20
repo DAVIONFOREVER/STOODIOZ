@@ -1,30 +1,13 @@
 import React, { useMemo } from 'react';
-import type { Producer, Review, Artist, Stoodio, UserRole, Engineer } from '../types';
+import type { Producer, Artist, Stoodio, Engineer } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons';
 import PostFeed from './PostFeed';
 import InstrumentalPlayer from './InstrumentalPlayer';
-
-interface ProducerProfileProps {
-    producer: Producer;
-    onBack: () => void;
-    reviews: Review[];
-    onToggleFollow: (type: 'producer' | 'stoodio' | 'engineer' | 'artist', id: string) => void;
-    isFollowing: boolean;
-    userRole: UserRole | null;
-    onStartConversation: (participant: Producer) => void;
-    allArtists: Artist[];
-    allEngineers: Engineer[];
-    allStoodioz: Stoodio[];
-    allProducers: Producer[];
-    onSelectArtist: (artist: Artist) => void;
-    onSelectEngineer: (engineer: Engineer) => void;
-    onSelectStoodio: (stoodio: Stoodio) => void;
-    onSelectProducer: (producer: Producer) => void;
-    onLikePost: (postId: string) => void;
-    onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
-    onInitiateBookingWithProducer: (producer: Producer) => void;
-}
+import { useAppState } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useMessaging } from '../hooks/useMessaging';
+import { useBookings } from '../hooks/useBookings';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -58,23 +41,41 @@ const ProfileCard: React.FC<{
     );
 };
 
-const ProducerProfile: React.FC<ProducerProfileProps> = (props) => {
-    const { producer, onBack, onToggleFollow, isFollowing, currentUser, onStartConversation, onLikePost, onCommentOnPost, allArtists, allEngineers, allStoodioz, allProducers, onSelectArtist, onSelectEngineer, onSelectStoodio, onSelectProducer, onInitiateBookingWithProducer } = props;
+const ProducerProfile: React.FC = () => {
+    const { selectedProducer, currentUser, artists, engineers, stoodioz, producers } = useAppState();
     
-    const allUsers = useMemo(() => [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers], [allArtists, allEngineers, allStoodioz, allProducers]);
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
+    const { toggleFollow, likePost, commentOnPost } = useSocial();
+    const { startConversation } = useMessaging(useNavigation().navigate);
+    const { initiateBookingWithProducer } = useBookings(useNavigation().navigate);
+
+    const producer = selectedProducer;
+
+    if (!producer) {
+        return (
+            <div className="text-center text-zinc-400">
+                <p>Producer not found.</p>
+                <button onClick={goBack} className="mt-4 text-orange-400">Go Back</button>
+            </div>
+        );
+    }
+    
+    const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.producers || []).includes(producer.id)) : false;
+    
+    const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     const followers = useMemo(() => allUsers.filter(u => producer.followerIds.includes(u.id)), [allUsers, producer.followerIds]);
 
-    const followedArtists = useMemo(() => allArtists.filter(a => producer.following.artists.includes(a.id)), [allArtists, producer.following.artists]);
-    const followedEngineers = useMemo(() => allEngineers.filter(e => producer.following.engineers.includes(e.id)), [allEngineers, producer.following.engineers]);
-    const followedStoodioz = useMemo(() => allStoodioz.filter(s => producer.following.stoodioz.includes(s.id)), [allStoodioz, producer.following.stoodioz]);
-    const followedProducers = useMemo(() => allProducers.filter(p => producer.following.producers.includes(p.id)), [allProducers, producer.following.producers]);
+    const followedArtists = useMemo(() => artists.filter(a => producer.following.artists.includes(a.id)), [artists, producer.following.artists]);
+    const followedEngineers = useMemo(() => engineers.filter(e => producer.following.engineers.includes(e.id)), [engineers, producer.following.engineers]);
+    const followedStoodioz = useMemo(() => stoodioz.filter(s => producer.following.stoodioz.includes(s.id)), [stoodioz, producer.following.stoodioz]);
+    const followedProducers = useMemo(() => producers.filter(p => producer.following.producers.includes(p.id)), [producers, producer.following.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const sortedPosts = useMemo(() => (producer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [producer.posts]);
 
     return (
         <div>
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
+            <button onClick={goBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
                 <ChevronLeftIcon className="w-5 h-5" />
                 Back to Producers
             </button>
@@ -96,7 +97,7 @@ const ProducerProfile: React.FC<ProducerProfileProps> = (props) => {
                             <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
                                 {producer.pullUpPrice && currentUser && (
                                      <button 
-                                        onClick={() => onInitiateBookingWithProducer(producer)}
+                                        onClick={() => initiateBookingWithProducer(producer)}
                                         className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                      >
                                         <CalendarIcon className="w-5 h-5" />
@@ -104,7 +105,7 @@ const ProducerProfile: React.FC<ProducerProfileProps> = (props) => {
                                     </button>
                                 )}
                                 <button 
-                                    onClick={() => currentUser && onStartConversation(producer)}
+                                    onClick={() => currentUser && startConversation(producer)}
                                     disabled={!currentUser || currentUser.id === producer.id}
                                     className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -112,7 +113,7 @@ const ProducerProfile: React.FC<ProducerProfileProps> = (props) => {
                                     Message
                                 </button>
                                 <button 
-                                    onClick={() => currentUser && onToggleFollow('producer', producer.id)}
+                                    onClick={() => currentUser && toggleFollow('producer', producer.id)}
                                     disabled={!currentUser || currentUser.id === producer.id}
                                     className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-700 text-purple-400 border-2 border-purple-400 hover:bg-zinc-600'}`}
                                 >
@@ -150,10 +151,10 @@ const ProducerProfile: React.FC<ProducerProfileProps> = (props) => {
                             {followers.map(f => {
                                 const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
                                 const onClick = () => {
-                                    if (type === 'artist') onSelectArtist(f as Artist);
-                                    else if (type === 'engineer') onSelectEngineer(f as Engineer);
-                                    else if (type === 'stoodio') onSelectStoodio(f as Stoodio);
-                                    else if (type === 'producer') onSelectProducer(f as Producer);
+                                    if (type === 'artist') viewArtistProfile(f as Artist);
+                                    else if (type === 'engineer') viewEngineerProfile(f as Engineer);
+                                    else if (type === 'stoodio') viewStoodioDetails(f as Stoodio);
+                                    else if (type === 'producer') viewProducerProfile(f as Producer);
                                 }
                                 return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
                             })}
@@ -165,10 +166,10 @@ const ProducerProfile: React.FC<ProducerProfileProps> = (props) => {
                     <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-6 h-6" /> Following ({followingCount})</h3>
                     {followingCount > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
-                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => onSelectProducer(p)} />)}
-                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
-                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
+                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
+                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
+                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
+                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
                         </div>
                     ) : <p className="text-slate-400">Not following anyone yet.</p>}
                 </div>
@@ -178,9 +179,9 @@ const ProducerProfile: React.FC<ProducerProfileProps> = (props) => {
                      <PostFeed 
                         posts={sortedPosts}
                         authors={new Map([[producer.id, producer]])}
-                        onLikePost={onLikePost}
-                        onCommentOnPost={onCommentOnPost}
-                        currentUser={currentUser}
+                        onLikePost={likePost}
+                        onCommentOnPost={commentOnPost}
+                        onSelectAuthor={() => viewProducerProfile(producer)}
                      />
                 </div>
             </div>

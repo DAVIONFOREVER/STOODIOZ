@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppView } from '../types';
+import { AppView, SmokingPolicy } from '../types';
 
 interface StoodioSetupProps {
     onCompleteSetup: (name: string, description: string, email: string, password: string) => void;

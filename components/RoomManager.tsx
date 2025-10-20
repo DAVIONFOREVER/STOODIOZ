@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Stoodio, Room } from '../types';
+import { SmokingPolicy } from '../types';
 import { HouseIcon, DollarSignIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon } from './icons';
 
 interface RoomManagerProps {
@@ -15,6 +16,7 @@ const RoomFormModal: React.FC<{
     const [name, setName] = useState(room?.name || '');
     const [description, setDescription] = useState(room?.description || '');
     const [hourlyRate, setHourlyRate] = useState(room?.hourlyRate || 0);
+    const [smokingPolicy, setSmokingPolicy] = useState<SmokingPolicy>(room?.smokingPolicy || SmokingPolicy.NON_SMOKING);
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,6 +26,7 @@ const RoomFormModal: React.FC<{
             description,
             hourlyRate,
             photos: room?.photos || [],
+            smokingPolicy,
         };
         onSave(finalRoom);
     };
@@ -47,9 +50,18 @@ const RoomFormModal: React.FC<{
                             <label htmlFor="room-desc" className="block text-sm font-medium text-zinc-300 mb-1">Description</label>
                             <textarea id="room-desc" value={description} onChange={e => setDescription(e.target.value)} rows={3} className={inputClasses}></textarea>
                         </div>
-                        <div>
-                            <label htmlFor="room-rate" className="block text-sm font-medium text-zinc-300 mb-1">Hourly Rate ($)</label>
-                            <input type="number" id="room-rate" value={hourlyRate} onChange={e => setHourlyRate(Number(e.target.value))} required className={inputClasses}/>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="room-rate" className="block text-sm font-medium text-zinc-300 mb-1">Hourly Rate ($)</label>
+                                <input type="number" id="room-rate" value={hourlyRate} onChange={e => setHourlyRate(Number(e.target.value))} required className={inputClasses}/>
+                            </div>
+                             <div>
+                                <label htmlFor="smoking-policy" className="block text-sm font-medium text-zinc-300 mb-1">Smoking Policy</label>
+                                <select id="smoking-policy" value={smokingPolicy} onChange={e => setSmokingPolicy(e.target.value as SmokingPolicy)} className={inputClasses}>
+                                    <option value={SmokingPolicy.NON_SMOKING}>Non-Smoking</option>
+                                    <option value={SmokingPolicy.SMOKING_ALLOWED}>Smoking Allowed</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-end gap-2">
@@ -109,8 +121,13 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) =
                         <div className="flex-grow">
                             <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><HouseIcon className="w-5 h-5 text-orange-400"/> {room.name}</h3>
                             <p className="text-sm text-zinc-400 mt-1 mb-2">{room.description}</p>
-                            <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
-                                <DollarSignIcon className="w-4 h-4" /> ${room.hourlyRate}/hr
+                            <div className="flex items-center gap-4">
+                                <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
+                                    <DollarSignIcon className="w-4 h-4" /> ${room.hourlyRate}/hr
+                                </div>
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${room.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'}`}>
+                                    {room.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED ? 'Smoking Allowed' : 'Non-Smoking'}
+                                </span>
                             </div>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-2">

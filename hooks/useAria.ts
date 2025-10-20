@@ -1,9 +1,7 @@
-
-
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 // FIX: Import AppView and UserRole as values, not just types.
-import { AppView, UserRole, type Artist, type Engineer, type Stoodio, type Producer, type Booking, type VibeMatchResult } from '../types';
+import { AppView, UserRole, type Artist, type Engineer, type Stoodio, type Producer, type Booking, type VibeMatchResult, type Message } from '../types';
 
 export const useAria = (
     handleStartConversation: (participant: Artist | Engineer | Stoodio | Producer) => void,
@@ -17,7 +15,7 @@ export const useAria = (
 ) => {
     const dispatch = useAppDispatch();
     // FIX: Destructure individual user arrays instead of non-existent `allUsers`. Also get `conversations`.
-    const { artists, engineers, producers, stoodioz, conversations, ariaNudge, ariaHistory, initialAriaCantataPrompt } = useAppState();
+    const { artists, engineers, producers, stoodioz, conversations, ariaNudge, ariaHistory, initialAriaCantataPrompt, bookings } = useAppState();
     
     // FIX: Construct `allUsers` from individual arrays.
     const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
@@ -57,9 +55,47 @@ export const useAria = (
         }, 100);
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
     }, [allUsers, handleStartConversation, dispatch]);
+    
+    const handleAriaSendDocument = useCallback((recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => {
+        const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
+        if (!ariaProfile) return;
 
-    const handleAriaNavigation = useCallback((view: AppView, entityName?: string) => {
+        const fileUri = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(documentContent);
+        const fileSize = new Blob([documentContent]).size;
+
+        const newMessage: Message = {
+            id: `msg-doc-${Date.now()}`,
+            senderId: ariaProfile.id,
+            timestamp: new Date().toISOString(),
+            type: 'files',
+            text: `Here is the document we discussed: ${fileName}`,
+            files: [{ name: fileName, url: fileUri, size: `${(fileSize / 1024).toFixed(1)} KB` }],
+        };
+        
+        let convo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [recipient.id, ariaProfile.id].includes(p.id)));
+        let updatedConversations = [...conversations];
+
+        if (convo) {
+            updatedConversations = updatedConversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, newMessage] } : c);
+        } else {
+            convo = { id: `convo-${recipient.id}-${ariaProfile.id}`, participants: [recipient, ariaProfile], messages: [newMessage], unreadCount: 1 };
+            updatedConversations = [convo, ...updatedConversations];
+        }
+
+        dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
+        dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: convo.id } });
+        handleNavigate(AppView.INBOX);
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
+
+    }, [artists, conversations, dispatch, handleNavigate]);
+
+    const handleAriaNavigation = useCallback((view: AppView, entityName?: string, tab?: string) => {
+        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
+
+        if (tab) {
+            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab } });
+        }
+        
         if (!entityName) {
             handleNavigate(view);
             return;
@@ -102,6 +138,7 @@ export const useAria = (
         handleShowVibeResults,
         handleAriaGroupConversation,
         handleAriaSendMessage,
+        handleAriaSendDocument,
         handleAriaNavigation,
         handleAriaGetDirections,
         handleAriaNudgeClick,

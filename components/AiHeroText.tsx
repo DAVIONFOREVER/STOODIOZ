@@ -4,7 +4,6 @@ import React from 'react';
 interface AiHeroTextProps {
     text: string;
     className?: string;
-    // FIX: Fully qualify the JSX namespace to resolve "Cannot find namespace 'JSX'" error.
     as?: keyof React.JSX.IntrinsicElements;
 }
 

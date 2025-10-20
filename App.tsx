@@ -1,7 +1,8 @@
+
 import React, { useEffect, lazy, Suspense } from 'react';
 import type { VibeMatchResult, Transaction } from './types';
 // FIX: Import VerificationStatus to use it as a value.
-import { AppView, UserRole, VerificationStatus } from './types';
+import { AppView, UserRole, VerificationStatus, SmokingPolicy } from './types';
 import { getAriaNudge } from './services/geminiService';
 import * as apiService from './services/apiService';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext';
@@ -35,7 +36,7 @@ const StoodioList = lazy(() => import('./components/StudioList'));
 const StoodioDetail = lazy(() => import('./components/StudioDetail'));
 const BookingConfirmation = lazy(() => import('./components/BookingConfirmation'));
 const MyBookings = lazy(() => import('./components/MyBookings'));
-const StoodioDashboard = lazy(() => import('./components/StudioDashboard'));
+const StoodioDashboard = lazy(() => import('./components/StoodioDashboard'));
 const EngineerDashboard = lazy(() => import('./components/EngineerDashboard'));
 const ProducerDashboard = lazy(() => import('./components/ProducerDashboard'));
 const Inbox = lazy(() => import('./components/Inbox'));
@@ -95,7 +96,7 @@ const App: React.FC = () => {
     const { updateProfile, verificationSubmit } = useProfile();
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
-    const { handleAriaCantataBooking, handleShowVibeResults, handleAriaGroupConversation, handleAriaSendMessage, handleAriaNavigation, handleAriaGetDirections, handleAriaNudgeClick, handleDismissAriaNudge, ariaHistory, initialAriaCantataPrompt } = useAria(startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking);
+    const { handleAriaCantataBooking, handleShowVibeResults, handleAriaGroupConversation, handleAriaSendMessage, handleAriaNavigation, handleAriaGetDirections, handleAriaSendDocument, handleAriaNudgeClick, handleDismissAriaNudge, ariaHistory, initialAriaCantataPrompt } = useAria(startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking);
 
 
     // --- Data Fetching ---
@@ -103,10 +104,11 @@ const App: React.FC = () => {
         const loadData = async () => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             try {
-                const [artistsData, engineersData, producersData, stoodiozData] = await Promise.all([
-                    apiService.fetchArtists(), apiService.fetchEngineers(), apiService.fetchProducers(), apiService.fetchStoodioz()
+                // FIX: Fetch reviews along with other initial data.
+                const [artistsData, engineersData, producersData, stoodiozData, reviewsData] = await Promise.all([
+                    apiService.fetchArtists(), apiService.fetchEngineers(), apiService.fetchProducers(), apiService.fetchStoodioz(), apiService.fetchReviews()
                 ]);
-                dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { artists: artistsData, engineers: engineersData, producers: producersData, stoodioz: stoodiozData }});
+                dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { artists: artistsData, engineers: engineersData, producers: producersData, stoodioz: stoodiozData, reviews: reviewsData }});
             } catch (error) {
                 console.error("Failed to fetch initial app data:", error);
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
@@ -152,8 +154,8 @@ const App: React.FC = () => {
             case AppView.PRODUCER_SETUP:
                 return <ProducerSetup onCompleteSetup={(...args) => completeSetup({id: `prod-${Date.now()}`, name: args[0], bio: args[1], email: args[2], password: args[3], genres: ['Hip-Hop', 'Trap', 'R&B'], rating: 5.0, imageUrl: '', followers: 0, following: { artists: ['artist-aria-cantata'], engineers: [], stoodioz: [], producers: [] }, followerIds: [], coordinates: { lat: 33.7490, lon: -84.3880 }, isAvailable: true, walletBalance: 50, walletTransactions: [], instrumentals: []}, UserRole.PRODUCER)} onNavigate={navigate} />;
             case AppView.STOODIO_SETUP:
-                // FIX: Use VerificationStatus.UNVERIFIED enum instead of string literal.
-                return <StoodioSetup onCompleteSetup={(...args) => completeSetup({id: `studio-${Date.now()}`, name: args[0], description: args[1], email: args[2], password: args[3], location: 'Miami, FL', hourlyRate: 80, engineerPayRate: 40, rating: 5.0, imageUrl: '', amenities: ['Vocal Booth', 'Lounge Area'], coordinates: { lat: 25.7617, lon: -80.1918 }, availability: [], photos: [], followers: 0, following: { artists: ['artist-aria-cantata'], engineers: [], stoodioz: [], producers: [] }, followerIds: [], walletBalance: 0, walletTransactions: [], rooms: [ { id: `room-${Date.now()}`, name: 'Main Control Room', description: 'The primary recording and mixing space.', hourlyRate: 80, photos: [] } ], verificationStatus: VerificationStatus.UNVERIFIED}, UserRole.STOODIO)} onNavigate={navigate} />;
+                // FIX: Moved smokingPolicy from the Stoodio object to the Room object inside the rooms array to match the type definition.
+                return <StoodioSetup onCompleteSetup={(...args) => completeSetup({id: `studio-${Date.now()}`, name: args[0], description: args[1], email: args[2], password: args[3], location: 'Miami, FL', hourlyRate: 80, engineerPayRate: 40, rating: 5.0, imageUrl: '', amenities: ['Vocal Booth', 'Lounge Area'], coordinates: { lat: 25.7617, lon: -80.1918 }, availability: [], photos: [], followers: 0, following: { artists: ['artist-aria-cantata'], engineers: [], stoodioz: [], producers: [] }, followerIds: [], walletBalance: 0, walletTransactions: [], rooms: [ { id: `room-${Date.now()}`, name: 'Main Control Room', description: 'The primary recording and mixing space.', hourlyRate: 80, photos: [], smokingPolicy: SmokingPolicy.NON_SMOKING } ], verificationStatus: VerificationStatus.UNVERIFIED}, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -163,19 +165,19 @@ const App: React.FC = () => {
                 return <StoodioList onSelectStoodio={viewStoodioDetails} />;
             case AppView.BOOKING_MODAL:
             case AppView.STOODIO_DETAIL:
-                return <StoodioDetail onBook={currentUser ? openBookingModal : handleGuestInteraction} onBack={goBack} onToggleFollow={currentUser ? toggleFollow : handleGuestInteraction} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onStartConversation={currentUser ? startConversation : handleGuestInteraction} onLikePost={likePost} onCommentOnPost={commentOnPost} />;
+                return <StoodioDetail />;
             case AppView.ENGINEER_LIST:
-                return <EngineerList onSelectEngineer={viewEngineerProfile} onToggleFollow={currentUser ? toggleFollow : handleGuestInteraction} />;
+                return <EngineerList onSelectEngineer={viewEngineerProfile} onToggleFollow={currentUser ? toggleFollow : () => {}} />;
             case AppView.ENGINEER_PROFILE:
-                return <EngineerProfile onBack={goBack} onToggleFollow={currentUser ? toggleFollow : handleGuestInteraction} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onStartNavigation={navigateToStudio} onStartConversation={currentUser ? startConversation : handleGuestInteraction} onLikePost={likePost} onCommentOnPost={commentOnPost} onInitiateBooking={initiateBookingWithEngineer} onOpenMixingModal={() => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: true } })} />;
+                return <EngineerProfile />;
             case AppView.PRODUCER_LIST:
-                return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={currentUser ? toggleFollow : handleGuestInteraction} />;
+                return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={currentUser ? toggleFollow : () => {}} />;
             case AppView.PRODUCER_PROFILE:
-                return <ProducerProfile onBack={goBack} onToggleFollow={currentUser ? toggleFollow : handleGuestInteraction} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onStartConversation={currentUser ? startConversation : handleGuestInteraction} onLikePost={likePost} onCommentOnPost={commentOnPost} onInitiateBookingWithProducer={initiateBookingWithProducer} />;
+                return <ProducerProfile />;
             case AppView.ARTIST_LIST:
-                 return <ArtistList onSelectArtist={viewArtistProfile} onToggleFollow={currentUser ? toggleFollow : handleGuestInteraction} />;
+                 return <ArtistList onSelectArtist={viewArtistProfile} onToggleFollow={currentUser ? toggleFollow : () => {}} />;
             case AppView.ARTIST_PROFILE:
-                return <ArtistProfile onBack={goBack} onToggleFollow={currentUser ? toggleFollow : handleGuestInteraction} onStartNavigation={()=>{}} onStartConversation={currentUser ? startConversation : handleGuestInteraction} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onLikePost={likePost} onCommentOnPost={commentOnPost} />;
+                return <ArtistProfile />;
             case AppView.MAP_VIEW:
                 return <MapView onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} onInitiateBooking={currentUser ? initiateBookingWithEngineer : undefined} />;
             
@@ -185,7 +187,7 @@ const App: React.FC = () => {
             case AppView.CONFIRMATION:
                 return <BookingConfirmation onDone={() => navigate(AppView.MY_BOOKINGS)} />;
             case AppView.MY_BOOKINGS:
-                return <MyBookings onOpenTipModal={(b) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking: b } })} onNavigateToStudio={navigateToStudio} onOpenCancelModal={(b) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking: b } })} />;
+                return <MyBookings />;
 
             case AppView.STOODIO_DASHBOARD:
                 if (userRole === UserRole.STOODIO) return <StoodioDashboard />;
@@ -204,7 +206,7 @@ const App: React.FC = () => {
                  return <Login onLogin={login} error={null} onNavigate={navigate} />;
 
             case AppView.INBOX:
-                 if (currentUser) return <Inbox onSendMessage={sendMessage} onSelectConversation={selectConversation} onNavigate={navigate} onFetchSmartReplies={fetchSmartReplies} />;
+                 if (currentUser) return <Inbox />;
                  return <Login onLogin={login} error={null} onNavigate={navigate} />;
             
             case AppView.ACTIVE_SESSION:
@@ -250,6 +252,7 @@ const App: React.FC = () => {
                             onNavigateRequest={handleAriaNavigation}
                             onStartSetupRequest={selectRoleToSetup}
                             onSendMessageRequest={(r, m) => handleAriaSendMessage(r, m, currentUser)}
+                            onSendDocument={handleAriaSendDocument}
                             onGetDirectionsRequest={handleAriaGetDirections}
                             history={ariaHistory}
                             setHistory={(history) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history } })}

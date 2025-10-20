@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Stoodio } from '../types';
-import { VerificationStatus } from '../types';
+import { VerificationStatus, SmokingPolicy } from '../types';
 import StoodioCard from './StudioCard';
 import { SearchIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
@@ -9,16 +9,32 @@ interface StoodioListProps {
     onSelectStoodio: (stoodio: Stoodio) => void;
 }
 
+const FilterButton: React.FC<{ label: string, active: boolean, onClick: () => void }> = ({ label, active, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${
+            active ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:bg-zinc-700'
+        }`}
+    >
+        {label}
+    </button>
+);
+
 const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
     const { stoodioz } = useAppState();
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [showVerifiedOnly, setShowVerifiedOnly] = useState<boolean>(false);
+    const [smokingFilter, setSmokingFilter] = useState<'any' | SmokingPolicy>('any');
 
     const filteredStoodioz = useMemo(() => {
         let results = stoodioz;
 
         if (showVerifiedOnly) {
             results = results.filter(s => s.verificationStatus === VerificationStatus.VERIFIED);
+        }
+
+        if (smokingFilter !== 'any') {
+            results = results.filter(s => s.rooms.some(r => (r.smokingPolicy || SmokingPolicy.NON_SMOKING) === smokingFilter));
         }
 
         if (searchTerm) {
@@ -31,7 +47,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
         }
 
         return results.slice().sort((a, b) => a.name.localeCompare(b.name));
-    }, [stoodioz, searchTerm, showVerifiedOnly]);
+    }, [stoodioz, searchTerm, showVerifiedOnly, smokingFilter]);
 
     return (
         <div className="animate-fade-in">
@@ -40,23 +56,23 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
             </h1>
             <p className="text-center text-lg text-zinc-400 mb-8">Discover and book top-tier recording stoodioz.</p>
 
-            <div className="max-w-2xl mx-auto mb-12 p-4 bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg border border-zinc-700/50">
-                <div className="flex flex-col sm:flex-row gap-4 items-center">
-                    <div className="relative flex-grow w-full">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                           <SearchIcon className="h-5 w-5 text-zinc-400" />
-                        </div>
-                        <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="Search by name, location, or amenity..."
-                        />
+            <div className="max-w-4xl mx-auto mb-12 p-4 bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg border border-zinc-700/50">
+                <div className="relative flex-grow w-full mb-4">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <SearchIcon className="h-5 w-5 text-zinc-400" />
                     </div>
-                    <div className="flex-shrink-0">
-                         <label className="flex items-center cursor-pointer">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Show Verified Only</span>
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        placeholder="Search by name, location, or amenity..."
+                    />
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <label className="flex items-center cursor-pointer">
+                            <span className="text-sm font-medium text-zinc-300 mr-3">Verified Only</span>
                             <div className="relative">
                                 <input 
                                     type="checkbox" 
@@ -68,6 +84,11 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
                                 <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${showVerifiedOnly ? 'translate-x-6' : ''}`}></div>
                             </div>
                         </label>
+                    </div>
+                     <div className="flex items-center bg-zinc-900/50 rounded-lg p-1 border border-zinc-700">
+                        <FilterButton label="Any" active={smokingFilter === 'any'} onClick={() => setSmokingFilter('any')} />
+                        <FilterButton label="Smoking" active={smokingFilter === SmokingPolicy.SMOKING_ALLOWED} onClick={() => setSmokingFilter(SmokingPolicy.SMOKING_ALLOWED)} />
+                        <FilterButton label="Non-Smoking" active={smokingFilter === SmokingPolicy.NON_SMOKING} onClick={() => setSmokingFilter(SmokingPolicy.NON_SMOKING)} />
                     </div>
                 </div>
             </div>

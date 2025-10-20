@@ -76,7 +76,6 @@ const DEFAULT_AUDIO_URL = 'https://storage.googleapis.com/studiogena-assets/Soun
 interface WaveformTextProps {
     text: string;
     className?: string;
-    // FIX: Fully qualify the JSX namespace to resolve "Cannot find namespace 'JSX'" error.
     as?: keyof React.JSX.IntrinsicElements;
 }
 

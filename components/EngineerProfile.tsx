@@ -1,36 +1,13 @@
-// FIX: Implemented the EngineerProfile component which was previously a placeholder file, causing import errors.
 import React, { useState, useMemo } from 'react';
-// FIX: Update currentUser to accept Producer
-// FIX: Separated UserRole enum from type-only import to use it as a value.
-import type { Engineer, Review, Artist, Stoodio, Booking, Location, Producer, MixingDetails } from '../types';
+import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
 import { UserRole } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, RoadIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
 import PostFeed from './PostFeed';
-
-interface EngineerProfileProps {
-    engineer: Engineer;
-    onBack: () => void;
-    reviews: Review[];
-    onToggleFollow: (type: 'engineer' | 'artist' | 'stoodio' | 'producer', id: string) => void;
-    isFollowing: boolean;
-    userRole: UserRole | null;
-    bookings: Booking[];
-    allArtists: Artist[];
-    allEngineers: Engineer[];
-    allStoodioz: Stoodio[];
-    allProducers: Producer[];
-    onSelectArtist: (artist: Artist) => void;
-    onSelectEngineer: (engineer: Engineer) => void;
-    onSelectStoodio: (stoodio: Stoodio) => void;
-    onSelectProducer: (producer: Producer) => void;
-    onStartNavigation: (location: Location) => void;
-    onStartConversation: (participant: Engineer) => void;
-    onLikePost: (postId: string) => void;
-    onCommentOnPost: (postId: string, text: string) => void;
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
-    onInitiateBooking: (engineer: Engineer, date: string, time: string) => void;
-    onOpenMixingModal: () => void;
-}
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useMessaging } from '../hooks/useMessaging';
+import { useBookings } from '../hooks/useBookings';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -65,34 +42,55 @@ const ProfileCard: React.FC<{
 };
 
 
-const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
-    const { engineer, onBack, reviews, onToggleFollow, isFollowing, userRole, currentUser, onStartConversation, onLikePost, onCommentOnPost, onInitiateBooking, onStartNavigation, allArtists, allEngineers, allStoodioz, allProducers, onSelectArtist, onSelectEngineer, onSelectStoodio, onSelectProducer, onOpenMixingModal } = props;
+const EngineerProfile: React.FC = () => {
+    const { selectedEngineer, currentUser, reviews, artists, engineers, stoodioz, producers } = useAppState();
+    const dispatch = useAppDispatch();
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
+    const { toggleFollow, likePost, commentOnPost } = useSocial();
+    const { startConversation } = useMessaging(useNavigation().navigate);
+    const { initiateBookingWithEngineer } = useBookings(useNavigation().navigate);
+
+    const engineer = selectedEngineer;
+
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState('12:00');
 
+    if (!engineer) {
+        return (
+            <div className="text-center text-zinc-400">
+                <p>Engineer not found.</p>
+                <button onClick={goBack} className="mt-4 text-orange-400">Go Back</button>
+            </div>
+        );
+    }
+    
+    const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.engineers || []).includes(engineer.id)) : false;
+
     const engineerReviews = reviews.filter(r => r.engineerId === engineer.id);
     
-    const allUsers = useMemo(() => [...allArtists, ...allEngineers, ...allStoodioz, ...allProducers], [allArtists, allEngineers, allStoodioz, allProducers]);
+    const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     const followers = useMemo(() => allUsers.filter(u => engineer.followerIds.includes(u.id)), [allUsers, engineer.followerIds]);
 
-    const followedArtists = useMemo(() => allArtists.filter(a => engineer.following.artists.includes(a.id)), [allArtists, engineer.following.artists]);
-    const followedEngineers = useMemo(() => allEngineers.filter(e => engineer.following.engineers.includes(e.id)), [allEngineers, engineer.following.engineers]);
-    const followedStoodioz = useMemo(() => allStoodioz.filter(s => engineer.following.stoodioz.includes(s.id)), [allStoodioz, engineer.following.stoodioz]);
-    const followedProducers = useMemo(() => allProducers.filter(p => engineer.following.producers.includes(p.id)), [allProducers, engineer.following.producers]);
+    const followedArtists = useMemo(() => artists.filter(a => engineer.following.artists.includes(a.id)), [artists, engineer.following.artists]);
+    const followedEngineers = useMemo(() => engineers.filter(e => engineer.following.engineers.includes(e.id)), [engineers, engineer.following.engineers]);
+    const followedStoodioz = useMemo(() => stoodioz.filter(s => engineer.following.stoodioz.includes(s.id)), [stoodioz, engineer.following.stoodioz]);
+    const followedProducers = useMemo(() => producers.filter(p => engineer.following.producers.includes(p.id)), [producers, engineer.following.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const sortedPosts = useMemo(() => (engineer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [engineer.posts]);
 
     const handleBookClick = () => {
-        onInitiateBooking(engineer, date, time);
+        initiateBookingWithEngineer(engineer, date, time);
     };
 
-    const canRequestMix = engineer.mixingServices?.isEnabled && currentUser && currentUser.id !== engineer.id && (userRole === UserRole.ARTIST || userRole === UserRole.PRODUCER || userRole === UserRole.ENGINEER || userRole === UserRole.STOODIO);
+    const onOpenMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: true } });
+
+    const canRequestMix = engineer.mixingServices?.isEnabled && currentUser && currentUser.id !== engineer.id;
 
 
     return (
         <div>
-            <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
+            <button onClick={goBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
                 <ChevronLeftIcon className="w-5 h-5" />
                 Back to Engineers
             </button>
@@ -115,7 +113,7 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                                     </button>
                                 )}
                                 <button 
-                                    onClick={() => currentUser && onStartConversation(engineer)}
+                                    onClick={() => currentUser && startConversation(engineer)}
                                     disabled={!currentUser || currentUser.id === engineer.id}
                                     className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -123,7 +121,7 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                                     Message
                                 </button>
                                 <button 
-                                    onClick={() => currentUser && onToggleFollow('engineer', engineer.id)}
+                                    onClick={() => currentUser && toggleFollow('engineer', engineer.id)}
                                     disabled={!currentUser || currentUser.id === engineer.id}
                                     className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
                                 >
@@ -193,10 +191,10 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                             {followers.map(f => {
                                 const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
                                 const onClick = () => {
-                                    if (type === 'artist') onSelectArtist(f as Artist);
-                                    else if (type === 'engineer') onSelectEngineer(f as Engineer);
-                                    else if (type === 'stoodio') onSelectStoodio(f as Stoodio);
-                                    else if (type === 'producer') onSelectProducer(f as Producer);
+                                    if (type === 'artist') viewArtistProfile(f as Artist);
+                                    else if (type === 'engineer') viewEngineerProfile(f as Engineer);
+                                    else if (type === 'stoodio') viewStoodioDetails(f as Stoodio);
+                                    else if (type === 'producer') viewProducerProfile(f as Producer);
                                 };
                                 return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
                             })}
@@ -208,10 +206,10 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                     <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-6 h-6" /> Following ({followingCount})</h3>
                     {followingCount > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => onSelectArtist(p)} />)}
-                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => onSelectEngineer(p)} />)}
-                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => onSelectStoodio(p)} />)}
-                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => onSelectProducer(p)} />)}
+                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
+                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
+                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
+                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
                         </div>
                     ) : <p className="text-slate-400">Not following anyone yet.</p>}
                 </div>
@@ -221,9 +219,9 @@ const EngineerProfile: React.FC<EngineerProfileProps> = (props) => {
                      <PostFeed 
                         posts={sortedPosts}
                         authors={new Map([[engineer.id, engineer]])}
-                        onLikePost={onLikePost}
-                        onCommentOnPost={onCommentOnPost}
-                        currentUser={currentUser}
+                        onLikePost={likePost}
+                        onCommentOnPost={commentOnPost}
+                        onSelectAuthor={() => viewEngineerProfile(engineer)}
                      />
                 </div>
             </div>

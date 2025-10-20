@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon } from './icons';
@@ -8,9 +7,11 @@ import PostFeed from './PostFeed';
 import Following from './Following';
 import FollowersList from './FollowersList';
 import Wallet from './Wallet';
-import { useAppState } from '../contexts/AppContext';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useProfile } from '../hooks/useProfile';
 
-// FIX: Define missing DashboardTab type
 type DashboardTab = 'dashboard' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -34,31 +35,28 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 
 
 const ArtistDashboard: React.FC = () => {
-    // FIX: Removed all props and get state from context
-    const { 
-        currentUser, bookings, conversations, stoodioz, engineers, artists, producers 
-    } = useAppState();
+    const { currentUser, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
+    const dispatch = useAppDispatch();
     const artist = currentUser as Artist;
 
-    // FIX: Mock handlers now defined inside the component
-    const onNavigate = (view: any) => console.log('Navigate to', view);
-    const onUpdateProfile = (updates: Partial<Artist>) => console.log('Update profile', updates);
-    const onToggleFollow = (type: string, id: string) => console.log(`Toggle follow ${type}`, id);
-    const onSelectStoodio = (s: Stoodio) => console.log('Select stoodio', s.name);
-    const onSelectEngineer = (e: Engineer) => console.log('Select engineer', e.name);
-    const onSelectArtist = (a: Artist) => console.log('Select artist', a.name);
-    const onSelectProducer = (p: Producer) => console.log('Select producer', p.name);
-    const onPost = (postData: any) => console.log('New post', postData);
-    const onLikePost = (postId: string) => console.log('Like post', postId);
-    const onCommentOnPost = (postId: string, text: string) => console.log('Comment on post', postId, text);
-    const onOpenVibeMatcher = () => console.log('Open vibe matcher');
-    const onOpenAddFundsModal = () => console.log('Open add funds');
-    const onViewBooking = (bookingId: string) => console.log('View booking', bookingId);
+    const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewBooking } = useNavigation();
+    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
+    const { updateProfile } = useProfile();
 
-    const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
+    const onOpenVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: true } });
+    const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+
+    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
+
+    useEffect(() => {
+        if (dashboardInitialTab) {
+            setActiveTab(dashboardInitialTab as DashboardTab);
+            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } }); // Clear it after use
+        }
+    }, [dashboardInitialTab, dispatch]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // FIX: Added image upload handlers
     const handleImageUploadClick = () => {
         fileInputRef.current?.click();
     };
@@ -69,7 +67,7 @@ const ArtistDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                onUpdateProfile({ imageUrl });
+                updateProfile({ imageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -92,22 +90,22 @@ const ArtistDashboard: React.FC = () => {
                     <Wallet
                         user={artist}
                         onAddFunds={onOpenAddFundsModal}
-                        onViewBooking={onViewBooking}
+                        onViewBooking={viewBooking}
                         userRole={UserRole.ARTIST}
                     />
                 );
             case 'followers':
-                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} onSelectProducer={onSelectProducer}/>;
+                 return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile}/>;
             case 'following':
-                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectProducer={onSelectProducer}/>;
+                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={toggleFollow} onSelectStudio={viewStoodioDetails} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile}/>;
 
             case 'dashboard':
             default:
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={artist} onPost={onPost} />
-                            <PostFeed posts={artist.posts || []} authors={new Map([[artist.id, artist]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} onSelectAuthor={() => {}} />
+                            <CreatePost currentUser={artist} onPost={createPost} />
+                            <PostFeed posts={artist.posts || []} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewArtistProfile} />
                         </div>
                     </div>
                 );
@@ -120,7 +118,6 @@ const ArtistDashboard: React.FC = () => {
             <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                        {/* FIX: Image upload UI added */}
                         <div className="relative group flex-shrink-0">
                             <img src={artist.imageUrl} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
                             <button 

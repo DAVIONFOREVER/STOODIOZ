@@ -1,5 +1,6 @@
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
-import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following } from '../types';
+// FIX: Add Review to import
+import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review } from '../types';
 import { AppView, UserRole } from '../types';
 
 // --- STATE AND ACTION TYPES ---
@@ -11,6 +12,8 @@ export interface AppState {
     engineers: Engineer[];
     artists: Artist[];
     producers: Producer[];
+    // FIX: Add reviews to state
+    reviews: Review[];
     bookings: Booking[];
     conversations: Conversation[];
     notifications: AppNotification[];
@@ -42,6 +45,7 @@ export interface AppState {
     initialAriaCantataPrompt: string | null;
     ariaNudge: string | null;
     isNudgeVisible: boolean;
+    dashboardInitialTab: string | null;
 }
 
 type ActionMap<M extends { [index: string]: any }> = {
@@ -101,14 +105,16 @@ export enum ActionTypes {
     SET_INITIAL_ARIA_PROMPT = 'SET_INITIAL_ARIA_PROMPT',
     SET_ARIA_NUDGE = 'SET_ARIA_NUDGE',
     SET_IS_NUDGE_VISIBLE = 'SET_IS_NUDGE_VISIBLE',
-    RESET_PROFILE_SELECTIONS = 'RESET_PROFILE_SELECTIONS'
+    RESET_PROFILE_SELECTIONS = 'RESET_PROFILE_SELECTIONS',
+    SET_DASHBOARD_TAB = 'SET_DASHBOARD_TAB',
 }
 
 type Payload = {
     [ActionTypes.NAVIGATE]: { view: AppView };
     [ActionTypes.GO_BACK]: undefined;
     [ActionTypes.GO_FORWARD]: undefined;
-    [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[] };
+    // FIX: Add reviews to SET_INITIAL_DATA payload
+    [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer };
     [ActionTypes.LOGIN_FAILURE]: { error: string };
@@ -151,6 +157,7 @@ type Payload = {
     [ActionTypes.SET_ARIA_NUDGE]: { nudge: string | null };
     [ActionTypes.SET_IS_NUDGE_VISIBLE]: { isVisible: boolean };
     [ActionTypes.RESET_PROFILE_SELECTIONS]: undefined;
+    [ActionTypes.SET_DASHBOARD_TAB]: { tab: string | null };
 };
 
 export type AppAction = ActionMap<Payload>[keyof ActionMap<Payload>];
@@ -164,6 +171,8 @@ const initialState: AppState = {
     engineers: [],
     artists: [],
     producers: [],
+    // FIX: Add reviews to initial state
+    reviews: [],
     bookings: [],
     conversations: [],
     notifications: [],
@@ -195,6 +204,7 @@ const initialState: AppState = {
     initialAriaCantataPrompt: null,
     ariaNudge: null,
     isNudgeVisible: false,
+    dashboardInitialTab: null,
 };
 
 // --- REDUCER ---
@@ -382,6 +392,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, ariaNudge: action.payload.nudge };
         case ActionTypes.SET_IS_NUDGE_VISIBLE:
             return { ...state, isNudgeVisible: action.payload.isVisible };
+        
+        case ActionTypes.SET_DASHBOARD_TAB:
+            return { ...state, dashboardInitialTab: action.payload.tab };
 
         default:
             return state;

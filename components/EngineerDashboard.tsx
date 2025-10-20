@@ -1,19 +1,18 @@
-
-import React, { useState, useRef } from 'react';
-import type { Engineer, Review, Booking, Artist, Stoodio, Transaction, Producer, Location } from '../types';
-import { BookingStatus, AppView, SubscriptionPlan, UserRole } from '../types';
-import { DollarSignIcon, CalendarIcon, StarIcon, CheckCircleIcon, CloseCircleIcon, BriefcaseIcon, RoadIcon, EditIcon } from './icons';
+import React, { useState, useRef, useEffect } from 'react';
+import type { Engineer, Artist, Stoodio, Producer } from '../types';
+import { AppView, SubscriptionPlan, UserRole } from '../types';
+import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
-import Following from './Following';
-import FollowersList from './FollowersList';
 import AvailabilityManager from './AvailabilityManager';
 import NotificationSettings from './NotificationSettings';
 import Wallet from './Wallet';
 import MixingServicesManager from './MixingServicesManager';
-import { useAppState } from '../contexts/AppContext';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useProfile } from '../hooks/useProfile';
 
-// FIX: Define missing DashboardTab type
 type DashboardTab = 'dashboard' | 'jobBoard' | 'availability' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -50,36 +49,28 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 );
 
 const EngineerDashboard: React.FC = () => {
-    // FIX: Removed all props and now get state from context
-    const { 
-        currentUser, bookings, artists, engineers, stoodioz, producers 
-    } = useAppState();
-    const engineer = currentUser as Engineer; // Assume currentUser is the correct engineer
+    const { currentUser, bookings, dashboardInitialTab } = useAppState();
+    const dispatch = useAppDispatch();
+    const engineer = currentUser as Engineer;
     
-    // FIX: Mock handlers defined inside component
-    const onUpdateEngineer = (updates: Partial<Engineer>) => console.log('Update Engineer:', updates);
-    const onAcceptBooking = (id: string) => console.log('Accept booking:', id);
-    const onDenyBooking = (id: string) => console.log('Deny booking:', id);
-    const onStartSession = (b: Booking) => console.log('Start session:', b.id);
-    const onSelectArtist = (a: Artist) => console.log('Select artist:', a.name);
-    const onSelectEngineer = (e: Engineer) => console.log('Select engineer:', e.name);
-    const onSelectStoodio = (s: Stoodio) => console.log('Select stoodio:', s.name);
-    const onSelectProducer = (p: Producer) => console.log('Select producer:', p.name);
-    const onToggleFollow = (type: string, id: string) => console.log(`Toggle follow ${type}:`, id);
-    const onNavigateToStudio = (loc: any) => console.log('Navigate to studio');
-    const onStartConversation = (p: any) => console.log('Start conversation with:', p.name);
-    const onPost = (postData: any) => console.log('New Post:', postData);
-    const onLikePost = (postId: string) => console.log('Like post:', postId);
-    const onCommentOnPost = (postId: string, text: string) => console.log('Comment on post:', postId, text);
-    const onNavigate = (view: AppView) => console.log('Navigate to:', view);
-    const onOpenAddFundsModal = () => console.log('Open add funds');
-    const onOpenPayoutModal = () => console.log('Open payout');
-    const onViewBooking = (id: string) => console.log('View booking:', id);
-    
-    const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
+    const { navigate, viewBooking } = useNavigation();
+    const { createPost, likePost, commentOnPost } = useSocial();
+    const { updateProfile } = useProfile();
+
+    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
+
+    useEffect(() => {
+        if (dashboardInitialTab) {
+            setActiveTab(dashboardInitialTab as DashboardTab);
+            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } }); // Clear it after use
+        }
+    }, [dashboardInitialTab, dispatch]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // FIX: Added image upload handlers
+    const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+    const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
+
     const handleImageUploadClick = () => {
         fileInputRef.current?.click();
     };
@@ -90,31 +81,30 @@ const EngineerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                onUpdateEngineer({ imageUrl });
+                updateProfile({ imageUrl });
             };
             reader.readAsDataURL(file);
         }
     };
     
-    const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requestedEngineerId === engineer.id) && b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date());
+    const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requestedEngineerId === engineer.id) && new Date(`${b.date}T${b.startTime}`) >= new Date());
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
     
     const renderContent = () => {
-         // This is a stub, but we can imagine what it would look like
          switch(activeTab) {
-             case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={onUpdateEngineer} />;
-             case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateUser={onUpdateEngineer} />;
-             case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateUser={onUpdateEngineer} />;
-             case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={onViewBooking} userRole={UserRole.ENGINEER} />;
+             case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
+             case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateUser={updateProfile} />;
+             case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateUser={updateProfile} />;
+             case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.ENGINEER} />;
              // Other cases would be here...
              default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        <CreatePost currentUser={engineer} onPost={onPost} />
-                        <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} onSelectAuthor={() => {}} />
+                        <CreatePost currentUser={engineer} onPost={createPost} />
+                        <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => {}} />
                     </div>
                     <div className="lg:col-span-1 space-y-6">
-                        {!isProPlan && <UpgradePlusCard onNavigate={onNavigate} />}
+                        {!isProPlan && <UpgradePlusCard onNavigate={navigate} />}
                     </div>
                 </div>
             );
@@ -127,7 +117,6 @@ const EngineerDashboard: React.FC = () => {
             <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                        {/* FIX: Image upload UI added */}
                         <div className="relative group flex-shrink-0">
                              <img src={engineer.imageUrl} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
                             <button 
@@ -157,7 +146,7 @@ const EngineerDashboard: React.FC = () => {
                                 type="checkbox" 
                                 className="sr-only" 
                                 checked={engineer.isAvailable} 
-                                onChange={(e) => onUpdateEngineer({ isAvailable: e.target.checked })} 
+                                onChange={(e) => updateProfile({ isAvailable: e.target.checked })} 
                             />
                             <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.isAvailable ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
                             <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.isAvailable ? 'translate-x-6' : ''}`}></div>

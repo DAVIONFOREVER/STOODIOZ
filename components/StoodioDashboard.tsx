@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
-import { BookingStatus, UserRole, AppView, SubscriptionPlan } from '../types';
+
+import React, { useState, useRef, useEffect } from 'react';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Producer } from '../types';
+import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
@@ -11,7 +12,11 @@ import RoomManager from './RoomManager';
 import EngineerManager from './EngineerManager';
 import VerificationManager from './VerificationManager';
 import Wallet from './Wallet';
-import { useAppState } from '../contexts/AppContext';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useProfile } from '../hooks/useProfile';
+import * as apiService from '../services/apiService';
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -136,6 +141,7 @@ const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onN
     </div>
 );
 
+
 type DashboardTab = 'dashboard' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -158,30 +164,47 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const StoodioDashboard: React.FC = () => {
-    const { 
-        currentUser, bookings, artists, engineers, stoodioz, producers 
-    } = useAppState();
-    const stoodio = currentUser as Stoodio;
+    const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab } = useAppState();
+    const dispatch = useAppDispatch();
     
-    // Mock handlers defined inside component
-    const onUpdateStoodio = (updates: Partial<Stoodio>) => console.log('Update Stoodio:', updates);
-    const onToggleFollow = (type: string, id: string) => console.log(`Toggle follow ${type}:`, id);
-    const onSelectArtist = (a: Artist) => console.log('Select artist:', a.name);
-    const onSelectEngineer = (e: Engineer) => console.log('Select engineer:', e.name);
-    const onSelectStoodio = (s: Stoodio) => console.log('Select stoodio:', s.name);
-    const onSelectProducer = (p: Producer) => console.log('Select producer:', p.name);
-    const onPost = (postData: any) => console.log('New Post:', postData);
-    const onLikePost = (postId: string) => console.log('Like post:', postId);
-    const onCommentOnPost = (postId: string, text: string) => console.log('Comment on post:', postId, text);
-    const onPostJob = (jobData: JobPostData) => console.log('Post job:', jobData);
-    const onVerificationSubmit = (id: string, data: any) => console.log('Submit verification:', id, data);
-    const onNavigate = (view: AppView) => console.log('Navigate to:', view);
-    const onOpenAddFundsModal = () => console.log('Open add funds');
-    const onOpenPayoutModal = () => console.log('Open payout');
-    const onViewBooking = (id: string) => console.log('View booking:', id);
-
-    const [activeTab, setActiveTab] = useState<DashboardTab>('dashboard');
+    const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
+    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
+    const { updateProfile, verificationSubmit } = useProfile();
+    
+    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const stoodio = currentUser as Stoodio;
+
+    useEffect(() => {
+        if (dashboardInitialTab) {
+            setActiveTab(dashboardInitialTab as DashboardTab);
+            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } });
+        }
+    }, [dashboardInitialTab, dispatch]);
+
+    const onPostJob = async (jobData: JobPostData) => {
+        if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) return;
+
+        const bookingRequest: BookingRequest = {
+            ...jobData,
+            room: stoodio.rooms[0],
+            totalCost: 0,
+            requestType: BookingRequestType.FIND_AVAILABLE,
+            // @ts-ignore
+            postedBy: UserRole.STOODIO,
+        };
+        
+        try {
+            const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO, engineers, producers);
+            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: newBooking } });
+        } catch(error) {
+            console.error("Failed to post job", error);
+        }
+    };
+    
+    const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+    const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
 
     const handleImageUploadClick = () => {
         fileInputRef.current?.click();
@@ -192,26 +215,24 @@ const StoodioDashboard: React.FC = () => {
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                const imageUrl = e.target?.result as string;
-                onUpdateStoodio({ imageUrl });
+                updateProfile({ imageUrl: e.target?.result as string });
             };
             reader.readAsDataURL(file);
         }
     };
-
+    
     const upcomingBookingsCount = bookings
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => u.followerIds.includes(stoodio.id));
+    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => stoodio.followerIds.includes(u.id));
     const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
     const followedEngineers = engineers.filter(e => stoodio.following.engineers.includes(e.id));
     const followedStoodioz = stoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
     const followedProducers = producers.filter(p => stoodio.following.producers.includes(p.id));
 
     const handleBookSession = () => {
-        onSelectStoodio(stoodio);
-        onNavigate(AppView.STOODIO_DETAIL);
+        viewStoodioDetails(stoodio);
     };
     
     const isProPlan = stoodio.subscription?.plan === SubscriptionPlan.STOODIO_PRO;
@@ -219,22 +240,22 @@ const StoodioDashboard: React.FC = () => {
     const renderContent = () => {
         switch (activeTab) {
             case 'verification':
-                return <VerificationManager stoodio={stoodio} onVerificationSubmit={onVerificationSubmit} />;
+                return <VerificationManager stoodio={stoodio} onVerificationSubmit={verificationSubmit} />;
             case 'jobManagement':
                 return <StoodioJobManagement stoodio={stoodio} bookings={bookings} onPostJob={onPostJob} />;
             case 'availability':
-                return <AvailabilityManager user={stoodio} onUpdateUser={onUpdateStoodio} />;
+                return <AvailabilityManager user={stoodio} onUpdateUser={updateProfile} />;
             case 'rooms':
-                return <RoomManager stoodio={stoodio} onUpdateStoodio={onUpdateStoodio} />;
+                return <RoomManager stoodio={stoodio} onUpdateStoodio={updateProfile} />;
             case 'engineers':
-                return <EngineerManager stoodio={stoodio} allEngineers={engineers} onUpdateStoodio={onUpdateStoodio} />;
+                return <EngineerManager stoodio={stoodio} allEngineers={engineers} onUpdateStoodio={updateProfile} />;
             case 'wallet':
                 return (
                      <Wallet
                         user={stoodio}
                         onAddFunds={onOpenAddFundsModal}
                         onRequestPayout={onOpenPayoutModal}
-                        onViewBooking={onViewBooking}
+                        onViewBooking={viewBooking}
                         userRole={UserRole.STOODIO}
                     />
                 );
@@ -255,19 +276,19 @@ const StoodioDashboard: React.FC = () => {
                     </div>
                 );
             case 'followers':
-                 return <FollowersList followers={followers} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectStoodio={onSelectStoodio} onSelectProducer={onSelectProducer} />;
+                 return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
             case 'following':
-                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={onToggleFollow} onSelectStudio={onSelectStoodio} onSelectArtist={onSelectArtist} onSelectEngineer={onSelectEngineer} onSelectProducer={onSelectProducer} />;
+                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={toggleFollow} onSelectStudio={viewStoodioDetails} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} />;
             case 'dashboard':
             default:
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={currentUser!} onPost={onPost} />
-                            <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={onLikePost} onCommentOnPost={onCommentOnPost} onSelectAuthor={onSelectStoodio} />
+                            <CreatePost currentUser={currentUser!} onPost={createPost} />
+                            <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewStoodioDetails} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
-                            {!isProPlan && <UpgradeProCard onNavigate={onNavigate} />}
+                            {!isProPlan && <UpgradeProCard onNavigate={navigate} />}
                         </div>
                     </div>
                 );
@@ -282,7 +303,7 @@ const StoodioDashboard: React.FC = () => {
                      <div className="flex flex-col sm:flex-row items-center gap-6">
                         <div className="relative group flex-shrink-0">
                             <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
-                             <button 
+                            <button 
                                 onClick={handleImageUploadClick} 
                                 className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                 aria-label="Change profile photo"
@@ -302,7 +323,7 @@ const StoodioDashboard: React.FC = () => {
                             <p className="text-zinc-400 mt-2">Stoodio Dashboard</p>
                         </div>
                     </div>
-                    <div className="flex-shrink-0 flex flex-col gap-y-4">
+                    <div className="flex-shrink-0 flex flex-col items-center gap-y-4">
                         <button
                             onClick={handleBookSession}
                             className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
@@ -310,19 +331,21 @@ const StoodioDashboard: React.FC = () => {
                             <CalendarIcon className="w-5 h-5"/>
                             Book a New Session
                         </button>
-                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
-                            <div className="relative">
-                                <input 
-                                    type="checkbox" 
-                                    className="sr-only" 
-                                    checked={stoodio.showOnMap ?? false} 
-                                    onChange={(e) => onUpdateStoodio({ showOnMap: e.target.checked })} 
-                                />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
-                            </div>
-                        </label>
+                        <div className="flex gap-x-6">
+                            <label className="flex items-center cursor-pointer">
+                                <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+                                <div className="relative">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only" 
+                                        checked={stoodio.showOnMap ?? false} 
+                                        onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
+                                    />
+                                    <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
