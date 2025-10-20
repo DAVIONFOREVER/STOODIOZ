@@ -12,8 +12,9 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
+import MixingSampleManager from './MixingSampleManager';
 
-type DashboardTab = 'dashboard' | 'jobBoard' | 'availability' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
@@ -93,6 +94,7 @@ const EngineerDashboard: React.FC = () => {
     const renderContent = () => {
          switch(activeTab) {
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
+             case 'mixingSamples': return <MixingSampleManager engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateUser={updateProfile} />;
              case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateUser={updateProfile} />;
              case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.ENGINEER} />;
@@ -164,6 +166,7 @@ const EngineerDashboard: React.FC = () => {
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Job Board" isActive={activeTab === 'jobBoard'} onClick={() => setActiveTab('jobBoard')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
+                    <TabButton label="Mixing Samples" isActive={activeTab === 'mixingSamples'} onClick={() => setActiveTab('mixingSamples')} />
                     <TabButton label="Mixing Services" isActive={activeTab === 'mixingServices'} onClick={() => setActiveTab('mixingServices')} />
                     <TabButton label="Notifications" isActive={activeTab === 'notificationSettings'} onClick={() => setActiveTab('notificationSettings')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />

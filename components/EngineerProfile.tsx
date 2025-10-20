@@ -8,6 +8,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { useBookings } from '../hooks/useBookings';
+import MixingSamplePlayer from './MixingSamplePlayer';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -140,14 +141,10 @@ const EngineerProfile: React.FC = () => {
                             ))}
                         </div>
                     </div>
-                     {engineer.audioSampleUrl && (
-                        <div className="mt-6">
-                            <h3 className="text-xl font-bold mb-3 text-orange-400">Audio Sample</h3>
-                            <audio controls src={engineer.audioSampleUrl} className="w-full h-10 rounded-lg">
-                                Your browser does not support the audio element.
-                            </audio>
-                        </div>
-                    )}
+                </div>
+                
+                <div>
+                    <MixingSamplePlayer mixingSamples={engineer.mixingSamples || []} />
                 </div>
 
                  <div className="bg-zinc-800 rounded-2xl shadow-lg p-8 border border-zinc-700">

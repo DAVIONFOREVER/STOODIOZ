@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, lazy, Suspense } from 'react';
 import type { VibeMatchResult, Transaction } from './types';
 // FIX: Import VerificationStatus to use it as a value.
@@ -150,11 +151,10 @@ const App: React.FC = () => {
             case AppView.ARTIST_SETUP:
                 return <ArtistSetup onCompleteSetup={(...args) => completeSetup({id: `artist-${Date.now()}`, name: args[0], bio: args[1], email: args[2], password: args[3], imageUrl: '', followers: 0, following: { stoodioz: [], engineers: [], artists: ['artist-aria-cantata'], producers: [] }, followerIds: [], coordinates: { lat: 34.0522, lon: -118.2437 }, isSeekingSession: true, walletBalance: 2000, walletTransactions: []}, UserRole.ARTIST)} onNavigate={navigate} />;
             case AppView.ENGINEER_SETUP:
-                return <EngineerSetup onCompleteSetup={(...args) => completeSetup({id: `eng-${Date.now()}`, name: args[0], bio: args[1], email: args[2], password: args[3], specialties: ['Mixing', 'Mastering'], rating: 5.0, sessionsCompleted: 0, imageUrl: '', audioSampleUrl: '', followers: 0, following: { artists: ['artist-aria-cantata'], engineers: [], stoodioz: [], producers: [] }, followerIds: [], coordinates: { lat: 40.7128, lon: -74.0060 }, isAvailable: true, walletBalance: 100, walletTransactions: []}, UserRole.ENGINEER)} onNavigate={navigate} />;
+                return <EngineerSetup onCompleteSetup={(...args) => completeSetup({id: `eng-${Date.now()}`, name: args[0], bio: args[1], email: args[2], password: args[3], specialties: ['Mixing', 'Mastering'], rating: 5.0, sessionsCompleted: 0, imageUrl: '', mixingSamples: [], followers: 0, following: { artists: ['artist-aria-cantata'], engineers: [], stoodioz: [], producers: [] }, followerIds: [], coordinates: { lat: 40.7128, lon: -74.0060 }, isAvailable: true, walletBalance: 100, walletTransactions: []}, UserRole.ENGINEER)} onNavigate={navigate} />;
             case AppView.PRODUCER_SETUP:
                 return <ProducerSetup onCompleteSetup={(...args) => completeSetup({id: `prod-${Date.now()}`, name: args[0], bio: args[1], email: args[2], password: args[3], genres: ['Hip-Hop', 'Trap', 'R&B'], rating: 5.0, imageUrl: '', followers: 0, following: { artists: ['artist-aria-cantata'], engineers: [], stoodioz: [], producers: [] }, followerIds: [], coordinates: { lat: 33.7490, lon: -84.3880 }, isAvailable: true, walletBalance: 50, walletTransactions: [], instrumentals: []}, UserRole.PRODUCER)} onNavigate={navigate} />;
             case AppView.STOODIO_SETUP:
-                // FIX: Moved smokingPolicy from the Stoodio object to the Room object inside the rooms array to match the type definition.
                 return <StoodioSetup onCompleteSetup={(...args) => completeSetup({id: `studio-${Date.now()}`, name: args[0], description: args[1], email: args[2], password: args[3], location: 'Miami, FL', hourlyRate: 80, engineerPayRate: 40, rating: 5.0, imageUrl: '', amenities: ['Vocal Booth', 'Lounge Area'], coordinates: { lat: 25.7617, lon: -80.1918 }, availability: [], photos: [], followers: 0, following: { artists: ['artist-aria-cantata'], engineers: [], stoodioz: [], producers: [] }, followerIds: [], walletBalance: 0, walletTransactions: [], rooms: [ { id: `room-${Date.now()}`, name: 'Main Control Room', description: 'The primary recording and mixing space.', hourlyRate: 80, photos: [], smokingPolicy: SmokingPolicy.NON_SMOKING } ], verificationStatus: VerificationStatus.UNVERIFIED}, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;

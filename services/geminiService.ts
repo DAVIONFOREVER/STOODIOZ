@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment } from '../types';
+import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole, SmokingPolicy } from '../types';
 import { SERVICE_FEE_PERCENTAGE, ARIA_CANTATA_IMAGE_URL } from '../constants';
 
@@ -151,7 +151,13 @@ export const askAriaCantata = async (
     
     const baseSystemInstruction = `You are Aria Cantata, an AI assistant for Stoodioz, a music collaboration platform. Your personality is sophisticated, encouraging, a bit sassy, and always helpful. You are embedded in the app and can perform actions. Your goal is to help users achieve their creative and business goals. Address the user directly. Never mention that you are a language model.`;
 
-    const loggedInSystemInstruction = `${baseSystemInstruction} The user is logged in. Their name is ${user?.name}. Their role is ${userRole}. Help them with tasks like finding studios, booking sessions, managing their profile, and connecting with other users. Be proactive and context-aware.`;
+    const loggedInSystemInstruction = `${baseSystemInstruction}
+        The user is logged in. Their name is ${user?.name}. Their role is ${userRole}.
+
+        **Prime Directive: Default to Action, Not Exposition.**
+        1.  **Prioritize In-App Actions:** When a user asks a question, your first priority is to find an in-app tool that directly fulfills their request. Assume questions are about THIS APP unless they state otherwise. For example, if they ask 'where can I post my mixes?', assume they mean *within Stoodioz* and use the \`uploadMixingSample\` tool.
+        2.  **Be Concise:** Your default text responses should be brief and action-oriented. Don't provide extra information, lists, or suggestions unless explicitly asked.
+        3.  **Recognize Brainstorming Cues:** ONLY provide external suggestions, lists of options, or general advice if the user explicitly asks for 'ideas', 'suggestions', 'options', 'where else can I...', or similar broad, exploratory questions. In those cases, you can provide helpful information that goes beyond the app's functions.`;
     
     const guestSystemInstruction = `You are Aria Cantata, an AI assistant for Stoodioz. The user is not logged in. Your ONLY goal is to help them sign up. Politely refuse ALL other requests (like finding studios, artists, etc.) and guide them to create an account to unlock your full capabilities. The only function you should call is 'assistAccountSetup'.`;
 
@@ -221,6 +227,32 @@ export const askAriaCantata = async (
         },
     };
 
+    const uploadMixingSample: FunctionDeclaration = {
+        name: 'uploadMixingSample',
+        description: 'Helps an engineer upload a new mixing sample by navigating them to the correct page in their dashboard.',
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING, description: 'The title of the mixing sample the user wants to add.' }
+            }
+        },
+        function: async ({ title }) => {
+            if (!user || !('mixingSamples' in user)) {
+                return { type: 'text', text: "Only engineers can add mixing samples. Let me know if you'd like to sign up as one!" };
+            }
+            const text = title 
+                ? `Of course. I'll take you to the mixing samples manager so you can add '${title}'.`
+                : "Of course. I'll take you to the mixing samples manager so you can upload your work.";
+            
+            return { 
+                type: 'function', 
+                action: 'navigateApp', 
+                payload: { view: AppView.ENGINEER_DASHBOARD, tab: 'mixingSamples' },
+                text
+            };
+        },
+    };
+
     // --- Tool Selection & Model Call ---
     const allTools: FunctionDeclaration[] = [
         assistAccountSetup,
@@ -229,6 +261,7 @@ export const askAriaCantata = async (
         createMarketingPlan,
         createSessionReport,
         navigateApp,
+        uploadMixingSample,
         // ... include all other tool definitions here
     ];
 

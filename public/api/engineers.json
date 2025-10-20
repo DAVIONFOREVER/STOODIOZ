@@ -9,7 +9,20 @@
     "rating": 4.9,
     "sessionsCompleted": 238,
     "imageUrl": "data:image/svg+xml,%3csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"%23a1a1aa\"%3e%3cpath d=\"M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\"/%3e%3c/svg%3e",
-    "audioSampleUrl": "https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-1-short.mp3",
+    "mixingSamples": [
+      {
+        "id": "mix-1",
+        "title": "Indie Rock Mix Demo",
+        "description": "A punchy and wide mix for a modern indie rock band.",
+        "audioUrl": "https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-1-short.mp3"
+      },
+      {
+        "id": "mix-2",
+        "title": "Hip-Hop Vocal Mix",
+        "description": "Crisp, upfront vocals over a heavy 808 beat.",
+        "audioUrl": "https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-2-short.mp3"
+      }
+    ],
     "followers": 841,
     "following": { "artists": [], "engineers": [], "stoodioz": [], "producers": [] },
     "followerIds": [],

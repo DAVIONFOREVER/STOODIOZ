@@ -216,12 +216,19 @@ export interface MixingServices {
     turnaroundTime: string; // e.g., "3-5 business days"
 }
 
+export interface MixingSample {
+    id: string;
+    title: string;
+    description: string;
+    audioUrl: string;
+}
+
 export interface Engineer extends BaseUser {
     bio: string;
     specialties: string[];
     rating: number;
     sessionsCompleted: number;
-    audioSampleUrl: string;
+    mixingSamples: MixingSample[];
     isAvailable: boolean;
     showOnMap?: boolean;
     displayExactLocation?: boolean;
