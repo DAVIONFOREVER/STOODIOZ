@@ -8,16 +8,17 @@ import { SERVICE_FEE_PERCENTAGE, ARIA_CANTATA_IMAGE_URL } from '../constants';
 let ai: GoogleGenAI | null = null;
 /**
  * Lazily initializes and returns the GoogleGenAI client instance.
- * This prevents the "API Key must be set" error on startup by delaying initialization
- * until an API call is actually made (which is after the ApiKeyGate has checked for the key).
+ * This prevents build errors by not throwing an error if the key is missing.
+ * The ApiKeyGate component handles showing the user instructions at runtime.
  */
-const getGenAIClient = (): GoogleGenAI => {
+const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
         // Check for the key in both Vite/Vercel and the live preview environments.
         const apiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
         if (!apiKey || apiKey.startsWith('{{')) {
-            // This is a safeguard; the ApiKeyGate should prevent this from being thrown.
-            throw new Error("API Key not found or is a placeholder. Please configure VITE_API_KEY for Vercel or select a key in the live preview.");
+            // Return null instead of throwing an error to allow the app to build.
+            // The ApiKeyGate will prevent this from being used if keys are missing.
+            return null;
         }
         ai = new GoogleGenAI({ apiKey });
     }
@@ -110,6 +111,7 @@ export const getAriaNudge = async (user: Artist | Engineer | Stoodio | Producer,
 
     try {
         const ai = getGenAIClient();
+        if (!ai) return "Ready to create something amazing?"; // Graceful failure
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt
@@ -138,6 +140,7 @@ export const generateSmartReplies = async (messages: Message[], currentUserId: s
 
     try {
         const ai = getGenAIClient();
+        if (!ai) return []; // Graceful failure
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
@@ -291,6 +294,9 @@ export const askAriaCantata = async (
     const tools = user ? allTools : [assistAccountSetup];
     
     const ai = getGenAIClient();
+    if (!ai) { // Graceful failure for build, clear runtime error for user
+        return { type: 'text', text: "AI functionality is not configured. Please ensure your API key is set correctly." };
+    }
 
     const chat = ai.chats.create({
         model: 'gemini-2.5-flash',
