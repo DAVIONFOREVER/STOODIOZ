@@ -1,4 +1,5 @@
 
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -21,26 +22,32 @@ export const useSession = (navigate: (view: any) => void) => {
 
     const endSession = useCallback(async (bookingId: string) => {
         try {
-            const { updatedBookings, updatedUsers } = await apiService.endSession(bookingId, bookings, allUsers);
+            // FIX: endSession takes 1 argument and returns updatedBooking. User wallet updates happen on the backend but are not returned.
+            const { updatedBooking } = await apiService.endSession(bookingId);
+            const updatedBookings = bookings.map(b => b.id === bookingId ? updatedBooking : b);
             dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: updatedBookings } });
-            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
+            // Cannot update users here as the API doesn't return them.
             dispatch({ type: ActionTypes.END_SESSION });
             navigate('ENGINEER_DASHBOARD');
         } catch (error) { console.error("Failed to end session:", error); }
-    }, [navigate, bookings, allUsers, dispatch]);
+    }, [navigate, bookings, dispatch]);
 
     const confirmTip = useCallback(async (bookingId: string, tipAmount: number) => {
         if (!currentUser) return;
         try {
-            const { updatedBookings, updatedUsers } = await apiService.addTip(bookingId, tipAmount, bookings, allUsers);
-            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: updatedBookings } });
-            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
+            // FIX: addTip takes 2 arguments and doesn't return updatedUsers.
+            const { updatedBookings } = await apiService.addTip(bookingId, tipAmount);
+            const updatedBooking = updatedBookings[0];
+            if (updatedBooking) {
+                const newBookings = bookings.map(b => b.id === bookingId ? updatedBooking : b);
+                dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: newBookings } });
+            }
         } catch(error) {
             console.error("Failed to add tip:", error);
         } finally {
             dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
         }
-    }, [bookings, allUsers, currentUser, dispatch]);
+    }, [bookings, currentUser, dispatch]);
     
     const addFunds = (amount: number) => {
         if (!currentUser) return;

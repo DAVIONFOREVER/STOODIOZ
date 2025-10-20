@@ -1,4 +1,5 @@
 
+
 import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -25,12 +26,14 @@ export const useProfile = () => {
     };
 
     const verificationSubmit = useCallback(async (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => {
-        const { updatedStoodioz, temporaryStoodio } = await apiService.submitForVerification(stoodioId, data, stoodioz);
+        // FIX: submitForVerification takes 2 arguments and returns an object with `temporaryStoodio`.
+        const { temporaryStoodio } = await apiService.submitForVerification(stoodioId, data);
+        const updatedStoodioz = stoodioz.map(s => s.id === stoodioId ? temporaryStoodio : s);
         dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: [ ...artists, ...engineers, ...producers, ...updatedStoodioz] }});
         if (currentUser?.id === stoodioId) dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: temporaryStoodio } });
 
         setTimeout(() => {
-            const finalStoodioz = stoodioz.map(s => s.id === stoodioId ? { ...s, verificationStatus: VerificationStatus.VERIFIED } : s);
+            const finalStoodioz = stoodioz.map(s => s.id === stoodioId ? { ...s, ...data, verificationStatus: VerificationStatus.VERIFIED } : s);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: [ ...artists, ...engineers, ...producers, ...finalStoodioz] }});
              if (currentUser?.id === stoodioId) {
                 const finalUser = finalStoodioz.find(s => s.id === stoodioId);

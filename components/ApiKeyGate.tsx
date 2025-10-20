@@ -1,50 +1,58 @@
-
-
 import React from 'react';
 
 const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // Check for the key in both Vite/Vercel and the live preview environments.
-    const apiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+    // Check for all required environment variables for both Supabase and Gemini.
+    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+    const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
 
-    if (apiKey && apiKey.trim() !== '' && !apiKey.startsWith('{{')) {
-        // If the key exists and is not a placeholder, render the main application
+    const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
+
+    if (areKeysValid(supabaseUrl) && areKeysValid(supabaseAnonKey) && areKeysValid(geminiApiKey)) {
+        // If all keys exist and are not placeholders, render the main application.
         return <>{children}</>;
     }
 
-    // If the key is missing, render the setup instructions
+    // If any key is missing, render the full setup instructions.
     return (
-        <div className="main-container flex items-center justify-center p-4">
-            <div className="w-full max-w-3xl bg-zinc-900/80 backdrop-blur-lg rounded-2xl border border-zinc-700 p-8 text-zinc-200 shadow-2xl">
-                <h1 className="text-3xl font-bold text-center text-orange-400 mb-4">API Key Configuration Required</h1>
+        <div className="main-container flex items-center justify-center p-4 min-h-screen">
+            <div className="w-full max-w-4xl bg-zinc-900/80 backdrop-blur-lg rounded-2xl border border-zinc-700 p-8 text-zinc-200 shadow-2xl">
+                <h1 className="text-3xl font-bold text-center text-orange-400 mb-4">Backend & API Configuration Required</h1>
                 <p className="text-center text-zinc-400 mb-8">
-                    This application requires a Google AI API key to function. The app is not working because the key is missing. Please follow the steps below for your environment.
+                    Welcome to Stoodioz! To get your live application running on Vercel, you need to connect it to a database (Supabase) and the AI model (Google AI). Please follow the steps below.
                 </p>
 
                 <div className="space-y-8">
-                    {/* Instructions for the Live Preview Environment */}
+                    {/* Instructions for Supabase */}
                     <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
-                        <h2 className="text-xl font-semibold mb-3">1. For This Live Preview</h2>
-                        <p className="text-zinc-400 mb-4">To make this preview pane work, you must select an API key from your Google Cloud projects.</p>
+                        <h2 className="text-xl font-semibold mb-3 text-green-400">Step 1: Set Up Your Free Supabase Database</h2>
+                        <p className="text-zinc-400 mb-4">Supabase provides the live, persistent database for your app. All user data, bookings, and posts will be stored here.</p>
                         <ol className="list-decimal list-inside space-y-2 text-zinc-300">
-                            <li>In the editor, find the button labeled <strong className="text-orange-400">"Set API key"</strong> or a similar name in the top bar or side panel.</li>
-                            <li>Click it and select the key you wish to use. The preview will automatically refresh.</li>
+                            <li>Go to <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">supabase.com</a> and sign up for a free account.</li>
+                            <li>Create a new Project. You can name it "Stoodioz".</li>
+                            <li>Once the project is created, navigate to <strong className="text-orange-400">Project Settings</strong> (the gear icon).</li>
+                            <li>In the settings menu, click on <strong className="text-orange-400">API</strong>.</li>
+                            <li>You will see a <strong className="text-orange-400">Project URL</strong> and a Project API Key labeled <strong className="text-orange-400">anon public</strong>. Copy both of these—you'll need them for Vercel.</li>
+                            <li><strong>Important:</strong> You must also create the necessary tables in your Supabase database. Go to the <strong className="text-orange-400">SQL Editor</strong>, create a new query, and paste the table definitions from the project's documentation.</li>
                         </ol>
                     </div>
 
                     {/* Instructions for Vercel Deployment */}
                     <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
-                        <h2 className="text-xl font-semibold mb-3">2. For Your Vercel Deployment</h2>
-                        <p className="text-zinc-400 mb-4">To make your live website work, you must add the API key to your Vercel project's settings.</p>
+                        <h2 className="text-xl font-semibold mb-3 text-blue-400">Step 2: Add Environment Variables to Vercel</h2>
+                        <p className="text-zinc-400 mb-4">These variables securely connect your Vercel app to Supabase and Google AI.</p>
                          <ol className="list-decimal list-inside space-y-2 text-zinc-300">
                             <li>Go to your project on the Vercel Dashboard.</li>
-                            <li>Navigate to the <strong className="text-orange-400">Settings</strong> tab.</li>
-                            <li>Click on <strong className="text-orange-400">Environment Variables</strong> in the left menu.</li>
-                            <li>Add a new variable with the following name and value:</li>
-                            <li className="ml-4 mt-2"><strong>NAME:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_API_KEY</code> <span className="text-yellow-400 font-semibold">(The 'VITE_' prefix is required!)</span></li>
-                            <li className="ml-4"><strong>VALUE:</strong> Paste your API key from Google AI Studio.</li>
-                            <li className="mt-2">Ensure the variable is applied to Production, Preview, and Development environments.</li>
-                            <li><strong className="text-orange-400">Save</strong> the variable.</li>
-                            <li>Go to the <strong className="text-orange-400">Deployments</strong> tab and <strong className="text-orange-400">Redeploy</strong> your latest commit to apply the changes.</li>
+                            <li>Navigate to the <strong className="text-orange-400">Settings</strong> tab, then <strong className="text-orange-400">Environment Variables</strong>.</li>
+                            <li>Add the following three variables:</li>
+                            <div className="pl-6 mt-2 space-y-2 font-mono">
+                                <p>1. <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_URL</code>: Paste the <strong>Project URL</strong> you copied from Supabase.</p>
+                                <p>2. <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_ANON_KEY</code>: Paste the <strong>anon public</strong> key you copied from Supabase.</p>
+                                <p>3. <code className="bg-zinc-900 p-1 rounded">VITE_API_KEY</code>: Paste your API key from Google AI Studio.</p>
+                            </div>
+                            <li className="mt-2">Ensure all variables are applied to Production, Preview, and Development environments.</li>
+                            <li><strong className="text-orange-400">Save</strong> the variables.</li>
+                            <li>Go to the <strong className="text-orange-400">Deployments</strong> tab and <strong className="text-orange-400">Redeploy</strong> your latest commit to apply the new settings. Your app will then be fully live.</li>
                         </ol>
                     </div>
                 </div>

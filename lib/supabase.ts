@@ -1,10 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-// These variables are expected to be available in the environment,
-// as per the setup instructions. We provide fallback values for local
-// development based on the Supabase CLI output from the instructions,
-// in case `import.meta.env` is not populated.
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || `${window.location.origin}/api/supabase`;
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+let supabaseInstance: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// This function provides a lazy-initialized Supabase client.
+// It prevents the app from crashing on startup if environment variables are missing
+// by deferring the client creation and key check until an API call is actually made.
+// The ApiKeyGate component should prevent any API calls from being made if keys are missing.
+export const getSupabase = (): SupabaseClient => {
+  if (supabaseInstance) {
+    return supabaseInstance;
+  }
+
+  const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+  const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+
+  const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
+
+  if (!areKeysValid(supabaseUrl) || !areKeysValid(supabaseAnonKey)) {
+    throw new Error("Supabase URL and Anon Key are required. Please check your Vercel environment variables.");
+  }
+
+  supabaseInstance = createClient(supabaseUrl!, supabaseAnonKey!);
+  return supabaseInstance;
+};

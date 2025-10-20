@@ -1,6 +1,3 @@
-
-
-
 import React, { useEffect, lazy, Suspense } from 'react';
 import type { VibeMatchResult, Transaction } from './types';
 // FIX: Import VerificationStatus to use it as a value.
@@ -104,20 +101,31 @@ const App: React.FC = () => {
 
     // --- Data Fetching ---
     useEffect(() => {
-        const loadData = async () => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            try {
-                // FIX: Fetch reviews along with other initial data.
-                const [artistsData, engineersData, producersData, stoodiozData, reviewsData] = await Promise.all([
-                    apiService.fetchArtists(), apiService.fetchEngineers(), apiService.fetchProducers(), apiService.fetchStoodioz(), apiService.fetchReviews()
-                ]);
-                dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { artists: artistsData, engineers: engineersData, producers: producersData, stoodioz: stoodiozData, reviews: reviewsData }});
-            } catch (error) {
-                console.error("Failed to fetch initial app data:", error);
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            }
-        };
-        loadData();
+        const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+        const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+        const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+        const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
+
+        // Only fetch data if API keys are validly configured.
+        if (areKeysValid(supabaseUrl) && areKeysValid(supabaseAnonKey) && areKeysValid(geminiApiKey)) {
+            const loadData = async () => {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+                try {
+                    const [artistsData, engineersData, producersData, stoodiozData, reviewsData] = await Promise.all([
+                        apiService.fetchArtists(), apiService.fetchEngineers(), apiService.fetchProducers(), apiService.fetchStoodioz(), apiService.fetchReviews()
+                    ]);
+                    dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { artists: artistsData, engineers: engineersData, producers: producersData, stoodioz: stoodiozData, reviews: reviewsData }});
+                } catch (error) {
+                    console.error("Failed to fetch initial app data:", error);
+                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                }
+            };
+            loadData();
+        } else {
+            // If keys are missing, ensure the app doesn't show a perpetual loading state.
+            // The ApiKeyGate component will handle showing the setup instructions.
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        }
     }, [dispatch]);
 
     // --- Aria Cantata Proactive Nudge ---
