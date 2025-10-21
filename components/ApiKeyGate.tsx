@@ -1,5 +1,39 @@
 import React from 'react';
 
+const DebugInfo: React.FC = () => {
+    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+    const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+    
+    const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
+
+    const varStatus = [
+        { name: 'VITE_SUPABASE_URL', found: areKeysValid(supabaseUrl) },
+        { name: 'VITE_SUPABASE_ANON_KEY', found: areKeysValid(supabaseAnonKey) },
+        { name: 'VITE_API_KEY', found: areKeysValid(geminiApiKey) }
+    ];
+
+    return (
+        <div className="bg-yellow-900/50 border border-yellow-700/50 p-4 rounded-lg mt-8 text-sm">
+            <h3 className="font-semibold text-yellow-300 mb-2">Deployment Status Check</h3>
+            <p className="text-yellow-400 mb-3 text-xs">This is a diagnostic tool. If you see this screen on your deployed site, check which variable is marked as "Missing" below and verify its name and value in your Vercel project settings.</p>
+            <ul className="space-y-1">
+                {varStatus.map(v => (
+                    <li key={v.name} className="flex justify-between items-center">
+                        <code className="text-zinc-300">{v.name}</code>
+                        {v.found ? (
+                            <span className="font-bold text-green-400 bg-green-900/50 px-2 py-0.5 rounded-full text-xs">Detected</span>
+                        ) : (
+                            <span className="font-bold text-red-400 bg-red-900/50 px-2 py-0.5 rounded-full text-xs">Missing</span>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
+
+
 const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // Check for all required environment variables for both Supabase and Gemini.
     const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
@@ -19,66 +53,56 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <div className="w-full max-w-4xl bg-zinc-900/80 backdrop-blur-lg rounded-2xl border border-zinc-700 p-8 text-zinc-200 shadow-2xl">
                 <h1 className="text-3xl font-bold text-center text-orange-400 mb-4">Backend & API Configuration Required</h1>
                 <p className="text-center text-zinc-400 mb-8">
-                    Welcome to Stoodioz! To get your live application running on Vercel, you need to connect it to a database (Supabase) and the AI model (Google AI). Please follow the steps below.
+                    Welcome to Stoodioz! To run the application, you need to connect it to a database (Supabase) and the AI model (Google AI). Please follow the steps below for your environment.
                 </p>
 
-                <div className="space-y-8">
-                    {/* Instructions for Supabase */}
+                <DebugInfo />
+
+                <div className="space-y-8 mt-8">
+                    {/* Instructions for Local Development */}
                     <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
-                        <h2 className="text-xl font-semibold mb-3 text-green-400">Step 1: Set Up Your Free Supabase Database</h2>
-                        <p className="text-zinc-400 mb-4">Supabase provides the live, persistent database for your app. All user data, bookings, and posts will be stored here.</p>
+                        <h2 className="text-xl font-semibold mb-3 text-cyan-400">Option 1: Running Locally (Development)</h2>
+                        <p className="text-zinc-400 mb-4">If you are running this app on your local machine, you need to create a <code className="bg-zinc-900 p-1 rounded text-xs">.env</code> file in the root of the project directory.</p>
                         <ol className="list-decimal list-inside space-y-2 text-zinc-300">
-                            <li>Go to <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">supabase.com</a> and sign up for a free account.</li>
-                            <li>Create a new Project. You can name it "Stoodioz".</li>
-                            <li>Once the project is created, navigate to <strong className="text-orange-400">Project Settings</strong> (the gear icon in the left sidebar).</li>
-                            <li>In the settings menu, click on <strong className="text-orange-400">API</strong>.</li>
-                            <li>On this page, you need to find two pieces of information:
-                                <ul className="list-disc list-inside pl-6 mt-2 space-y-1">
-                                    <li>Your <strong className="text-orange-400">Project URL</strong>. It will look like <code className="bg-zinc-900 p-1 rounded text-xs">{'https://<your-ref>.supabase.co'}</code>.</li>
-                                    <li>Your <strong className="text-orange-400">Project API Key</strong>. You must use the key labeled <strong className="text-orange-400">`anon` `public`</strong>.</li>
-                                </ul>
-                            </li>
-                            <li>Copy both of these values—you'll need them for Vercel in the next step.</li>
-                            <li><strong>Important:</strong> You must also create the necessary tables in your Supabase database. Go to the <strong className="text-orange-400">SQL Editor</strong>, create a new query, and paste the table definitions from the project's documentation.</li>
+                            <li>Create a new file named <code className="bg-zinc-900 p-1 rounded text-xs">.env</code> in the main folder (next to <code className="bg-zinc-900 p-1 rounded text-xs">package.json</code>).</li>
+                            <li>Paste the following content into the file, replacing the placeholder values with your actual keys.</li>
                         </ol>
+                        <pre className="bg-zinc-900 text-zinc-300 p-4 rounded-md mt-4 text-sm overflow-x-auto">
+                            <code>
+                                VITE_SUPABASE_URL="YOUR_SUPABASE_URL_HERE"<br />
+                                VITE_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY_HERE"<br />
+                                VITE_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+                            </code>
+                        </pre>
+                        <p className="text-zinc-400 mt-4">After creating and saving the file, you must <strong className="text-orange-400">stop and restart the development server</strong> for the changes to take effect.</p>
                     </div>
 
                     {/* Instructions for Vercel Deployment */}
                     <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
-                        <h2 className="text-xl font-semibold mb-3 text-blue-400">Step 2: Add Environment Variables to Vercel</h2>
-                        <p className="text-zinc-400 mb-4">You're in the right place in Vercel! Focus on the form at the very top of the "Environment Variables" page, above the long list of existing keys.</p>
-                         <ol className="list-decimal list-inside space-y-3 text-zinc-300">
+                        <h2 className="text-xl font-semibold mb-3 text-blue-400">Option 2: Deploying to Vercel</h2>
+                        <p className="text-zinc-400 mb-4">If you are deploying this app to Vercel, you must set the environment variables in your Vercel project settings.</p>
+                        <ol className="list-decimal list-inside space-y-3 text-zinc-300">
+                            <li>In your Vercel project dashboard, go to <strong className="text-orange-400">Settings &gt; Environment Variables</strong>.</li>
                             <li>
-                                You will add <strong className="text-orange-400">three</strong> new variables one at a time using that form.
-                            </li>
-                            <li>
-                                <strong className="text-zinc-100">For the FIRST variable (Supabase URL):</strong>
-                                <ul className="list-disc list-inside pl-6 mt-2 space-y-1 font-mono text-sm">
-                                    <li>In the input box labeled <code className="bg-zinc-900 p-1 rounded">key</code> or <code className="bg-zinc-900 p-1 rounded">Name</code>, type exactly: <strong className="text-orange-400">VITE_SUPABASE_URL</strong></li>
-                                    <li>In the larger box labeled <code className="bg-zinc-900 p-1 rounded">value</code>, paste the <strong>Project URL</strong> you copied from Supabase.</li>
-                                    <li>Ensure all three environment boxes (Production, Preview, Development) are checked.</li>
-                                    <li>Click the blue <strong className="text-orange-400">Add</strong> or <strong className="text-orange-400">Save</strong> button.</li>
+                                Add the following three variables:
+                                <ul className="list-disc list-inside pl-6 mt-2 space-y-2 font-mono text-sm">
+                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_URL</code> <br/><strong>Value:</strong> Your Supabase Project URL</li>
+                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_ANON_KEY</code> <br/><strong>Value:</strong> Your Supabase anon public key</li>
+                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_API_KEY</code> <br/><strong>Value:</strong> Your Google AI Studio API Key</li>
                                 </ul>
                             </li>
                             <li>
-                                The page will update. Now, repeat the process for the <strong className="text-zinc-100">SECOND variable (Supabase Key):</strong>
-                                 <ul className="list-disc list-inside pl-6 mt-2 space-y-1 font-mono text-sm">
-                                    <li><strong>Name:</strong> <strong className="text-orange-400">VITE_SUPABASE_ANON_KEY</strong></li>
-                                    <li><strong>Value:</strong> Paste the <strong>anon public key</strong> you copied from Supabase.</li>
-                                    <li>Click <strong className="text-orange-400">Add/Save</strong>.</li>
-                                </ul>
+                                <strong className="text-orange-400">Redeploy:</strong> After adding the variables, go to the <strong className="text-orange-400">Deployments</strong> tab, find the latest one, click the "..." menu, and select <strong className="text-orange-400">Redeploy</strong>.
                             </li>
-                             <li>
-                                Repeat one last time for the <strong className="text-zinc-100">THIRD variable (Gemini Key):</strong>
-                                 <ul className="list-disc list-inside pl-6 mt-2 space-y-1 font-mono text-sm">
-                                    <li><strong>Name:</strong> <strong className="text-orange-400">VITE_API_KEY</strong></li>
-                                    <li><strong>Value:</strong> Paste your API key from Google AI Studio.</li>
-                                    <li>Click <strong className="text-orange-400">Add/Save</strong>.</li>
-                                </ul>
-                            </li>
-                            <li>
-                                <strong className="text-orange-400">Final Step - Redeploy:</strong> Once you see all three variables in the list, go to the <strong className="text-orange-400">Deployments</strong> tab, find the latest one, click the "..." menu, and select <strong className="text-orange-400">Redeploy</strong>.
-                            </li>
+                        </ol>
+                    </div>
+
+                    {/* Shared instructions for getting keys */}
+                    <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
+                        <h2 className="text-xl font-semibold mb-3 text-green-400">Where to Find Your Keys</h2>
+                        <ol className="list-decimal list-inside space-y-2 text-zinc-300">
+                            <li><strong>Supabase Keys:</strong> Go to <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">supabase.com</a>, create a project, then navigate to <strong className="text-orange-400">Project Settings &gt; API</strong>. You'll find the URL and the `anon` public key there.</li>
+                            <li><strong>Gemini API Key:</strong> Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">Google AI Studio</a> to get your API key.</li>
                         </ol>
                     </div>
                 </div>
