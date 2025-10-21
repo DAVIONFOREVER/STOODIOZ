@@ -12,7 +12,6 @@ export interface AppState {
     engineers: Engineer[];
     artists: Artist[];
     producers: Producer[];
-    // FIX: Add reviews to state
     reviews: Review[];
     bookings: Booking[];
     conversations: Conversation[];
@@ -113,7 +112,6 @@ type Payload = {
     [ActionTypes.NAVIGATE]: { view: AppView };
     [ActionTypes.GO_BACK]: undefined;
     [ActionTypes.GO_FORWARD]: undefined;
-    // FIX: Add reviews to SET_INITIAL_DATA payload
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer };
@@ -171,7 +169,6 @@ const initialState: AppState = {
     engineers: [],
     artists: [],
     producers: [],
-    // FIX: Add reviews to initial state
     reviews: [],
     bookings: [],
     conversations: [],
