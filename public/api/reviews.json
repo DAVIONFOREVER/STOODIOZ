@@ -1,0 +1,36 @@
+[
+  {
+    "id": "review-1",
+    "reviewerName": "Luna Vance",
+    "artistId": "artist-luna-vance",
+    "stoodioId": "studio-echo-chamber",
+    "rating": 5,
+    "comment": "Incredible vibe and top-notch gear. The team here really knows their stuff. Felt right at home and the sound quality is pristine. Will be back!",
+    "date": "2024-07-13"
+  },
+  {
+    "id": "review-2",
+    "reviewerName": "Luna Vance",
+    "artistId": "artist-luna-vance",
+    "engineerId": "eng-alex-chen",
+    "rating": 5,
+    "comment": "Alex is a true professional. He's got an amazing ear for detail and brought my track to life. Can't recommend him enough.",
+    "date": "2024-07-13"
+  },
+  {
+    "id": "review-3",
+    "reviewerName": "Indie Songwriter",
+    "stoodioId": "studio-sound-sanctuary",
+    "rating": 5,
+    "comment": "The perfect spot for a solo artist. Cozy, inspiring, and has everything you need to get a great recording done. The owner is super helpful too.",
+    "date": "2024-06-20"
+  },
+  {
+    "id": "review-4",
+    "reviewerName": "Trap Artist",
+    "producerId": "prod-kaizen",
+    "rating": 5,
+    "comment": "Kaizen's beats are fire. Simple as that. Every pack has hits. Instant inspiration.",
+    "date": "2024-07-05"
+  }
+]

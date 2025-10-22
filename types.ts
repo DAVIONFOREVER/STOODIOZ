@@ -345,6 +345,7 @@ export interface Review {
     artistId?: string;
     stoodioId?: string;
     engineerId?: string;
+    producerId?: string;
     rating: number;
     comment: string;
     date: string;

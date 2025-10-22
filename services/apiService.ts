@@ -1,59 +1,21 @@
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment } from '../types';
 import { BookingStatus, VerificationStatus } from '../types';
-import { getSupabase } from '../lib/supabase';
-
-// --- HELPER FUNCTIONS ---
-
-/**
- * Transforms a snake_case object from Supabase to a camelCase object for the frontend.
- * This is a simple implementation and might need to be more robust for nested objects.
- */
-const toCamelCase = (obj: any): any => {
-    if (Array.isArray(obj)) {
-        return obj.map(v => toCamelCase(v));
-    } else if (obj !== null && typeof obj === 'object') {
-        return Object.keys(obj).reduce((result, key) => {
-            const camelKey = key.replace(/([-_][a-z])/ig, ($1) => {
-                return $1.toUpperCase().replace('-', '').replace('_', '');
-            });
-            result[camelKey] = toCamelCase(obj[key]);
-            return result;
-        }, {} as any);
-    }
-    return obj;
-};
-
-/**
- * Transforms a camelCase object from the frontend to a snake_case object for Supabase.
- */
-const toSnakeCase = (obj: any): any => {
-    if (Array.isArray(obj)) {
-        return obj.map(v => toSnakeCase(v));
-    } else if (obj !== null && typeof obj === 'object') {
-        return Object.keys(obj).reduce((result, key) => {
-            const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-            result[snakeKey] = toSnakeCase(obj[key]);
-            return result;
-        }, {} as any);
-    }
-    return obj;
-};
-
 
 // --- DATA FETCHING (GET Requests) ---
 
 const fetchData = async <T>(tableName: string): Promise<T[]> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
-    const { data, error } = await supabase.from(tableName).select('*');
-    
-    if (error) {
-        console.error(`Supabase error in fetch${tableName}:`, error.message);
-        throw error;
+    // Fetches from the local public/api/ directory instead of Supabase
+    try {
+        const response = await fetch(`/api/${tableName}.json`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ${tableName}.json`);
+        }
+        const data = await response.json();
+        return data as T[];
+    } catch (error) {
+        console.error(`Error fetching local data for ${tableName}:`, error);
+        return [];
     }
-    
-    return toCamelCase(data || []) as T[];
 };
 
 export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz');
@@ -63,7 +25,7 @@ export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('pr
 export const fetchReviews = (): Promise<Review[]> => fetchData<Review>('reviews');
 
 
-// --- DATA MUTATIONS (POST, PUT, DELETE Requests) ---
+// --- DATA MUTATIONS (Simulated POST, PUT, DELETE Requests) ---
 
 export const createBooking = async (
     bookingRequest: BookingRequest,
@@ -73,9 +35,6 @@ export const createBooking = async (
     engineers: Engineer[],
     producers: Producer[]
 ): Promise<Booking> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
     // This logic mimics the original mock to determine status and assign engineers for "Find Available"
     let status = BookingStatus.PENDING;
     let engineer: Engineer | null = null;
@@ -93,7 +52,7 @@ export const createBooking = async (
     }
 
     const newBooking: Booking = {
-        id: `booking-${Date.now()}`, // Note: In a real app, the DB would generate this
+        id: `booking-${Date.now()}`,
         ...bookingRequest,
         stoodio,
         engineer,
@@ -105,54 +64,26 @@ export const createBooking = async (
         bookedByRole: userRole,
     };
     
-    // In a real scenario, we would only insert IDs, not nested objects.
-    // This simplified version assumes your table structure can handle this or you have triggers.
-    const { error } = await supabase.from('bookings').insert([toSnakeCase(newBooking)]);
-    if (error) throw error;
-    
-    return newBooking; // Return the frontend-optimistic object
+    // In a real app, this would be an API call. Here we just return the new object.
+    return newBooking;
 };
 
 export const endSession = async (booking: Booking): Promise<{ updatedBooking: Booking }> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
     const updatedBooking = { ...booking, status: BookingStatus.COMPLETED };
-    const { error } = await supabase.from('bookings').update({ status: BookingStatus.COMPLETED }).eq('id', booking.id);
-
-    if (error) throw error;
     return { updatedBooking };
 };
 
 export const cancelBooking = async (booking: Booking): Promise<{ updatedBookings: Booking[] }> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
     const updatedBooking = { ...booking, status: BookingStatus.CANCELLED };
-    const { error } = await supabase.from('bookings').update({ status: BookingStatus.CANCELLED }).eq('id', booking.id);
-    
-    if (error) throw error;
     return { updatedBookings: [updatedBooking] };
 };
 
 export const addTip = async (booking: Booking, tipAmount: number): Promise<{ updatedBookings: Booking[] }> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
     const updatedBooking = { ...booking, tip: tipAmount };
-    const { error } = await supabase.from('bookings').update({ tip: tipAmount }).eq('id', booking.id);
-
-    if (error) throw error;
     return { updatedBookings: [updatedBooking] };
 };
 
 export const toggleFollow = async (currentUser: any, targetId: string, targetType: 'artist' | 'engineer' | 'stoodio' | 'producer'): Promise<any[]> => {
-    // This is a complex operation (updating two users).
-    // For now, we only update the current user's following list.
-    // A real implementation should use a database function (RPC) for atomicity.
-    const supabase = getSupabase();
-    if (!supabase || !currentUser.userRole) throw new Error("User or Supabase client not initialized.");
-    
     const listKey = `${targetType}s`;
     const isFollowing = (currentUser.following[listKey] || []).includes(targetId);
     
@@ -166,17 +97,10 @@ export const toggleFollow = async (currentUser: any, targetId: string, targetTyp
     const newFollowing = { ...currentUser.following, [listKey]: newFollowingList };
     const updatedUser = { ...currentUser, following: newFollowing };
 
-    const userTable = `${currentUser.userRole.toLowerCase()}s`;
-    const { error } = await supabase.from(userTable).update({ following: newFollowing }).eq('id', currentUser.id);
-
-    if (error) throw error;
     return [updatedUser];
 };
 
 export const createPost = async (postData: { text: string; imageUrl?: string; link?: any }, author: any, authorType: UserRole): Promise<any> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
     const newPost: Post = { 
         id: `post-${Date.now()}`,
         authorId: author.id, 
@@ -188,19 +112,10 @@ export const createPost = async (postData: { text: string; imageUrl?: string; li
     };
 
     const newPosts = [newPost, ...(author.posts || [])];
-    const updatedAuthor = { ...author, posts: newPosts };
-
-    const userTable = `${authorType.toLowerCase()}s`;
-    const { error } = await supabase.from(userTable).update({ posts: newPosts }).eq('id', author.id);
-
-    if (error) throw error;
-    return updatedAuthor;
+    return { ...author, posts: newPosts };
 };
 
 export const likePost = async (postId: string, userId: string, author: any): Promise<any> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
     const postToUpdate = (author.posts || []).find((p: Post) => p.id === postId);
     if (!postToUpdate) return author;
 
@@ -209,19 +124,10 @@ export const likePost = async (postId: string, userId: string, author: any): Pro
         : [...postToUpdate.likes, userId];
 
     const updatedPosts = author.posts.map((p: Post) => p.id === postId ? { ...p, likes: newLikes } : p);
-    const updatedAuthor = { ...author, posts: updatedPosts };
-
-    const userTable = `${author.authorType.toLowerCase()}s`;
-    const { error } = await supabase.from(userTable).update({ posts: updatedPosts }).eq('id', author.id);
-
-    if (error) throw error;
-    return updatedAuthor;
+    return { ...author, posts: updatedPosts };
 };
 
 export const commentOnPost = async (postId: string, commentText: string, commentAuthor: any, postAuthor: any): Promise<any> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
     const newComment: Comment = { 
         id: `comment-${Date.now()}`, 
         authorId: commentAuthor.id, 
@@ -234,44 +140,16 @@ export const commentOnPost = async (postId: string, commentText: string, comment
     const updatedPosts = postAuthor.posts.map((p: Post) => 
         p.id === postId ? { ...p, comments: [...p.comments, newComment] } : p
     );
-    const updatedAuthor = { ...postAuthor, posts: updatedPosts };
-    
-    const userTable = `${postAuthor.authorType.toLowerCase()}s`;
-    const { error } = await supabase.from(userTable).update({ posts: updatedPosts }).eq('id', postAuthor.id);
-
-    if (error) throw error;
-    return updatedAuthor;
+    return { ...postAuthor, posts: updatedPosts };
 };
 
 export const respondToBooking = async (booking: Booking, action: 'accept' | 'deny', engineer: Engineer): Promise<{ updatedBooking: Booking }> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
     const status = action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.PENDING;
-    const engineerId = action === 'accept' ? engineer.id : null;
-
-    const { data, error } = await supabase
-        .from('bookings')
-        .update({ status, engineer_id: engineerId })
-        .eq('id', booking.id)
-        .select()
-        .single();
-    
-    if (error) throw error;
-    return { updatedBooking: { ...toCamelCase(data), engineer: action === 'accept' ? engineer : null } as Booking };
+    const updatedBooking = { ...booking, status, engineer: action === 'accept' ? engineer : null };
+    return { updatedBooking };
 };
 
 export const submitForVerification = async (stoodioId: string, verificationData: { googleBusinessProfileUrl: string; websiteUrl: string }): Promise<{ temporaryStoodio: Partial<Stoodio> }> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized.");
-
-    const updates = {
-        ...toSnakeCase(verificationData),
-        verification_status: VerificationStatus.PENDING,
-    };
-    
-    const { error } = await supabase.from('stoodioz').update(updates).eq('id', stoodioId);
-    if (error) throw error;
-
+    // Simulate the API call, return a pending status for optimistic UI update.
     return { temporaryStoodio: { ...verificationData, verificationStatus: VerificationStatus.PENDING } };
 };
