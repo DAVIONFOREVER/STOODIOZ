@@ -1,9 +1,11 @@
 
+
 import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 // FIX: Import AppView as a value, not just a type.
-import { AppView, type BookingRequest, type Engineer, type MixingDetails } from '../types';
+import { AppView } from '../types';
+import type { BookingRequest, Engineer, MixingDetails } from '../types';
 
 export const useMixing = (navigate: (view: AppView) => void) => {
     const dispatch = useAppDispatch();

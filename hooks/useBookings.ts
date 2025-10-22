@@ -4,7 +4,8 @@ import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 // FIX: Import AppView as a value, not just a type.
-import { UserRole, AppView, type BookingRequest, type Booking, type Engineer, type Producer, type Room } from '../types';
+import { UserRole, AppView } from '../types';
+import type { BookingRequest, Booking, Engineer, Producer, Room } from '../types';
 
 export const useBookings = (navigate: (view: AppView) => void) => {
     const dispatch = useAppDispatch();
@@ -48,10 +49,11 @@ export const useBookings = (navigate: (view: AppView) => void) => {
     }, [selectedStoodio, currentUser, userRole, engineers, producers, dispatch, navigate]);
 
     const confirmCancellation = useCallback(async (bookingId: string) => {
-        if (!currentUser) return;
+        const bookingToCancel = bookings.find(b => b.id === bookingId);
+        if (!currentUser || !bookingToCancel) return;
         try {
-            // FIX: cancelBooking takes 1 argument. The API doesn't handle refunds/wallet updates, so updatedUsers is not returned.
-            const { updatedBookings } = await apiService.cancelBooking(bookingId);
+            // FIX: Pass the full booking object to the mocked API
+            const { updatedBookings } = await apiService.cancelBooking(bookingToCancel);
             const updatedBooking = updatedBookings[0];
             if (updatedBooking) {
                 dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === bookingId ? updatedBooking : b) } });
@@ -63,21 +65,21 @@ export const useBookings = (navigate: (view: AppView) => void) => {
         }
     }, [bookings, currentUser, dispatch]);
 
-    const acceptBooking = useCallback(async (bookingId: string) => {
+    const acceptBooking = useCallback(async (booking: Booking) => {
         if (userRole !== UserRole.ENGINEER || !currentUser) return;
         try {
-            // FIX: respondToBooking expects 3 arguments, not 4.
-            const { updatedBooking } = await apiService.respondToBooking(bookingId, 'accept', currentUser as Engineer);
-            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === bookingId ? updatedBooking : b) } });
+            // FIX: Pass full booking object to mocked API
+            const { updatedBooking } = await apiService.respondToBooking(booking, 'accept', currentUser as Engineer);
+            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === booking.id ? updatedBooking : b) } });
         } catch (error) { console.error(error); }
     }, [bookings, currentUser, userRole, dispatch]);
     
-    const denyBooking = useCallback(async (bookingId: string) => {
+    const denyBooking = useCallback(async (booking: Booking) => {
         if (userRole !== UserRole.ENGINEER || !currentUser) return;
         try {
-            // FIX: respondToBooking expects 3 arguments, not 4.
-            const { updatedBooking } = await apiService.respondToBooking(bookingId, 'deny', currentUser as Engineer);
-            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === bookingId ? updatedBooking : b) } });
+            // FIX: Pass full booking object to mocked API
+            const { updatedBooking } = await apiService.respondToBooking(booking, 'deny', currentUser as Engineer);
+            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === booking.id ? updatedBooking : b) } });
         } catch (error) { console.error(error); }
     }, [bookings, currentUser, userRole, dispatch]);
     

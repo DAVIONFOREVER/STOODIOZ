@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 // FIX: Import AppView and UserRole as values, not just types.
-import { AppView, UserRole, type Artist, type Engineer, type Stoodio, type Producer, type Booking, type VibeMatchResult, type Message } from '../types';
+import { AppView, UserRole } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaCantataMessage } from '../types';
 
 export const useAria = (
     handleStartConversation: (participant: Artist | Engineer | Stoodio | Producer) => void,

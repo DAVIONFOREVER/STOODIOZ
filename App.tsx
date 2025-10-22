@@ -29,7 +29,6 @@ import RequestPayoutModal from './components/RequestPayoutModal';
 import MixingRequestModal from './components/MixingRequestModal';
 import { MagicWandIcon } from './components/icons';
 import AriaNudge from './components/AriaNudge';
-import ApiKeyGate from './components/ApiKeyGate';
 
 // --- Lazy Loaded Components ---
 const StoodioList = lazy(() => import('./components/StudioList'));
@@ -101,31 +100,19 @@ const App: React.FC = () => {
 
     // --- Data Fetching ---
     useEffect(() => {
-        const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-        const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-        const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
-        const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
-
-        // Only fetch data if API keys are validly configured.
-        if (areKeysValid(supabaseUrl) && areKeysValid(supabaseAnonKey) && areKeysValid(geminiApiKey)) {
-            const loadData = async () => {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-                try {
-                    const [artistsData, engineersData, producersData, stoodiozData, reviewsData] = await Promise.all([
-                        apiService.fetchArtists(), apiService.fetchEngineers(), apiService.fetchProducers(), apiService.fetchStoodioz(), apiService.fetchReviews()
-                    ]);
-                    dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { artists: artistsData, engineers: engineersData, producers: producersData, stoodioz: stoodiozData, reviews: reviewsData }});
-                } catch (error) {
-                    console.error("Failed to fetch initial app data:", error);
-                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-                }
-            };
-            loadData();
-        } else {
-            // If keys are missing, ensure the app doesn't show a perpetual loading state.
-            // The ApiKeyGate component will handle showing the setup instructions.
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        }
+        const loadData = async () => {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            try {
+                const [artistsData, engineersData, producersData, stoodiozData, reviewsData] = await Promise.all([
+                    apiService.fetchArtists(), apiService.fetchEngineers(), apiService.fetchProducers(), apiService.fetchStoodioz(), apiService.fetchReviews()
+                ]);
+                dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { artists: artistsData, engineers: engineersData, producers: producersData, stoodioz: stoodiozData, reviews: reviewsData }});
+            } catch (error) {
+                console.error("Failed to fetch initial app data:", error);
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            }
+        };
+        loadData();
     }, [dispatch]);
 
     // --- Aria Cantata Proactive Nudge ---
@@ -231,86 +218,84 @@ const App: React.FC = () => {
     };
 
     return (
-        <ApiKeyGate>
-            <div className="main-container animate-fade-in">
-                <Header
-                    onNavigate={navigate}
-                    onGoBack={goBack}
-                    onGoForward={goForward}
-                    canGoBack={canGoBack}
-                    canGoForward={canGoForward}
-                    onLogout={logout}
-                    onMarkAsRead={markAsRead}
-                    onMarkAllAsRead={markAllAsRead}
-                    onSelectArtist={viewArtistProfile}
-                    onSelectEngineer={viewEngineerProfile}
-                    onSelectProducer={viewProducerProfile}
-                    onSelectStoodio={viewStoodioDetails}
-                />
-                <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <Suspense fallback={<LoadingSpinner />}>
-                        {isLoading ? <LoadingSpinner /> : renderAppContent()}
+        <div className="main-container animate-fade-in">
+            <Header
+                onNavigate={navigate}
+                onGoBack={goBack}
+                onGoForward={goForward}
+                canGoBack={canGoBack}
+                canGoForward={canGoForward}
+                onLogout={logout}
+                onMarkAsRead={markAsRead}
+                onMarkAllAsRead={markAllAsRead}
+                onSelectArtist={viewArtistProfile}
+                onSelectEngineer={viewEngineerProfile}
+                onSelectProducer={viewProducerProfile}
+                onSelectStoodio={viewStoodioDetails}
+            />
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <Suspense fallback={<LoadingSpinner />}>
+                    {isLoading ? <LoadingSpinner /> : renderAppContent()}
 
-                        {isAriaCantataOpen && (
-                            <AriaCantataAssistant
-                                isOpen={isAriaCantataOpen}
-                                onClose={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } })}
-                                onStartConversation={startConversation}
-                                onStartGroupConversation={handleAriaGroupConversation}
-                                onUpdateProfile={updateProfile}
-                                onBookStudio={handleAriaCantataBooking}
-                                onShowVibeMatchResults={handleShowVibeResults}
-                                onNavigateRequest={handleAriaNavigation}
-                                onStartSetupRequest={selectRoleToSetup}
-                                onSendMessageRequest={(r, m) => handleAriaSendMessage(r, m, currentUser)}
-                                onSendDocument={handleAriaSendDocument}
-                                onGetDirectionsRequest={handleAriaGetDirections}
-                                history={ariaHistory}
-                                setHistory={(history) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history } })}
-                                initialPrompt={initialAriaCantataPrompt}
-                                clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })}
-                            />
-                        )}
-                    </Suspense>
+                    {isAriaCantataOpen && (
+                        <AriaCantataAssistant
+                            isOpen={isAriaCantataOpen}
+                            onClose={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } })}
+                            onStartConversation={startConversation}
+                            onStartGroupConversation={handleAriaGroupConversation}
+                            onUpdateProfile={updateProfile}
+                            onBookStudio={handleAriaCantataBooking}
+                            onShowVibeMatchResults={handleShowVibeResults}
+                            onNavigateRequest={handleAriaNavigation}
+                            onStartSetupRequest={selectRoleToSetup}
+                            onSendMessageRequest={(r, m) => handleAriaSendMessage(r, m, currentUser)}
+                            onSendDocument={handleAriaSendDocument}
+                            onGetDirectionsRequest={handleAriaGetDirections}
+                            history={ariaHistory}
+                            setHistory={(history) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history } })}
+                            initialPrompt={initialAriaCantataPrompt}
+                            clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })}
+                        />
+                    )}
+                </Suspense>
 
-                    {currentView === AppView.BOOKING_MODAL && selectedStoodio && bookingTime && (
-                        <BookingModal onClose={goBack} onConfirm={confirmBooking} />
-                    )}
-                    {tipModalBooking && (
-                        <TipModal booking={tipModalBooking} onClose={() => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL })} onConfirmTip={confirmTip} />
-                    )}
-                    {bookingToCancel && (
-                        <BookingCancellationModal booking={bookingToCancel} onClose={() => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL })} onConfirm={confirmCancellation} />
-                    )}
-                    {isVibeMatcherOpen && (
-                        <VibeMatcherModal onClose={() => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } })} onAnalyze={vibeMatch} isLoading={isVibeMatcherLoading} />
-                    )}
-                    {isAddFundsOpen && (
-                        <AddFundsModal onClose={() => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } })} onConfirm={addFunds} />
-                    )}
-                    {isPayoutOpen && currentUser && (
-                        <RequestPayoutModal onClose={() => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } })} onConfirm={requestPayout} currentBalance={currentUser.walletBalance} />
-                    )}
-                    {isMixingModalOpen && selectedEngineer && (
-                        <MixingRequestModal engineer={selectedEngineer} onClose={() => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } })} onConfirm={confirmRemoteMix} onInitiateInStudio={initiateInStudioMix} isLoading={isLoading} />
-                    )}
-                    
-                </main>
-                 <NotificationToasts notifications={state.notifications.filter(n => !n.read).slice(0, 3)} onDismiss={dismissNotification} />
-                {ariaNudge && isNudgeVisible && (
-                    <AriaNudge message={ariaNudge} onClick={handleAriaNudgeClick} onDismiss={handleDismissAriaNudge} />
+                {currentView === AppView.BOOKING_MODAL && selectedStoodio && bookingTime && (
+                    <BookingModal onClose={goBack} onConfirm={confirmBooking} />
                 )}
-                {currentUser && currentView !== AppView.LANDING_PAGE && (
-                    <button
-                        onClick={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })}
-                        className="fixed bottom-6 right-6 z-50 bg-gradient-to-br from-orange-500 to-purple-600 text-white p-4 rounded-full shadow-lg hover:scale-110 transform transition-transform duration-200 animate-fade-in"
-                        aria-label="Open AI Assistant Aria Cantata"
-                    >
-                        <MagicWandIcon className="w-6 h-6" />
-                    </button>
+                {tipModalBooking && (
+                    <TipModal booking={tipModalBooking} onClose={() => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL })} onConfirmTip={confirmTip} />
                 )}
-            </div>
-        </ApiKeyGate>
+                {bookingToCancel && (
+                    <BookingCancellationModal booking={bookingToCancel} onClose={() => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL })} onConfirm={confirmCancellation} />
+                )}
+                {isVibeMatcherOpen && (
+                    <VibeMatcherModal onClose={() => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } })} onAnalyze={vibeMatch} isLoading={isVibeMatcherLoading} />
+                )}
+                {isAddFundsOpen && (
+                    <AddFundsModal onClose={() => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } })} onConfirm={addFunds} />
+                )}
+                {isPayoutOpen && currentUser && (
+                    <RequestPayoutModal onClose={() => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } })} onConfirm={requestPayout} currentBalance={currentUser.walletBalance} />
+                )}
+                {isMixingModalOpen && selectedEngineer && (
+                    <MixingRequestModal engineer={selectedEngineer} onClose={() => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } })} onConfirm={confirmRemoteMix} onInitiateInStudio={initiateInStudioMix} isLoading={isLoading} />
+                )}
+                
+            </main>
+             <NotificationToasts notifications={state.notifications.filter(n => !n.read).slice(0, 3)} onDismiss={dismissNotification} />
+            {ariaNudge && isNudgeVisible && (
+                <AriaNudge message={ariaNudge} onClick={handleAriaNudgeClick} onDismiss={handleDismissAriaNudge} />
+            )}
+            {currentUser && currentView !== AppView.LANDING_PAGE && (
+                <button
+                    onClick={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })}
+                    className="fixed bottom-6 right-6 z-50 bg-gradient-to-br from-orange-500 to-purple-600 text-white p-4 rounded-full shadow-lg hover:scale-110 transform transition-transform duration-200 animate-fade-in"
+                    aria-label="Open AI Assistant Aria Cantata"
+                >
+                    <MagicWandIcon className="w-6 h-6" />
+                </button>
+            )}
+        </div>
     );
 };
 

@@ -12,14 +12,14 @@ export const getSupabase = (): SupabaseClient | null => {
     return supabaseInstance;
   }
 
-  const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-  const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+  // Hardcode the keys as requested by the user.
+  const supabaseUrl = "https://ijcxeispefnbfwiviyux.supabase.co";
+  const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqY3hlaXNwZWZuYmZ3aXZpeXV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3OTgyNDcsImV4cCI6MjA3NjM3NDI0N30.2ILPIMF6rqsLZimqWHm5txhB3q_3fbXIlQUMKEhV37g";
 
   const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
   if (!areKeysValid(supabaseUrl) || !areKeysValid(supabaseAnonKey)) {
-    // Return null instead of throwing an error to prevent build crashes.
-    // The ApiKeyGate component will handle showing the setup instructions.
+    // This check will now always pass, but is kept as a safeguard.
     return null;
   }
 

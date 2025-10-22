@@ -1,0 +1,105 @@
+
+[
+  {
+    "id": "studio-echo-chamber",
+    "name": "Echo Chamber Studios",
+    "email": "stoodio@stoodioz.com",
+    "password": "password",
+    "description": "A premier recording facility in the heart of Atlanta. Equipped with state-of-the-art gear and vintage classics, perfect for any genre.",
+    "location": "Atlanta, GA",
+    "hourlyRate": 100,
+    "engineerPayRate": 50,
+    "rating": 4.8,
+    "imageUrl": "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=800&auto=format&fit=crop",
+    "amenities": ["Vocal Booth", "Lounge Area", "Free WiFi", "Vintage Mics"],
+    "coordinates": { "lat": 33.7490, "lon": -84.3880 },
+    "availability": [
+      {
+        "date": "2024-07-25",
+        "times": ["10:00", "12:00", "14:00", "16:00", "18:00"]
+      },
+      {
+        "date": "2024-07-26",
+        "times": ["10:00", "14:00", "18:00"]
+      }
+    ],
+    "photos": [
+      "https://images.unsplash.com/photo-1603991030333-933393437587?q=80&w=400&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=400&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1589803328549-824e881d7a5b?q=80&w=400&auto=format&fit=crop"
+    ],
+    "followers": 3200,
+    "following": {
+      "artists": ["artist-luna-vance", "artist-aria-cantata"],
+      "engineers": ["eng-alex-chen"],
+      "stoodioz": [],
+      "producers": []
+    },
+    "followerIds": ["artist-luna-vance"],
+    "walletBalance": 5800.00,
+    "walletTransactions": [],
+    "rooms": [
+      {
+        "id": "room-echo-a",
+        "name": "Control Room A",
+        "description": "Our flagship SSL-equipped control room.",
+        "hourlyRate": 100,
+        "photos": [],
+        "smokingPolicy": "NON_SMOKING"
+      },
+       {
+        "id": "room-echo-b",
+        "name": "Vocal Booth B",
+        "description": "A smaller, intimate vocal tracking room.",
+        "hourlyRate": 75,
+        "photos": [],
+        "smokingPolicy": "NON_SMOKING"
+      }
+    ],
+    "verificationStatus": "VERIFIED",
+    "googleBusinessProfileUrl": "https://maps.app.goo.gl/example",
+    "websiteUrl": "https://www.echostudios.com",
+    "posts": [
+        {
+            "id": "post-echo-1",
+            "authorId": "studio-echo-chamber",
+            "authorType": "STOODIO",
+            "text": "Just installed a vintage Neumann U47. This mic sounds incredible! Who wants to be the first to track with it?",
+            "imageUrl": "https://images.unsplash.com/photo-1589803328549-824e881d7a5b?q=80&w=400&auto=format&fit=crop",
+            "timestamp": "2024-07-10T14:30:00Z",
+            "likes": ["eng-alex-chen"],
+            "comments": []
+        }
+    ]
+  },
+  {
+    "id": "studio-sound-sanctuary",
+    "name": "Sound Sanctuary",
+    "description": "A cozy and vibey project studio in Nashville, perfect for singer-songwriters and vocal production. Great gear, great rates.",
+    "location": "Nashville, TN",
+    "hourlyRate": 65,
+    "engineerPayRate": 30,
+    "rating": 5.0,
+    "imageUrl": "https://images.unsplash.com/photo-1549219782-5c591d853372?q=80&w=800&auto=format&fit=crop",
+    "amenities": ["Vocal Booth", "Free Coffee", "Acoustic Guitars"],
+    "coordinates": { "lat": 36.1627, "lon": -86.7816 },
+    "availability": [],
+    "photos": [],
+    "followers": 890,
+    "following": { "artists": ["artist-aria-cantata"], "engineers": [], "stoodioz": [], "producers": [] },
+    "followerIds": [],
+    "walletBalance": 1200.00,
+    "walletTransactions": [],
+     "rooms": [
+      {
+        "id": "room-sanctuary-main",
+        "name": "Main Room",
+        "description": "The main tracking and mixing room.",
+        "hourlyRate": 65,
+        "photos": [],
+        "smokingPolicy": "SMOKING_ALLOWED"
+      }
+    ],
+    "verificationStatus": "UNVERIFIED"
+  }
+]

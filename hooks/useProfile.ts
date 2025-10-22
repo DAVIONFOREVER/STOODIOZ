@@ -28,9 +28,18 @@ export const useProfile = () => {
     const verificationSubmit = useCallback(async (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => {
         // FIX: submitForVerification takes 2 arguments and returns an object with `temporaryStoodio`.
         const { temporaryStoodio } = await apiService.submitForVerification(stoodioId, data);
-        const updatedStoodioz = stoodioz.map(s => s.id === stoodioId ? temporaryStoodio : s);
-        dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: [ ...artists, ...engineers, ...producers, ...updatedStoodioz] }});
-        if (currentUser?.id === stoodioId) dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: temporaryStoodio } });
+        const updatedStoodioz = stoodioz.map(s => s.id === stoodioId ? { ...s, ...temporaryStoodio } : s);
+        
+        // Use a functional update to get the latest state
+        dispatch({
+            type: ActionTypes.UPDATE_USERS,
+            payload: { users: [...artists, ...engineers, ...producers, ...updatedStoodioz] }
+        });
+        
+        if (currentUser?.id === stoodioId) {
+            const updatedUser = updatedStoodioz.find(s => s.id === stoodioId);
+            if (updatedUser) dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: updatedUser } });
+        }
 
         setTimeout(() => {
             const finalStoodioz = stoodioz.map(s => s.id === stoodioId ? { ...s, ...data, verificationStatus: VerificationStatus.VERIFIED } : s);

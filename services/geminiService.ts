@@ -1,5 +1,6 @@
 
 
+
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole, SmokingPolicy } from '../types';
@@ -13,11 +14,10 @@ let ai: GoogleGenAI | null = null;
  */
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
-        // Check for the key in both Vite/Vercel and the live preview environments.
-        const apiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+        // The API key is now hardcoded as requested by the user.
+        const apiKey = "AIzaSyAdDmRRlEVU9pGv5pST5Fqf2VpFPu-_Ctc";
         if (!apiKey || apiKey.startsWith('{{')) {
-            // Return null instead of throwing an error to allow the app to build.
-            // The ApiKeyGate will prevent this from being used if keys are missing.
+            // This check remains as a safeguard but should always pass now.
             return null;
         }
         ai = new GoogleGenAI({ apiKey });

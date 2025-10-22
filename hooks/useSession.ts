@@ -21,22 +21,25 @@ export const useSession = (navigate: (view: any) => void) => {
     }, [userRole, dispatch, navigate]);
 
     const endSession = useCallback(async (bookingId: string) => {
+        const bookingToEnd = bookings.find(b => b.id === bookingId);
+        if (!bookingToEnd) return;
         try {
-            // FIX: endSession takes 1 argument and returns updatedBooking. User wallet updates happen on the backend but are not returned.
-            const { updatedBooking } = await apiService.endSession(bookingId);
+            // FIX: Pass the full booking object to the mock API
+            const { updatedBooking } = await apiService.endSession(bookingToEnd);
             const updatedBookings = bookings.map(b => b.id === bookingId ? updatedBooking : b);
             dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: updatedBookings } });
-            // Cannot update users here as the API doesn't return them.
+            
             dispatch({ type: ActionTypes.END_SESSION });
             navigate('ENGINEER_DASHBOARD');
         } catch (error) { console.error("Failed to end session:", error); }
     }, [navigate, bookings, dispatch]);
 
     const confirmTip = useCallback(async (bookingId: string, tipAmount: number) => {
-        if (!currentUser) return;
+        const bookingToTip = bookings.find(b => b.id === bookingId);
+        if (!currentUser || !bookingToTip) return;
         try {
-            // FIX: addTip takes 2 arguments and doesn't return updatedUsers.
-            const { updatedBookings } = await apiService.addTip(bookingId, tipAmount);
+            // FIX: Pass the full booking object to the mock API
+            const { updatedBookings } = await apiService.addTip(bookingToTip, tipAmount);
             const updatedBooking = updatedBookings[0];
             if (updatedBooking) {
                 const newBookings = bookings.map(b => b.id === bookingId ? updatedBooking : b);

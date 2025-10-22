@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
@@ -166,7 +167,8 @@ const StoodioDetail: React.FC = () => {
                                 ))}
                             </ul>
                         </div>
-                        {selectedRoom && (
+                        {/* FIX: Use selectedRoom.smokingPolicy instead of stoodio.smokingPolicy and make the block conditional. */}
+                        {selectedRoom?.smokingPolicy && (
                             <div>
                                 <h3 className="text-2xl font-bold mb-4 text-orange-400">Policies for {selectedRoom.name}</h3>
                                 <ul className="grid grid-cols-1 gap-y-3 text-slate-200 mb-10">

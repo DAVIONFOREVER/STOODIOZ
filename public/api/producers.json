@@ -1,0 +1,48 @@
+
+[
+  {
+    "id": "prod-kaizen",
+    "name": "Kaizen",
+    "email": "producer@stoodioz.com",
+    "password": "password",
+    "bio": "Atlanta-based producer specializing in Trap, Hip-Hop, and modern R&B. Placements with several major artists. My beats are ready for your next hit.",
+    "genres": ["Trap", "Hip-Hop", "R&B"],
+    "rating": 5.0,
+    "imageUrl": "https://images.unsplash.com/photo-1593104547489-5cfb3839a3b5?q=80&w=400&auto=format&fit=crop",
+    "followers": 2300,
+    "following": {
+      "artists": ["artist-luna-vance", "artist-aria-cantata"],
+      "engineers": [],
+      "stoodioz": [],
+      "producers": []
+    },
+    "followerIds": ["artist-luna-vance"],
+    "coordinates": { "lat": 33.7490, "lon": -84.3880 },
+    "isAvailable": true,
+    "showOnMap": true,
+    "walletBalance": 3400.00,
+    "walletTransactions": [],
+    "instrumentals": [
+      {
+        "id": "inst-1",
+        "title": "Midnight Drive",
+        "audioUrl": "https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-1-short.mp3",
+        "priceLease": 49.99,
+        "priceExclusive": 499.99,
+        "genre": "R&B",
+        "tags": ["Smooth", "Lofi", "Vibey"],
+        "isFreeDownloadAvailable": true
+      },
+      {
+        "id": "inst-2",
+        "title": "808 Mafia",
+        "audioUrl": "https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-2-short.mp3",
+        "priceLease": 79.99,
+        "priceExclusive": 799.99,
+        "genre": "Trap",
+        "tags": ["Hard", "Dark", "808"]
+      }
+    ],
+    "pullUpPrice": 500
+  }
+]
