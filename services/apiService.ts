@@ -1,28 +1,37 @@
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment } from '../types';
 import { BookingStatus, VerificationStatus } from '../types';
+import { getSupabase } from '../lib/supabase';
 
 // --- DATA FETCHING (GET Requests) ---
 
-const fetchData = async <T>(tableName: string): Promise<T[]> => {
-    // Fetches from the local public/api/ directory instead of Supabase
+const fetchData = async <T>(tableName: string, query: string = '*'): Promise<T[]> => {
+    const supabase = getSupabase();
+    if (!supabase) {
+        console.error("Supabase client is not initialized.");
+        return [];
+    }
     try {
-        const response = await fetch(`/api/${tableName}.json`);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch ${tableName}.json`);
+        const { data, error } = await supabase.from(tableName).select(query);
+        if (error) {
+            console.error(`Error fetching from ${tableName}:`, error.message);
+            throw error;
         }
-        const data = await response.json();
         return data as T[];
-    } catch (error) {
-        console.error(`Error fetching local data for ${tableName}:`, error);
+    } catch (error: any) {
+        console.error(`API service error for ${tableName}:`, error.message);
         return [];
     }
 };
 
-export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz');
-export const fetchArtists = (): Promise<Artist[]> => fetchData<Artist>('artists');
-export const fetchEngineers = (): Promise<Engineer[]> => fetchData<Engineer>('engineers');
-export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers');
-export const fetchReviews = (): Promise<Review[]> => fetchData<Review>('reviews');
+// Fetch main data and related nested data.
+// - Use plural table names for main entities (e.g., 'stoodioz', 'reviews').
+// - Use plural table names for related entities (e.g., 'rooms', 'instrumentals') for convention.
+// - Explicitly define relationships (e.g., 'posts!artist_id(*)') to resolve ambiguity or non-conventional FK names.
+export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz', '*, rooms!stoodio_id(*), in_house_engineers!stoodio_id(*)');
+export const fetchArtists = (): Promise<Artist[]> => fetchData<Artist>('artists', '*, posts!artist_id(*)');
+export const fetchEngineers = (): Promise<Engineer[]> => fetchData<Engineer>('engineers', '*, posts!engineer_id(*), mixing_samples!engineer_id(*)');
+export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers', '*, posts!producer_id(*), instrumentals!producer_id(*)');
+export const fetchReviews = (): Promise<Review[]> => fetchData<Review>('reviews', '*');
 
 
 // --- DATA MUTATIONS (Simulated POST, PUT, DELETE Requests) ---
