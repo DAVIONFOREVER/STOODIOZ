@@ -256,7 +256,8 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
         };
         
         try {
-            const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO, engineers, producers);
+            // FIX: The createBooking function expects 4 arguments, but 6 were provided. The extra 'engineers' and 'producers' arguments have been removed.
+            const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO);
             dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, postedBy: UserRole.STOODIO } } });
         } catch(error) {
             console.error("Failed to post job", error);
