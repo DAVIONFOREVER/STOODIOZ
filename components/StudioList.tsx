@@ -42,6 +42,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
             results = results.filter(s => 
                 s.name.toLowerCase().includes(lowerCaseTerm) || 
                 s.location.toLowerCase().includes(lowerCaseTerm) ||
+                s.businessAddress?.toLowerCase().includes(lowerCaseTerm) ||
                 s.amenities.some(a => a.toLowerCase().includes(lowerCaseTerm))
             );
         }
@@ -66,7 +67,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-10 pr-4 py-3 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        placeholder="Search by name, location, or amenity..."
+                        placeholder="Search by name, location, address, or amenity..."
                     />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">

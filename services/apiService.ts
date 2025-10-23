@@ -1,5 +1,5 @@
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment } from '../types';
-import { BookingStatus, VerificationStatus } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction } from '../types';
+import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus } from '../types';
 import { getSupabase } from '../lib/supabase';
 
 // --- DATA FETCHING (GET Requests) ---
@@ -23,18 +23,96 @@ const fetchData = async <T>(tableName: string, query: string = '*'): Promise<T[]
     }
 };
 
-// Fetch main data and related nested data.
-// - Use plural table names for main entities (e.g., 'stoodioz', 'reviews').
-// - Use plural table names for related entities (e.g., 'rooms', 'instrumentals') for convention.
-// - Explicitly define relationships (e.g., 'posts!artist_id(*)') to resolve ambiguity or non-conventional FK names.
-export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz', '*, rooms!stoodio_id(*), in_house_engineers!stoodio_id(*)');
-export const fetchArtists = (): Promise<Artist[]> => fetchData<Artist>('artists', '*, posts!artist_id(*)');
-export const fetchEngineers = (): Promise<Engineer[]> => fetchData<Engineer>('engineers', '*, posts!engineer_id(*), mixing_samples!engineer_id(*)');
-export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers', '*, posts!producer_id(*), instrumentals!producer_id(*)');
+/*
+ * Fetches main data and related nested data using Supabase resource embedding.
+ * - The standard implicit join syntax `related_table(*)` is used. This requires that
+ *   foreign key relationships are properly defined in the Supabase database schema.
+ *   For example, for `rooms(*)` to work when querying `stoodioz`, the `rooms` table
+ *   must have a `stoodio_id` foreign key column that references `stoodioz.id`.
+ */
+export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz', '*, rooms(*), in_house_engineers(*)');
+export const fetchArtists = (): Promise<Artist[]> => fetchData<Artist>('artists', '*');
+export const fetchEngineers = (): Promise<Engineer[]> => fetchData<Engineer>('engineers', '*, mixing_samples(*)');
+export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers', '*, instrumentals(*)');
 export const fetchReviews = (): Promise<Review[]> => fetchData<Review>('reviews', '*');
+// The query for bookings uses aliasing (e.g., `stoodio:stoodioz(*)`) to map the fetched
+// `stoodioz` table to the `stoodio` property on the Booking type. This is correct syntax.
+// An error here likely indicates a missing Foreign Key constraint in the Supabase schema.
+export const fetchBookings = (): Promise<Booking[]> => fetchData<Booking>('bookings', '*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)');
 
 
 // --- DATA MUTATIONS (Simulated POST, PUT, DELETE Requests) ---
+
+// FIX: Add findUserByCredentials function
+export const findUserByCredentials = async (email: string, password: string): Promise<Artist | Engineer | Stoodio | Producer | null> => {
+    const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
+    for (const table of tables) {
+        const supabase = getSupabase();
+        if (!supabase) return null;
+        const { data, error } = await supabase.from(table).select('*').eq('email', email).eq('password', password).limit(1);
+        if (error) {
+            console.error(`Error finding user in ${table}:`, error);
+            continue;
+        }
+        if (data && data.length > 0) {
+            return data[0] as Artist | Engineer | Stoodio | Producer;
+        }
+    }
+    return null;
+};
+
+// FIX: Add createUser function
+export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | null> => {
+    let tableName = '';
+    let newUserScaffold: any = {};
+    const baseData = {
+        id: `${role.toLowerCase()}-${Date.now()}`,
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+        imageUrl: 'https://i.pravatar.cc/300?u=' + Date.now(),
+        followers: 0,
+        following: { stoodioz: [], engineers: [], artists: [], producers: [] },
+        followerIds: [],
+        coordinates: { lat: 34.0522, lon: -118.2437 }, // LA
+        walletBalance: 0,
+        walletTransactions: [],
+        posts: [],
+        links: [],
+        isOnline: true,
+    };
+    
+    switch (role) {
+        case 'ARTIST':
+            tableName = 'artists';
+            newUserScaffold = { ...baseData, bio: userData.bio, isSeekingSession: false, showOnMap: false };
+            break;
+        case 'ENGINEER':
+            tableName = 'engineers';
+            newUserScaffold = { ...baseData, bio: userData.bio, specialties: [], rating: 5, sessionsCompleted: 0, mixingSamples: [], isAvailable: true, showOnMap: true, displayExactLocation: false };
+            break;
+        case 'PRODUCER':
+            tableName = 'producers';
+            newUserScaffold = { ...baseData, bio: userData.bio, genres: [], rating: 5, instrumentals: [], isAvailable: true, showOnMap: true };
+            break;
+        case 'STOODIO':
+            tableName = 'stoodioz';
+            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, hourlyRate: 100, engineerPayRate: 50, rating: 5, amenities: [], availability: [], photos: [baseData.imageUrl], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
+            break;
+    }
+    
+    // This is a mock implementation
+    return newUserScaffold;
+};
+
+// FIX: Add updateUser function
+export const updateUser = async (userId: string, updates: Partial<Artist | Engineer | Stoodio | Producer>): Promise<any> => {
+    // This is a mock. A real function would update the database.
+    console.log(`Updating user ${userId} with`, updates);
+    // This mock returns a partial object. The hook logic will merge it.
+    return { id: userId, ...updates }; 
+};
+
 
 export const createBooking = async (
     bookingRequest: BookingRequest,
@@ -82,17 +160,22 @@ export const endSession = async (booking: Booking): Promise<{ updatedBooking: Bo
     return { updatedBooking };
 };
 
+// FIX: `cancelBooking` now correctly receives a `Booking` object.
 export const cancelBooking = async (booking: Booking): Promise<{ updatedBookings: Booking[] }> => {
     const updatedBooking = { ...booking, status: BookingStatus.CANCELLED };
     return { updatedBookings: [updatedBooking] };
 };
 
-export const addTip = async (booking: Booking, tipAmount: number): Promise<{ updatedBookings: Booking[] }> => {
+// FIX: `addTip` now returns the expected shape for the hook.
+export const addTip = async (booking: Booking, tipAmount: number): Promise<{ updatedBooking: Booking; updatedUsers: any[] }> => {
     const updatedBooking = { ...booking, tip: tipAmount };
-    return { updatedBookings: [updatedBooking] };
+    const updatedUsers: any[] = [];
+    // A real API would update user wallets here. We'll return an empty array for the mock.
+    return { updatedBooking, updatedUsers };
 };
 
-export const toggleFollow = async (currentUser: any, targetId: string, targetType: 'artist' | 'engineer' | 'stoodio' | 'producer'): Promise<any[]> => {
+// FIX: `toggleFollow` now accepts all users to find the target and returns both updated users.
+export const toggleFollow = async (currentUser: any, targetId: string, targetType: 'artist' | 'engineer' | 'stoodio' | 'producer', allUsers: any[]): Promise<{ updatedCurrentUser: any; updatedTargetUser: any; }> => {
     const listKey = `${targetType}s`;
     const isFollowing = (currentUser.following[listKey] || []).includes(targetId);
     
@@ -102,11 +185,20 @@ export const toggleFollow = async (currentUser: any, targetId: string, targetTyp
     } else {
         newFollowingList = [...(currentUser.following[listKey] || []), targetId];
     }
+    const updatedCurrentUser = { ...currentUser, following: { ...currentUser.following, [listKey]: newFollowingList } };
     
-    const newFollowing = { ...currentUser.following, [listKey]: newFollowingList };
-    const updatedUser = { ...currentUser, following: newFollowing };
+    const targetUser = allUsers.find(u => u.id === targetId);
+    if (!targetUser) return { updatedCurrentUser, updatedTargetUser: null };
 
-    return [updatedUser];
+    let newFollowerIds;
+    if (isFollowing) {
+        newFollowerIds = (targetUser.followerIds || []).filter((id: string) => id !== currentUser.id);
+    } else {
+        newFollowerIds = [...(targetUser.followerIds || []), currentUser.id];
+    }
+    const updatedTargetUser = { ...targetUser, followerIds: newFollowerIds, followers: newFollowerIds.length };
+
+    return { updatedCurrentUser, updatedTargetUser };
 };
 
 export const createPost = async (postData: { text: string; imageUrl?: string; link?: any }, author: any, authorType: UserRole): Promise<any> => {
@@ -158,7 +250,38 @@ export const respondToBooking = async (booking: Booking, action: 'accept' | 'den
     return { updatedBooking };
 };
 
-export const submitForVerification = async (stoodioId: string, verificationData: { googleBusinessProfileUrl: string; websiteUrl: string }): Promise<{ temporaryStoodio: Partial<Stoodio> }> => {
+// FIX: Add `submitForVerification` and `approveVerification` functions.
+export const submitForVerification = async (stoodioId: string, verificationData: { googleBusinessProfileUrl: string; websiteUrl: string }): Promise<Partial<Stoodio>> => {
     // Simulate the API call, return a pending status for optimistic UI update.
-    return { temporaryStoodio: { ...verificationData, verificationStatus: VerificationStatus.PENDING } };
+    return { ...verificationData, verificationStatus: VerificationStatus.PENDING };
+};
+
+export const approveVerification = async (stoodioId: string): Promise<Partial<Stoodio>> => {
+    // Simulate an admin approving the request
+    return { verificationStatus: VerificationStatus.VERIFIED };
+};
+
+// FIX: Add `updateUserWallet` function
+export const updateUserWallet = async (userId: string, userRole: UserRole, amount: number, category: string): Promise<any> => {
+    console.warn('updateUserWallet is a mock and does not persist data.');
+     const allUsers = [
+        ...await fetchArtists(),
+        ...await fetchEngineers(),
+        ...await fetchProducers(),
+        ...await fetchStoodioz(),
+    ];
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return null;
+    
+    const newBalance = user.walletBalance + amount;
+     const newTransaction: Transaction = {
+        id: `tx-${Date.now()}`,
+        description: category.replace('_', ' '),
+        amount: amount,
+        date: new Date().toISOString(),
+        category: category as TransactionCategory,
+        status: TransactionStatus.COMPLETED,
+    };
+
+    return { ...user, walletBalance: newBalance, walletTransactions: [...user.walletTransactions, newTransaction] };
 };

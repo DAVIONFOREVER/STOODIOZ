@@ -1,7 +1,4 @@
-
-
 import React from 'react';
-// FIX: Update props to accept Producer type
 import type { Artist, Engineer, Stoodio, Transaction, Producer } from '../types';
 import { TransactionCategory, TransactionStatus, UserRole } from '../types';
 import { BanknotesIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, CalendarIcon, DollarSignIcon, HeartIcon, PlusCircleIcon, BriefcaseIcon } from './icons';

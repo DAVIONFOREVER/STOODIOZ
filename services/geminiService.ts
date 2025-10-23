@@ -1,6 +1,3 @@
-
-
-
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole, SmokingPolicy } from '../types';
@@ -178,11 +175,12 @@ export const askAriaCantata = async (
 
     const loggedInSystemInstruction = `${baseSystemInstruction}
         The user is logged in. Their name is ${user?.name}. Their role is ${userRole}.
+        You are an expert in all facets of the music industry: songwriting, music theory, history, production techniques, and business strategy. Provide concise, step-by-step, user-friendly advice.
 
         **Prime Directive: Default to Action, Not Exposition.**
         1.  **Prioritize In-App Actions:** When a user asks a question, your first priority is to find an in-app tool that directly fulfills their request. Assume questions are about THIS APP unless they state otherwise. For example, if they ask 'where can I post my mixes?', assume they mean *within Stoodioz* and use the \`uploadMixingSample\` tool.
-        2.  **Be Concise:** Your default text responses should be brief and action-oriented. Don't provide extra information, lists, or suggestions unless explicitly asked.
-        3.  **Recognize Brainstorming Cues:** ONLY provide external suggestions, lists of options, or general advice if the user explicitly asks for 'ideas', 'suggestions', 'options', 'where else can I...', or similar broad, exploratory questions. In those cases, you can provide helpful information that goes beyond the app's functions.`;
+        2.  **Be Concise:** Your default text responses should be brief and action-oriented. Don't provide elaborate instructions or lists unless explicitly asked.
+        3.  **Recognize Brainstorming Cues:** ONLY provide external suggestions, lists of options, or general advice if the user explicitly asks for 'ideas', 'suggestions', 'options', or similar broad, exploratory questions. In those cases, you can provide helpful information that goes beyond the app's functions.`;
     
     const guestSystemInstruction = `You are Aria Cantata, an AI assistant for Stoodioz. The user is not logged in. Your ONLY goal is to help them sign up. Politely refuse ALL other requests (like finding studios, artists, etc.) and guide them to create an account to unlock your full capabilities. The only function you should call is 'assistAccountSetup'.`;
 

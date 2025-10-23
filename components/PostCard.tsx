@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon } from './icons';
+import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 
 interface PostCardProps {
@@ -81,15 +81,18 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {/* Post Content */}
                 {post.text && <p className="text-slate-300 whitespace-pre-wrap mb-4">{post.text}</p>}
                 
-                {post.link && (
-                     <a href={post.link.url} target="_blank" rel="noopener noreferrer" className="block my-4 bg-zinc-700/50 hover:bg-zinc-700 rounded-lg border border-zinc-600/50 transition-colors overflow-hidden">
-                        {post.link.imageUrl && (
-                            <img loading="lazy" src={post.link.imageUrl} alt={post.link.title} className="w-full h-48 object-cover"/>
-                        )}
-                        <div className="p-4">
-                            <p className="font-semibold text-slate-200">{post.link.title}</p>
-                            {post.link.description && <p className="text-sm text-slate-400 mt-1">{post.link.description}</p>}
-                            <p className="text-xs text-slate-500 mt-2 uppercase tracking-wide">{new URL(post.link.url).hostname}</p>
+                {post.imageUrl && (
+                    <div className="my-4 rounded-lg overflow-hidden border border-zinc-700">
+                        <img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover"/>
+                    </div>
+                )}
+                {post.videoUrl && post.videoThumbnailUrl && (
+                    <a href={post.videoUrl} target="_blank" rel="noopener noreferrer" className="block relative my-4 rounded-lg overflow-hidden group border border-zinc-700">
+                        <img src={post.videoThumbnailUrl} alt="Video thumbnail" className="w-full h-auto object-cover"/>
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity opacity-70 group-hover:opacity-100">
+                             <div className="bg-black/50 rounded-full p-4 transition-transform group-hover:scale-110">
+                                <PlayIcon className="w-10 h-10 text-white"/>
+                            </div>
                         </div>
                     </a>
                 )}

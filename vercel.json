@@ -1,23 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/feedback/:id",
-      "destination": "/api/feedback/:id"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
-  ]
-}
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    { "source": "/feedback/:id", "destination": "/api/feedback/:id" },
-    { "source": "/((?!api).*)", "destination": "/index.html" }
-  ]
-}
-
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }

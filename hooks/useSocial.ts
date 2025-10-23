@@ -1,80 +1,77 @@
-
-
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { moderatePostContent } from '../services/geminiService';
 import * as apiService from '../services/apiService';
-import type { Artist, Engineer, Producer, Stoodio, LinkAttachment, UserRole } from '../types';
+import type { LinkAttachment } from '../types';
 
 export const useSocial = () => {
     const dispatch = useAppDispatch();
-    // FIX: Destructure all user arrays to construct `allUsers`.
     const { currentUser, userRole, notifications, artists, engineers, producers, stoodioz } = useAppState();
 
-    // FIX: Construct allUsers from individual state arrays.
     const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
     
-    const updateAllUserState = (updatedUsers: any[]) => {
-        dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
-    };
-
     const toggleFollow = useCallback(async (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => {
         if (!currentUser) return;
-        // FIX: apiService.toggleFollow takes 3 arguments and only returns the updated current user.
-        const updatedCurrentUserArray = await apiService.toggleFollow(currentUser, id, type);
-        const updatedCurrentUser = updatedCurrentUserArray[0];
+        try {
+            const { updatedCurrentUser, updatedTargetUser } = await apiService.toggleFollow(currentUser, id, type, allUsers);
+            if (!updatedTargetUser) {
+                const newAllUsers = allUsers.map(u => (u.id === updatedCurrentUser.id ? updatedCurrentUser : u));
+                dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: newAllUsers } });
+                return;
+            }
 
-        if (updatedCurrentUser) {
-             const listKey = `${type}s` as keyof typeof updatedCurrentUser.following;
-            const isNowFollowing = updatedCurrentUser.following[listKey].includes(id);
-
-            const updatedAllUsers = allUsers.map(u => {
-                if (u.id === currentUser.id) {
-                    return updatedCurrentUser;
-                }
-                if (u.id === id) {
-                    const newFollowerIds = isNowFollowing
-                        ? [...u.followerIds, currentUser.id]
-                        : u.followerIds.filter(fid => fid !== currentUser.id);
-                    return { ...u, followers: newFollowerIds.length, followerIds: newFollowerIds };
-                }
+            const newAllUsers = allUsers.map(u => {
+                if (u.id === updatedCurrentUser.id) return updatedCurrentUser;
+                if (u.id === updatedTargetUser.id) return updatedTargetUser;
                 return u;
             });
-            updateAllUserState(updatedAllUsers);
+            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: newAllUsers } });
+        } catch(error) {
+            console.error("Failed to toggle follow:", error);
         }
     }, [currentUser, allUsers, dispatch]);
 
     const createPost = useCallback(async (postData: { text: string; imageUrl?: string; link?: LinkAttachment }) => {
         if (!currentUser || !userRole) return;
-        const moderationResult = await moderatePostContent(postData.text);
-        if (!moderationResult.isSafe) return;
-        // FIX: apiService.createPost takes 3 arguments and returns the updated author.
-        const updatedAuthor = await apiService.createPost(postData, currentUser, userRole);
-        const updatedUsers = allUsers.map(u => u.id === updatedAuthor.id ? updatedAuthor : u);
-        updateAllUserState(updatedUsers);
+        try {
+            const moderationResult = await moderatePostContent(postData.text);
+            if (!moderationResult.isSafe) {
+                alert(`Post cannot be created: ${moderationResult.reason}`);
+                return;
+            }
+            const updatedAuthor = await apiService.createPost(postData, currentUser, userRole);
+            const updatedUsers = allUsers.map(u => u.id === updatedAuthor.id ? updatedAuthor : u);
+            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
+        } catch(error) {
+            console.error("Failed to create post:", error);
+        }
     }, [currentUser, userRole, allUsers, dispatch]);
     
     const likePost = useCallback(async (postId: string) => {
         if (!currentUser) return;
-        // FIX: Find the author of the post to pass to the API service
         const author = allUsers.find(u => (u.posts || []).some(p => p.id === postId));
+        if (!author) return;
 
-        if (author) {
+        try {
             const updatedAuthor = await apiService.likePost(postId, currentUser.id, author);
             const updatedUsers = allUsers.map(u => u.id === author.id ? updatedAuthor : u);
-            updateAllUserState(updatedUsers);
+            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
+        } catch(error) {
+            console.error("Failed to like post:", error);
         }
     }, [currentUser, allUsers, dispatch]);
     
     const commentOnPost = useCallback(async (postId: string, text: string) => {
         if (!currentUser) return;
-        // FIX: Find the post's author to pass to the API service
         const postAuthor = allUsers.find(u => (u.posts || []).some(p => p.id === postId));
+        if (!postAuthor) return;
 
-        if (postAuthor) {
+        try {
             const updatedAuthor = await apiService.commentOnPost(postId, text, currentUser, postAuthor);
             const updatedUsers = allUsers.map(u => u.id === postAuthor.id ? updatedAuthor : u);
-            updateAllUserState(updatedUsers);
+            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
+        } catch(error) {
+            console.error("Failed to comment on post:", error);
         }
     }, [currentUser, allUsers, dispatch]);
 

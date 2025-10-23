@@ -22,7 +22,7 @@ export const InboxIcon: React.FC<IconProps> = (props) => (
 
 export const MapIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.5-10.5h.008v.008H15.5V4.5m.5 4.5h.008v.008h-.008V9m-4.5 4.5h.008v.008h-.008v-4.5m-5.25 0h.008v.008H4.75V9m10.5-1.125c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125H4.875c-.621 0-1.125-.504-1.125-1.125v-2.25c0-.621.504-1.125 1.125-1.125h10.25z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.5-10.5h.008v.008H15.5V4.5m.5 4.5h.008v.008h-.008V9m-4.5 4.5h.008v.008h-.008v-4.5m-5.25 0h.008v.008H4.75V9m10.5-1.125c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125H4.875c-.621 0-1.125-.504-1.125-1.125v-2.25c0 .621.504-1.125 1.125-1.125h10.25z" />
     </svg>
 );
 

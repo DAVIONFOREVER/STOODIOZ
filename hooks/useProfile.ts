@@ -1,55 +1,52 @@
-
-
-import { useCallback } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import type { Artist, Engineer, Stoodio, Producer } from '../types';
-import { VerificationStatus } from '../types';
 
 export const useProfile = () => {
     const dispatch = useAppDispatch();
-    // FIX: Get individual user arrays instead of non-existent `allUsers`.
-    const { currentUser, stoodioz, artists, engineers, producers } = useAppState();
+    const { currentUser, artists, engineers, producers, stoodioz } = useAppState();
+    const [isSaved, setIsSaved] = useState(false);
     
-    const updateAllUserState = (updatedUsers: (Artist | Engineer | Stoodio | Producer)[]) => {
-        dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
+    const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
+
+    const updateProfile = async (updates: Partial<Artist | Engineer | Stoodio | Producer>) => {
+        if (!currentUser) return;
+        try {
+            const updatedUserPartial = await apiService.updateUser(currentUser.id, updates);
+            if (updatedUserPartial) {
+                const updatedUsers = allUsers.map(u => u.id === updatedUserPartial.id ? { ...u, ...updatedUserPartial } : u);
+                dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as (Artist | Engineer | Stoodio | Producer)[] } });
+                setIsSaved(true);
+            }
+        } catch (error) {
+            console.error("Failed to update profile:", error);
+        }
     };
 
-    const updateProfile = (updates: Partial<Artist | Engineer | Stoodio | Producer>) => {
-        if (!currentUser) return;
-        const updatedUser = { ...currentUser, ...updates };
-        dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: updatedUser } });
-        // FIX: Construct `allUsers` locally from state.
-        const allUsers = [...artists, ...engineers, ...producers, ...stoodioz];
-        const updatedUsers = allUsers.map(u => u.id === updatedUser.id ? updatedUser : u);
-        updateAllUserState(updatedUsers);
-    };
+    useEffect(() => {
+        if (isSaved) {
+            const timer = setTimeout(() => setIsSaved(false), 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [isSaved]);
 
     const verificationSubmit = useCallback(async (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => {
-        // FIX: submitForVerification takes 2 arguments and returns an object with `temporaryStoodio`.
-        const { temporaryStoodio } = await apiService.submitForVerification(stoodioId, data);
-        const updatedStoodioz = stoodioz.map(s => s.id === stoodioId ? { ...s, ...temporaryStoodio } : s);
-        
-        // Use a functional update to get the latest state
-        dispatch({
-            type: ActionTypes.UPDATE_USERS,
-            payload: { users: [...artists, ...engineers, ...producers, ...updatedStoodioz] }
-        });
-        
-        if (currentUser?.id === stoodioId) {
-            const updatedUser = updatedStoodioz.find(s => s.id === stoodioId);
-            if (updatedUser) dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: updatedUser } });
-        }
+        try {
+            const updatedStoodioPartial = await apiService.submitForVerification(stoodioId, data);
+            const updatedUsers = allUsers.map(u => u.id === stoodioId ? { ...u, ...updatedStoodioPartial } : u);
+            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as (Artist | Engineer | Stoodio | Producer)[] } });
 
-        setTimeout(() => {
-            const finalStoodioz = stoodioz.map(s => s.id === stoodioId ? { ...s, ...data, verificationStatus: VerificationStatus.VERIFIED } : s);
-            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: [ ...artists, ...engineers, ...producers, ...finalStoodioz] }});
-             if (currentUser?.id === stoodioId) {
-                const finalUser = finalStoodioz.find(s => s.id === stoodioId);
-                if (finalUser) dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: finalUser } });
-             }
-        }, 4000);
-    }, [stoodioz, artists, engineers, producers, currentUser, dispatch]);
+            // Simulate the admin approval delay
+            setTimeout(async () => {
+                const finalStoodio = await apiService.approveVerification(stoodioId);
+                const finalUsers = updatedUsers.map(u => u.id === stoodioId ? { ...u, ...finalStoodio } : u);
+                dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: finalUsers as (Artist | Engineer | Stoodio | Producer)[] } });
+            }, 4000);
+        } catch (error) {
+            console.error("Verification submission failed:", error);
+        }
+    }, [allUsers, dispatch]);
     
-    return { updateProfile, verificationSubmit };
+    return { updateProfile, verificationSubmit, isSaved };
 };

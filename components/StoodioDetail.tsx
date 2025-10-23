@@ -172,11 +172,11 @@ const StoodioDetail: React.FC = () => {
                                 <h3 className="text-2xl font-bold mb-4 text-orange-400">Policies for {selectedRoom.name}</h3>
                                 <ul className="grid grid-cols-1 gap-y-3 text-slate-200 mb-10">
                                     <li className="flex items-center">
-                                        {selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED
+                                        {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED)
                                             ? <SmokingIcon className="w-5 h-5 mr-3 text-green-400" />
                                             : <NoSmokingIcon className="w-5 h-5 mr-3 text-red-400" />
                                         }
-                                        {selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED ? 'Smoking Allowed' : 'Non-Smoking'}
+                                        {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED) ? 'Smoking Allowed' : 'Non-Smoking'}
                                     </li>
                                 </ul>
                             </div>

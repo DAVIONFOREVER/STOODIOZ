@@ -1,7 +1,5 @@
 
-
 import React, { useState, useMemo } from 'react';
-// FIX: Update props to accept Producer type
 import type { Stoodio, Engineer, Producer } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PlusCircleIcon, CloseIcon } from './icons';
 
@@ -19,117 +17,127 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
 
     const availabilityMap = useMemo(() => new Map(userAvailability.map(item => [item.date, new Set(item.times)])), [userAvailability]);
     
+    const bookingsForDay = useMemo(() => {
+        if (!selectedDate) return new Set();
+        return new Set(
+            bookings
+                .filter(b => b.date === selectedDate)
+                .map(b => b.startTime)
+        );
+    }, [bookings, selectedDate]);
+
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
     const startDay = startOfMonth.getDay();
 
-    const daysInMonth = Array.from({ length: endOfMonth.getDate() }, (_, i) => new Date(currentDate.getFullYear(), currentDate.getMonth(), i + 1));
+    const daysInMonth = [];
+    for (let i = 1; i <= endOfMonth.getDate(); i++) {
+        daysInMonth.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const handleDateClick = (date: Date) => {
-        const dateString = date.toISOString().split('T')[0];
-        setSelectedDate(dateString);
+    const handlePrevMonth = () => {
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+        setSelectedDate(null);
     };
 
-    const handleAddTime = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedDate || !/^\d{2}:\d{2}$/.test(newTime)) {
-            alert('Please select a date and enter a valid time in HH:MM format.');
-            return;
-        }
-
-        const newAvailability = [...userAvailability];
-        const dayIndex = newAvailability.findIndex(d => d.date === selectedDate);
-
-        if (dayIndex > -1) {
-            const times = new Set(newAvailability[dayIndex].times);
-            times.add(newTime);
-            newAvailability[dayIndex].times = Array.from(times).sort();
-        } else {
-            newAvailability.push({ date: selectedDate, times: [newTime] });
-        }
-        
-        onUpdateUser({ availability: newAvailability });
-        setNewTime('');
+    const handleNextMonth = () => {
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+        setSelectedDate(null);
     };
     
-    const handleRemoveTime = (timeToRemove: string) => {
-        if (!selectedDate) return;
+    const handleDateClick = (date: Date) => {
+        const dateString = date.toISOString().split('T')[0];
+        if (availabilityMap.has(dateString)) {
+             setSelectedDate(dateString);
+        }
+    }
 
-        const newAvailability = userAvailability.map(day => {
-            if (day.date === selectedDate) {
-                return {
-                    ...day,
-                    times: day.times.filter(time => time !== timeToRemove)
-                };
-            }
-            return day;
-        }).filter(day => day.times.length > 0); // Remove day if no times are left
-
-        onUpdateUser({ availability: newAvailability });
-    };
-
+    // FIX: Convert Set to Array to allow use of .length and .map()
+    const availableTimesForSelectedDate = selectedDate ? Array.from(availabilityMap.get(selectedDate) || []) : [];
 
     return (
-        <div className="bg-zinc-800/50 rounded-2xl shadow-lg p-6 border border-zinc-700/50">
-            <h2 className="text-2xl font-bold text-zinc-100 mb-4">Manage Availability</h2>
-            <div className="flex flex-col md:flex-row gap-6">
-                {/* Calendar */}
-                <div className="flex-1">
-                    <div className="flex items-center justify-between mb-4">
-                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="p-2 rounded-full hover:bg-zinc-700"><ChevronLeftIcon className="w-5 h-5 text-zinc-400" /></button>
-                        <h3 className="font-bold text-lg text-zinc-200">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-                        <button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="p-2 rounded-full hover:bg-zinc-700"><ChevronRightIcon className="w-5 h-5 text-zinc-400" /></button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center text-sm text-zinc-500 mb-2">
-                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d}>{d}</div>)}
-                    </div>
-                    <div className="grid grid-cols-7 gap-1">
-                        {Array(startDay).fill(null).map((_, i) => <div key={`e-${i}`}></div>)}
-                        {daysInMonth.map(day => {
-                            const dateString = day.toISOString().split('T')[0];
-                            const isAvailable = availabilityMap.has(dateString);
-                            const isSelected = selectedDate === dateString;
-                            return (
-                                <button key={dateString} onClick={() => handleDateClick(day)} className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors font-semibold ${isSelected ? 'bg-orange-500 text-white' : isAvailable ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30' : 'hover:bg-zinc-700 text-zinc-300'}`}>
-                                    {day.getDate()}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+        <div className="bg-zinc-800 p-4 rounded-lg">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+                <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
+                    <ChevronLeftIcon className="w-5 h-5 text-slate-400" />
+                </button>
+                <h3 className="font-bold text-lg text-slate-100">
+                    {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </h3>
+                <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
+                    <ChevronRightIcon className="w-5 h-5 text-slate-400" />
+                </button>
+            </div>
 
-                {/* Time Slot Editor */}
-                <div className="w-full md:w-64 flex-shrink-0">
-                    <h3 className="font-bold text-lg text-center mb-2 text-zinc-200">
-                        {selectedDate ? `Slots for ${selectedDate}` : 'Select a date'}
-                    </h3>
-                    {selectedDate && (
-                        <div>
-                            <form onSubmit={handleAddTime} className="flex gap-2 mb-4">
-                                <input
-                                    type="time"
-                                    value={newTime}
-                                    onChange={e => setNewTime(e.target.value)}
-                                    className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                />
-                                <button type="submit" className="bg-orange-500 text-white p-2 rounded-lg hover:bg-orange-600"><PlusCircleIcon className="w-6 h-6"/></button>
-                            </form>
-                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {[...(availabilityMap.get(selectedDate) || [])].map(time => (
-                                    <div key={time} className="bg-zinc-700/50 flex justify-between items-center p-2 rounded-lg">
-                                        <span className="font-mono text-sm text-zinc-300">{time}</span>
-                                        <button onClick={() => handleRemoveTime(time)} className="text-zinc-500 hover:text-red-500"><CloseIcon className="w-4 h-4" /></button>
-                                    </div>
-                                ))}
-                            </div>
+            {/* Days Grid */}
+            <div className="grid grid-cols-7 gap-1 text-center text-sm text-slate-400 mb-2">
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => <div key={day}>{day}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+                {Array(startDay).fill(null).map((_, index) => <div key={`empty-${index}`}></div>)}
+                {daysInMonth.map(day => {
+                    const dateString = day.toISOString().split('T')[0];
+                    const isAvailable = availabilityMap.has(dateString);
+                    const isPast = day < today;
+                    const isSelected = selectedDate === dateString;
+
+                    let dayClass = "w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-200";
+                    if (isPast) {
+                        dayClass += " text-slate-600 cursor-not-allowed";
+                    } else if (isAvailable) {
+                        dayClass += isSelected 
+                            ? " bg-orange-500 text-white font-bold" 
+                            : " bg-orange-500/20 hover:bg-orange-500 hover:text-white cursor-pointer text-orange-400 font-bold";
+                    } else {
+                         dayClass += " text-slate-500 cursor-not-allowed";
+                    }
+
+                    return (
+                        <div key={dateString} onClick={() => !isPast && handleDateClick(day)} className={dayClass}>
+                            {day.getDate()}
                         </div>
+                    );
+                })}
+            </div>
+            
+            {/* Time Slots */}
+            {selectedDate && (
+                <div className="mt-4 pt-4 border-t border-zinc-700">
+                    <h4 className="font-semibold text-center text-slate-200 mb-3">Available Slots for {selectedDate}</h4>
+                    {availableTimesForSelectedDate.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-2">
+                            {availableTimesForSelectedDate.map(time => {
+                                const isSelected = selectedTimeSlot?.date === selectedDate && selectedTimeSlot?.time === time;
+                                const isBooked = bookingsForDay.has(time);
+                                return (
+                                <button 
+                                    key={time}
+                                    onClick={() => onSelectTimeSlot(selectedDate, time)}
+                                    disabled={isBooked}
+                                    className={`p-2 text-sm rounded-lg transition-colors duration-200 font-semibold ${
+                                        isBooked
+                                        ? 'bg-zinc-700 text-slate-500 line-through cursor-not-allowed'
+                                        : isSelected 
+                                        ? 'bg-orange-500 text-white' 
+                                        : 'bg-zinc-700 hover:bg-zinc-600 text-slate-200'
+                                    }`}
+                                >
+                                    {time}
+                                </button>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-center text-slate-400">No slots available for this day.</p>
                     )}
                 </div>
-            </div>
+            )}
         </div>
     );
 };
 
-export default AvailabilityManager;
+export default Calendar;

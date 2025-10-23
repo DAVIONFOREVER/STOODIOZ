@@ -95,8 +95,8 @@ const EngineerDashboard: React.FC = () => {
          switch(activeTab) {
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
              case 'mixingSamples': return <MixingSampleManager engineer={engineer} onUpdateEngineer={updateProfile} />;
-             case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateUser={updateProfile} />;
-             case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateUser={updateProfile} />;
+             case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
+             case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.ENGINEER} />;
              // Other cases would be here...
              default: return (

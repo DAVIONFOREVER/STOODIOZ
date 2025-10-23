@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-// FIX: Import AppView and UserRole as values, not just types.
 import { AppView, UserRole } from '../types';
 import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaCantataMessage } from '../types';
 
@@ -15,10 +14,8 @@ export const useAria = (
     handleConfirmBooking: (bookingRequest: any) => Promise<void>
 ) => {
     const dispatch = useAppDispatch();
-    // FIX: Destructure individual user arrays instead of non-existent `allUsers`. Also get `conversations`.
     const { artists, engineers, producers, stoodioz, conversations, ariaNudge, ariaHistory, initialAriaCantataPrompt, bookings } = useAppState();
     
-    // FIX: Construct `allUsers` from individual arrays.
     const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
 
     const handleAriaCantataBooking = useCallback(async (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
@@ -29,17 +26,14 @@ export const useAria = (
 
     const handleShowVibeResults = useCallback(async (results: VibeMatchResult) => {
         dispatch({ type: ActionTypes.SET_VIBE_RESULTS, payload: { results } });
-        // FIX: Use AppView enum instead of string.
         handleNavigate(AppView.VIBE_MATCHER_RESULTS);
     }, [dispatch, handleNavigate]);
     
     const handleAriaGroupConversation = useCallback((participants: (Artist | Engineer | Stoodio | Producer)[], title: string) => {
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
         const newConversation = { id: `convo-group-${Date.now()}`, participants, messages: [], unreadCount: 0, title, imageUrl: '' };
-        // FIX: `state` is not defined, use `conversations` from `useAppState`.
         dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: [newConversation, ...conversations] } });
         dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: newConversation.id } });
-        // FIX: Use AppView enum instead of string.
         handleNavigate(AppView.INBOX);
     }, [dispatch, handleNavigate, conversations]);
 
