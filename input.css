@@ -2,31 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base keyframes and body styles remain here */
-@keyframes rotate-background {
-  from { transform: translate(-50%, -50%) rotate(0deg) }
-  to { transform: translate(-50%, -50%) rotate(360deg) }
-}
-
-body {
-  font-family: 'Inter', sans-serif;
-  background-color: #09090b;
-  color: #e4e4e7;
-}
-
-body::before {
-    content: '';
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: 200vmax;
-    height: 200vmax;
-    background-image:
-        radial-gradient(circle at center, #f97316, transparent 20%),
-        radial-gradient(circle at 25% 75%, #4f46e5, transparent 30%),
-        radial-gradient(circle at 75% 25%, #0ea5e9, transparent 30%);
-    z-index: -1;
-    opacity: 0.1;
-    animation: rotate-background 120s linear infinite;
-    will-change: transform;
+@layer base {
+  body {
+    @apply font-sans text-zinc-200;
+    background: linear-gradient(-45deg, #09090b, #18181b, #27272a, #1a1a1f);
+    background-size: 400% 400%;
+    animation: gradient-bg 25s ease infinite;
+  }
 }

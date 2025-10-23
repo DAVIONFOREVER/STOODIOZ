@@ -1,3 +1,4 @@
+
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus } from '../types';
 import { getSupabase } from '../lib/supabase';
@@ -33,7 +34,7 @@ const fetchData = async <T>(tableName: string, query: string = '*'): Promise<T[]
 export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz', '*, rooms(*), in_house_engineers(*)');
 export const fetchArtists = (): Promise<Artist[]> => fetchData<Artist>('artists', '*');
 export const fetchEngineers = (): Promise<Engineer[]> => fetchData<Engineer>('engineers', '*, mixing_samples(*)');
-export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers', '*, instrumentals(*)');
+export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers', '*');
 export const fetchReviews = (): Promise<Review[]> => fetchData<Review>('reviews', '*');
 // The query for bookings uses aliasing (e.g., `stoodio:stoodioz(*)`) to map the fetched
 // `stoodioz` table to the `stoodio` property on the Booking type. This is correct syntax.

@@ -1,9 +1,11 @@
 
 
 
+
+
 import React, { useEffect, lazy, Suspense } from 'react';
-// FIX: Changed import from Transaction to WalletTransaction, which is the correct exported type.
-import type { VibeMatchResult, WalletTransaction, Artist, Engineer, Stoodio, Producer } from './types';
+// FIX: The type `WalletTransaction` was renamed to `Transaction`. Since the type is not directly used in this component, the import has been removed to prevent build errors.
+import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
 // FIX: Import VerificationStatus to use it as a value.
 import { AppView, UserRole, VerificationStatus, SmokingPolicy, TransactionCategory, TransactionStatus } from './types';
 import { getAriaNudge } from './services/geminiService';

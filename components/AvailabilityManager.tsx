@@ -1,7 +1,11 @@
 
+
+
 import React, { useState, useMemo } from 'react';
-import type { Stoodio, Engineer, Producer } from '../types';
+// FIX: Import Booking type and useAppState hook to get booking data.
+import type { Stoodio, Engineer, Producer, Booking } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PlusCircleIcon, CloseIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface AvailabilityManagerProps {
     user: Stoodio | Engineer | Producer;
@@ -9,14 +13,19 @@ interface AvailabilityManagerProps {
 }
 
 const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdateUser }) => {
+    // FIX: Get bookings from app context to determine which slots are already booked.
+    const { bookings } = useAppState();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [newTime, setNewTime] = useState('');
     
     const userAvailability = user.availability || [];
 
-    const availabilityMap = useMemo(() => new Map(userAvailability.map(item => [item.date, new Set(item.times)])), [userAvailability]);
+    // FIX: Explicitly type the Map to ensure type safety for `get`, `add`, and `delete` operations.
+    // FIX: Add explicit Map type to resolve type inference issues.
+    const availabilityMap = useMemo(() => new Map<string, Set<string>>(userAvailability.map(item => [item.date, new Set(item.times)])), [userAvailability]);
     
+    // FIX: This now works as `bookings` is available from the app state.
     const bookingsForDay = useMemo(() => {
         if (!selectedDate) return new Set();
         return new Set(
@@ -50,13 +59,52 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
     
     const handleDateClick = (date: Date) => {
         const dateString = date.toISOString().split('T')[0];
-        if (availabilityMap.has(dateString)) {
-             setSelectedDate(dateString);
-        }
-    }
+        setSelectedDate(dateString);
+    };
 
-    // FIX: Convert Set to Array to allow use of .length and .map()
-    const availableTimesForSelectedDate = selectedDate ? Array.from(availabilityMap.get(selectedDate) || []) : [];
+    // FIX: Implement logic to update the user's availability.
+    const updateAvailability = (newAvailabilityMap: Map<string, Set<string>>) => {
+        const newAvailability = Array.from(newAvailabilityMap.entries())
+            .map(([date, times]) => ({ date, times: Array.from(times).sort() }))
+            .filter(day => day.times.length > 0);
+        onUpdateUser({ availability: newAvailability });
+    };
+
+    // FIX: Implement handler to add a new time slot.
+    const handleAddTime = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (selectedDate && newTime) {
+            // FIX: Add explicit Map type to resolve type inference issues.
+            const newAvailabilityMap = new Map<string, Set<string>>(availabilityMap);
+            // FIX: Explicitly type new Set to ensure type safety.
+            const times = newAvailabilityMap.get(selectedDate) || new Set<string>();
+            times.add(newTime);
+            newAvailabilityMap.set(selectedDate, times);
+            updateAvailability(newAvailabilityMap);
+            setNewTime('');
+        }
+    };
+
+    // FIX: Implement handler to remove a time slot.
+    const handleRemoveTime = (timeToRemove: string) => {
+        if (selectedDate) {
+            // FIX: Add explicit Map type to resolve type inference issues.
+            const newAvailabilityMap = new Map<string, Set<string>>(availabilityMap);
+            const times = newAvailabilityMap.get(selectedDate);
+            if (times) {
+                times.delete(timeToRemove);
+                if (times.size === 0) {
+                    newAvailabilityMap.delete(selectedDate);
+                } else {
+                    newAvailabilityMap.set(selectedDate, times);
+                }
+                updateAvailability(newAvailabilityMap);
+            }
+        }
+    };
+
+    // FIX: Replaced `Array.from` with spread syntax `[...]` to ensure correct type inference.
+    const availableTimesForSelectedDate = selectedDate ? [...(availabilityMap.get(selectedDate) || [])].sort() : [];
 
     return (
         <div className="bg-zinc-800 p-4 rounded-lg">
@@ -81,19 +129,20 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
                 {Array(startDay).fill(null).map((_, index) => <div key={`empty-${index}`}></div>)}
                 {daysInMonth.map(day => {
                     const dateString = day.toISOString().split('T')[0];
-                    const isAvailable = availabilityMap.has(dateString);
+                    const timesForDay = availabilityMap.get(dateString);
+                    const isAvailable = timesForDay && timesForDay.size > 0;
                     const isPast = day < today;
                     const isSelected = selectedDate === dateString;
 
-                    let dayClass = "w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-200";
+                    let dayClass = "w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-200 cursor-pointer";
                     if (isPast) {
                         dayClass += " text-slate-600 cursor-not-allowed";
+                    } else if (isSelected) {
+                        dayClass += " bg-orange-500 text-white font-bold ring-2 ring-orange-300";
                     } else if (isAvailable) {
-                        dayClass += isSelected 
-                            ? " bg-orange-500 text-white font-bold" 
-                            : " bg-orange-500/20 hover:bg-orange-500 hover:text-white cursor-pointer text-orange-400 font-bold";
+                        dayClass += " bg-orange-500/20 hover:bg-orange-500/40 text-orange-400 font-bold";
                     } else {
-                         dayClass += " text-slate-500 cursor-not-allowed";
+                         dayClass += " text-slate-400 hover:bg-zinc-700";
                     }
 
                     return (
@@ -104,40 +153,52 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
                 })}
             </div>
             
-            {/* Time Slots */}
+            {/* Time Slots Management */}
             {selectedDate && (
                 <div className="mt-4 pt-4 border-t border-zinc-700">
-                    <h4 className="font-semibold text-center text-slate-200 mb-3">Available Slots for {selectedDate}</h4>
-                    {availableTimesForSelectedDate.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-2">
-                            {availableTimesForSelectedDate.map(time => {
-                                const isSelected = selectedTimeSlot?.date === selectedDate && selectedTimeSlot?.time === time;
-                                const isBooked = bookingsForDay.has(time);
-                                return (
-                                <button 
+                    <h4 className="font-semibold text-center text-slate-200 mb-3">Manage Slots for {selectedDate}</h4>
+                    <div className="space-y-2">
+                        {availableTimesForSelectedDate.map(time => {
+                            const isBooked = bookingsForDay.has(time);
+                            return (
+                                <div 
                                     key={time}
-                                    onClick={() => onSelectTimeSlot(selectedDate, time)}
-                                    disabled={isBooked}
-                                    className={`p-2 text-sm rounded-lg transition-colors duration-200 font-semibold ${
-                                        isBooked
-                                        ? 'bg-zinc-700 text-slate-500 line-through cursor-not-allowed'
-                                        : isSelected 
-                                        ? 'bg-orange-500 text-white' 
-                                        : 'bg-zinc-700 hover:bg-zinc-600 text-slate-200'
+                                    className={`flex items-center justify-between p-2 text-sm rounded-lg font-semibold ${
+                                        isBooked ? 'bg-zinc-700 text-slate-500' : 'bg-zinc-700 text-slate-200'
                                     }`}
                                 >
-                                    {time}
-                                </button>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-center text-slate-400">No slots available for this day.</p>
+                                    <span>{time}</span>
+                                    {isBooked ? (
+                                        <span className="text-xs font-bold text-orange-400">BOOKED</span>
+                                    ) : (
+                                        <button onClick={() => handleRemoveTime(time)} className="text-red-400 hover:text-red-300">
+                                            <CloseIcon className="w-5 h-5"/>
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {availableTimesForSelectedDate.length === 0 && (
+                        <p className="text-sm text-center text-slate-400">No slots defined for this day.</p>
                     )}
+                    <form onSubmit={handleAddTime} className="flex items-center gap-2 mt-4">
+                        <input
+                            type="time"
+                            value={newTime}
+                            onChange={(e) => setNewTime(e.target.value)}
+                            className="w-full bg-zinc-700 border-zinc-600 rounded-md p-2 text-sm"
+                            required
+                        />
+                        <button type="submit" className="p-2 rounded-md bg-orange-500 text-white hover:bg-orange-600">
+                            <PlusCircleIcon className="w-6 h-6" />
+                        </button>
+                    </form>
                 </div>
             )}
         </div>
     );
 };
 
-export default Calendar;
+// FIX: Correctly export the AvailabilityManager component.
+export default AvailabilityManager;

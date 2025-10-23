@@ -58,14 +58,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                     </button>
                 </div>
             </section>
-
-            {/* Product Tour Section */}
-            <section>
-                 <div className="text-center mb-12">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Discover the Stoodioz Workflow</h2>
-                </div>
-                <ProductTour />
-            </section>
             
             {/* Featured Stoodioz Section */}
             <section>
@@ -81,8 +73,38 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                     ))}
                 </div>
             </section>
+            
+            {/* Featured Engineers Section */}
+            <section>
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Top Engineers</h2>
+                     <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
+                        View All <ChevronRightIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {featuredEngineers.map(engineer => (
+                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={() => onNavigate(AppView.ENGINEER_PROFILE)} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
+                    ))}
+                </div>
+            </section>
 
-             {/* Stats Section */}
+             {/* Featured Producers Section */}
+            <section>
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Featured Producers</h2>
+                    <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
+                        View All <ChevronRightIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {featuredProducers.map(producer => (
+                        <ProducerCard key={producer.id} producer={producer} onSelectProducer={onSelectProducer} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
+                    ))}
+                </div>
+            </section>
+            
+            {/* Stats Section */}
             <section className="max-w-4xl mx-auto">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                     <Stat value={stoodioz.length.toString()} label="Verified Stoodioz" />
@@ -90,6 +112,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                     <Stat value={producers.length.toString()} label="Top Producers" />
                     <Stat value={artists.length.toString()} label="Artists" />
                 </div>
+            </section>
+
+            {/* Product Tour Section */}
+            <section>
+                 <div className="text-center mb-12">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Discover the Stoodioz Workflow</h2>
+                </div>
+                <ProductTour />
             </section>
 
             {/* How it works */}
@@ -121,36 +151,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                         <h3 className="text-2xl font-bold text-zinc-100">For Producers</h3>
                         <p className="text-zinc-400 mt-2">Monetize your instrumentals, manage your beat store, and get hired for custom production work.</p>
                     </div>
-                </div>
-            </section>
-            
-             {/* Featured Engineers Section */}
-            <section>
-                <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Top Engineers</h2>
-                     <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
-                        View All <ChevronRightIcon className="w-5 h-5"/>
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {featuredEngineers.map(engineer => (
-                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={() => onNavigate(AppView.ENGINEER_PROFILE)} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
-                    ))}
-                </div>
-            </section>
-
-             {/* Featured Producers Section */}
-            <section>
-                <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Featured Producers</h2>
-                    <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
-                        View All <ChevronRightIcon className="w-5 h-5"/>
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {featuredProducers.map(producer => (
-                        <ProducerCard key={producer.id} producer={producer} onSelectProducer={onSelectProducer} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
-                    ))}
                 </div>
             </section>
 

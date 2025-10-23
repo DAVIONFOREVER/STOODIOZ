@@ -93,14 +93,21 @@ const ProducerDashboard: React.FC = () => {
     
     const isProPlan = producer.subscription?.plan === SubscriptionPlan.PRODUCER_PRO;
 
+    const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+    const followers = allUsers.filter(u => producer.followerIds.includes(u.id));
+    const followedArtists = artists.filter(a => producer.following.artists.includes(a.id));
+    const followedEngineers = engineers.filter(e => producer.following.engineers.includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => producer.following.stoodioz.includes(s.id));
+    const followedProducers = producers.filter(p => producer.following.producers.includes(p.id));
+
     const renderContent = () => {
         switch(activeTab) {
             case 'beatStore': return <BeatManager producer={producer} onUpdateProducer={updateProfile} />;
             case 'availability': return <AvailabilityManager user={producer} onUpdateUser={updateProfile} />;
             case 'settings': return <ProducerSettings producer={producer} onUpdateProducer={updateProfile} />;
             case 'wallet': return <Wallet user={producer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.PRODUCER} />;
-            case 'followers': return <FollowersList followers={artists.filter(u => producer.followerIds.includes(u.id))} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
-            case 'following': return <Following artists={artists.filter(u => producer.following.artists.includes(u.id))} engineers={engineers.filter(u => producer.following.engineers.includes(u.id))} studios={stoodioz.filter(u => producer.following.stoodioz.includes(u.id))} producers={producers.filter(u => producer.following.producers.includes(u.id))} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStudio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
+            case 'followers': return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
+            case 'following': return <Following artists={followedArtists} engineers={followedEngineers} studios={followedStoodioz} producers={followedProducers} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStudio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
             default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">

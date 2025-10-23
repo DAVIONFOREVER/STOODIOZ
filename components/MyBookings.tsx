@@ -20,7 +20,8 @@ const MyBookings: React.FC = () => {
                 b.bookedById === currentUser.id || 
                 b.artist?.id === currentUser.id || 
                 b.engineer?.id === currentUser.id || 
-                b.stoodio?.id === currentUser.id
+                b.stoodio?.id === currentUser.id ||
+                b.producer?.id === currentUser.id
             )
             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [bookings, currentUser]);
@@ -62,6 +63,7 @@ const MyBookings: React.FC = () => {
     const getBookingImage = (booking: Booking): string => {
         if (booking.stoodio?.imageUrl) return booking.stoodio.imageUrl;
         if (booking.engineer?.imageUrl) return booking.engineer.imageUrl;
+        if (booking.producer?.imageUrl) return booking.producer.imageUrl;
         if (booking.requestedEngineerId) {
             const reqEngineer = engineers.find(e => e.id === booking.requestedEngineerId);
             if (reqEngineer?.imageUrl) return reqEngineer.imageUrl;
