@@ -1,4 +1,7 @@
 {
-  "name": "Copy of STOODIOZ ARIA EDITION",
-  "description": "Discover and book recording stoodioz near you. Stoodioz provides location-based search, detailed stoodio pages with live availability calendars, and a seamless booking experience for artists to find the perfect space and engineer for their next project."
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "name": "",
+  "description": ""
 }

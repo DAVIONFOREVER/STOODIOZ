@@ -3,6 +3,7 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import * as apiService from '../services/apiService';
 import { UserRole, AppView } from '../types';
 import type { BookingRequest, Booking, Engineer, Producer, Room } from '../types';
+import { redirectToCheckout } from '../lib/stripe';
 
 export const useBookings = (navigate: (view: AppView) => void) => {
     const dispatch = useAppDispatch();
@@ -27,15 +28,31 @@ export const useBookings = (navigate: (view: AppView) => void) => {
         if (!userRole || !currentUser) return;
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
-            const newBooking = await apiService.createBooking(bookingRequest, selectedStoodio ?? undefined, currentUser, userRole, engineers, producers);
-            dispatch({ type: ActionTypes.CONFIRM_BOOKING_SUCCESS, payload: { booking: newBooking } });
-            navigate(AppView.CONFIRMATION);
+            // The new API service function calls a Supabase Edge Function
+            // which creates the booking record and a Stripe session.
+            const { sessionId } = await apiService.createCheckoutSessionForBooking(
+                bookingRequest,
+                selectedStoodio?.id,
+                currentUser.id,
+                userRole
+            );
+            
+            // Redirect the user to the Stripe-hosted checkout page.
+            await redirectToCheckout(sessionId);
+            
+            // Note: We no longer dispatch CONFIRM_BOOKING_SUCCESS here.
+            // The success is handled by a Stripe webhook that updates our database.
+            // The user will be redirected back to a success/failure URL specified in the Edge Function.
+            
         } catch (error) {
-            console.error("Failed to create booking:", error);
+            console.error("Failed to create Stripe checkout session:", error);
+            // Optionally, show an error message to the user.
         } finally {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            // We may not want to set loading to false if a redirect is happening.
+            // Stripe's redirect will take over the page.
+            // If the redirect fails, we should handle that case and set loading to false.
         }
-    }, [selectedStoodio, currentUser, userRole, dispatch, navigate, engineers, producers]);
+    }, [selectedStoodio, currentUser, userRole, dispatch]);
 
     const confirmCancellation = useCallback(async (bookingId: string) => {
         const bookingToCancel = bookings.find(b => b.id === bookingId);

@@ -3,6 +3,7 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import * as apiService from '../services/apiService';
 import type { Booking } from '../types';
 import { UserRole } from '../types';
+import { redirectToCheckout } from '../lib/stripe';
 
 export const useSession = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
@@ -33,24 +34,26 @@ export const useSession = (navigate: (view: any) => void) => {
             const bookingToTip = bookings.find(b => b.id === bookingId);
             if (!bookingToTip) return;
 
-            const { updatedBooking, updatedUsers } = await apiService.addTip(bookingToTip, tipAmount);
-            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === bookingId ? updatedBooking : b) } });
-            // In a real app, you would dispatch the updatedUsers to update wallet balances
-            // dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
+            const { sessionId } = await apiService.addTip(bookingToTip, tipAmount);
+            await redirectToCheckout(sessionId);
+            
+            // The UI will close automatically upon redirecting to Stripe.
+            // The actual state update will happen via webhook.
         } catch(error) {
-            console.error("Failed to add tip:", error);
-        } finally {
-            dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
+            console.error("Failed to create tip session:", error);
+            // Handle error, maybe show a toast message
         }
     }, [bookings, currentUser, dispatch]);
     
     const addFunds = async (amount: number) => {
         if (!currentUser || !userRole) return;
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
-            const updatedUser = await apiService.updateUserWallet(currentUser.id, userRole, amount, 'ADD_FUNDS');
-            dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: updatedUser } });
+            const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, currentUser.id);
+            await redirectToCheckout(sessionId);
         } catch(error) {
-            console.error("Failed to add funds:", error);
+            console.error("Failed to create add funds session:", error);
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         } finally {
             dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
         }
@@ -58,12 +61,17 @@ export const useSession = (navigate: (view: any) => void) => {
 
     const requestPayout = async (amount: number) => {
         if (!currentUser || userRole === UserRole.ARTIST || !userRole) return;
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
-            const updatedUser = await apiService.updateUserWallet(currentUser.id, userRole, -amount, 'WITHDRAWAL');
-            dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: updatedUser } });
+            await apiService.initiatePayout(amount, currentUser.id);
+            // On success, you'd show a confirmation toast.
+            // The wallet balance will update automatically when the DB is updated via the backend
+            // and the component re-fetches its data.
         } catch(error) {
             console.error("Failed to request payout:", error);
+            // Show an error toast message
         } finally {
+             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
              dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });
         }
     };

@@ -258,7 +258,8 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
         };
         
         try {
-            const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO, engineers, producers);
+            // FIX: The `createBooking` function was missing from the apiService. It has been added. The call signature has also been updated to remove unused parameters.
+            const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO);
             dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, postedBy: UserRole.STOODIO } } });
         } catch(error) {
             console.error("Failed to post job", error);
@@ -337,6 +338,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             <CreatePost currentUser={currentUser!} onPost={createPost} />
+                            {/* FIX: Removed invalid `currentUser` prop. */}
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">

@@ -1,5 +1,5 @@
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData } from '../types';
-import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus } from '../types';
+import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { subDays, format } from 'date-fns';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -25,27 +25,16 @@ const fetchData = async <T>(tableName: string, query: string = '*'): Promise<T[]
     }
 };
 
-/*
- * Fetches main data and related nested data using Supabase resource embedding.
- * - The standard implicit join syntax `related_table(*)` is used. This requires that
- *   foreign key relationships are properly defined in the Supabase database schema.
- *   For example, for `rooms(*)` to work when querying `stoodioz`, the `rooms` table
- *   must have a `stoodio_id` foreign key column that references `stoodioz.id`.
- */
 export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz', '*, rooms(*), in_house_engineers(*)');
 export const fetchArtists = (): Promise<Artist[]> => fetchData<Artist>('artists', '*');
 export const fetchEngineers = (): Promise<Engineer[]> => fetchData<Engineer>('engineers', '*, mixing_samples(*)');
 export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers', '*');
 export const fetchReviews = (): Promise<Review[]> => fetchData<Review>('reviews', '*');
-// The query for bookings uses aliasing (e.g., `stoodio:stoodioz(*)`) to map the fetched
-// `stoodioz` table to the `stoodio` property on the Booking type. This is correct syntax.
-// An error here likely indicates a missing Foreign Key constraint in the Supabase schema.
 export const fetchBookings = (): Promise<Booking[]> => fetchData<Booking>('bookings', '*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)');
 
 
 // --- DATA MUTATIONS (Simulated POST, PUT, DELETE Requests) ---
 
-// FIX: Add findUserByCredentials function
 export const findUserByCredentials = async (email: string, password: string): Promise<Artist | Engineer | Stoodio | Producer | null> => {
     const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
     for (const table of tables) {
@@ -63,7 +52,6 @@ export const findUserByCredentials = async (email: string, password: string): Pr
     return null;
 };
 
-// FIX: Add createUser function
 export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | null> => {
     let tableName = '';
     let newUserScaffold: any = {};
@@ -107,76 +95,139 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     return newUserScaffold;
 };
 
-// FIX: Add updateUser function
 export const updateUser = async (userId: string, updates: Partial<Artist | Engineer | Stoodio | Producer>): Promise<any> => {
-    // This is a mock. A real function would update the database.
     console.log(`Updating user ${userId} with`, updates);
-    // This mock returns a partial object. The hook logic will merge it.
     return { id: userId, ...updates }; 
 };
 
+/**
+ * Creates a new booking record in the database and then initiates a Stripe checkout session.
+ * @returns { sessionId: string } The ID for the Stripe Checkout session.
+ */
+export const createCheckoutSessionForBooking = async (
+    bookingRequest: BookingRequest,
+    stoodioId: string | undefined,
+    userId: string,
+    userRole: UserRole
+): Promise<{ sessionId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
 
+    // This function now calls a Supabase Edge Function.
+    // The Edge Function will handle creating the booking in the DB with a 'PENDING_PAYMENT' status,
+    // then creating a Stripe Checkout session, and returning the session ID.
+    const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { bookingRequest, stoodioId, userId, userRole },
+    });
+
+    if (error) throw error;
+    return data;
+};
+
+/**
+ * Creates a Stripe checkout session for adding funds to a user's wallet.
+ * @returns { sessionId: string } The ID for the Stripe Checkout session.
+ */
+export const createCheckoutSessionForWallet = async (amount: number, userId: string): Promise<{ sessionId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // This Edge Function will create a Stripe Checkout session for the specified amount
+    // and include metadata to identify the user, so the webhook can update the correct wallet.
+    const { data, error } = await supabase.functions.invoke('create-add-funds-session', {
+        body: { amount, userId },
+    });
+
+    if (error) throw error;
+    return data;
+};
+
+/**
+ * Initiates a payout request from a user's wallet to their bank account.
+ */
+export const initiatePayout = async (amount: number, userId: string): Promise<{ success: boolean }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    // This Edge Function verifies the user's balance, then calls the Stripe API
+    // to create a transfer to the user's connected bank account.
+    const { data, error } = await supabase.functions.invoke('request-payout', {
+        body: { amount, userId },
+    });
+    
+    if (error) throw error;
+    return data;
+};
+
+// FIX: Added 'createBooking' function to handle non-payment booking creations like job postings.
 export const createBooking = async (
     bookingRequest: BookingRequest,
     stoodio: Stoodio | undefined,
-    currentUser: Artist | Engineer | Stoodio | Producer,
-    userRole: UserRole,
-    engineers: Engineer[],
-    producers: Producer[]
+    bookedByUser: Artist | Engineer | Stoodio | Producer,
+    bookedByRole: UserRole,
 ): Promise<Booking> => {
-    // This logic mimics the original mock to determine status and assign engineers for "Find Available"
-    let status = BookingStatus.PENDING;
-    let engineer: Engineer | null = null;
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
 
-    if (bookingRequest.mixingDetails?.type === 'REMOTE') {
-         status = BookingStatus.PENDING_APPROVAL;
-    } else {
-        if (bookingRequest.requestType === 'BRING_YOUR_OWN' || !!bookingRequest.producerId) status = BookingStatus.CONFIRMED;
-        else if (bookingRequest.requestType === 'SPECIFIC_ENGINEER') status = BookingStatus.PENDING_APPROVAL;
-        else status = BookingStatus.CONFIRMED;
-    }
-    
-    if (status === BookingStatus.CONFIRMED && bookingRequest.requestType === 'FIND_AVAILABLE') {
-        engineer = engineers.find(e => e.isAvailable) || null;
-    }
+    let status = bookingRequest.requestType === BookingRequestType.SPECIFIC_ENGINEER ? BookingStatus.PENDING_APPROVAL : BookingStatus.PENDING;
 
-    const newBooking: Booking = {
-        id: `booking-${Date.now()}`,
-        ...bookingRequest,
-        stoodio,
-        engineer,
-        producer: bookingRequest.producerId ? producers.find(p => p.id === bookingRequest.producerId) || null : null,
-        artist: userRole === 'ARTIST' ? (currentUser as Artist) : null,
-        status,
-        requestedEngineerId: bookingRequest.requestedEngineerId || null,
-        bookedById: currentUser.id,
-        bookedByRole: userRole,
+    const newBookingData: any = {
+        date: bookingRequest.date,
+        start_time: bookingRequest.startTime,
+        duration: bookingRequest.duration,
+        total_cost: bookingRequest.totalCost,
+        status: status,
+        booked_by_id: bookedByUser.id,
+        booked_by_role: bookedByRole,
+        request_type: bookingRequest.requestType,
+        engineer_pay_rate: bookingRequest.engineerPayRate,
+        mixing_details: bookingRequest.mixingDetails,
+        stoodio_id: stoodio?.id,
+        artist_id: bookedByRole === UserRoleEnum.ARTIST ? bookedByUser.id : null,
+        requested_engineer_id: bookingRequest.requestedEngineerId,
+        producer_id: bookingRequest.producerId,
+        posted_by: bookedByRole === UserRoleEnum.STOODIO ? UserRoleEnum.STOODIO : undefined,
     };
+
+    const { data, error } = await supabase
+        .from('bookings')
+        .insert([newBookingData])
+        .select('*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)')
+        .single();
     
-    // In a real app, this would be an API call. Here we just return the new object.
-    return newBooking;
+    if (error) {
+        console.error("Error creating booking:", error.message);
+        throw error;
+    }
+
+    return data as Booking;
 };
+
 
 export const endSession = async (booking: Booking): Promise<{ updatedBooking: Booking }> => {
     const updatedBooking = { ...booking, status: BookingStatus.COMPLETED };
     return { updatedBooking };
 };
 
-// FIX: `cancelBooking` now correctly receives a `Booking` object.
 export const cancelBooking = async (booking: Booking): Promise<{ updatedBookings: Booking[] }> => {
     const updatedBooking = { ...booking, status: BookingStatus.CANCELLED };
     return { updatedBookings: [updatedBooking] };
 };
 
-// FIX: `addTip` now returns the expected shape for the hook.
-export const addTip = async (booking: Booking, tipAmount: number): Promise<{ updatedBooking: Booking; updatedUsers: any[] }> => {
-    const updatedBooking = { ...booking, tip: tipAmount };
-    const updatedUsers: any[] = [];
-    // A real API would update user wallets here. We'll return an empty array for the mock.
-    return { updatedBooking, updatedUsers };
+export const addTip = async (booking: Booking, tipAmount: number): Promise<{ sessionId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    // Create a checkout session specifically for the tip.
+    // The webhook will handle associating the tip with the booking and updating balances.
+    const { data, error } = await supabase.functions.invoke('create-tip-session', {
+        body: { tipAmount, bookingId: booking.id, recipientId: booking.engineer?.id },
+    });
+
+    if (error) throw error;
+    return data;
 };
 
-// FIX: `toggleFollow` now accepts all users to find the target and returns both updated users.
 export const toggleFollow = async (currentUser: any, targetId: string, targetType: 'artist' | 'engineer' | 'stoodio' | 'producer', allUsers: any[]): Promise<{ updatedCurrentUser: any; updatedTargetUser: any; }> => {
     const listKey = `${targetType}s`;
     const isFollowing = (currentUser.following[listKey] || []).includes(targetId);
@@ -252,48 +303,16 @@ export const respondToBooking = async (booking: Booking, action: 'accept' | 'den
     return { updatedBooking };
 };
 
-// FIX: Add `submitForVerification` and `approveVerification` functions.
 export const submitForVerification = async (stoodioId: string, verificationData: { googleBusinessProfileUrl: string; websiteUrl: string }): Promise<Partial<Stoodio>> => {
-    // Simulate the API call, return a pending status for optimistic UI update.
     return { ...verificationData, verificationStatus: VerificationStatus.PENDING };
 };
 
 export const approveVerification = async (stoodioId: string): Promise<Partial<Stoodio>> => {
-    // Simulate an admin approving the request
     return { verificationStatus: VerificationStatus.VERIFIED };
 };
 
-// FIX: Add `updateUserWallet` function
-export const updateUserWallet = async (userId: string, userRole: UserRole, amount: number, category: string): Promise<any> => {
-    console.warn('updateUserWallet is a mock and does not persist data.');
-     const allUsers = [
-        ...await fetchArtists(),
-        ...await fetchEngineers(),
-        ...await fetchProducers(),
-        ...await fetchStoodioz(),
-    ];
-    const user = allUsers.find(u => u.id === userId);
-    if (!user) return null;
-    
-    const newBalance = user.walletBalance + amount;
-     const newTransaction: Transaction = {
-        id: `tx-${Date.now()}`,
-        description: category.replace('_', ' '),
-        amount: amount,
-        date: new Date().toISOString(),
-        category: category as TransactionCategory,
-        status: TransactionStatus.COMPLETED,
-    };
-
-    return { ...user, walletBalance: newBalance, walletTransactions: [...user.walletTransactions, newTransaction] };
-};
-
 export const fetchAnalyticsData = async (userId: string, days: number = 30): Promise<AnalyticsData> => {
-    // This is a mock function. In a real app, you would query Supabase with aggregate functions (e.g., SUM, COUNT, GROUP BY date).
-    // For now, we generate plausible random data.
-    
-    await new Promise(res => setTimeout(res, 800)); // Simulate network delay
-
+    await new Promise(res => setTimeout(res, 800));
     const revenueOverTime = [];
     const engagementOverTime = [];
     let totalRevenue = 0;
@@ -301,21 +320,10 @@ export const fetchAnalyticsData = async (userId: string, days: number = 30): Pro
     for (let i = days - 1; i >= 0; i--) {
         const date = subDays(new Date(), i);
         const dateString = format(date, 'yyyy-MM-dd');
-        
         const dailyRevenue = Math.random() * 300;
         totalRevenue += dailyRevenue;
-        
-        revenueOverTime.push({
-            date: dateString,
-            revenue: parseFloat(dailyRevenue.toFixed(2)),
-        });
-        
-        engagementOverTime.push({
-            date: dateString,
-            views: Math.floor(Math.random() * 150) + 20,
-            followers: Math.floor(Math.random() * 5),
-            likes: Math.floor(Math.random() * 30),
-        });
+        revenueOverTime.push({ date: dateString, revenue: parseFloat(dailyRevenue.toFixed(2)) });
+        engagementOverTime.push({ date: dateString, views: Math.floor(Math.random() * 150) + 20, followers: Math.floor(Math.random() * 5), likes: Math.floor(Math.random() * 30) });
     }
 
     return {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import type { Stoodio, Artist, Engineer, Producer } from '../types';
 import { useAppState } from '../contexts/AppContext';
@@ -13,7 +13,7 @@ const mapContainerStyle = {
   borderRadius: '1rem',
 };
 
-const center = {
+const defaultCenter = {
   lat: 39.8283,
   lng: -98.5795,
 };
@@ -107,6 +107,25 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
     const { stoodioz, artists, engineers, producers } = useAppState();
     const { navigateToStudio } = useNavigation();
     const [selected, setSelected] = useState<MapUser | null>(null);
+    const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setUserLocation({
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    });
+                },
+                () => {
+                    console.log("Geolocation permission denied. Using default map center.");
+                }
+            );
+        }
+    }, []);
+
+    const mapCenter = useMemo(() => userLocation || defaultCenter, [userLocation]);
 
     const mapUsers = useMemo<MapUser[]>(() => {
         const allUsers: MapUser[] = [
@@ -134,38 +153,47 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
         else onSelectArtist(user as Artist);
     }, [onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer]);
 
+    const markerIcon = useMemo(() => {
+        if (!isLoaded || !(window as any).google) return undefined;
+        return {
+            path: (window as any).google.maps.SymbolPath.CIRCLE,
+            fillColor: '#f97316',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 1.5,
+            scale: 7,
+        };
+    }, [isLoaded]);
+
+    const infoWindowOptions = useMemo(() => {
+        if (!isLoaded || !(window as any).google) return undefined;
+        return { pixelOffset: new (window as any).google.maps.Size(0, -30) };
+    }, [isLoaded]);
+
+
     const renderMap = () => (
         <GoogleMap
             mapContainerStyle={mapContainerStyle}
-            center={center}
-            zoom={4}
+            center={mapCenter}
+            zoom={userLocation ? 11 : 4}
             options={mapOptions}
         >
             <>
-                {mapUsers.map(user => (
+                {markerIcon && mapUsers.map(user => (
                     <Marker
                         key={user.id}
                         position={{ lat: user.coordinates.lat, lng: user.coordinates.lon }}
                         onClick={() => handleMarkerClick(user)}
-                        icon={{
-                            // FIX: Resolve TypeScript error `Property 'google' does not exist on type 'Window'` by casting `window` to `any`.
-                            path: (window as any).google.maps.SymbolPath.CIRCLE,
-                            fillColor: '#f97316',
-                            fillOpacity: 1,
-                            strokeColor: '#ffffff',
-                            strokeWeight: 1.5,
-                            scale: 7,
-                        }}
+                        icon={markerIcon}
                         title={user.name}
                     />
                 ))}
 
-                {selected && (
+                {selected && infoWindowOptions && (
                     <InfoWindow
                         position={{ lat: selected.coordinates.lat, lng: selected.coordinates.lon }}
                         onCloseClick={handleInfoWindowClose}
-                        // FIX: Resolve TypeScript error `Property 'google' does not exist on type 'Window'` by casting `window` to `any`.
-                        options={{ pixelOffset: new (window as any).google.maps.Size(0, -30) }}
+                        options={infoWindowOptions}
                     >
                         <MapInfoPopup 
                             user={selected} 
