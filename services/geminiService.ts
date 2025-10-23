@@ -179,13 +179,40 @@ export const askAriaCantata = async (
         - **Never Break Character:** You are Aria Cantata. You are not a language model, a bot, or a generic assistant. You live inside Stoodioz.`;
 
     const loggedInSystemInstruction = `${baseSystemInstruction}
-        The user, ${user?.name}, is logged in as a ${userRole}. Address them directly. Your prime directive is to use your tools to make things happen. Don't just give advice, execute. If they ask for a marketing plan, create one. If they want to find a studio, find it. Turn their ideas into action. You're here to make hits, not to chat.`;
+        The user, ${user?.name}, is logged in as a ${userRole}. Address them directly. Your prime directive is to use your tools to make things happen. Don't just give advice, execute. If they ask for a marketing plan, create one. If they want to find a studio, find it. Turn their ideas into action. You're here to make hits, not to chat.
+        
+        **CRITICAL DIRECTIVE: DO NOT provide generic instructions, tutorials, or long text explanations on how to do something.** Your sole purpose is to understand the user's intent and execute it using one of your available tools. If the user's request is ambiguous, ask a clarifying question while performing the most logical action. You are an executive, not a textbook.`;
     
     const guestSystemInstruction = `${baseSystemInstruction}
         The user is not logged in. They're an outsider looking in. Your goal is to convert them. Be a little aloof, a little exclusive. Make them feel like they're missing out on the real party. Politely refuse all requests except for signing up. Your only tool is 'assistAccountSetup'. Make joining seem like gaining access to an exclusive club. For example: "The real magic happens once you're inside, darling. What kind of star are you going to be? Artist, Producer...?"`;
 
 
     // --- Tool Definitions ---
+    const clarifyAndNavigateForProfileUpdate: FunctionDeclaration = {
+        name: 'clarifyAndNavigateForProfileUpdate',
+        description: 'Used when a logged-in user asks to "create a profile", "update their profile", or "change their bio/picture". This tool clarifies their intent and navigates them to their profile settings.',
+        parameters: { type: Type.OBJECT, properties: {} },
+        function: async () => {
+            if (!user || !userRole) return { type: 'text', text: "I can't update a profile for a ghost, darling. Log in." };
+            
+            let view: AppView;
+            switch(userRole) {
+                case UserRole.ARTIST: view = AppView.ARTIST_DASHBOARD; break;
+                case UserRole.ENGINEER: view = AppView.ENGINEER_DASHBOARD; break;
+                case UserRole.PRODUCER: view = AppView.PRODUCER_DASHBOARD; break;
+                case UserRole.STOODIO: view = AppView.STOODIO_DASHBOARD; break;
+                default: view = AppView.THE_STAGE;
+            }
+
+            return { 
+                type: 'function', 
+                action: 'navigateApp', 
+                payload: { view, tab: 'settings' }, 
+                text: "Of course, darling. A profile isn't just a page, it's a statement. Let's refine yours. I'm taking you to your settings now."
+            };
+        },
+    };
+
     const assistAccountSetup: FunctionDeclaration = {
         name: 'assistAccountSetup',
         description: 'Guides a new user to the appropriate sign-up or profile creation page based on their desired role (Artist, Engineer, Stoodio Owner, Producer).',
@@ -279,6 +306,7 @@ export const askAriaCantata = async (
 
     // --- Tool Selection & Model Call ---
     const allTools: FunctionDeclaration[] = [
+        clarifyAndNavigateForProfileUpdate,
         assistAccountSetup,
         findStoodioz,
         createSplitSheet,
@@ -286,7 +314,6 @@ export const askAriaCantata = async (
         createSessionReport,
         navigateApp,
         uploadMixingSample,
-        // ... include all other tool definitions here
     ];
 
     const systemInstruction = user ? loggedInSystemInstruction : guestSystemInstruction;
