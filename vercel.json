@@ -1,13 +1,16 @@
 {
-  "builds": [
-    {
-      "use": "@vercel/vite"
-    }
-  ],
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/feedback/:id",
+      "destination": "/api/feedback/:id"
     }
+  ]
+}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/feedback/:id", "destination": "/api/feedback/:id" },
+    { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }
