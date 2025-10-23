@@ -1,216 +1,194 @@
-import React, { useState, useMemo } from 'react';
-import type { Stoodio, Engineer, Artist, Location, Booking, VibeMatchResult, Producer } from '../types';
-import { BookingStatus } from '../types';
-import { HouseIcon, SoundWaveIcon, MicrophoneIcon, ChevronUpIcon, ChevronDownIcon, BriefcaseIcon, MagicWandIcon, MusicNoteIcon } from './icons';
-import MapBookingPopup from './MapBookingPopup';
+import React, { useState, useMemo, useCallback } from 'react';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import type { Stoodio, Artist, Engineer, Producer } from '../types';
 import { useAppState } from '../contexts/AppContext';
+import MapInfoPopup from './MapInfoPopup';
+import { useNavigation } from '../hooks/useNavigation';
+
+type MapUser = Artist | Engineer | Producer | Stoodio;
+
+const mapContainerStyle = {
+  width: '100%',
+  height: 'calc(100vh - 10rem)',
+  borderRadius: '1rem',
+};
+
+const center = {
+  lat: 39.8283,
+  lng: -98.5795,
+};
+
+// Dark "Aubergine" map style from Google Maps Platform
+const mapOptions = {
+  styles: [
+    { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
+    {
+      featureType: 'administrative.locality',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: '#d59563' }],
+    },
+    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
+    {
+      featureType: 'poi.park',
+      elementType: 'geometry',
+      stylers: [{ color: '#263c3f' }],
+    },
+    {
+      featureType: 'poi.park',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: '#6b9a76' }],
+    },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
+    {
+      featureType: 'road',
+      elementType: 'geometry.stroke',
+      stylers: [{ color: '#212a37' }],
+    },
+    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
+    {
+      featureType: 'road.highway',
+      elementType: 'geometry',
+      stylers: [{ color: '#746855' }],
+    },
+    {
+      featureType: 'road.highway',
+      elementType: 'geometry.stroke',
+      stylers: [{ color: '#1f2835' }],
+    },
+    {
+      featureType: 'road.highway',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: '#f3d19c' }],
+    },
+    { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#2f3948' }] },
+    {
+      featureType: 'transit.station',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: '#d59563' }],
+    },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
+    {
+      featureType: 'water',
+      elementType: 'labels.text.fill',
+      stylers: [{ color: '#515c6d' }],
+    },
+    {
+      featureType: 'water',
+      elementType: 'labels.text.stroke',
+      stylers: [{ color: '#17263c' }],
+    },
+  ],
+  disableDefaultUI: true,
+  zoomControl: true,
+  mapTypeControl: false,
+  streetViewControl: false,
+  fullscreenControl: false,
+};
+
+const libraries: ('places')[] = ['places'];
 
 interface MapViewProps {
-    onSelectStoodio?: (stoodio: Stoodio) => void;
-    onSelectEngineer?: (engineer: Engineer) => void;
-    onSelectArtist?: (artist: Artist) => void;
-    onSelectProducer?: (producer: Producer) => void;
-    onInitiateBooking?: (engineer: Engineer, date: string, time: string) => void;
+    onSelectStoodio: (stoodio: Stoodio) => void;
+    onSelectEngineer: (engineer: Engineer) => void;
+    onSelectArtist: (artist: Artist) => void;
+    onSelectProducer: (producer: Producer) => void;
+    onInitiateBooking: (engineer: Engineer, date: string, time: string) => void;
 }
 
-type PinType = 'stoodio' | 'engineer' | 'artist' | 'job' | 'vibe-match-stoodio' | 'vibe-match-engineer' | 'producer' | 'vibe-match-producer';
+const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, onSelectArtist, onSelectProducer }) => {
+    const { isLoaded, loadError } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: (process as any).env.API_KEY || (import.meta as any).env.VITE_API_KEY,
+        libraries,
+    });
 
-const MAP_BOUNDS = { minLat: 24.39, maxLat: 49.38, minLon: -125.0, maxLon: -66.94 };
+    const { stoodioz, artists, engineers, producers } = useAppState();
+    const { navigateToStudio } = useNavigation();
+    const [selected, setSelected] = useState<MapUser | null>(null);
 
-const fuzzCoordinates = (coords: Location): Location => {
-    const latOffset = (Math.random() - 0.5) * 0.2; // ~7 miles
-    const lonOffset = (Math.random() - 0.5) * 0.25; // ~7 miles
-    return {
-        lat: coords.lat + latOffset,
-        lon: coords.lon + lonOffset,
-    };
-};
+    const mapUsers = useMemo<MapUser[]>(() => {
+        const allUsers: MapUser[] = [
+            ...stoodioz,
+            ...artists,
+            ...engineers,
+            ...producers,
+        ];
+        return allUsers.filter(u => u.showOnMap && u.coordinates);
+    }, [stoodioz, artists, engineers, producers]);
 
-const convertCoordsToPercent = (coords: Location): { top: string; left: string } => {
-    const { lat, lon } = coords;
-    const { minLat, maxLat, minLon, maxLon } = MAP_BOUNDS;
+    const handleMarkerClick = useCallback((user: MapUser) => {
+        setSelected(user);
+    }, []);
 
-    const topPercent = ((maxLat - lat) / (maxLat - minLat)) * 100;
-    const leftPercent = ((lon - minLon) / (maxLon - minLon)) * 100;
-
-    return {
-        top: `${Math.max(0, Math.min(100, topPercent))}%`,
-        left: `${Math.max(0, Math.min(100, leftPercent))}%`,
-    };
-};
-
-const MapPin: React.FC<{
-    type: PinType;
-    entity: Stoodio | Engineer | Artist | Booking | Producer;
-    position: { top: string; left: string };
-    onSelect?: (entity: any, type: PinType) => void;
-}> = ({ type, entity, position, onSelect }) => {
-    const iconMap: Record<PinType, { icon: React.ReactNode; color: string; zIndex: number }> = {
-        stoodio: { icon: <HouseIcon className="w-4 h-4 text-white" />, color: 'bg-orange-500', zIndex: 10 },
-        engineer: { icon: <SoundWaveIcon className="w-4 h-4 text-white" />, color: 'bg-amber-500', zIndex: 10 },
-        artist: { icon: <MicrophoneIcon className="w-4 h-4 text-white" />, color: 'bg-green-500', zIndex: 10 },
-        producer: { icon: <MusicNoteIcon className="w-4 h-4 text-white" />, color: 'bg-purple-500', zIndex: 10 },
-        job: { icon: <BriefcaseIcon className="w-4 h-4 text-white" />, color: 'bg-indigo-500', zIndex: 15 },
-        'vibe-match-stoodio': { icon: <MagicWandIcon className="w-5 h-5 text-white" />, color: 'bg-pink-500', zIndex: 20 },
-        'vibe-match-engineer': { icon: <MagicWandIcon className="w-5 h-5 text-white" />, color: 'bg-cyan-500', zIndex: 20 },
-        'vibe-match-producer': { icon: <MagicWandIcon className="w-5 h-5 text-white" />, color: 'bg-fuchsia-500', zIndex: 20 },
-    };
-
-    const { icon, color, zIndex } = iconMap[type];
-    const pinSize = type.startsWith('vibe-match') ? 'p-3' : 'p-2';
-    const commonClasses = `absolute transform -translate-x-1/2 -translate-y-1/2 ${pinSize} rounded-full shadow-lg transition-transform duration-200`;
-    const style = { ...position, zIndex };
-
-    const entityName = 'name' in entity ? entity.name : `Job at ${(entity as Booking).stoodio?.name ?? 'a studio'}`;
-
-    return (
-        <button
-            style={style}
-            onClick={() => onSelect?.(entity, type)}
-            className={`${commonClasses} ${color} hover:scale-125 hover:z-30`}
-            aria-label={`View details for ${entityName}`}
-        >
-            {icon}
-        </button>
-    );
-};
-
-const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, onSelectArtist, onSelectProducer, onInitiateBooking }) => {
-    const { stoodioz, engineers, artists, producers, bookings, vibeMatchResults } = useAppState();
-    const [showStoodioz, setShowStoodioz] = useState(true);
-    const [showEngineers, setShowEngineers] = useState(true);
-    const [showArtists, setShowArtists] = useState(true);
-    const [showProducers, setShowProducers] = useState(true);
-    const [showJobs, setShowJobs] = useState(true);
-    const [showVibeMatches, setShowVibeMatches] = useState(true);
-    const [isFiltersOpen, setIsFiltersOpen] = useState(true);
-    const [selectedMapEngineer, setSelectedMapEngineer] = useState<Engineer | null>(null);
-
-    const activeAndFutureJobs = useMemo(() => {
-        return bookings.filter(b => 
-            [BookingStatus.CONFIRMED, BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL].includes(b.status)
-        );
-    }, [bookings]);
+    const handleInfoWindowClose = useCallback(() => {
+        setSelected(null);
+    }, []);
     
-    const handleSelect = (entity: any, type: PinType) => {
-        switch (type) {
-            case 'stoodio':
-            case 'vibe-match-stoodio':
-                onSelectStoodio?.(entity as Stoodio);
-                break;
-            case 'engineer':
-            case 'vibe-match-engineer':
-                const engineer = entity as Engineer;
-                if (onInitiateBooking) {
-                    setSelectedMapEngineer(engineer);
-                } else {
-                    onSelectEngineer?.(engineer);
-                }
-                break;
-            case 'artist':
-                onSelectArtist?.(entity as Artist);
-                break;
-            case 'producer':
-            case 'vibe-match-producer':
-                onSelectProducer?.(entity as Producer);
-                break;
-            case 'job':
-                if ((entity as Booking).stoodio) {
-                    onSelectStoodio?.((entity as Booking).stoodio!);
-                }
-                break;
-        }
-    };
+    const handleSelectFromPopup = useCallback((user: MapUser) => {
+        setSelected(null); // Close the popup on selection
+        if ('amenities' in user) onSelectStoodio(user);
+        else if ('specialties' in user) onSelectEngineer(user);
+        else if ('instrumentals' in user) onSelectProducer(user);
+        else onSelectArtist(user as Artist);
+    }, [onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer]);
 
-    const handleInitiateBookingFromPopup = (engineer: Engineer, date: string, time: string) => {
-        onInitiateBooking?.(engineer, date, time);
-        setSelectedMapEngineer(null);
-    };
+    const renderMap = () => (
+        <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={center}
+            zoom={4}
+            options={mapOptions}
+        >
+            <>
+                {mapUsers.map(user => (
+                    <Marker
+                        key={user.id}
+                        position={{ lat: user.coordinates.lat, lng: user.coordinates.lon }}
+                        onClick={() => handleMarkerClick(user)}
+                        icon={{
+                            // FIX: Resolve TypeScript error `Property 'google' does not exist on type 'Window'` by casting `window` to `any`.
+                            path: (window as any).google.maps.SymbolPath.CIRCLE,
+                            fillColor: '#f97316',
+                            fillOpacity: 1,
+                            strokeColor: '#ffffff',
+                            strokeWeight: 1.5,
+                            scale: 7,
+                        }}
+                        title={user.name}
+                    />
+                ))}
 
-    return (
-        <div className="relative w-full h-full">
-            <div className="w-full h-full bg-zinc-800 rounded-2xl shadow-inner overflow-hidden border border-zinc-700">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1568224348083-22ac64165d62?q=80&w=2574" alt="World Map" className="w-full h-full object-cover opacity-20" />
-                
-                {showStoodioz && stoodioz.filter(s => s.showOnMap).map(s => (
-                    <MapPin key={`stoodio-${s.id}`} type="stoodio" entity={s} position={convertCoordsToPercent(s.coordinates)} onSelect={handleSelect} />
-                ))}
-                {showEngineers && engineers.filter(e => e.showOnMap).map(e => {
-                    const positionCoords = e.displayExactLocation ? e.coordinates : fuzzCoordinates(e.coordinates);
-                    return (
-                        <MapPin key={`eng-${e.id}`} type="engineer" entity={e} position={convertCoordsToPercent(positionCoords)} onSelect={handleSelect} />
-                    );
-                })}
-                 {showProducers && producers.filter(p => p.showOnMap).map(p => (
-                    <MapPin key={`prod-${p.id}`} type="producer" entity={p} position={convertCoordsToPercent(p.coordinates)} onSelect={handleSelect} />
-                ))}
-                {showArtists && artists.filter(a => a.showOnMap).map(a => (
-                    <MapPin key={`art-${a.id}`} type="artist" entity={a} position={convertCoordsToPercent(a.coordinates)} onSelect={handleSelect} />
-                ))}
-                {showJobs && activeAndFutureJobs.map(job => (
-                    job.stoodio && <MapPin key={`job-${job.id}`} type="job" entity={job} position={convertCoordsToPercent(job.stoodio.coordinates)} onSelect={handleSelect} />
-                ))}
-                {showVibeMatches && vibeMatchResults?.recommendations.map((rec, index) => {
-                    const type = rec.type === 'stoodio' ? 'vibe-match-stoodio' : rec.type === 'engineer' ? 'vibe-match-engineer' : 'vibe-match-producer';
-                    return (
-                        <MapPin key={`vibe-${rec.entity.id}-${index}`} type={type} entity={rec.entity} position={convertCoordsToPercent(rec.entity.coordinates)} onSelect={handleSelect} />
-                    );
-                })}
-            </div>
-            
-            {selectedMapEngineer && onInitiateBooking && (
-                <MapBookingPopup
-                    engineer={selectedMapEngineer}
-                    onClose={() => setSelectedMapEngineer(null)}
-                    onInitiateBooking={handleInitiateBookingFromPopup}
-                />
-            )}
+                {selected && (
+                    <InfoWindow
+                        position={{ lat: selected.coordinates.lat, lng: selected.coordinates.lon }}
+                        onCloseClick={handleInfoWindowClose}
+                        // FIX: Resolve TypeScript error `Property 'google' does not exist on type 'Window'` by casting `window` to `any`.
+                        options={{ pixelOffset: new (window as any).google.maps.Size(0, -30) }}
+                    >
+                        <MapInfoPopup 
+                            user={selected} 
+                            onClose={handleInfoWindowClose}
+                            onSelect={handleSelectFromPopup}
+                            onNavigate={navigateToStudio}
+                        />
+                    </InfoWindow>
+                )}
+            </>
+        </GoogleMap>
+    );
 
-            {/* Filter Panel */}
-            <div className="absolute top-4 left-4 z-20 w-64">
-                 <div className="bg-zinc-800/80 backdrop-blur-sm rounded-xl shadow-lg border border-zinc-700">
-                    <button onClick={() => setIsFiltersOpen(!isFiltersOpen)} className="w-full flex justify-between items-center p-3 font-bold text-slate-100">
-                        <span>Map Filters</span>
-                        {isFiltersOpen ? <ChevronUpIcon className="w-5 h-5"/> : <ChevronDownIcon className="w-5 h-5"/>}
-                    </button>
-                    {isFiltersOpen && (
-                        <div className="p-4 border-t border-zinc-700 space-y-3">
-                            <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
-                                <input type="checkbox" checked={showStoodioz} onChange={() => setShowStoodioz(!showStoodioz)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-orange-500 focus:ring-orange-500" />
-                                <HouseIcon className="w-5 h-5 text-orange-500"/>
-                                <span>Stoodioz</span>
-                            </label>
-                             <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
-                                <input type="checkbox" checked={showEngineers} onChange={() => setShowEngineers(!showEngineers)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-amber-500 focus:ring-amber-500" />
-                                <SoundWaveIcon className="w-5 h-5 text-amber-500"/>
-                                <span>Engineers</span>
-                            </label>
-                             <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
-                                <input type="checkbox" checked={showProducers} onChange={() => setShowProducers(!showProducers)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-purple-500 focus:ring-purple-500" />
-                                <MusicNoteIcon className="w-5 h-5 text-purple-500"/>
-                                <span>Producers</span>
-                            </label>
-                             <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
-                                <input type="checkbox" checked={showArtists} onChange={() => setShowArtists(!showArtists)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-green-500 focus:ring-green-500" />
-                                <MicrophoneIcon className="w-5 h-5 text-green-500"/>
-                                <span>Artists</span>
-                            </label>
-                            <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
-                                <input type="checkbox" checked={showJobs} onChange={() => setShowJobs(!showJobs)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-indigo-500 focus:ring-indigo-500" />
-                                <BriefcaseIcon className="w-5 h-5 text-indigo-500"/>
-                                <span>Active Jobs</span>
-                            </label>
-                            {vibeMatchResults && (
-                                <label className="flex items-center gap-3 text-slate-200 cursor-pointer">
-                                    <input type="checkbox" checked={showVibeMatches} onChange={() => setShowVibeMatches(!showVibeMatches)} className="w-5 h-5 rounded bg-zinc-700 border-zinc-600 text-pink-500 focus:ring-pink-500" />
-                                    <MagicWandIcon className="w-5 h-5 text-pink-500"/>
-                                    <span>Vibe Match Results</span>
-                                </label>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
+    if (loadError) {
+        return <div className="text-red-400 p-4 bg-red-900/50 rounded-lg">Error loading maps. Please check your API key and internet connection.</div>;
+    }
+
+    return isLoaded ? renderMap() : (
+         <div className="flex justify-center items-center" style={mapContainerStyle}>
+            <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
         </div>
     );
 };

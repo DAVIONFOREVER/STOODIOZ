@@ -21,7 +21,8 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                     <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors flex items-center gap-2">
                         {stoodio.name}
                         {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
-                            <VerifiedIcon className="w-6 h-6 text-blue-400" title="Verified Stoodio" />
+                            // FIX: The `title` attribute is not a valid prop for the `VerifiedIcon` component. The fix is to use an SVG `<title>` element for accessibility.
+                            <VerifiedIcon className="w-6 h-6 text-blue-400"><title>Verified Stoodio</title></VerifiedIcon>
                         )}
                     </h3>
                     <p className="text-zinc-300 font-semibold flex items-center gap-1.5"><LocationIcon className="w-4 h-4" /> {stoodio.location}</p>

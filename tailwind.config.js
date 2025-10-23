@@ -26,6 +26,7 @@ export default {
         'fade-in-up': 'fade-in-up 0.6s ease-out forwards',
         'slide-up': 'slide-up 0.5s ease-out forwards',
         'gradient-bg': 'gradient-bg 25s ease infinite',
+        'blink': 'blink 1.2s infinite steps(1, start)',
       },
        keyframes: {
         'gradient-flow': {
@@ -48,6 +49,10 @@ export default {
             '0%': { backgroundPosition: '0% 50%' },
             '50%': { backgroundPosition: '100% 50%' },
             '100%': { backgroundPosition: '0% 50%' },
+        },
+        'blink': {
+          '0%, 100%': { 'background-color': 'transparent' },
+          '50%': { 'background-color': '#f97316' },
         },
       }
     },

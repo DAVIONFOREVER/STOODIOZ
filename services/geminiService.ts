@@ -11,10 +11,8 @@ let ai: GoogleGenAI | null = null;
  */
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
-        // The API key is now hardcoded as requested by the user.
-        const apiKey = "AIzaSyAdDmRRlEVU9pGv5pST5Fqf2VpFPu-_Ctc";
+        const apiKey = (process as any).env.API_KEY || (import.meta as any).env.VITE_API_KEY;
         if (!apiKey || apiKey.startsWith('{{')) {
-            // This check remains as a safeguard but should always pass now.
             return null;
         }
         ai = new GoogleGenAI({ apiKey });
