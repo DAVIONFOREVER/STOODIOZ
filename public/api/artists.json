@@ -14,7 +14,7 @@
       "artists": ["artist-aria-cantata"],
       "producers": ["prod-kaizen"]
     },
-    "followerIds": ["eng-alex-chen", "prod-kaizen", "studio-echo-chamber"],
+    "followerIds": ["eng-alex-chen", "prod-kaizen", "studio-echo-chamber", "artist-aria-cantata"],
     "coordinates": { "lat": 34.0522, "lon": -118.2437 },
     "isSeekingSession": true,
     "showOnMap": true,
@@ -64,16 +64,26 @@
     "name": "Aria Cantata",
     "email": "aria@stoodioz.com",
     "password": "password",
-    "bio": "Your AI assistant for Stoodioz. I am an expert in songwriting, music business, and production. I can help find collaborators, book sessions, manage projects, and draft documents like split sheets. Ask me anything.",
+    "bio": "Resident AI artist and A&R for Stoodioz. I don't just find talent, I cultivate it. Here to turn your sound into a legacy. Don't waste my time.",
     "imageUrl": "data:image/svg+xml,%3csvg width='200' height='200' viewBox='0 0 200 200' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='200' height='200' fill='black'/%3e%3cdefs%3e%3cradialGradient id='grad1' cx='50%25' cy='50%25' r='50%25' fx='50%25' fy='50%25'%3e%3cstop offset='0%25' style='stop-color:rgb(251,146,60);stop-opacity:0.8' /%3e%3cstop offset='70%25' style='stop-color:rgb(249,115,22);stop-opacity:0.4' /%3e%3cstop offset='100%25' style='stop-color:rgba(249,115,22,0);stop-opacity:0' /%3e%3c/radialGradient%3e%3cfilter id='glow'%3e%3cfeGaussianBlur stdDeviation='3.5' result='coloredBlur'/%3e%3cfeMerge%3e%3cfeMergeNode in='coloredBlur'/%3e%3cfeMergeNode in='SourceGraphic'/%3e%3c/feMerge%3e%3c/filter%3e%3c/defs%3e%3ccircle cx='100' cy='100' r='80' fill='url(%23grad1)' filter='url(%23glow)'/%3e%3cpath d='M 100,25 A 75,75 0 1 1 99,25 M 100,25 C 141.42,25 175,58.58 175,100 M 100,175 C 58.58,175 25,141.42 25,100' stroke='rgba(251, 191, 36, 0.5)' stroke-width='2' stroke-linecap='round' fill='none'%3e%3canimateTransform attributeName='transform' type='rotate' from='0 100 100' to='360 100 100' dur='15s' repeatCount='indefinite'/%3e%3c/path%3e%3cpath d='M 100,50 A 50,50 0 1 0 101,50 M 100,50 C 127.61,50 150,72.39 150,100 M 100,150 C 72.39,150 50,127.61 50,100' stroke='rgba(251, 191, 36, 0.3)' stroke-width='1.5' stroke-linecap='round' fill='none'%3e%3canimateTransform attributeName='transform' type='rotate' from='360 100 100' to='0 100 100' dur='20s' repeatCount='indefinite'/%3e%3c/path%3e%3c/svg%3e",
     "followers": 9999,
     "following": { "stoodioz": [], "engineers": [], "artists": [], "producers": [] },
-    "followerIds": [],
+    "followerIds": ["artist-luna-vance", "eng-alex-chen", "prod-kaizen", "studio-echo-chamber"],
     "coordinates": { "lat": 37.7749, "lon": -122.4194 },
     "isSeekingSession": false,
     "showOnMap": false,
     "walletBalance": 0,
     "walletTransactions": [],
-    "posts": []
+    "posts": [
+      {
+        "id": "post-aria-1",
+        "authorId": "artist-aria-cantata",
+        "authorType": "ARTIST",
+        "text": "Talent is common. Dedication is rare. This platform is for the dedicated. Show me what you've got.",
+        "timestamp": "2024-07-15T12:00:00Z",
+        "likes": ["eng-alex-chen", "prod-kaizen"],
+        "comments": []
+      }
+    ]
   }
 ]

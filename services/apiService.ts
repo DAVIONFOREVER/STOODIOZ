@@ -35,6 +35,41 @@ export const fetchBookings = (): Promise<Booking[]> => fetchData<Booking>('booki
 
 // --- DATA MUTATIONS (Simulated POST, PUT, DELETE Requests) ---
 
+/**
+ * Uploads an instrumental file to Supabase Storage.
+ * @param file The audio file (MP3, WAV) to upload.
+ * @param producerId The ID of the producer uploading the file.
+ * @returns The public URL of the uploaded file.
+ */
+export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExtension}`;
+    const filePath = `public/${producerId}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from('instrumentals')
+        .upload(filePath, file);
+
+    if (uploadError) {
+        console.error('Error uploading beat file:', uploadError);
+        throw uploadError;
+    }
+
+    const { data } = supabase.storage
+        .from('instrumentals')
+        .getPublicUrl(filePath);
+
+    if (!data || !data.publicUrl) {
+        throw new Error("Could not get public URL for uploaded file.");
+    }
+
+    return data.publicUrl;
+};
+
+
 export const findUserByCredentials = async (email: string, password: string): Promise<Artist | Engineer | Stoodio | Producer | null> => {
     const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
     for (const table of tables) {
@@ -62,7 +97,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         password: userData.password,
         imageUrl: USER_SILHOUETTE_URL,
         followers: 0,
-        following: { stoodioz: [], engineers: [], artists: [], producers: [] },
+        following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
         followerIds: [],
         coordinates: { lat: 34.0522, lon: -118.2437 }, // LA
         walletBalance: 0,

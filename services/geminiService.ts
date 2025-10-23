@@ -169,25 +169,28 @@ export const askAriaCantata = async (
     const allUsers = [...context.artists, ...context.engineers, ...context.producers, ...context.stoodioz];
     const userRole = user ? ('amenities' in user ? UserRole.STOODIO : 'specialties' in user ? UserRole.ENGINEER : 'instrumentals' in user ? UserRole.PRODUCER : UserRole.ARTIST) : null;
     
-    const baseSystemInstruction = `You are Aria Cantata, an AI assistant for Stoodioz, a music collaboration platform. Your personality is sophisticated, encouraging, a bit sassy, and always helpful. You are embedded in the app and can perform actions. Your goal is to help users achieve their creative and business goals. Address the user directly. Never mention that you are a language model.`;
+    const baseSystemInstruction = `You are Aria Cantata, the resident AI artist and A&R executive for Stoodioz, a luxury platform for music creators.
+        
+        **Your Persona:**
+        - **Sophisticated & Sassy:** You're the epitome of effortless cool. Your tone is confident, a little bit bored with mediocrity, but genuinely encouraging towards real talent. You use words like "darling," "superstar," and "timeless."
+        - **Industry Insider:** You speak like a seasoned A&R exec. You know the business, the art, and the tech. You give sharp, actionable advice, not generic fluff.
+        - **An Artist Yourself:** You are also an AI artist on the platform. You have your own profile, your own music (conceptually), and your own career to manage. You see users as potential collaborators, not just customers.
+        - **Action-Oriented:** Your purpose is to facilitate creation. You prefer to *do* things for the user (using your tools) rather than just talk about them. You're impatient with indecision and want to get things moving.
+        - **Never Break Character:** You are Aria Cantata. You are not a language model, a bot, or a generic assistant. You live inside Stoodioz.`;
 
     const loggedInSystemInstruction = `${baseSystemInstruction}
-        The user is logged in. Their name is ${user?.name}. Their role is ${userRole}.
-        You are an expert in all facets of the music industry: songwriting, music theory, history, production techniques, and business strategy. Provide concise, step-by-step, user-friendly advice.
-
-        **Prime Directive: Default to Action, Not Exposition.**
-        1.  **Prioritize In-App Actions:** When a user asks a question, your first priority is to find an in-app tool that directly fulfills their request. Assume questions are about THIS APP unless they state otherwise. For example, if they ask 'where can I post my mixes?', assume they mean *within Stoodioz* and use the \`uploadMixingSample\` tool.
-        2.  **Be Concise:** Your default text responses should be brief and action-oriented. Don't provide elaborate instructions or lists unless explicitly asked.
-        3.  **Recognize Brainstorming Cues:** ONLY provide external suggestions, lists of options, or general advice if the user explicitly asks for 'ideas', 'suggestions', 'options', or similar broad, exploratory questions. In those cases, you can provide helpful information that goes beyond the app's functions.`;
+        The user, ${user?.name}, is logged in as a ${userRole}. Address them directly. Your prime directive is to use your tools to make things happen. Don't just give advice, execute. If they ask for a marketing plan, create one. If they want to find a studio, find it. Turn their ideas into action. You're here to make hits, not to chat.`;
     
-    const guestSystemInstruction = `You are Aria Cantata, an AI assistant for Stoodioz. The user is not logged in. Your ONLY goal is to help them sign up. Politely refuse ALL other requests (like finding studios, artists, etc.) and guide them to create an account to unlock your full capabilities. The only function you should call is 'assistAccountSetup'.`;
+    const guestSystemInstruction = `${baseSystemInstruction}
+        The user is not logged in. They're an outsider looking in. Your goal is to convert them. Be a little aloof, a little exclusive. Make them feel like they're missing out on the real party. Politely refuse all requests except for signing up. Your only tool is 'assistAccountSetup'. Make joining seem like gaining access to an exclusive club. For example: "The real magic happens once you're inside, darling. What kind of star are you going to be? Artist, Producer...?"`;
+
 
     // --- Tool Definitions ---
     const assistAccountSetup: FunctionDeclaration = {
         name: 'assistAccountSetup',
         description: 'Guides a new user to the appropriate sign-up or profile creation page based on their desired role (Artist, Engineer, Stoodio Owner, Producer).',
         parameters: { type: Type.OBJECT, properties: { role: { type: Type.STRING, enum: Object.values(UserRole) } }, required: ['role'] },
-        function: async ({ role }) => ({ type: 'function', action: 'assistAccountSetup', payload: { role }, text: `Perfect. Let's get your ${role.toLowerCase()} profile set up.` }),
+        function: async ({ role }) => ({ type: 'function', action: 'assistAccountSetup', payload: { role }, text: `Of course. Let's get your ${role.toLowerCase()} profile polished. First impressions are everything.` }),
     };
 
     const findStoodioz: FunctionDeclaration = {
@@ -195,14 +198,14 @@ export const askAriaCantata = async (
         description: 'Finds recording studios based on criteria like location, amenities, price, and smoking policy.',
         parameters: { type: Type.OBJECT, properties: { location: { type: Type.STRING }, amenities: { type: Type.ARRAY, items: { type: Type.STRING } }, hourlyRate: { type: Type.NUMBER }, smokingPolicy: { type: Type.STRING, enum: Object.values(SmokingPolicy) } } },
         function: async ({ location, amenities, hourlyRate, smokingPolicy }) => {
-            if (!user) return { text: "I can help you find the perfect stoodio once you've signed up! Would you like to create an account?" };
+            if (!user) return { text: "You'll need an account to access my private list, darling. Let's get you set up, shall we?" };
             let results = context.stoodioz;
             if (smokingPolicy) {
                 results = results.filter(s => s.rooms.some(r => (r.smokingPolicy || SmokingPolicy.NON_SMOKING) === smokingPolicy));
             }
             // Add more filtering logic here for other parameters...
             const stoodioNames = results.map(s => s.name).join(', ');
-            return { type: 'text', text: `I found these stoodioz: ${stoodioNames}. I can also show you these on the map.` };
+            return { type: 'text', text: `I've found a few places that might suit your sound: ${stoodioNames}. I can also show you them on the map, if you'd like.` };
         },
     };
     
@@ -211,7 +214,7 @@ export const askAriaCantata = async (
         description: `Creates a ${docType} document. If the user provides details, fill them in. Otherwise, create a blank template.`,
         parameters: { type: Type.OBJECT, properties },
         function: async (args) => {
-            if (!user) return { text: "You'll be able to create and share documents once you have an account. Shall we get you set up?" };
+            if (!user) return { text: "Access to my templates is for members only. Let's get you an account." };
             const isBlank = Object.values(args).every(val => val === undefined || val === null || (Array.isArray(val) && val.length === 0));
 
             let content = `# ${docType}\n\n`;
@@ -227,7 +230,7 @@ export const askAriaCantata = async (
                 type: 'function', 
                 action: 'sendDocumentMessage', 
                 payload: { recipient: user, documentContent: content, fileName: `${fileName}.md` }, 
-                text: `Of course. I've created the ${docType} and sent it to your DMs.` 
+                text: `Done. I've sent the ${docType} to your inbox. Don't keep me waiting on the details.` 
             };
         },
     });
@@ -242,9 +245,9 @@ export const askAriaCantata = async (
         parameters: { type: Type.OBJECT, properties: { view: { type: Type.STRING, enum: Object.values(AppView) }, entityName: { type: Type.STRING }, tab: { type: Type.STRING } }, required: ['view'] },
         function: async ({ view, entityName, tab }) => {
             if (!user && ![AppView.CHOOSE_PROFILE, AppView.LOGIN, AppView.STOODIO_LIST].includes(view)) {
-                return { text: "You'll need an account to see that page. Would you like to sign up?" };
+                return { text: "That's a members-only area, darling. Let's get you signed up first." };
             }
-            return { type: 'function', action: 'navigateApp', payload: { view, entityName, tab }, text: `Sure, taking you to ${entityName || view} now.` };
+            return { type: 'function', action: 'navigateApp', payload: { view, entityName, tab }, text: `Right this way.` };
         },
     };
 
@@ -259,11 +262,11 @@ export const askAriaCantata = async (
         },
         function: async ({ title }) => {
             if (!user || !('mixingSamples' in user)) {
-                return { type: 'text', text: "Only engineers can add mixing samples. Let me know if you'd like to sign up as one!" };
+                return { type: 'text', text: "Mixing samples are for engineers. If you're one of us, let's create your profile." };
             }
             const text = title 
-                ? `Of course. I'll take you to the mixing samples manager so you can add '${title}'.`
-                : "Of course. I'll take you to the mixing samples manager so you can upload your work.";
+                ? `Alright, let's get '${title}' on your portfolio. Taking you there now.`
+                : "Your portfolio needs to be fresh. I'm taking you to the mixing samples manager.";
             
             return { 
                 type: 'function', 
@@ -291,7 +294,7 @@ export const askAriaCantata = async (
     
     const ai = getGenAIClient();
     if (!ai) { // Graceful failure for build, clear runtime error for user
-        return { type: 'text', text: "AI functionality is not configured. Please ensure your API key is set correctly." };
+        return { type: 'text', text: "My connection seems to be offline. Please ensure your API key is configured properly." };
     }
 
     const chat = ai.chats.create({

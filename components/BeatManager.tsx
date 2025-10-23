@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Producer, Instrumental } from '../types';
 import { MusicNoteIcon, DollarSignIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
+import { uploadBeatFile } from '../services/apiService';
 
 interface BeatManagerProps {
     producer: Producer;
@@ -9,7 +10,7 @@ interface BeatManagerProps {
 
 const BeatFormModal: React.FC<{
     instrumental: Partial<Instrumental> | null;
-    onSave: (instrumental: Instrumental) => void;
+    onSave: (instrumental: Instrumental, file: File | null) => void;
     onClose: () => void;
 }> = ({ instrumental, onSave, onClose }) => {
     const [title, setTitle] = useState(instrumental?.title || '');
@@ -18,8 +19,8 @@ const BeatFormModal: React.FC<{
     const [priceExclusive, setPriceExclusive] = useState(instrumental?.priceExclusive || 299.99);
     const [tags, setTags] = useState((instrumental?.tags || []).join(', '));
     const [coverArtUrl, setCoverArtUrl] = useState(instrumental?.coverArtUrl || '');
-    const [audioUrl, setAudioUrl] = useState(instrumental?.audioUrl || '');
-
+    const [audioFile, setAudioFile] = useState<File | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -30,10 +31,17 @@ const BeatFormModal: React.FC<{
             priceLease,
             priceExclusive,
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-            audioUrl: audioUrl || 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-1-short.mp3',
+            audioUrl: instrumental?.audioUrl || '', // Will be replaced by the uploaded file URL
             coverArtUrl: coverArtUrl || `https://picsum.photos/seed/${title.replace(/\s+/g, '')}/200/200`,
         };
-        onSave(finalInstrumental);
+        onSave(finalInstrumental, audioFile);
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setAudioFile(file);
+        }
     };
     
     const inputClasses = "w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
@@ -52,21 +60,22 @@ const BeatFormModal: React.FC<{
                             <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className={inputClasses}/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                             <div>
+                             <div className="cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                                 <label className="block text-sm font-medium text-zinc-300 mb-1">Audio File</label>
-                                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md">
+                                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md hover:border-orange-500 transition-colors">
                                     <div className="space-y-1 text-center">
                                         <MusicNoteIcon className="mx-auto h-12 w-12 text-zinc-500" />
-                                        <p className="text-xs text-zinc-400">MP3 or WAV</p>
+                                        <p className="text-xs text-zinc-400">{audioFile ? audioFile.name : 'Click to select MP3 or WAV'}</p>
                                     </div>
                                 </div>
+                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".mp3,.wav" className="hidden" />
                             </div>
                              <div>
                                 <label className="block text-sm font-medium text-zinc-300 mb-1">Cover Art</label>
                                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md">
                                     <div className="space-y-1 text-center">
                                         <PhotoIcon className="mx-auto h-12 w-12 text-zinc-500" />
-                                        <p className="text-xs text-zinc-400">PNG or JPG</p>
+                                        <p className="text-xs text-zinc-400">PNG or JPG (Simulated)</p>
                                     </div>
                                 </div>
                             </div>
@@ -106,25 +115,42 @@ const BeatFormModal: React.FC<{
 const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInstrumental, setEditingInstrumental] = useState<Partial<Instrumental> | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleOpenModal = (instrumental: Partial<Instrumental> | null = null) => {
         setEditingInstrumental(instrumental);
         setIsModalOpen(true);
     };
 
-    const handleSaveInstrumental = (instrumentalToSave: Instrumental) => {
-        let updatedInstrumentals: Instrumental[];
-        const existingIndex = producer.instrumentals.findIndex(i => i.id === instrumentalToSave.id);
+    const handleSaveInstrumental = async (instrumentalToSave: Instrumental, file: File | null) => {
+        setIsUploading(true);
+        let finalInstrumental = { ...instrumentalToSave };
 
-        if (existingIndex > -1) {
-            updatedInstrumentals = producer.instrumentals.map(i => i.id === instrumentalToSave.id ? instrumentalToSave : i);
-        } else {
-            updatedInstrumentals = [...producer.instrumentals, instrumentalToSave];
+        try {
+            if (file) {
+                const audioUrl = await uploadBeatFile(file, producer.id);
+                finalInstrumental.audioUrl = audioUrl;
+            }
+
+            let updatedInstrumentals: Instrumental[];
+            const existingIndex = producer.instrumentals.findIndex(i => i.id === finalInstrumental.id);
+
+            if (existingIndex > -1) {
+                updatedInstrumentals = producer.instrumentals.map(i => i.id === finalInstrumental.id ? finalInstrumental : i);
+            } else {
+                updatedInstrumentals = [...producer.instrumentals, finalInstrumental];
+            }
+            
+            onUpdateProducer({ instrumentals: updatedInstrumentals });
+            
+        } catch (error) {
+            console.error("Failed to save instrumental:", error);
+            alert("Error saving beat. Please check the console for details.");
+        } finally {
+            setIsModalOpen(false);
+            setEditingInstrumental(null);
+            setIsUploading(false);
         }
-        
-        onUpdateProducer({ instrumentals: updatedInstrumentals });
-        setIsModalOpen(false);
-        setEditingInstrumental(null);
     };
 
     const handleDeleteInstrumental = (instrumentalId: string) => {
