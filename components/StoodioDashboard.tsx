@@ -337,7 +337,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             <CreatePost currentUser={currentUser!} onPost={createPost} />
-                            {/* FIX: Removed invalid `currentUser` prop. */}
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
