@@ -1,9 +1,8 @@
-
-
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { subDays, format } from 'date-fns';
+import { USER_SILHOUETTE_URL } from '../constants';
 
 // --- DATA FETCHING (GET Requests) ---
 
@@ -73,7 +72,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         name: userData.name,
         email: userData.email,
         password: userData.password,
-        imageUrl: 'https://i.pravatar.cc/300?u=' + Date.now(),
+        imageUrl: USER_SILHOUETTE_URL,
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: [], producers: [] },
         followerIds: [],
