@@ -1,10 +1,12 @@
-
 import React from 'react';
 import { AppView, UserRole } from '../types';
 import { CheckCircleIcon, SoundWaveIcon, HouseIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
 
 interface SubscriptionPlansProps {
     onSelect: (role: UserRole) => void;
+    onSubscribe: (role: UserRole) => void;
 }
 
 const FeatureListItem: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -24,8 +26,8 @@ const PlanCard: React.FC<{
     buttonText: string;
     isFeatured?: boolean;
     badge?: string;
-    onSelect: () => void;
-}> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onSelect }) => (
+    onClick: () => void;
+}> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick }) => (
     <div className={`relative border rounded-2xl p-8 flex flex-col ${isFeatured ? 'border-orange-500/50 bg-zinc-900 shadow-2xl shadow-orange-500/10' : 'border-zinc-700/50 bg-zinc-800/50'}`}>
         {badge && (
             <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">{badge}</div>
@@ -50,7 +52,7 @@ const PlanCard: React.FC<{
         <div className="mt-auto">
             <p className="text-center text-zinc-400 italic text-sm mb-6 h-10 flex items-center justify-center">“{tagline}”</p>
             <button 
-                onClick={onSelect}
+                onClick={onClick}
                 className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${isFeatured ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' : 'bg-zinc-700 text-white hover:bg-zinc-600'}`}
             >
                 {buttonText}
@@ -59,8 +61,25 @@ const PlanCard: React.FC<{
     </div>
 );
 
-const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect }) => {
-    
+const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubscribe }) => {
+    const { currentUser } = useAppState();
+    const { navigate } = useNavigation();
+
+    const handlePlanSelection = (role: UserRole, isPaid: boolean) => {
+        if (!isPaid) {
+            onSelect(role); // For free plan, go directly to setup
+            return;
+        }
+
+        if (currentUser) {
+            onSubscribe(role); // If logged in, start payment process
+        } else {
+            // If not logged in, force login/signup first
+            // A message could be passed to the login screen to provide context
+            navigate(AppView.LOGIN);
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto animate-fade-in">
             <div className="text-center mb-16">
@@ -84,7 +103,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect }) => {
                     ]}
                     tagline="Start your journey — find your sound."
                     buttonText="Start Free"
-                    onSelect={() => onSelect(UserRole.ARTIST)}
+                    onClick={() => handlePlanSelection(UserRole.ARTIST, false)}
                 />
                 <PlanCard
                     icon={<MusicNoteIcon className="w-8 h-8 text-purple-400"/>}
@@ -99,7 +118,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect }) => {
                     ]}
                     tagline="Get found. Get paid. Get busy."
                     buttonText="Upgrade Now"
-                    onSelect={() => onSelect(UserRole.PRODUCER)}
+                    onClick={() => handlePlanSelection(UserRole.PRODUCER, true)}
                 />
                  <PlanCard
                     icon={<SoundWaveIcon className="w-8 h-8 text-indigo-400"/>}
@@ -115,7 +134,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect }) => {
                     ]}
                     tagline="More sessions. Less chasing."
                     buttonText="Upgrade Now"
-                    onSelect={() => onSelect(UserRole.ENGINEER)}
+                    onClick={() => handlePlanSelection(UserRole.ENGINEER, true)}
                 />
                  <PlanCard
                     icon={<HouseIcon className="w-8 h-8 text-red-400"/>}
@@ -130,7 +149,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect }) => {
                     ]}
                     tagline="Run your studio like a business, not a hustle."
                     buttonText="Upgrade Now"
-                    onSelect={() => onSelect(UserRole.STOODIO)}
+                    onClick={() => handlePlanSelection(UserRole.STOODIO, true)}
                 />
             </div>
         </div>

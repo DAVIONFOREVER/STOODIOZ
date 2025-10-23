@@ -1,4 +1,4 @@
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { subDays, format } from 'date-fns';
@@ -153,6 +153,24 @@ export const createCheckoutSessionForBooking = async (
     // then creating a Stripe Checkout session, and returning the session ID.
     const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { bookingRequest, stoodioId, userId, userRole },
+    });
+
+    if (error) throw error;
+    return data;
+};
+
+/**
+ * Creates a Stripe checkout session for a subscription plan.
+ * @returns { sessionId: string } The ID for the Stripe Checkout session.
+ */
+export const createCheckoutSessionForSubscription = async (planId: SubscriptionPlan, userId: string): Promise<{ sessionId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // This Edge Function will create a Stripe Checkout session for the specified subscription plan
+    // and include metadata to identify the user for webhook processing.
+    const { data, error } = await supabase.functions.invoke('create-subscription-session', {
+        body: { planId, userId },
     });
 
     if (error) throw error;

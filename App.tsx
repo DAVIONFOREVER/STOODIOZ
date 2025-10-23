@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: The type `WalletTransaction` was renamed to `Transaction`. Since the type is not directly used in this component, the import has been removed to prevent build errors.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
@@ -23,6 +18,7 @@ import { useAria } from './hooks/useAria';
 import { useProfile } from './hooks/useProfile';
 import { useVibeMatcher } from './hooks/useVibeMatcher';
 import { useMixing } from './hooks/useMixing';
+import { useSubscription } from './hooks/useSubscription';
 
 import Header from './components/Header';
 import BookingModal from './components/BookingModal';
@@ -113,6 +109,7 @@ const App: React.FC = () => {
     const { updateProfile, verificationSubmit, isSaved } = useProfile();
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
+    const { handleSubscribe } = useSubscription(navigate);
     const { handleAriaCantataBooking, handleShowVibeResults, handleAriaGroupConversation, handleAriaSendMessage, handleAriaNavigation, handleAriaGetDirections, handleAriaSendDocument, handleAriaNudgeClick, handleDismissAriaNudge, ariaHistory, initialAriaCantataPrompt } = useAria(startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking);
 
 
@@ -182,7 +179,7 @@ const App: React.FC = () => {
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
-                return <SubscriptionPlans onSelect={selectRoleToSetup} />;
+                return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
 
             case AppView.STOODIO_LIST:
                 return <StoodioList onSelectStoodio={viewStoodioDetails} />;
