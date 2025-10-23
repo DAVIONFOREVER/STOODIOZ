@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Engineer, Artist, Stoodio, Producer } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
 import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon } from './icons';
@@ -14,7 +14,9 @@ import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 import MixingSampleManager from './MixingSampleManager';
 
-type DashboardTab = 'dashboard' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+
+type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
@@ -93,6 +95,12 @@ const EngineerDashboard: React.FC = () => {
     
     const renderContent = () => {
          switch(activeTab) {
+             case 'analytics':
+                return (
+                    <Suspense fallback={<div>Loading Analytics...</div>}>
+                        <AnalyticsDashboard user={engineer} />
+                    </Suspense>
+                );
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
              case 'mixingSamples': return <MixingSampleManager engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
@@ -164,6 +172,7 @@ const EngineerDashboard: React.FC = () => {
              <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Job Board" isActive={activeTab === 'jobBoard'} onClick={() => setActiveTab('jobBoard')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Mixing Samples" isActive={activeTab === 'mixingSamples'} onClick={() => setActiveTab('mixingSamples')} />

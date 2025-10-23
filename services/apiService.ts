@@ -1,7 +1,9 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction } from '../types';
+
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus } from '../types';
 import { getSupabase } from '../lib/supabase';
+import { subDays, format } from 'date-fns';
 
 // --- DATA FETCHING (GET Requests) ---
 
@@ -285,4 +287,51 @@ export const updateUserWallet = async (userId: string, userRole: UserRole, amoun
     };
 
     return { ...user, walletBalance: newBalance, walletTransactions: [...user.walletTransactions, newTransaction] };
+};
+
+export const fetchAnalyticsData = async (userId: string, days: number = 30): Promise<AnalyticsData> => {
+    // This is a mock function. In a real app, you would query Supabase with aggregate functions (e.g., SUM, COUNT, GROUP BY date).
+    // For now, we generate plausible random data.
+    
+    await new Promise(res => setTimeout(res, 800)); // Simulate network delay
+
+    const revenueOverTime = [];
+    const engagementOverTime = [];
+    let totalRevenue = 0;
+    
+    for (let i = days - 1; i >= 0; i--) {
+        const date = subDays(new Date(), i);
+        const dateString = format(date, 'yyyy-MM-dd');
+        
+        const dailyRevenue = Math.random() * 300;
+        totalRevenue += dailyRevenue;
+        
+        revenueOverTime.push({
+            date: dateString,
+            revenue: parseFloat(dailyRevenue.toFixed(2)),
+        });
+        
+        engagementOverTime.push({
+            date: dateString,
+            views: Math.floor(Math.random() * 150) + 20,
+            followers: Math.floor(Math.random() * 5),
+            likes: Math.floor(Math.random() * 30),
+        });
+    }
+
+    return {
+        kpis: {
+            totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+            profileViews: Math.floor(Math.random() * 2000) + 500,
+            newFollowers: Math.floor(Math.random() * 50) + 10,
+            bookings: Math.floor(Math.random() * 20) + 5,
+        },
+        revenueOverTime,
+        engagementOverTime,
+        revenueSources: [
+            { name: 'Studio Bookings', revenue: totalRevenue * 0.6 },
+            { name: 'Beat Sales', revenue: totalRevenue * 0.3 },
+            { name: 'Tips', revenue: totalRevenue * 0.1 },
+        ]
+    };
 };

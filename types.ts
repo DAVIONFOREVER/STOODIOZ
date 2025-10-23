@@ -393,3 +393,33 @@ export type AriaActionResponse = {
     action?: string;
     payload?: any;
 };
+
+// Analytics Types
+export interface RevenueDataPoint {
+    date: string;
+    revenue: number;
+}
+
+export interface EngagementDataPoint {
+    date: string;
+    views: number;
+    followers: number;
+    likes: number;
+}
+
+export interface RevenueSource {
+    name: string;
+    revenue: number;
+}
+
+export interface AnalyticsData {
+    kpis: {
+        totalRevenue: number;
+        profileViews: number;
+        newFollowers: number;
+        bookings: number;
+    };
+    revenueOverTime: RevenueDataPoint[];
+    engagementOverTime: EngagementDataPoint[];
+    revenueSources: RevenueSource[];
+}
