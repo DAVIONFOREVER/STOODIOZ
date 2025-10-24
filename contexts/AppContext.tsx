@@ -333,12 +333,23 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.UPDATE_USERS: {
             const users = action.payload.users;
             const currentUser = state.currentUser ? users.find(u => u.id === state.currentUser!.id) || state.currentUser : null;
+            
+            // This robust filtering logic prevents misclassification of users after partial updates.
+            const stoodioz = users.filter(u => 'amenities' in u) as Stoodio[];
+            const engineers = users.filter(u => 'specialties' in u) as Engineer[];
+            const producers = users.filter(u => 'instrumentals' in u) as Producer[];
+            const artists = users.filter(u => 
+                !('amenities' in u) && 
+                !('specialties' in u) && 
+                !('instrumentals' in u)
+            ) as Artist[];
+
             return {
                 ...state,
-                artists: users.filter(u => 'bio' in u && !('specialties' in u) && !('instrumentals' in u)) as Artist[],
-                engineers: users.filter(u => 'specialties' in u) as Engineer[],
-                producers: users.filter(u => 'instrumentals' in u) as Producer[],
-                stoodioz: users.filter(u => 'amenities' in u) as Stoodio[],
+                artists,
+                engineers,
+                producers,
+                stoodioz,
                 currentUser,
             };
         }
