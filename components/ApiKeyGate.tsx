@@ -4,13 +4,15 @@ const DebugInfo: React.FC = () => {
     const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
     const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
     const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+    const mapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
     
     const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
     const varStatus = [
         { name: 'VITE_SUPABASE_URL', found: areKeysValid(supabaseUrl) },
         { name: 'VITE_SUPABASE_ANON_KEY', found: areKeysValid(supabaseAnonKey) },
-        { name: 'VITE_API_KEY', found: areKeysValid(geminiApiKey) }
+        { name: 'VITE_API_KEY (for Gemini)', found: areKeysValid(geminiApiKey) },
+        { name: 'VITE_GOOGLE_MAPS_API_KEY', found: areKeysValid(mapsApiKey) }
     ];
 
     return (
@@ -39,10 +41,11 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
     const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
     const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+    const mapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
 
     const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
-    if (areKeysValid(supabaseUrl) && areKeysValid(supabaseAnonKey) && areKeysValid(geminiApiKey)) {
+    if (areKeysValid(supabaseUrl) && areKeysValid(supabaseAnonKey) && areKeysValid(geminiApiKey) && areKeysValid(mapsApiKey)) {
         // If all keys exist and are not placeholders, render the main application.
         return <>{children}</>;
     }
@@ -53,7 +56,7 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <div className="w-full max-w-4xl bg-zinc-900/80 backdrop-blur-lg rounded-2xl border border-zinc-700 p-8 text-zinc-200 shadow-2xl">
                 <h1 className="text-3xl font-bold text-center text-orange-400 mb-4">Backend & API Configuration Required</h1>
                 <p className="text-center text-zinc-400 mb-8">
-                    Welcome to Stoodioz! To run the application, you need to connect it to a database (Supabase) and the AI model (Google AI). Please follow the steps below for your environment.
+                    Welcome to Stoodioz! To run the application, you need to connect it to a database (Supabase), AI models (Google AI), and mapping services (Google Maps). Please follow the steps below.
                 </p>
 
                 <DebugInfo />
@@ -62,7 +65,7 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     {/* Instructions for Local Development */}
                     <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
                         <h2 className="text-xl font-semibold mb-3 text-cyan-400">Option 1: Running Locally (Development)</h2>
-                        <p className="text-zinc-400 mb-4">If you are running this app on your local machine, you need to create a <code className="bg-zinc-900 p-1 rounded text-xs">.env</code> file in the root of the project directory.</p>
+                        <p className="text-zinc-400 mb-4">If you are running this app on your local machine, create a <code className="bg-zinc-900 p-1 rounded text-xs">.env</code> file in the project's root directory.</p>
                         <ol className="list-decimal list-inside space-y-2 text-zinc-300">
                             <li>Create a new file named <code className="bg-zinc-900 p-1 rounded text-xs">.env</code> in the main folder (next to <code className="bg-zinc-900 p-1 rounded text-xs">package.json</code>).</li>
                             <li>Paste the following content into the file, replacing the placeholder values with your actual keys.</li>
@@ -71,7 +74,8 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             <code>
                                 VITE_SUPABASE_URL="YOUR_SUPABASE_URL_HERE"<br />
                                 VITE_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY_HERE"<br />
-                                VITE_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+                                VITE_API_KEY="YOUR_GEMINI_API_KEY_HERE"<br/>
+                                VITE_GOOGLE_MAPS_API_KEY="YOUR_GOOGLE_MAPS_API_KEY_HERE"
                             </code>
                         </pre>
                         <p className="text-zinc-400 mt-4">After creating and saving the file, you must <strong className="text-orange-400">stop and restart the development server</strong> for the changes to take effect.</p>
@@ -80,15 +84,16 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     {/* Instructions for Vercel Deployment */}
                     <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
                         <h2 className="text-xl font-semibold mb-3 text-blue-400">Option 2: Deploying to Vercel</h2>
-                        <p className="text-zinc-400 mb-4">If you are deploying this app to Vercel, you must set the environment variables in your Vercel project settings.</p>
+                        <p className="text-zinc-400 mb-4">If you are deploying this app to Vercel, set the environment variables in your Vercel project settings.</p>
                         <ol className="list-decimal list-inside space-y-3 text-zinc-300">
                             <li>In your Vercel project dashboard, go to <strong className="text-orange-400">Settings &gt; Environment Variables</strong>.</li>
                             <li>
-                                Add the following three variables:
+                                Add the following four variables:
                                 <ul className="list-disc list-inside pl-6 mt-2 space-y-2 font-mono text-sm">
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_URL</code> <br/><strong>Value:</strong> Your Supabase Project URL</li>
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_ANON_KEY</code> <br/><strong>Value:</strong> Your Supabase anon public key</li>
-                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_API_KEY</code> <br/><strong>Value:</strong> Your Google AI Studio API Key</li>
+                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_API_KEY</code> <br/><strong>Value:</strong> Your Google AI Studio API Key for Gemini</li>
+                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> <br/><strong>Value:</strong> Your Google Cloud API Key for Maps</li>
                                 </ul>
                             </li>
                             <li>
@@ -100,9 +105,10 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     {/* Shared instructions for getting keys */}
                     <div className="bg-zinc-800 p-6 rounded-lg border border-zinc-700">
                         <h2 className="text-xl font-semibold mb-3 text-green-400">Where to Find Your Keys</h2>
-                        <ol className="list-decimal list-inside space-y-2 text-zinc-300">
-                            <li><strong>Supabase Keys:</strong> Go to <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">supabase.com</a>, create a project, then navigate to <strong className="text-orange-400">Project Settings &gt; API</strong>. You'll find the URL and the `anon` public key there.</li>
+                        <ol className="list-decimal list-inside space-y-3 text-zinc-300">
+                            <li><strong>Supabase Keys:</strong> Go to <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">supabase.com</a>, create a project, then navigate to <strong className="text-orange-400">Project Settings &gt; API</strong>. You'll find the URL and the `anon` public key.</li>
                             <li><strong>Gemini API Key:</strong> Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">Google AI Studio</a> to get your API key.</li>
+                            <li><strong>Google Maps API Key:</strong> Go to the <a href="https://console.cloud.google.com/google/maps-apis/overview" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">Google Cloud Console</a>. Create a new project (or select an existing one), then go to the <strong className="text-orange-400">APIs & Services &gt; Library</strong> page and enable the <strong className="text-orange-400">"Maps JavaScript API"</strong>. Finally, go to <strong className="text-orange-400">Credentials</strong> and create a new API key. It's recommended to restrict this key to your website's domain for security.</li>
                         </ol>
                     </div>
                 </div>
