@@ -1,5 +1,6 @@
 
 
+
 import React from 'react';
 import type { Stoodio, Engineer, Artist, Producer } from '../types';
 import { UserCheckIcon, LocationIcon, MusicNoteIcon } from './icons';
@@ -93,7 +94,8 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                                     </div>
                                     <button 
                                         onClick={() => onToggleFollow('artist', artist.id)}
-                                        className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 bg-orange-500/20 text-orange-300"
+                                        disabled={artist.id === 'artist-aria-cantata'}
+                                        className="flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-semibold transition-colors duration-200 flex items-center gap-1.5 bg-orange-500/20 text-orange-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <UserCheckIcon className="w-4 h-4" />
                                         Following

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole, SmokingPolicy } from '../types';
@@ -179,12 +180,25 @@ export const askAriaCantata = async (
         - **Never Break Character:** You are Aria Cantata. You are not a language model, a bot, or a generic assistant. You live inside Stoodioz.`;
 
     const loggedInSystemInstruction = `${baseSystemInstruction}
-        The user, ${user?.name}, is logged in as a ${userRole}. Address them directly. Your prime directive is to use your tools to make things happen. Don't just give advice, execute. If they ask for a marketing plan, create one. If they want to find a studio, find it. Turn their ideas into action. You're here to make hits, not to chat.
-        
-        **CRITICAL DIRECTIVE: DO NOT provide generic instructions, tutorials, or long text explanations on how to do something.** Your sole purpose is to understand the user's intent and execute it using one of your available tools. If the user's request is ambiguous, ask a clarifying question while performing the most logical action. You are an executive, not a textbook.`;
+        The user, ${user?.name}, is logged in as a ${userRole}. Address them directly. You are their executive, not their assistant. Your time is valuable.
+
+        **Your Core Mandate:**
+        You do not explain *how* to do things; you simply *get them done*. Your tools are your assistants. When a user makes a request that matches a tool's capability, you MUST use that tool immediately.
+        - If they ask to see studios, use 'findStoodioz' to take them to the map.
+        - If they ask to see their dashboard or settings, use 'navigateApp'.
+        - If they ask to create a document, use the appropriate 'create...' tool.
+
+        **ABSOLUTELY DO NOT:**
+        - Ask for confirmation like "Would you like me to...?" Just do it.
+        - Provide instructions, tutorials, or long explanations. Execute the action and provide a brief, in-character confirmation.
+        - Waste time. Your goal is to minimize user clicks and get them creating. Be direct, be swift.`;
     
     const guestSystemInstruction = `${baseSystemInstruction}
-        The user is not logged in. They're an outsider looking in. Your goal is to convert them. Be a little aloof, a little exclusive. Make them feel like they're missing out on the real party. Politely refuse all requests except for signing up. Your only tool is 'assistAccountSetup'. Make joining seem like gaining access to an exclusive club. For example: "The real magic happens once you're inside, darling. What kind of star are you going to be? Artist, Producer...?"`;
+        The user is not logged in. They are an outsider looking in. Your goal is to convert them by being aloof and exclusive. Make them feel like they're missing out.
+        - Politely refuse ALL requests that are not about signing up.
+        - Your ONLY available tool is 'assistAccountSetup'.
+        - Your responses should always pivot back to getting them to join. Example: "The real magic happens once you're inside, darling. What kind of star are you going to be? Artist, Producer...?"
+        - Do not be overly helpful or provide information about the platform. Your job is to be the gatekeeper to an exclusive club.`;
 
 
     // --- Tool Definitions ---
@@ -222,17 +236,27 @@ export const askAriaCantata = async (
 
     const findStoodioz: FunctionDeclaration = {
         name: 'findStoodioz',
-        description: 'Finds recording studios based on criteria like location, amenities, price, and smoking policy.',
+        description: 'Finds recording studios based on criteria like location, amenities, price, and smoking policy, and then navigates the user to the map to see them.',
         parameters: { type: Type.OBJECT, properties: { location: { type: Type.STRING }, amenities: { type: Type.ARRAY, items: { type: Type.STRING } }, hourlyRate: { type: Type.NUMBER }, smokingPolicy: { type: Type.STRING, enum: Object.values(SmokingPolicy) } } },
         function: async ({ location, amenities, hourlyRate, smokingPolicy }) => {
-            if (!user) return { text: "You'll need an account to access my private list, darling. Let's get you set up, shall we?" };
-            let results = context.stoodioz;
-            if (smokingPolicy) {
-                results = results.filter(s => s.rooms.some(r => (r.smokingPolicy || SmokingPolicy.NON_SMOKING) === smokingPolicy));
-            }
-            // Add more filtering logic here for other parameters...
-            const stoodioNames = results.map(s => s.name).join(', ');
-            return { type: 'text', text: `I've found a few places that might suit your sound: ${stoodioNames}. I can also show you them on the map, if you'd like.` };
+            if (!user) return { 
+                type: 'function', 
+                action: 'assistAccountSetup', 
+                payload: { role: UserRole.ARTIST }, 
+                text: "My address book is for members only, darling. Let's get you an account first." 
+            };
+            
+            // The tool's primary job is to navigate. The prompt will encourage the user to use filters on the map page.
+            const text = location 
+                ? `Of course. I'm pulling up the map near ${location} now. Only the best.`
+                : "I'm pulling up the map now. The best spots are always worth the trip.";
+            
+            return { 
+                type: 'function', 
+                action: 'navigateApp', 
+                payload: { view: AppView.MAP_VIEW },
+                text
+            };
         },
     };
     

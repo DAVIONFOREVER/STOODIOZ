@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { Artist } from '../types';
 import ArtistCard from './ArtistCard';
 import { useAppState } from '../contexts/AppContext';
@@ -10,6 +10,12 @@ interface ArtistListProps {
 
 const ArtistList: React.FC<ArtistListProps> = ({ onSelectArtist, onToggleFollow }) => {
     const { artists, currentUser } = useAppState();
+
+    const displayArtists = useMemo(() => {
+        // Filter out the AI assistant from the main collaboration list for a cleaner UX.
+        return artists.filter(artist => artist.id !== 'artist-aria-cantata');
+    }, [artists]);
+
     return (
         <div>
             <h1 className="text-5xl md:text-6xl font-extrabold text-center mb-2 tracking-tight text-orange-500">
@@ -17,7 +23,7 @@ const ArtistList: React.FC<ArtistListProps> = ({ onSelectArtist, onToggleFollow 
             </h1>
             <p className="text-center text-lg text-slate-500 mb-12">Connect and collaborate with talented artists.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-8">
-                {artists.map(artist => {
+                {displayArtists.map(artist => {
                     const isFollowing = currentUser && 'following' in currentUser ? (currentUser.following.artists || []).includes(artist.id) : false;
                     return (
                         <ArtistCard

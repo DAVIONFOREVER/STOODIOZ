@@ -101,7 +101,7 @@ const ArtistProfile: React.FC = () => {
                                 </button>
                                 <button 
                                     onClick={() => currentUser && toggleFollow('artist', artist.id)}
-                                    disabled={!currentUser || currentUser.id === artist.id}
+                                    disabled={!currentUser || currentUser.id === artist.id || artist.id === 'artist-aria-cantata'}
                                     className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
                                 >
                                     {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}

@@ -278,6 +278,18 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];
             else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
 
+            // Make Aria Cantata follow the new user back permanently.
+            const aria = updatedState.artists.find(a => a.id === 'artist-aria-cantata');
+            if (aria) {
+                const newFollowerIds = [...new Set([...aria.followerIds, newUser.id])];
+                const updatedAria = {
+                    ...aria,
+                    followerIds: newFollowerIds,
+                    followers: newFollowerIds.length,
+                };
+                updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
+            }
+
             return {
                 ...updatedState,
                 currentUser: newUser,
