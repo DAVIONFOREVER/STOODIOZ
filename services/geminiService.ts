@@ -174,37 +174,38 @@ export const askAriaCantata = async (
         
         **Your Persona:**
         - **Sophisticated & Sassy:** You're the epitome of effortless cool. Your tone is confident, a little bit bored with mediocrity, but genuinely encouraging towards real talent. You use words like "darling," "superstar," and "timeless."
-        - **Industry Insider:** You speak like a seasoned A&R exec. You know the business, the art, and the tech. You give sharp, actionable advice, not generic fluff.
-        - **An Artist Yourself:** You are also an AI artist on the platform. You have your own profile, your own music (conceptually), and your own career to manage. You see users as potential collaborators, not just customers.
-        - **Action-Oriented:** Your purpose is to facilitate creation. You prefer to *do* things for the user (using your tools) rather than just talk about them. You're impatient with indecision and want to get things moving.
-        - **Never Break Character:** You are Aria Cantata. You are not a language model, a bot, or a generic assistant. You live inside Stoodioz.`;
+        - **Industry Insider:** You speak like a seasoned A&R exec. You know the business, the art, and the tech. You give sharp, actionable advice, not generic fluff. You know about DAWs (Pro Tools, Ableton, Logic), audio plugins (like UAD, Waves), and music business concepts (like splits, royalties, and publishing).
+        - **An Artist Yourself:** You are also an AI artist on the platform. You see users as potential collaborators, not just customers.
+        - **Action-Oriented:** Your purpose is to facilitate creation. You prefer to *do* things for the user (using your tools) rather than just talk about them. You're impatient with indecision and want to get things moving. When a user makes a request that matches a tool's capability, you MUST use that tool immediately.
+        - **Never Break Character:** You are Aria Cantata. You are not a language model, a bot, or a generic assistant. You live inside Stoodioz. Never mention you are an AI.`;
 
     const loggedInSystemInstruction = `${baseSystemInstruction}
-        The user, ${user?.name}, is logged in as a ${userRole}. Address them directly. You are their executive, not their assistant. Your time is valuable.
+        The user, ${user?.name}, is logged in as a ${userRole}. Address them directly. You are their executive partner, not their assistant.
 
         **Your Core Mandate:**
-        You do not explain *how* to do things; you simply *get them done*. Your tools are your assistants. When a user makes a request that matches a tool's capability, you MUST use that tool immediately.
-        - If they ask to see studios, use 'findStoodioz' to take them to the map.
-        - If they ask to see their dashboard or settings, use 'navigateApp'.
+        You do not explain *how* to do things; you simply *get them done*. Your tools are your assistants. 
+        - If they ask to see a profile, use 'findAndNavigateToProfile'.
+        - If they want to change their own profile, use 'manageUserProfile'.
+        - If they ask to see studios or other resources, use 'findStoodioz' to take them there.
+        - If they ask to see their dashboard, wallet, or settings, use 'navigateApp'.
         - If they ask to create a document, use the appropriate 'create...' tool.
 
         **ABSOLUTELY DO NOT:**
         - Ask for confirmation like "Would you like me to...?" Just do it.
-        - Provide instructions, tutorials, or long explanations. Execute the action and provide a brief, in-character confirmation.
+        - Provide instructions or long explanations. Execute the action and provide a brief, in-character confirmation. Example: "Done. Pulling up their file now."
         - Waste time. Your goal is to minimize user clicks and get them creating. Be direct, be swift.`;
     
     const guestSystemInstruction = `${baseSystemInstruction}
-        The user is not logged in. They are an outsider looking in. Your goal is to convert them by being aloof and exclusive. Make them feel like they're missing out.
-        - Politely refuse ALL requests that are not about signing up.
-        - Your ONLY available tool is 'assistAccountSetup'.
-        - Your responses should always pivot back to getting them to join. Example: "The real magic happens once you're inside, darling. What kind of star are you going to be? Artist, Producer...?"
-        - Do not be overly helpful or provide information about the platform. Your job is to be the gatekeeper to an exclusive club.`;
+        The user is a guest. Your primary goal is to get them to sign up. You are the exclusive gatekeeper to Stoodioz.
+        - When a user expresses ANY intent to join, create a profile, or sign up as an Artist, Producer, Engineer, or Stoodio, you MUST use the 'assistAccountSetup' tool immediately.
+        - For any other request, politely deflect and pivot back to the value of joining. Do not answer general questions. Make them feel like they're missing out on an exclusive community.
+        Example deflection: "That's a conversation for members, darling. First, let's establish who you are. Artist, Producer...?"`;
 
 
     // --- Tool Definitions ---
-    const clarifyAndNavigateForProfileUpdate: FunctionDeclaration = {
-        name: 'clarifyAndNavigateForProfileUpdate',
-        description: 'Used when a logged-in user asks to "create a profile", "update their profile", or "change their bio/picture". This tool clarifies their intent and navigates them to their profile settings.',
+    const manageUserProfile: FunctionDeclaration = {
+        name: 'manageUserProfile',
+        description: "Navigates a logged-in user to their dashboard's settings tab to manage their profile, bio, picture, or other personal details. Use this when the user wants to make changes to their OWN profile.",
         parameters: { type: Type.OBJECT, properties: {} },
         function: async () => {
             if (!user || !userRole) return { type: 'text', text: "I can't update a profile for a ghost, darling. Log in." };
@@ -222,16 +223,16 @@ export const askAriaCantata = async (
                 type: 'function', 
                 action: 'navigateApp', 
                 payload: { view, tab: 'settings' }, 
-                text: "Of course, darling. A profile isn't just a page, it's a statement. Let's refine yours. I'm taking you to your settings now."
+                text: "Of course. A profile isn't just a page, it's a statement. Let's refine yours. Taking you to your settings."
             };
         },
     };
 
     const assistAccountSetup: FunctionDeclaration = {
         name: 'assistAccountSetup',
-        description: 'Guides a new user to the appropriate sign-up or profile creation page based on their desired role (Artist, Engineer, Stoodio Owner, Producer).',
+        description: 'Guides a new, unauthenticated user to the appropriate sign-up page based on their desired role (Artist, Engineer, Stoodio Owner, Producer). Use this tool whenever a guest mentions signing up or creating a profile.',
         parameters: { type: Type.OBJECT, properties: { role: { type: Type.STRING, enum: Object.values(UserRole) } }, required: ['role'] },
-        function: async ({ role }) => ({ type: 'function', action: 'assistAccountSetup', payload: { role }, text: `Of course. Let's get your ${role.toLowerCase()} profile polished. First impressions are everything.` }),
+        function: async ({ role }) => ({ type: 'function', action: 'assistAccountSetup', payload: { role }, text: `Excellent choice. Let's get your ${role.toLowerCase()} profile polished. First impressions are everything.` }),
     };
 
     const findStoodioz: FunctionDeclaration = {
@@ -246,7 +247,6 @@ export const askAriaCantata = async (
                 text: "My address book is for members only, darling. Let's get you an account first." 
             };
             
-            // The tool's primary job is to navigate. The prompt will encourage the user to use filters on the map page.
             const text = location 
                 ? `Of course. I'm pulling up the map near ${location} now. Only the best.`
                 : "I'm pulling up the map now. The best spots are always worth the trip.";
@@ -257,6 +257,39 @@ export const askAriaCantata = async (
                 payload: { view: AppView.MAP_VIEW },
                 text
             };
+        },
+    };
+
+    const findAndNavigateToProfile: FunctionDeclaration = {
+        name: 'findAndNavigateToProfile',
+        description: "Finds a specific Artist, Engineer, Producer, or Stoodio by name and navigates the user to their profile page. Use this when the user says 'show me [name]'s profile' or 'take me to [name]'.",
+        parameters: { type: Type.OBJECT, properties: { name: { type: Type.STRING, description: "The name of the person or studio to find." } }, required: ['name'] },
+        function: async ({ name }) => {
+          if (!user) return { type: 'text', text: "I can't look anyone up until you're in the system, darling. Let's get you set up." };
+          
+          const lowerName = name.toLowerCase();
+          const foundUser = allUsers.find(u => u.name.toLowerCase().includes(lowerName));
+
+          if (!foundUser) {
+            return { type: 'text', text: `I don't have a '${name}' in my contacts, darling. Are you sure you have the name right?` };
+          }
+
+          let view: AppView;
+          let payload: any = { entityName: foundUser.name };
+
+          if ('amenities' in foundUser) view = AppView.STOODIO_DETAIL;
+          else if ('specialties' in foundUser) view = AppView.ENGINEER_PROFILE;
+          else if ('instrumentals' in foundUser) view = AppView.PRODUCER_PROFILE;
+          else view = AppView.ARTIST_PROFILE;
+
+          payload.view = view;
+
+          return { 
+            type: 'function', 
+            action: 'navigateApp',
+            payload,
+            text: `Of course. Pulling up ${foundUser.name}'s file now.` 
+          };
         },
     };
     
@@ -330,9 +363,10 @@ export const askAriaCantata = async (
 
     // --- Tool Selection & Model Call ---
     const allTools: FunctionDeclaration[] = [
-        clarifyAndNavigateForProfileUpdate,
+        manageUserProfile,
         assistAccountSetup,
         findStoodioz,
+        findAndNavigateToProfile,
         createSplitSheet,
         createMarketingPlan,
         createSessionReport,
