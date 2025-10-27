@@ -25,19 +25,19 @@ const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples }
 
     if (!mixingSamples || mixingSamples.length === 0) {
         return (
-            <div className="bg-zinc-800 rounded-2xl p-8 border border-zinc-700 text-center">
+            <div className="bg-black/50 backdrop-blur-md rounded-2xl p-8 border border-orange-500/20 text-center shadow-[0_0_20px_rgba(249,115,22,0.1)]">
                 <p className="text-zinc-400">This engineer hasn't uploaded any mixing samples yet.</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg border border-zinc-700">
+        <div className="bg-black/50 backdrop-blur-md rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.15)] border border-orange-500/20">
             <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
-            <h2 className="text-2xl font-bold text-slate-100 p-6 border-b border-zinc-700">Mixing Samples</h2>
-            <div className="divide-y divide-zinc-700">
+            <h2 className="text-2xl font-bold text-slate-100 p-6 border-b border-orange-500/20">Mixing Samples</h2>
+            <div className="divide-y divide-orange-500/20">
                 {mixingSamples.map(sample => (
-                    <div key={sample.id} className="p-4 flex items-center gap-4 hover:bg-zinc-700/50">
+                    <div key={sample.id} className="p-4 flex items-center gap-4 hover:bg-zinc-900/50">
                         <button onClick={() => handlePlayPause(sample)} className="bg-orange-500 text-white p-3 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0">
                             {playingId === sample.id ? <PauseIcon className="w-6 h-6" /> : <PlayIcon className="w-6 h-6" />}
                         </button>

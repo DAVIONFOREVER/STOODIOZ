@@ -1,8 +1,7 @@
-
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
-import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType, VerificationStatus } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, ChartBarIcon } from './icons';
+import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -17,8 +16,7 @@ import * as apiService from '../services/apiService';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
-
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+import ProfileHeroHeader from './ProfileHeroHeader';
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -44,7 +42,7 @@ const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onP
     const inputClasses = "mt-1 w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
-        <form onSubmit={handleSubmit} className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-xl border border-zinc-700/50 mb-6">
+        <form onSubmit={handleSubmit} className="bg-black/50 backdrop-blur-md p-6 rounded-xl border border-orange-500/20 mb-6">
             <h3 className="text-xl font-bold text-zinc-100 mb-4">Post a New Job</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
@@ -103,7 +101,7 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
                 {postedJobs.length > 0 ? postedJobs.map(job => {
                     const status = getStatusInfo(job);
                     return (
-                        <div key={job.id} className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                        <div key={job.id} className="bg-black/50 p-4 rounded-lg border border-orange-500/20 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
                             <div>
                                 <p className="text-xs text-zinc-400">Date</p>
                                 <p className="font-semibold">{new Date(job.date + 'T00:00:00').toLocaleDateString()}</p>
@@ -159,7 +157,7 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
 
     return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="bg-black/50 backdrop-blur-md p-6 rounded-lg shadow-md border border-orange-500/20">
             <h1 className="text-2xl font-bold text-zinc-100 mb-2 flex items-center gap-2">
                 <EditIcon className="w-6 h-6 text-orange-400" />
                 Profile Settings
@@ -204,17 +202,7 @@ interface StoodioDashboardProps {
     onNavigate: (view: AppView) => void;
 }
 
-type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
-
-const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
-        <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
-        <div>
-            <p className="text-zinc-400 text-sm font-medium">{label}</p>
-            <p className="text-2xl font-bold text-zinc-100">{value}</p>
-        </div>
-    </div>
-);
+type DashboardTab = 'dashboard' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
     <button
@@ -238,7 +226,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
 
     const stoodio = currentUser as Stoodio;
     
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
     const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
 
@@ -248,22 +235,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
             dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } });
         }
     }, [dashboardInitialTab, dispatch]);
-
-    const handleImageUploadClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const imageUrl = e.target?.result as string;
-                updateProfile({ imageUrl });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
      const onPostJob = async (jobData: JobPostData) => {
         if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) return;
@@ -276,17 +247,12 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
         };
         
         try {
-            // FIX: The `createBooking` function was missing from the apiService. It has been added. The call signature has also been updated to remove unused parameters.
             const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO);
             dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, postedBy: UserRole.STOODIO } } });
         } catch(error) {
             console.error("Failed to post job", error);
         }
     };
-
-    const upcomingBookingsCount = bookings
-        .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
-        .length;
     
     const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => stoodio.followerIds.includes(u.id));
     const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
@@ -302,12 +268,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'analytics':
-                return (
-                    <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <AnalyticsDashboard user={stoodio} />
-                    </Suspense>
-                );
             case 'settings':
                 return <StoodioSettings stoodio={stoodio} onUpdateStoodio={updateProfile} />;
             case 'verification':
@@ -332,7 +292,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 );
             case 'photos':
                 return (
-                    <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+                    <div className="bg-black/50 backdrop-blur-md p-6 rounded-lg shadow-md border border-orange-500/20">
                         <h3 className="text-xl font-bold mb-4">Photo Management</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             {stoodio.photos.map((photo, index) => (
@@ -356,7 +316,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             <CreatePost currentUser={currentUser!} onPost={createPost} />
-                            {/* FIX: Removed invalid `currentUser` prop. */}
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
@@ -369,66 +328,13 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
 
     return (
         <div className="space-y-8 animate-fade-in">
-            {/* Profile Header */}
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <div className="relative group flex-shrink-0">
-                            <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
-                            <button 
-                                onClick={handleImageUploadClick} 
-                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                aria-label="Change profile photo"
-                            >
-                                <EditIcon className="w-8 h-8 text-white" />
-                            </button>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept="image/*"
-                            />
-                        </div>
-                        <div className="text-center sm:text-left">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
-                            <p className="text-zinc-400 mt-2">Stoodio Dashboard</p>
-                        </div>
-                    </div>
-                    <div className="flex-shrink-0 flex flex-col gap-y-4">
-                        <button
-                            onClick={handleBookSession}
-                            className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
-                        >
-                            <CalendarIcon className="w-5 h-5"/>
-                            Book a New Session
-                        </button>
-                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
-                            <div className="relative">
-                                <input 
-                                    type="checkbox" 
-                                    className="sr-only" 
-                                    checked={stoodio.showOnMap ?? false} 
-                                    onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
-                                />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                     <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
-                    <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
-                </div>
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8">
+                 <ProfileHeroHeader profile={stoodio} />
             </div>
 
-            <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
-                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
+            <div className="bg-black/50 backdrop-blur-md rounded-xl border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+                <div className="flex border-b border-orange-500/20 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
                     <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />
@@ -439,16 +345,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     <TabButton label="Photos" isActive={activeTab === 'photos'} onClick={() => setActiveTab('photos')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
-                    {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
-                        <button onClick={() => onNavigate(AppView.STUDIO_INSIGHTS)} className="ml-auto px-4 py-3 font-semibold text-sm text-cyan-400 hover:text-cyan-300 border-b-2 border-transparent">
-                            Insights
-                        </button>
-                    )}
-                    {stoodio.isAdmin && (
-                         <button onClick={() => onNavigate(AppView.ADMIN_RANKINGS)} className="px-4 py-3 font-semibold text-sm text-red-400 hover:text-red-300 border-b-2 border-transparent">
-                            Admin
-                        </button>
-                    )}
                 </div>
                 <div className="p-6">
                     {renderContent()}

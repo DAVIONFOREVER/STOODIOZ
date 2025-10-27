@@ -12,6 +12,7 @@ import { useBookings } from '../hooks/useBookings';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { AppView } from '../types';
+import ProfileHeroHeader from './ProfileHeroHeader';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -35,7 +36,7 @@ const ProfileCard: React.FC<{
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left">
+        <button onClick={onClick} className="w-full flex items-center gap-3 bg-black/50 p-2 rounded-lg hover:bg-zinc-800 transition-colors text-left border border-orange-500/10 hover:border-orange-500/20">
             <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -114,52 +115,37 @@ const StoodioDetail: React.FC = () => {
     
     return (
         <div>
-             <button onClick={goBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
-                <ChevronLeftIcon className="w-5 h-5" />
-                Back to Stoodioz
-            </button>
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8">
+                <ProfileHeroHeader profile={stoodio} />
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
                 {/* Left Column: Stoodio Info */}
-                <div className="lg:col-span-3">
-                    <img src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-80 object-cover rounded-2xl mb-6 shadow-lg" />
-                    
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
-                                {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
-                                    // FIX: The `title` attribute is not a valid prop for the `VerifiedIcon` component. The fix is to use an SVG `<title>` element for accessibility.
-                                    <VerifiedIcon className="w-10 h-10 text-blue-500"><title>Verified Stoodio</title></VerifiedIcon>
-                                )}
-                            </div>
-                            <p className="text-slate-400 mt-2">{stoodio.location} &middot; {stoodio.followers.toLocaleString()} followers</p>
-                        </div>
-                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                            <button 
-                                onClick={() => currentUser ? startConversation(stoodio) : handleGuestInteraction()}
-                                disabled={!currentUser || currentUser.id === stoodio.id}
-                                className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <MessageIcon className="w-5 h-5" />
-                                Message
-                            </button>
-                            <button 
-                                onClick={() => currentUser ? toggleFollow('stoodio', stoodio.id) : handleGuestInteraction()}
-                                disabled={!currentUser || currentUser.id === stoodio.id}
-                                className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
-                            >
-                                {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
-                                {isFollowing ? 'Following' : 'Follow'}
-                            </button>
-                        </div>
+                <div className="lg:col-span-3 space-y-12">
+                    <div className="flex flex-col sm:flex-row justify-center gap-2 w-full">
+                        <button 
+                            onClick={() => currentUser ? startConversation(stoodio) : handleGuestInteraction()}
+                            disabled={!currentUser || currentUser.id === stoodio.id}
+                            className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-800 text-slate-100 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <MessageIcon className="w-5 h-5" />
+                            Message
+                        </button>
+                        <button 
+                            onClick={() => currentUser ? toggleFollow('stoodio', stoodio.id) : handleGuestInteraction()}
+                            disabled={!currentUser || currentUser.id === stoodio.id}
+                            className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-800 text-orange-400 border-2 border-orange-400 hover:bg-zinc-700'}`}
+                        >
+                            {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
+                            {isFollowing ? 'Following' : 'Follow'}
+                        </button>
                     </div>
 
-                    <p className="text-slate-300 leading-relaxed mb-8">{stoodio.description}</p>
+                    <p className="text-slate-300 leading-relaxed text-center">{stoodio.description}</p>
                     
-                    <div className="flex gap-10">
+                    <div className="flex justify-center gap-10">
                         <div>
                             <h3 className="text-2xl font-bold mb-4 text-orange-400">Amenities</h3>
-                            <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-slate-200 mb-10">
+                            <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-slate-200">
                                 {stoodio.amenities.map(amenity => (
                                     <li key={amenity} className="flex items-center">
                                         <svg className="w-5 h-5 mr-3 text-orange-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
@@ -168,11 +154,10 @@ const StoodioDetail: React.FC = () => {
                                 ))}
                             </ul>
                         </div>
-                        {/* FIX: Use selectedRoom.smokingPolicy instead of stoodio.smokingPolicy and make the block conditional. */}
                         {selectedRoom && (
                             <div>
                                 <h3 className="text-2xl font-bold mb-4 text-orange-400">Policies for {selectedRoom.name}</h3>
-                                <ul className="grid grid-cols-1 gap-y-3 text-slate-200 mb-10">
+                                <ul className="grid grid-cols-1 gap-y-3 text-slate-200">
                                     <li className="flex items-center">
                                         {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED)
                                             ? <SmokingIcon className="w-5 h-5 mr-3 text-green-400" />
@@ -186,18 +171,18 @@ const StoodioDetail: React.FC = () => {
                     </div>
 
                     {/* Posts & Updates */}
-                    <div className="mb-10">
+                    <div>
                         <h3 className="text-2xl font-bold mb-4 text-orange-400">Posts & Updates</h3>
                         <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewStoodioDetails} />
                     </div>
 
                      {/* Recently Hosted Artists */}
-                    <div className="mb-10">
+                    <div>
                         <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><UsersIcon className="w-6 h-6" /> Recently Hosted Artists</h3>
                         {hostedArtists.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {hostedArtists.map(artist => (
-                                    <button key={artist.id} onClick={() => viewArtistProfile(artist)} className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors">
+                                    <button key={artist.id} onClick={() => viewArtistProfile(artist)} className="flex items-center gap-3 bg-black/50 p-2 rounded-lg hover:bg-zinc-800 transition-colors border border-orange-500/10 hover:border-orange-500/20">
                                         <img src={artist.imageUrl} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
                                         <span className="font-semibold text-sm text-slate-200">{artist.name}</span>
                                     </button>
@@ -209,7 +194,7 @@ const StoodioDetail: React.FC = () => {
                     </div>
 
                      {/* Followers */}
-                    <div className="mb-10">
+                    <div>
                         <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><UsersIcon className="w-6 h-6" /> Followers</h3>
                         {followers.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -233,7 +218,7 @@ const StoodioDetail: React.FC = () => {
                     </div>
 
                     {/* Following */}
-                    <div className="mb-10">
+                    <div>
                         <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><UserCheckIcon className="w-6 h-6" /> Following</h3>
                         {[...followedArtists, ...followedEngineers, ...followedStoodioz, ...followedProducers].length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -248,14 +233,14 @@ const StoodioDetail: React.FC = () => {
                     </div>
 
                     {/* Recent Reviews */}
-                    <div className="mb-10">
+                    <div>
                         <h3 className="text-2xl font-bold mb-4 text-orange-400">Recent Reviews</h3>
                         {stoodioReviews.length > 0 ? (
                             <ul className="space-y-5">
                                 {stoodioReviews.map(review => {
                                     const artist = review.artistId ? artists.find(a => a.id === review.artistId) : null;
                                     return (
-                                    <li key={review.id} className="border-b border-zinc-700 pb-4 last:border-b-0">
+                                    <li key={review.id} className="border-b border-orange-500/10 pb-4 last:border-b-0">
                                         <div className="flex justify-between items-center mb-1">
                                             {artist ? (
                                                 <button onClick={() => viewArtistProfile(artist)} className="font-semibold text-slate-200 text-left hover:text-orange-400 transition-colors">
@@ -280,7 +265,7 @@ const StoodioDetail: React.FC = () => {
                         )}
                     </div>
                     
-                    <div className="mb-8">
+                    <div>
                         <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><PhotoIcon className="w-6 h-6" /> Photo Gallery</h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {stoodio.photos.map((photo, index) => (
@@ -292,7 +277,7 @@ const StoodioDetail: React.FC = () => {
 
                 {/* Right Column: Calendar and Booking */}
                 <div className="lg:col-span-2">
-                    <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg border border-zinc-700 sticky top-28">
+                    <div className="bg-black/50 backdrop-blur-md p-6 rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.15)] border border-orange-500/20 sticky top-28">
                         <h2 className="text-3xl font-bold mb-4 text-center text-slate-100">Book a Room</h2>
                         <div className="space-y-4 mb-6">
                             {stoodio.rooms.map(room => (

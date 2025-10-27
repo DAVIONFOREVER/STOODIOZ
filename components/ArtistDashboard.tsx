@@ -11,11 +11,12 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
+import ProfileHeroHeader from './ProfileHeroHeader';
 
 type DashboardTab = 'dashboard' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
+    <div className="bg-black/50 backdrop-blur-md p-4 rounded-xl flex items-center gap-4 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)]">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -107,6 +108,18 @@ const ArtistDashboard: React.FC = () => {
                             <CreatePost currentUser={artist} onPost={createPost} />
                             <PostFeed posts={artist.posts || []} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewArtistProfile} />
                         </div>
+                         <div className="lg:col-span-1 space-y-6">
+                            <div className="bg-black/50 backdrop-blur-md rounded-2xl p-6 border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+                                <h3 className="font-bold text-zinc-100 mb-4">Quick Actions</h3>
+                                <button
+                                    onClick={onOpenVibeMatcher}
+                                    className="w-full bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                                >
+                                    <MagicWandIcon className="w-5 h-5"/>
+                                    AI Vibe Matcher
+                                </button>
+                            </div>
+                         </div>
                     </div>
                 );
         }
@@ -114,48 +127,12 @@ const ArtistDashboard: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-fade-in">
-            {/* Profile Header */}
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
-                <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <div className="relative group flex-shrink-0">
-                            <img src={artist.imageUrl} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
-                            <button 
-                                onClick={handleImageUploadClick} 
-                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                aria-label="Change profile photo"
-                            >
-                                <EditIcon className="w-8 h-8 text-white" />
-                            </button>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept="image/*"
-                            />
-                        </div>
-                        <div className="text-center sm:text-left">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{artist.name}</h1>
-                            <p className="text-zinc-400 mt-2">Artist Dashboard</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onOpenVibeMatcher}
-                        className="bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
-                    >
-                        <MagicWandIcon className="w-5 h-5"/>
-                        AI Vibe Matcher
-                    </button>
-                </div>
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                     <StatCard label="Wallet Balance" value={`$${artist.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
-                    <StatCard label="Followers" value={artist.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
-                </div>
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8">
+                <ProfileHeroHeader profile={artist} />
             </div>
-             <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
-                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
+            
+            <div className="bg-black/50 backdrop-blur-md rounded-xl border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+                <div className="flex border-b border-orange-500/20 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />

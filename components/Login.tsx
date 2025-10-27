@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { AppView } from '../types';
 
@@ -18,7 +19,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate }) => {
     };
 
     return (
-        <div className="max-w-md mx-auto bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700 shadow-xl mt-16 backdrop-blur-sm">
+        <div className="max-w-md mx-auto bg-black/50 backdrop-blur-md p-8 rounded-2xl border border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.15)] mt-16">
             <h1 className="text-4xl font-extrabold text-center mb-2 text-slate-100">Welcome Back</h1>
             <p className="text-center text-slate-400 mb-8">Log in to your Stoodioz account.</p>
             {error && (
@@ -34,7 +35,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate }) => {
                         id="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="you@example.com"
                         required
                         autoComplete="email"
@@ -47,7 +48,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate }) => {
                         id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="••••••••"
                         required
                         autoComplete="current-password"

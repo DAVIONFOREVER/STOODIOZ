@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -179,6 +181,7 @@ export interface BaseUser {
     email: string;
     password?: string;
     imageUrl: string;
+    cover_image_url?: string;
     followers: number;
     followerIds: string[];
     following: Following;
@@ -426,4 +429,9 @@ export interface SessionFeedback {
     pro_tags: string[];
     con_tags: string[];
     timestamp: string;
+}
+
+export interface SupabaseContextType {
+  supabase: SupabaseClient | null;
+  isLoading: boolean;
 }

@@ -16,7 +16,7 @@ const RoleCard: React.FC<{
 }> = ({ icon, title, description, onClick }) => (
     <button
         onClick={onClick}
-        className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700 hover:border-orange-500/50 hover:bg-zinc-800 transition-all duration-300 text-left w-full group shadow-lg"
+        className="bg-black/50 backdrop-blur-md p-8 rounded-2xl border border-orange-500/20 hover:border-orange-500/50 hover:bg-black/40 transition-all duration-300 text-left w-full group shadow-[0_0_20px_rgba(249,115,22,0.1)] hover:shadow-[0_0_30px_rgba(249,115,22,0.2)]"
     >
         <div className="flex items-center gap-4 mb-4">
             {icon}

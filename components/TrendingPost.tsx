@@ -16,9 +16,9 @@ const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onSelectUser 
     const isLiked = currentUser ? post.likes.includes(currentUser.id) : false;
 
     return (
-        <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
+        <div className="bg-black/50 backdrop-blur-md p-4 rounded-xl border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
             <h3 className="font-bold text-slate-100 px-1 mb-2">Trending on Stoodioz</h3>
-            <div className="bg-zinc-700/50 rounded-lg p-3 border border-zinc-600">
+            <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
                 <button onClick={() => onSelectUser(author)} className="flex items-center gap-3 mb-2 text-left">
                      <img loading="lazy" src={author.imageUrl} alt={author.name} className="w-8 h-8 rounded-lg object-cover" />
                     <div>

@@ -18,13 +18,13 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, onNavigate }) =
     };
 
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg border border-zinc-700 overflow-hidden">
+        <div className="bg-black/50 backdrop-blur-md rounded-2xl shadow-[0_0_20px_rgba(249,115,22,0.1)] border border-orange-500/20 overflow-hidden">
             <div className="h-20 bg-gradient-to-r from-orange-500 to-amber-500"></div>
             <div className="p-4 pt-0 -mt-10">
                 <img 
                     src={user.imageUrl} 
                     alt={user.name}
-                    className="w-20 h-20 rounded-full object-cover border-4 border-zinc-800 mx-auto"
+                    className="w-20 h-20 rounded-full object-cover border-4 border-zinc-900 mx-auto"
                 />
                 <h2 className="text-center text-xl font-bold text-slate-100 mt-2">{user.name}</h2>
                 <div className="text-center mt-4 space-y-2">

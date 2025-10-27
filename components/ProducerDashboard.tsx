@@ -14,13 +14,14 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
+import ProfileHeroHeader from './ProfileHeroHeader';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 
 type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
+    <div className="bg-black/50 backdrop-blur-md p-4 rounded-xl flex items-center gap-4 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)]">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -131,54 +132,12 @@ const ProducerDashboard: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-fade-in">
-            {/* Profile Header */}
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <div className="relative group flex-shrink-0">
-                            <img src={producer.imageUrl} alt={producer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
-                             <button 
-                                onClick={handleImageUploadClick} 
-                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                aria-label="Change profile photo"
-                            >
-                                <EditIcon className="w-8 h-8 text-white" />
-                            </button>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept="image/*"
-                            />
-                        </div>
-                        <div className="text-center sm:text-left">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{producer.name}</h1>
-                            <p className="text-zinc-400 mt-2">Producer Dashboard</p>
-                        </div>
-                    </div>
-                     <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                        <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
-                        <div className="relative">
-                            <input 
-                                type="checkbox" 
-                                className="sr-only" 
-                                checked={producer.isAvailable} 
-                                onChange={(e) => updateProfile({ isAvailable: e.target.checked })} 
-                            />
-                            <div className={`block w-12 h-6 rounded-full transition-colors ${producer.isAvailable ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                            <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.isAvailable ? 'translate-x-6' : ''}`}></div>
-                        </div>
-                    </label>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                    <StatCard label="Wallet Balance" value={`$${producer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                    <StatCard label="Beats for Sale" value={producer.instrumentals.length} icon={<MusicNoteIcon className="w-6 h-6 text-purple-400" />} />
-                    <StatCard label="Followers" value={producer.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
-                </div>
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8">
+                <ProfileHeroHeader profile={producer} />
             </div>
-            <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
-                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
+            
+            <div className="bg-black/50 backdrop-blur-md rounded-xl border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+                <div className="flex border-b border-orange-500/20 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Beat Store" isActive={activeTab === 'beatStore'} onClick={() => setActiveTab('beatStore')} />

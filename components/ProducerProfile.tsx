@@ -8,6 +8,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { useBookings } from '../hooks/useBookings';
+import ProfileHeroHeader from './ProfileHeroHeader';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -31,7 +32,7 @@ const ProfileCard: React.FC<{
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left">
+        <button onClick={onClick} className="w-full flex items-center gap-3 bg-black/50 p-2 rounded-lg hover:bg-zinc-800 transition-colors text-left border border-orange-500/10 hover:border-orange-500/20">
             <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -75,53 +76,49 @@ const ProducerProfile: React.FC = () => {
 
     return (
         <div>
-            <button onClick={goBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
-                <ChevronLeftIcon className="w-5 h-5" />
-                Back to Producers
-            </button>
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8">
+                <ProfileHeroHeader profile={producer} />
+            </div>
+
             <div className="max-w-4xl mx-auto space-y-12">
-                <div className="bg-zinc-800 rounded-2xl shadow-lg p-8 border border-zinc-700">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                        <img src={producer.imageUrl} alt={producer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
-                        <div className="text-center sm:text-left flex-grow">
-                            <h1 className="text-4xl font-extrabold text-purple-400">{producer.name}</h1>
-                            <p className="text-slate-300 leading-relaxed mt-4">{producer.bio}</p>
-                             {producer.pullUpPrice && (
-                                <div className="mt-4 inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
-                                    <span className="flex items-center gap-2">
-                                        <DollarSignIcon className="w-5 h-5"/>
-                                        <span>"Pull Up" Session Fee: ${producer.pullUpPrice}</span>
-                                    </span>
-                                </div>
-                            )}
-                            <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
-                                {producer.pullUpPrice && currentUser && (
-                                     <button 
-                                        onClick={() => initiateBookingWithProducer(producer)}
-                                        className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                     >
-                                        <CalendarIcon className="w-5 h-5" />
-                                        Book Pull Up Session
-                                    </button>
-                                )}
-                                <button 
-                                    onClick={() => currentUser && startConversation(producer)}
-                                    disabled={!currentUser || currentUser.id === producer.id}
-                                    className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <MessageIcon className="w-5 h-5" />
-                                    Message
-                                </button>
-                                <button 
-                                    onClick={() => currentUser && toggleFollow('producer', producer.id)}
-                                    disabled={!currentUser || currentUser.id === producer.id}
-                                    className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-700 text-purple-400 border-2 border-purple-400 hover:bg-zinc-600'}`}
-                                >
-                                    {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
-                                    {isFollowing ? 'Following' : 'Follow'}
-                                </button>
+                <div className="bg-black/50 backdrop-blur-md rounded-2xl p-8 border border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.15)]">
+                    <p className="text-slate-300 leading-relaxed text-center mb-6">{producer.bio}</p>
+                    {producer.pullUpPrice && (
+                        <div className="text-center mb-6">
+                            <div className="inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
+                                <span className="flex items-center gap-2">
+                                    <DollarSignIcon className="w-5 h-5"/>
+                                    <span>"Pull Up" Session Fee: ${producer.pullUpPrice}</span>
+                                </span>
                             </div>
                         </div>
+                    )}
+                    <div className="flex justify-center flex-wrap gap-2">
+                        {producer.pullUpPrice && currentUser && (
+                             <button 
+                                onClick={() => initiateBookingWithProducer(producer)}
+                                className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                             >
+                                <CalendarIcon className="w-5 h-5" />
+                                Book Pull Up Session
+                            </button>
+                        )}
+                        <button 
+                            onClick={() => currentUser && startConversation(producer)}
+                            disabled={!currentUser || currentUser.id === producer.id}
+                            className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-800 text-slate-100 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <MessageIcon className="w-5 h-5" />
+                            Message
+                        </button>
+                        <button 
+                            onClick={() => currentUser && toggleFollow('producer', producer.id)}
+                            disabled={!currentUser || currentUser.id === producer.id}
+                            className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-800 text-purple-400 border-2 border-purple-400 hover:bg-zinc-700'}`}
+                        >
+                            {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
+                            {isFollowing ? 'Following' : 'Follow'}
+                        </button>
                     </div>
                 </div>
 
@@ -132,7 +129,7 @@ const ProducerProfile: React.FC = () => {
                         <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-6 h-6" /> Links</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {producer.links.map(link => (
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="bg-zinc-800 p-3 rounded-lg hover:bg-zinc-700 transition-colors border border-zinc-700 flex items-center gap-3">
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="bg-black/50 p-3 rounded-lg hover:bg-zinc-800 transition-colors border border-orange-500/20 flex items-center gap-3">
                                     <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
                                     <div className="overflow-hidden">
                                         <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>

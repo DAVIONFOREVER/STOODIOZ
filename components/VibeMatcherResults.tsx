@@ -34,7 +34,7 @@ const RecommendationCard: React.FC<{
     }[rec.type];
 
     return (
-        <div className="bg-zinc-800 rounded-2xl p-6 border border-zinc-700 flex flex-col gap-4 hover:border-orange-500/50 transition-colors">
+        <div className="bg-black/50 backdrop-blur-md rounded-2xl p-6 border border-orange-500/20 flex flex-col gap-4 shadow-[0_0_20px_rgba(249,115,22,0.1)] hover:border-orange-500/40 transition-colors">
             <div className="flex items-center gap-4">
                 <img src={rec.entity.imageUrl} alt={rec.entity.name} className="w-16 h-16 rounded-xl object-cover" />
                 <div>
@@ -67,7 +67,7 @@ const VibeMatcherResults: React.FC<VibeMatcherResultsProps> = ({ onSelectStoodio
                 Back to Dashboard
             </button>
             
-            <div className="bg-zinc-800 rounded-2xl shadow-xl p-8 border border-zinc-700 mb-8">
+            <div className="bg-black/50 backdrop-blur-md rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.15)] p-8 border border-orange-500/20 mb-8">
                 <h1 className="text-5xl font-extrabold text-center mb-2 tracking-tight text-orange-500">Your Vibe Match</h1>
                 <p className="text-center text-lg text-slate-300 mb-6 max-w-3xl mx-auto">
                     {vibeMatchResults.vibeDescription}
