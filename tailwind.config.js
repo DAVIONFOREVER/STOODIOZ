@@ -54,6 +54,9 @@ export default {
           '0%, 100%': { 'background-color': 'transparent' },
           '50%': { 'background-color': '#f97316' },
         },
+      },
+      transitionDuration: {
+        '400': '400ms',
       }
     },
   },
