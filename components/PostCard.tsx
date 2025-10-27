@@ -133,13 +133,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
             
             {/* Comments Section */}
             {showComments && (
-                <div className="border-t border-zinc-700 p-6 space-y-4 bg-zinc-800/50 rounded-b-2xl">
+                <div className="border-t border-zinc-700 p-6 space-y-4 bg-zinc-900/50 rounded-b-2xl">
                     {post.comments.length > 0 ? (
                         post.comments.map(comment => (
                             <div key={comment.id} className="flex items-start gap-3">
                                 <img src={comment.authorImageUrl} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
                                 <div>
-                                    <div className="bg-zinc-700 rounded-xl p-3">
+                                    <div className="bg-zinc-800 rounded-xl p-3">
                                         <p className="font-semibold text-sm text-slate-200">{comment.authorName}</p>
                                         <p className="text-sm text-slate-300">{comment.text}</p>
                                     </div>
@@ -171,4 +171,3 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
 };
 
 export default PostCard;
-      

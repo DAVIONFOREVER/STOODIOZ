@@ -45,7 +45,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ notifications, on
     };
 
     return (
-        <div className="absolute top-full right-0 mt-3 w-80 md:w-96 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl z-50 text-slate-200 animate-fade-in-down" role="dialog">
+        <div className="absolute top-full right-0 mt-3 w-80 md:w-96 cardSurface text-slate-200 animate-fade-in-down" role="dialog">
             <div className="flex justify-between items-center p-4 border-b border-zinc-700">
                 <h3 className="font-bold text-lg">Notifications</h3>
                 <button onClick={onMarkAllAsRead} className="text-sm font-semibold text-orange-400 hover:underline disabled:text-slate-500 disabled:no-underline" disabled={notifications.every(n => n.read)}>
