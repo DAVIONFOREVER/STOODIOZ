@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import type { Booking, Location } from '../types';
 import { BookingStatus, BookingRequestType } from '../types';
@@ -118,4 +119,58 @@ const MyBookings: React.FC = () => {
                                         </div>
                                     )}
                                     <div className={`flex items-center font-semibold ${statusColor}`}>
-                                        <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2
+                                        <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                        {statusText}
+                                    </div>
+                                </div>
+                                {booking.instrumentalsPurchased && booking.instrumentalsPurchased.length > 0 && (
+                                    <div className="mt-4 pt-3 border-t border-zinc-700">
+                                        <h4 className="font-semibold text-sm text-slate-200 mb-2">Purchased Beats</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {booking.instrumentalsPurchased.map(beat => (
+                                                <a key={beat.id} href={beat.audioUrl} download={`${beat.title}.mp3`} className="bg-zinc-700 text-slate-200 text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1.5 hover:bg-green-500/20 hover:text-green-300 transition-colors">
+                                                    <DownloadIcon className="w-3 h-3"/>
+                                                    {beat.title}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-shrink-0 flex md:flex-col items-center md:items-end justify-between gap-2">
+                                 <div className="text-right">
+                                    <p className="text-slate-400 text-sm">Total Paid</p>
+                                    <p className="text-xl font-bold text-slate-100">${booking.totalCost.toFixed(2)}</p>
+                                     {booking.tip && <p className="text-sm text-green-400 font-semibold">+ ${booking.tip.toFixed(2)} Tip</p>}
+                                 </div>
+                                 {booking.stoodio && booking.status === BookingStatus.CONFIRMED && isUpcoming && (
+                                     <button 
+                                        onClick={() => navigateToStudio(booking.stoodio!.coordinates)}
+                                        className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
+                                     >
+                                        <RoadIcon className="w-4 h-4"/>
+                                        Navigate
+                                     </button>
+                                 )}
+                                 {booking.status === BookingStatus.COMPLETED && booking.requestType !== BookingRequestType.BRING_YOUR_OWN && !booking.tip && (
+                                     <button onClick={() => onOpenTipModal(booking)} className="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md">
+                                        Rate & Tip
+                                     </button>
+                                 )}
+                                 {canCancel && (
+                                     <button onClick={() => onOpenCancelModal(booking)} className="bg-red-500/20 text-red-400 border border-red-500/30 font-bold py-2 px-4 rounded-lg hover:bg-red-500/30 hover:text-red-300 transition-all text-sm flex items-center gap-1.5">
+                                        <TrashIcon className="w-4 h-4" />
+                                        Cancel
+                                     </button>
+                                 )}
+                            </div>
+                        </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default MyBookings;
