@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon } from './icons';
@@ -12,7 +12,9 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
-type DashboardTab = 'dashboard' | 'wallet' | 'followers' | 'following';
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+
+type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -85,6 +87,12 @@ const ArtistDashboard: React.FC = () => {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'analytics':
+                return (
+                    <Suspense fallback={<div>Loading Analytics...</div>}>
+                        <AnalyticsDashboard user={artist} />
+                    </Suspense>
+                );
             case 'wallet':
                 return (
                     <Wallet
@@ -157,6 +165,7 @@ const ArtistDashboard: React.FC = () => {
              <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
@@ -16,6 +16,8 @@ import * as apiService from '../services/apiService';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
+
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -201,7 +203,7 @@ interface StoodioDashboardProps {
     onNavigate: (view: AppView) => void;
 }
 
-type DashboardTab = 'dashboard' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
@@ -282,6 +284,12 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'analytics':
+                return (
+                    <Suspense fallback={<div>Loading Analytics...</div>}>
+                        <AnalyticsDashboard user={stoodio} />
+                    </Suspense>
+                );
             case 'settings':
                 return <StoodioSettings stoodio={stoodio} onUpdateStoodio={updateProfile} />;
             case 'verification':
@@ -386,6 +394,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
             <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
                     <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />
