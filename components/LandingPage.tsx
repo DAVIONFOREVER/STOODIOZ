@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Stoodio, Producer } from '../types';
 import { AppView } from '../types';
-import WaveformText from './WaveformText';
+import AnimatedGradientText from './AnimatedGradientText';
 import AriaHero from './AriaHero';
 import ProductTour from './ProductTour';
 import { useAppState } from '../contexts/AppContext';
@@ -25,7 +25,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
         <div className="space-y-24 md:space-y-32">
             {/* Hero Section */}
             <section className="text-center">
-                <WaveformText text="Discover, Book, Create." className="text-5xl md:text-7xl font-extrabold" />
+                <AnimatedGradientText text="Discover, Book, Create." className="text-5xl md:text-7xl font-extrabold" />
                 <p className="max-w-3xl mx-auto mt-6 text-lg md:text-xl text-slate-400">
                     The premier platform for artists to discover and book professional recording studios, and for studio owners to showcase their unique spaces.
                 </p>
