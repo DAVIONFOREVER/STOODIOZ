@@ -31,7 +31,6 @@ export default {
         'fade-in': 'fade-in 0.6s ease-out forwards',
         'fade-in-up': 'fade-in-up 0.6s ease-out forwards',
         'slide-up': 'slide-up 0.5s ease-out forwards',
-        'gradient-bg': 'gradient-bg 25s ease infinite',
         'blink': 'blink 1.2s infinite steps(1, start)',
       },
        keyframes: {
@@ -50,11 +49,6 @@ export default {
         'slide-up': {
             'from': { opacity: 0, transform: 'translateY(30px)' },
             'to': { transform: 'translateY(0)', opacity: 1 },
-        },
-        'gradient-bg': {
-            '0%': { backgroundPosition: '0% 50%' },
-            '50%': { backgroundPosition: '100% 50%' },
-            '100%': { backgroundPosition: '0% 50%' },
         },
         'blink': {
           '0%, 100%': { 'background-color': 'transparent' },

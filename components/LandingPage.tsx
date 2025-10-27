@@ -19,7 +19,7 @@ interface LandingPageProps {
 
 const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
     <div className="text-center">
-        <p className="text-4xl lg:text-5xl font-extrabold text-orange-400">{value}</p>
+        <p className="text-4xl lg:text-5xl font-extrabold text-orange-400 text-glow">{value}</p>
         <p className="text-sm lg:text-base text-zinc-400 mt-1">{label}</p>
     </div>
 );
@@ -62,13 +62,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
             {/* Featured Stoodioz Section */}
             <section>
                 <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Featured Stoodioz</h2>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100 text-glow">Featured Stoodioz</h2>
                     <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
-                        View All <ChevronRightIcon className="w-5 h-5"/>
+                        View All <ChevronRightIcon className="w-5 h-5 text-orange-400"/>
                     </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {featuredStoodioz.map(stoodio => (
+                    {featuredStoodioz.map((stoodio, index) => (
                         <StoodioCard key={stoodio.id} stoodio={stoodio} onSelectStoodio={onSelectStoodio} />
                     ))}
                 </div>
@@ -77,9 +77,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
             {/* Featured Engineers Section */}
             <section>
                 <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Top Engineers</h2>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100 text-glow">Top Engineers</h2>
                      <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
-                        View All <ChevronRightIcon className="w-5 h-5"/>
+                        View All <ChevronRightIcon className="w-5 h-5 text-orange-400"/>
                     </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -92,9 +92,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
              {/* Featured Producers Section */}
             <section>
                 <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Featured Producers</h2>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100 text-glow">Featured Producers</h2>
                     <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="flex items-center gap-2 text-orange-400 font-semibold hover:underline">
-                        View All <ChevronRightIcon className="w-5 h-5"/>
+                        View All <ChevronRightIcon className="w-5 h-5 text-orange-400"/>
                     </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -117,7 +117,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
             {/* Product Tour Section */}
             <section>
                  <div className="text-center mb-12">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">Discover the Stoodioz Workflow</h2>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100 text-glow">Discover the Stoodioz Workflow</h2>
                 </div>
                 <ProductTour />
             </section>
@@ -125,7 +125,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
             {/* How it works */}
             <section>
                  <div className="text-center">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100">How It Works</h2>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100 text-glow">How It Works</h2>
                     <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-400">
                         A seamless experience for every role in the music creation process.
                     </p>
@@ -137,7 +137,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                         <p className="text-zinc-400 mt-2">Find the perfect space and sound engineer. Book sessions, manage projects, and collaborate.</p>
                     </div>
                      <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
-                        <SoundWaveIcon className="w-12 h-12 text-amber-400 mx-auto mb-4"/>
+                        <SoundWaveIcon className="w-12 h-12 text-orange-400 mx-auto mb-4"/>
                         <h3 className="text-2xl font-bold text-zinc-100">For Engineers</h3>
                         <p className="text-zinc-400 mt-2">Showcase your portfolio, get discovered by artists, and manage your bookings effortlessly.</p>
                     </div>

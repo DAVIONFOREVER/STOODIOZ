@@ -11,14 +11,15 @@ interface StoodioCardProps {
 const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) => {
     return (
         <div
-            className="bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden cursor-pointer group transform hover:-translate-y-1 transition-all duration-300 border border-zinc-700/50 hover:border-orange-500/50 hover:shadow-orange-500/10"
+            className="bg-zinc-900/50 backdrop-blur-sm rounded-2xl shadow-lg cursor-pointer group transition-all duration-400 ease-in-out border border-zinc-700/50 hover:shadow-[0_0_24px_rgba(249,115,22,0.4),_0_20px_40px_-15px_rgba(249,115,22,0.2)] hover:border-orange-500/50 hover:-translate-y-1 hover:rotate-1 shimmer glass-overlay relative overflow-hidden"
             onClick={() => onSelectStoodio(stoodio)}
+            style={{ '--shimmer-delay': (Math.random() * 8 + 2) } as React.CSSProperties}
         >
-            <div className="relative">
+            <div className="relative z-[2]">
                 <img loading="lazy" src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 to-transparent"></div>
                 <div className="absolute bottom-4 left-4">
-                    <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors flex items-center gap-2">
+                    <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors flex items-center gap-2 text-glow">
                         {stoodio.name}
                         {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
                             // FIX: The `title` attribute is not a valid prop for the `VerifiedIcon` component. The fix is to use an SVG `<title>` element for accessibility.
@@ -32,7 +33,7 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                     <span>{stoodio.rating.toFixed(1)}</span>
                 </div>
             </div>
-            <div className="p-4">
+            <div className="p-4 relative z-[2]">
                 <p className="text-zinc-400 text-sm mb-3 h-10 overflow-hidden">{stoodio.description}</p>
                 <div className="flex justify-between items-center">
                     <div>
