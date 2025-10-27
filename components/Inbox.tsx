@@ -321,7 +321,7 @@ const Inbox: React.FC = () => {
     if (!currentUser) return null;
 
     return (
-        <div className="flex h-[calc(100vh-10rem)] bg-zinc-800/50 rounded-2xl border border-zinc-700/50 shadow-lg overflow-hidden">
+        <div className="flex h-[calc(100vh-10rem)] overflow-hidden cardSurface">
             <div className={`w-full md:w-1/3 ${selectedConversationId ? 'hidden md:block' : ''}`}>
                 <ConversationList conversations={conversations} onSelect={selectConversation} selectedConversationId={selectedConversationId} currentUser={currentUser} />
             </div>

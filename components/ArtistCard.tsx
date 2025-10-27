@@ -20,7 +20,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSelectArtist, onToggl
     };
 
     return (
-        <div className="bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg border border-zinc-700 text-center p-6 group transition-all duration-300 hover:border-orange-500/50 hover:-translate-y-1">
+        <div className="text-center p-6 group transition-all duration-300 hover:-translate-y-1 cardSurface">
             <button onClick={() => onSelectArtist(artist)} className="w-full">
                 <img loading="lazy" src={artist.imageUrl} alt={artist.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-orange-500 transition-colors" />
                 <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400">{artist.name}</h3>

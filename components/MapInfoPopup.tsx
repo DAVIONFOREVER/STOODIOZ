@@ -16,7 +16,7 @@ const MapInfoPopup: React.FC<MapInfoPopupProps> = ({ user, onClose, onSelect, on
     const hasRating = 'rating_overall' in user;
 
     return (
-        <div className="bg-zinc-800 rounded-lg shadow-lg w-64 text-left">
+        <div className="w-64 text-left cardSurface">
             <div className="p-4">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">

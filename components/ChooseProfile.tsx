@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { UserRole } from '../types';
 import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons';
@@ -16,7 +14,7 @@ const RoleCard: React.FC<{
 }> = ({ icon, title, description, onClick }) => (
     <button
         onClick={onClick}
-        className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700 hover:border-orange-500/50 hover:bg-zinc-800 transition-all duration-300 text-left w-full group shadow-lg"
+        className="p-8 transition-all duration-300 text-left w-full group cardSurface"
     >
         <div className="flex items-center gap-4 mb-4">
             {icon}

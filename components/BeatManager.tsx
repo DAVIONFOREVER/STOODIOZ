@@ -48,7 +48,7 @@ const BeatFormModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-zinc-900/80 backdrop-blur-lg rounded-xl shadow-2xl w-full max-w-lg border border-zinc-700/50">
+            <div className="w-full max-w-lg cardSurface">
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-zinc-100">{instrumental?.id ? 'Edit Instrumental' : 'Upload New Instrumental'}</h2>
                     <button onClick={onClose}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
@@ -161,7 +161,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer })
     };
 
     return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="p-6 cardSurface">
              <div className="flex justify-between items-center mb-6">
                  <h1 className="text-2xl font-bold text-zinc-100">My Beats</h1>
                  <button onClick={() => handleOpenModal({})} className="flex items-center gap-2 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm">

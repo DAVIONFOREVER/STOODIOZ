@@ -45,7 +45,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArt
         <div className="max-w-4xl mx-auto">
             <h1 className="text-5xl font-extrabold text-center mb-6 tracking-tight text-orange-500">Active Session</h1>
             {/* Timeline Header */}
-            <div className="bg-zinc-800 rounded-xl shadow-md p-4 mb-6 border border-zinc-700">
+            <div className="p-4 mb-6 cardSurface">
                 <div className="flex justify-between items-center">
                     <TimelineStep title="On the Way" isComplete={progress === 'IN_SESSION'} isCurrent={progress === 'EN_ROUTE'} />
                     <div className="flex-grow h-0.5 bg-slate-600 mx-4"><div className={`h-full ${progress === 'IN_SESSION' ? 'bg-orange-500' : 'bg-slate-600'}`}></div></div>
@@ -53,7 +53,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArt
                 </div>
             </div>
             
-            <div className="bg-zinc-800 rounded-2xl shadow-xl border border-zinc-700 overflow-hidden">
+            <div className="overflow-hidden cardSurface">
                 {/* Map/Navigation View */}
                 <div className="relative">
                     <img src="https://source.unsplash.com/seeded/map-route/1200x500" alt="Map route to stoodio" className="w-full h-64 md:h-80 object-cover" />

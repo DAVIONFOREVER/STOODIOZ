@@ -74,7 +74,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
 
     return (
         <div className="max-w-3xl mx-auto text-center">
-            <div className="bg-zinc-800 rounded-2xl shadow-xl p-8 border border-zinc-700">
+            <div className="p-8 cardSurface">
                 <div className="flex justify-center mb-4">
                     {icon}
                 </div>

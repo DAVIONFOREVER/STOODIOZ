@@ -134,7 +134,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true">
-            <div className="bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl w-full max-w-4xl transform animate-slide-up border border-zinc-700/50 flex flex-col max-h-[90vh] sm:max-h-[85vh]" >
+            <div className="w-full max-w-4xl transform animate-slide-up flex flex-col max-h-[90vh] sm:max-h-[85vh] cardSurface" >
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center flex-shrink-0">
                     <div>
                         <h2 className="text-2xl font-bold text-zinc-100">Book {stoodio.name}</h2>

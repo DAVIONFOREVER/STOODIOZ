@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import type { Stoodio, Engineer, Artist, Producer } from '../types';
 import { HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
@@ -39,7 +37,7 @@ const FollowersList: React.FC<FollowersListProps> = ({ followers, onSelectStoodi
     }
 
     return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="p-6 cardSurface">
             <h1 className="text-2xl font-bold mb-6 text-zinc-100">Followers ({followers.length})</h1>
             {followers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

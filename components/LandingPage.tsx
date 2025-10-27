@@ -131,22 +131,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                     </p>
                 </div>
                 <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
+                    <div className="p-8 text-center cardSurface">
                         <MicrophoneIcon className="w-12 h-12 text-green-400 mx-auto mb-4"/>
                         <h3 className="text-2xl font-bold text-zinc-100">For Artists</h3>
                         <p className="text-zinc-400 mt-2">Find the perfect space and sound engineer. Book sessions, manage projects, and collaborate.</p>
                     </div>
-                     <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
+                     <div className="p-8 text-center cardSurface">
                         <SoundWaveIcon className="w-12 h-12 text-orange-400 mx-auto mb-4"/>
                         <h3 className="text-2xl font-bold text-zinc-100">For Engineers</h3>
                         <p className="text-zinc-400 mt-2">Showcase your portfolio, get discovered by artists, and manage your bookings effortlessly.</p>
                     </div>
-                     <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
+                     <div className="p-8 text-center cardSurface">
                         <HouseIcon className="w-12 h-12 text-orange-400 mx-auto mb-4"/>
                         <h3 className="text-2xl font-bold text-zinc-100">For Stoodioz</h3>
                         <p className="text-zinc-400 mt-2">List your space, manage your calendar, find in-house talent, and keep your rooms booked.</p>
                     </div>
-                    <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 text-center">
+                    <div className="p-8 text-center cardSurface">
                         <MusicNoteIcon className="w-12 h-12 text-purple-400 mx-auto mb-4"/>
                         <h3 className="text-2xl font-bold text-zinc-100">For Producers</h3>
                         <p className="text-zinc-400 mt-2">Monetize your instrumentals, manage your beat store, and get hired for custom production work.</p>
@@ -155,7 +155,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
             </section>
 
             {/* Call to Action */}
-            <section className="bg-zinc-800 rounded-2xl p-12 text-center border border-zinc-700">
+            <section className="p-12 text-center cardSurface">
                 <AiHeroText text="Ready to Create?" className="text-4xl md:text-5xl font-extrabold" />
                 <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-300">
                     Join a community of passionate music creators. Sign up today and take the next step in your musical journey.

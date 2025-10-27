@@ -23,6 +23,12 @@
   }
 }
 
+@layer components {
+  .cardSurface {
+    @apply bg-black/45 backdrop-blur-md rounded-2xl border border-white/[.07] shadow-[0_30px_60px_rgba(0,0,0,0.8),_0_0_20px_rgba(249,115,22,0.4)];
+  }
+}
+
 @layer utilities {
     /* ARIA Vibe Mode: Neon text glow */
     .text-glow {

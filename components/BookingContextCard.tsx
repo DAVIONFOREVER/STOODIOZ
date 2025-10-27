@@ -21,7 +21,7 @@ const BookingContextCard: React.FC<BookingContextCardProps> = ({ booking, onNavi
     const title = isRemoteMix ? `Remote Mix: ${booking.engineer?.name}` : booking.stoodio?.name;
 
     return (
-        <div className="bg-zinc-800/70 p-3 rounded-xl border border-zinc-700/50 mb-4 mx-0">
+        <div className="p-3 mb-4 mx-0 cardSurface">
             <p className="text-xs font-bold text-orange-400 uppercase mb-2">Booking Details</p>
             <div className="flex items-center gap-4">
                 <img src={imageUrl} alt={title} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />

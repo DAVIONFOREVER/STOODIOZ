@@ -19,7 +19,7 @@ const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
+    <div className="p-4 flex items-center gap-4 cardSurface">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -38,13 +38,13 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
-    <div className="bg-gradient-to-r from-indigo-500 to-blue-500 p-6 rounded-2xl text-white text-center shadow-lg shadow-blue-500/10">
+    <div className="p-6 text-white text-center cardSurface">
         <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
         <h3 className="text-xl font-bold mb-2">Upgrade to Engineer Plus</h3>
         <p className="text-sm opacity-90 mb-4">Unlock advanced job filters, lower service fees, and priority support to boost your career.</p>
         <button 
             onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
-            className="bg-white text-indigo-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
+            className="bg-white text-orange-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
         >
             View Plans
         </button>
@@ -124,7 +124,7 @@ const EngineerDashboard: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
+            <div className="p-6 md:p-8 cardSurface">
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
                         <div className="relative group flex-shrink-0">
@@ -170,7 +170,7 @@ const EngineerDashboard: React.FC = () => {
                     <StatCard label="Overall Rating" value={engineer.rating_overall.toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
                 </div>
             </div>
-             <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
+             <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />

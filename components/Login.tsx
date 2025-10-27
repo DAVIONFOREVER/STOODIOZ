@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { AppView } from '../types';
 
@@ -18,7 +19,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate }) => {
     };
 
     return (
-        <div className="max-w-md mx-auto bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700 shadow-xl mt-16 backdrop-blur-sm">
+        <div className="max-w-md mx-auto p-8 mt-16 cardSurface">
             <h1 className="text-4xl font-extrabold text-center mb-2 text-slate-100">Welcome Back</h1>
             <p className="text-center text-slate-400 mb-8">Log in to your Stoodioz account.</p>
             {error && (

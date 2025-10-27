@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { CalendarIcon, StarIcon, CheckCircleIcon, UserGroupIcon, SearchIcon, CloseIcon, ChevronUpDownIcon } from './icons';
@@ -11,7 +10,7 @@ type AllUsers = Artist | Engineer | Producer | Stoodio;
 type SortKey = 'tier' | 'sessions_completed' | 'location' | 'rating_overall' | 'on_time_rate' | 'repeat_hire_rate';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-900/50 p-6 rounded-2xl flex items-start gap-4 border border-zinc-700/50 shadow-[0_0_15px_rgba(249,115,22,0.1)]">
+    <div className="p-6 flex items-start gap-4 cardSurface">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 font-medium">{label}</p>
@@ -29,7 +28,7 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative w-full max-w-lg bg-zinc-900 border-l border-zinc-700 h-full flex flex-col animate-slide-in-right">
+            <div className="relative w-full max-w-lg h-full flex flex-col animate-slide-in-right cardSurface">
                 <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-zinc-100">Talent Details</h2>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-800"><CloseIcon className="w-6 h-6 text-zinc-400" /></button>
@@ -44,7 +43,7 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                         </div>
                     </div>
 
-                    <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700/50">
+                    <div className="p-4 cardSurface">
                         <h4 className="font-bold text-zinc-100 mb-3">Performance Breakdown</h4>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex flex-col"><span className="text-zinc-400">Overall Rating</span><span className="font-bold text-xl text-zinc-100">{user.rating_overall.toFixed(1)} / 5.0</span></div>
@@ -56,7 +55,7 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                         </div>
                     </div>
                     
-                     <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700/50">
+                     <div className="p-4 cardSurface">
                         <h4 className="font-bold text-zinc-100 mb-2">Top Skills</h4>
                         <div className="flex flex-wrap gap-2">
                             {user.strength_tags.map(tag => <span key={tag} className="bg-zinc-700 text-zinc-300 text-xs font-semibold px-2 py-1 rounded-full">{tag}</span>)}
@@ -64,7 +63,7 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                         <p className="text-xs text-center text-zinc-500 mt-3">{user.local_rank_text}</p>
                     </div>
 
-                    <div className="bg-zinc-800/50 p-4 rounded-xl border border-zinc-700/50">
+                    <div className="p-4 cardSurface">
                         <h4 className="font-bold text-zinc-100 mb-3">Recent Feedback Summary</h4>
                         <div className="space-y-3">
                             {userFeedback.length > 0 ? userFeedback.map(f => (
@@ -175,7 +174,7 @@ const AdminRankings: React.FC = () => {
                 <StatCard label="Total Talent Profiles" value={allUsers.length.toLocaleString()} icon={<UserGroupIcon className="w-8 h-8 text-blue-400" />} />
             </div>
 
-            <div className="bg-zinc-900/50 rounded-2xl border border-zinc-700/50 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+            <div className="cardSurface">
                 <div className="p-4 flex flex-col md:flex-row gap-4 justify-between items-center border-b border-zinc-700/50">
                     <div className="relative w-full md:w-1/3">
                         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />

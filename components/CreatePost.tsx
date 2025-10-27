@@ -51,7 +51,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
 
 
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg p-6 border border-zinc-700">
+        <div className="p-6 cardSurface">
             <div className="flex items-start gap-4">
                 <img src={currentUser.imageUrl} alt={currentUser.name} className="w-12 h-12 rounded-xl object-cover" />
                 <div className="w-full">

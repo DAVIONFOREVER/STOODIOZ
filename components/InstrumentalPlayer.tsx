@@ -26,14 +26,14 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
 
     if (instrumentals.length === 0) {
         return (
-            <div className="bg-zinc-800 rounded-2xl p-8 border border-zinc-700 text-center">
+            <div className="p-8 text-center cardSurface">
                 <p className="text-zinc-400">This producer hasn't uploaded any instrumentals yet.</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg border border-zinc-700">
+        <div className="cardSurface">
              <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
             <h2 className="text-2xl font-bold text-slate-100 p-6 border-b border-zinc-700">Beat Store</h2>
             <div className="divide-y divide-zinc-700">

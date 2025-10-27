@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import type { Stoodio, Engineer, Artist, Producer } from '../types';
 import { UserCheckIcon, LocationIcon, MusicNoteIcon } from './icons';
@@ -19,7 +16,7 @@ interface FollowingProps {
 
 const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, producers, onToggleFollow, onSelectStudio, onSelectArtist, onSelectEngineer, onSelectProducer }) => {
     return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="p-6 cardSurface">
             <h1 className="text-2xl font-bold mb-6 text-zinc-100">Following</h1>
 
             <div className="space-y-8">

@@ -23,7 +23,7 @@ const ArtistSetup: React.FC<ArtistSetupProps> = ({ onCompleteSetup, onNavigate }
     const isFormValid = name.trim() && bio.trim() && email.trim() && password.trim() && agreedToTerms;
 
     return (
-        <div className="max-w-2xl mx-auto bg-zinc-900/70 backdrop-blur-lg p-8 rounded-2xl border border-zinc-700/50 shadow-2xl animate-fade-in">
+        <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
             <h1 className="text-4xl font-extrabold text-center mb-2 text-zinc-100">Create Your <span className="text-orange-400">Artist Profile</span></h1>
             <p className="text-center text-zinc-400 mb-8">Tell the community who you are and create your account.</p>
             <form onSubmit={handleSubmit} className="space-y-6">

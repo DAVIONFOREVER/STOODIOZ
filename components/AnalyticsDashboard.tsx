@@ -12,7 +12,7 @@ interface AnalyticsDashboardProps {
 }
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
+    <div className="p-4 flex items-center gap-4 cardSurface">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -22,7 +22,7 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.Re
 );
 
 const ChartContainer: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => (
-    <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+    <div className="p-6 cardSurface">
         <h3 className="text-xl font-bold text-zinc-100 mb-4">{title}</h3>
         {children}
     </div>
