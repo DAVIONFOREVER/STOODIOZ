@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
@@ -38,7 +36,8 @@ const StoodioList = lazy(() => import('./components/StudioList'));
 const StoodioDetail = lazy(() => import('./components/StudioDetail'));
 const BookingConfirmation = lazy(() => import('./components/BookingConfirmation'));
 const MyBookings = lazy(() => import('./components/MyBookings'));
-const StoodioDashboard = lazy(() => import('./components/StoodioDashboard'));
+// FIX: Changed import path to match the actual filename `StudioDashboard.tsx`.
+const StoodioDashboard = lazy(() => import('./components/StudioDashboard'));
 const EngineerDashboard = lazy(() => import('./components/EngineerDashboard'));
 const ProducerDashboard = lazy(() => import('./components/ProducerDashboard'));
 const Inbox = lazy(() => import('./components/Inbox'));
@@ -266,7 +265,17 @@ const App: React.FC = () => {
                     case AppView.ACTIVE_SESSION:
                         return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
                     default:
-                        return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
+                        return <TheStage 
+                            onPost={createPost} 
+                            onLikePost={likePost} 
+                            onCommentOnPost={commentOnPost}
+                            onToggleFollow={toggleFollow}
+                            onSelectArtist={viewArtistProfile}
+                            onSelectEngineer={viewEngineerProfile}
+                            onSelectStoodio={viewStoodioDetails}
+                            onSelectProducer={viewProducerProfile}
+                            onNavigate={navigate}
+                        />;
                 }
         }
     };

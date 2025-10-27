@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { CloseIcon } from './icons';
+import { CloseIcon, DollarSignIcon } from './icons';
 
 interface AddFundsModalProps {
     onClose: () => void;
@@ -7,64 +8,53 @@ interface AddFundsModalProps {
 }
 
 const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onConfirm }) => {
-    const [amount, setAmount] = useState<string>('100');
-    const quickAmounts = [50, 100, 250, 500];
+    const [amount, setAmount] = useState(50);
+    const presetAmounts = [50, 100, 250, 500];
 
     const handleConfirm = () => {
-        const numericAmount = parseFloat(amount);
-        if (numericAmount > 0) {
-            onConfirm(numericAmount);
+        if (amount > 0) {
+            onConfirm(amount);
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
-            <div className="bg-zinc-800 rounded-2xl shadow-2xl w-full max-w-md transform transition-all border border-zinc-700">
-                <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-100">Add Funds to Wallet</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
-                        <CloseIcon className="w-6 h-6" />
-                    </button>
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-zinc-800 rounded-2xl shadow-xl w-full max-w-md border border-zinc-700 animate-slide-up">
+                <div className="p-4 border-b border-zinc-700 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-slate-100">Add Funds to Wallet</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-100"><CloseIcon className="w-6 h-6" /></button>
                 </div>
-
-                <div className="p-6 text-center">
-                    <p className="text-slate-300 mb-6">Select an amount or enter a custom amount to add to your balance.</p>
-
-                    <div className="flex justify-center gap-4 mb-6">
-                        {quickAmounts.map(amt => (
+                <div className="p-6 space-y-4">
+                    <p className="text-slate-300 text-center">Select an amount or enter a custom value to add to your wallet balance.</p>
+                    <div className="flex justify-center gap-2">
+                        {presetAmounts.map(preset => (
                             <button
-                                key={amt}
-                                onClick={() => setAmount(String(amt))}
-                                className={`w-full py-3 rounded-lg font-bold text-lg transition-colors ${
-                                    Number(amount) === amt
-                                    ? 'bg-orange-500 text-white'
-                                    : 'bg-zinc-700 hover:bg-zinc-600 text-slate-200'
-                                }`}
+                                key={preset}
+                                onClick={() => setAmount(preset)}
+                                className={`font-bold py-2 px-4 rounded-lg transition-colors ${amount === preset ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-slate-200 hover:bg-zinc-600'}`}
                             >
-                               ${amt}
+                                ${preset}
                             </button>
                         ))}
                     </div>
-
-                     <div className="relative">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">$</span>
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
                         <input
                             type="number"
-                            placeholder="Custom Amount"
                             value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full text-center bg-zinc-700 border-zinc-600 text-slate-100 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500 font-semibold text-xl"
+                            onChange={(e) => setAmount(Number(e.target.value))}
+                            className="w-full pl-7 p-3 bg-zinc-700 rounded-md text-center font-bold text-2xl"
+                            min="5"
                         />
                     </div>
                 </div>
-
-                <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-2xl">
+                <div className="p-4 bg-zinc-800/50 border-t border-zinc-700">
                     <button
                         onClick={handleConfirm}
-                        disabled={!amount || parseFloat(amount) <= 0}
-                        className="w-full text-white bg-orange-500 hover:bg-orange-600 disabled:bg-slate-600 disabled:cursor-not-allowed font-bold rounded-lg text-lg px-5 py-3.5 text-center transition-all shadow-md shadow-orange-500/20"
+                        disabled={amount < 5}
+                        className="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-all disabled:bg-slate-600 disabled:cursor-not-allowed"
                     >
-                       Add ${parseFloat(amount || '0').toFixed(2)}
+                        Add ${amount.toFixed(2)}
                     </button>
                 </div>
             </div>

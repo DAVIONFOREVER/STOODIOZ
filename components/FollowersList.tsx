@@ -1,71 +1,65 @@
-
-
 import React from 'react';
-import type { Stoodio, Engineer, Artist, Producer } from '../types';
-import { HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
+import type { Artist, Engineer, Stoodio, Producer } from '../types';
 
 interface FollowersListProps {
-    followers: (Stoodio | Engineer | Artist | Producer)[];
-    onSelectStoodio: (stoodio: Stoodio) => void;
+    followers: (Artist | Engineer | Stoodio | Producer)[];
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
+    onSelectStoodio: (studio: Stoodio) => void;
     onSelectProducer: (producer: Producer) => void;
 }
 
-const FollowersList: React.FC<FollowersListProps> = ({ followers, onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer }) => {
+const FollowerCard: React.FC<{
+    user: Artist | Engineer | Stoodio | Producer;
+    type: 'artist' | 'engineer' | 'stoodio' | 'producer';
+    onSelect: () => void;
+}> = ({ user, type, onSelect }) => {
+    return (
+        <button onClick={onSelect} className="bg-zinc-800/50 p-3 rounded-lg flex items-center gap-3 text-left w-full border border-zinc-700/50 hover:bg-zinc-800 transition-colors">
+            <img src={user.imageUrl} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
+            <div>
+                <p className="font-semibold text-sm text-zinc-200">{user.name}</p>
+                <p className="text-xs text-zinc-400 capitalize">{type}</p>
+            </div>
+        </button>
+    );
+};
 
-    const handleSelect = (user: Stoodio | Engineer | Artist | Producer) => {
-        if ('amenities' in user) { // Stoodio
-            onSelectStoodio(user);
-        } else if ('specialties' in user) { // Engineer
-            onSelectEngineer(user);
-        } else if ('instrumentals' in user) { // Producer
-            onSelectProducer(user);
-        } else { // Artist
-            onSelectArtist(user);
-        }
-    }
 
-    const getRoleInfo = (user: Stoodio | Engineer | Artist | Producer) => {
-        if ('amenities' in user) {
-            return { role: 'Stoodio', icon: <HouseIcon className="w-4 h-4 text-red-400"/> };
-        } else if ('specialties' in user) {
-            return { role: 'Engineer', icon: <SoundWaveIcon className="w-4 h-4 text-orange-400"/> };
-        } else if ('instrumentals' in user) {
-            return { role: 'Producer', icon: <MusicNoteIcon className="w-4 h-4 text-purple-400"/> };
-        } else {
-            return { role: 'Artist', icon: <MicrophoneIcon className="w-4 h-4 text-green-400"/> };
-        }
-    }
+const FollowersList: React.FC<FollowersListProps> = (props) => {
+    const { followers, onSelectArtist, onSelectEngineer, onSelectStoodio, onSelectProducer } = props;
+
+    const allFollowers = followers.map(user => {
+        let type: 'artist' | 'engineer' | 'stoodio' | 'producer';
+        if ('amenities' in user) type = 'stoodio';
+        else if ('specialties' in user) type = 'engineer';
+        else if ('instrumentals' in user) type = 'producer';
+        else type = 'artist';
+        return { user, type };
+    });
 
     return (
         <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
-            <h1 className="text-2xl font-bold mb-6 text-zinc-100">Followers ({followers.length})</h1>
-            {followers.length > 0 ? (
+             <h1 className="text-2xl font-bold text-zinc-100 mb-4">Followers</h1>
+             {allFollowers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {followers.map(user => {
-                        const { role, icon } = getRoleInfo(user);
-                        return (
-                            <button 
-                                key={user.id} 
-                                onClick={() => handleSelect(user)}
-                                className="bg-zinc-900/50 rounded-xl p-3 flex items-center gap-4 border border-zinc-700 hover:border-orange-500/50 transition-colors text-left w-full"
-                            >
-                                <img src={user.imageUrl} alt={user.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <p className="font-bold text-zinc-200">{user.name}</p>
-                                    <div className="text-sm text-zinc-400 flex items-center gap-1.5 mt-1">
-                                        {icon}
-                                        {role}
-                                    </div>
-                                </div>
-                            </button>
-                        );
-                    })}
+                    {allFollowers.map(({ user, type }) => (
+                         <FollowerCard
+                            key={user.id}
+                            user={user}
+                            type={type}
+                            onSelect={() => {
+                                if (type === 'artist') onSelectArtist(user as Artist);
+                                if (type === 'engineer') onSelectEngineer(user as Engineer);
+                                if (type === 'stoodio') onSelectStoodio(user as Stoodio);
+                                if (type === 'producer') onSelectProducer(user as Producer);
+                            }}
+                        />
+                    ))}
                 </div>
-            ) : (
-                <p className="text-zinc-500 text-sm">No followers yet.</p>
-            )}
+             ) : (
+                <p className="text-center py-8 text-zinc-500">You don't have any followers yet.</p>
+             )}
         </div>
     );
 };

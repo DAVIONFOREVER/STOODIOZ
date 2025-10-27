@@ -1,215 +1,143 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole } from '../types';
-import { askAriaCantata } from '../services/geminiService';
 import { CloseIcon, PaperAirplaneIcon, MagicWandIcon } from './icons';
+import type { Artist, Engineer, Stoodio, Producer, AriaCantataMessage } from '../types';
+import { UserRole } from '../types';
+import { ARIA_CANTATA_IMAGE_URL } from '../constants';
+import { askAriaCantata } from '../services/geminiService';
 import { useAppState } from '../contexts/AppContext';
 
-interface AriaCantataAssistantProps {
+interface AriaAssistantProps {
     isOpen: boolean;
     onClose: () => void;
-    onStartConversation: (participant: Artist | Engineer | Stoodio | Producer) => void;
-    onStartGroupConversation: (participants: (Artist | Engineer | Stoodio | Producer)[], title: string) => void;
-    onUpdateProfile: (updates: Partial<Artist | Engineer | Stoodio | Producer>) => void;
-    onBookStudio: (details: Omit<Booking, 'id' | 'status'>) => void;
-    onShowVibeMatchResults: (results: VibeMatchResult) => void;
-    onNavigateRequest: (view: AppView, entityName?: string) => void;
-    onStartSetupRequest: (role: UserRole) => void;
-    onSendMessageRequest: (recipientName: string, messageText: string) => void;
-    onSendDocument: (recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => void;
+    onStartConversation: (participant: any) => void;
+    onStartGroupConversation: (participants: any[], title: string) => void;
+    onUpdateProfile: (updates: any) => void;
+    onBookStudio: (bookingDetails: any) => void;
+    onShowVibeMatchResults: (results: any) => void;
+    onNavigateRequest: (view: any, entityName?: string, tab?: string) => void;
+    onSendMessageRequest: (recipientName: string, message: string) => void;
     onGetDirectionsRequest: (entityName: string) => void;
+    onSendDocument: (recipient: any, documentContent: string, fileName: string) => void;
+    onStartSetupRequest: (role: UserRole) => void;
     history: AriaCantataMessage[];
     setHistory: (history: AriaCantataMessage[]) => void;
     initialPrompt: string | null;
     clearInitialPrompt: () => void;
 }
 
-const TypingIndicator: React.FC = () => (
-    <div className="flex items-center gap-1.5">
-        <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-        <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-        <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"></div>
-    </div>
-);
-
-const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
+const AriaAssistant: React.FC<AriaAssistantProps> = (props) => {
     const { 
-        isOpen, onClose, onStartConversation, onStartGroupConversation, onUpdateProfile,
-        onBookStudio, onShowVibeMatchResults, onNavigateRequest, onStartSetupRequest, onSendMessageRequest,
-        onGetDirectionsRequest, onSendDocument, history, setHistory, initialPrompt, clearInitialPrompt 
+        isOpen, onClose, history, setHistory, initialPrompt, clearInitialPrompt,
+        onNavigateRequest, onStartSetupRequest, onSendDocument
     } = props;
-    const { currentUser, artists, engineers, producers, stoodioz, bookings } = useAppState();
-    
-    const getInitialMessage = () => {
-        const greetings = [
-            `Welcome back, ${currentUser?.name || 'superstar'}. Let’s create something worth remembering.`,
-            `Hey, ${currentUser?.name || 'gorgeous'}. Ready to make the world listen?`,
-            `Your sound is waiting, ${currentUser?.name || 'creative'}. Let’s make it timeless.`,
-            `Back in the studio? That’s power. Let’s get to work, ${currentUser?.name || 'superstar'}.`,
-            `Welcome home to Stoodioz, ${currentUser?.name || 'creative'}. The stage is yours.`,
-            `Oh, you’re back. Let’s turn creativity into luxury, ${currentUser?.name || 'darling'}.`
-        ];
-        const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-        return {
-            role: 'model' as const,
-            parts: [{ text: randomGreeting }]
-        };
-    };
-
+    const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [inputValue, setInputValue] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const isProcessingInitialPrompt = useRef(false);
+    const { artists, engineers, producers, stoodioz, currentUser, bookings } = useAppState();
 
     useEffect(() => {
-        if (isOpen && history.length === 0) {
-            setHistory([getInitialMessage()]);
-        }
-    }, [isOpen, currentUser]);
-
-    useEffect(() => {
-        if (isOpen) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
-    }, [history, isOpen]);
-
-     useEffect(() => {
-        if (isOpen && initialPrompt && !isProcessingInitialPrompt.current) {
-            isProcessingInitialPrompt.current = true;
-            handleSendMessage(null, initialPrompt);
+        if (initialPrompt && isOpen) {
+            handleSend(initialPrompt);
             clearInitialPrompt();
-            setTimeout(() => { isProcessingInitialPrompt.current = false; }, 1000);
         }
-    }, [isOpen, initialPrompt]);
-    
-    const handleSendMessage = async (e: React.FormEvent | null, promptOverride?: string) => {
-        e?.preventDefault();
-        const question = promptOverride || inputValue.trim();
-        if (!question || isLoading) return;
+    }, [initialPrompt, isOpen]);
 
-        const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text: question }] };
-        const historyBeforeSend = history; // Capture history before optimistic update
-        
-        setHistory([...historyBeforeSend, userMessage]); // Optimistic UI update
-        setInputValue('');
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [history]);
+
+    const handleSend = async (messageText?: string) => {
+        const textToSend = (messageText || input).trim();
+        if (!textToSend || isLoading) return;
+
+        const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text: textToSend }] };
+        const newHistory = [...history, userMessage];
+        setHistory(newHistory);
+        setInput('');
         setIsLoading(true);
 
         try {
-            // Pass the OLD history and the new question string to the service
-            const response = await askAriaCantata(historyBeforeSend, question, currentUser, { artists, engineers, producers, stoodioz, bookings });
+            const response = await askAriaCantata(newHistory, textToSend, currentUser, { artists, engineers, producers, stoodioz, bookings });
             
-            const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
-            
-            // Final state update with the model's response
-            setHistory([...historyBeforeSend, userMessage, ariaResponse]);
-
-            if (response.type === 'function') {
-                setTimeout(() => {
-                    if (response.action === 'assistAccountSetup') {
+            if (response.type === 'function' && response.action) {
+                switch(response.action) {
+                    case 'navigateApp':
+                        onNavigateRequest(response.payload.view, response.payload.entityName, response.payload.tab);
+                        break;
+                    case 'assistAccountSetup':
                         onStartSetupRequest(response.payload.role);
-                        onClose();
-                    } else if (response.action === 'navigateApp') {
-                        onNavigateRequest(response.payload.view, response.payload.entityName);
-                        onClose();
-                    } else if (response.action === 'getDirections') {
-                        onGetDirectionsRequest(response.payload.entityName);
-                    } else if (response.action === 'startConversation') {
-                        onStartConversation(response.payload.participant);
-                    } else if (response.action === 'startGroupConversation') {
-                        onStartGroupConversation(response.payload.participants, response.payload.conversationTitle);
-                    } else if (response.action === 'updateProfile') {
-                        onUpdateProfile(response.payload.updates);
-                    } else if (response.action === 'bookStudio') {
-                        onBookStudio(response.payload.bookingDetails);
-                    } else if (response.action === 'showVibeMatchResults') {
-                        onShowVibeMatchResults(response.payload.results);
-                        onClose();
-                    } else if (response.action === 'sendMessage') {
-                        onSendMessageRequest(response.payload.recipientName, response.payload.messageText);
-                    } else if (response.action === 'sendDocumentMessage') {
+                        break;
+                    case 'sendDocumentMessage':
                         onSendDocument(response.payload.recipient, response.payload.documentContent, response.payload.fileName);
-                    }
-                }, 1500);
+                        break;
+                }
             }
 
+            const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
+            setHistory([...newHistory, modelMessage]);
         } catch (error) {
-            const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I encountered an error. Please try again." }] };
-            // On error, also update the history correctly
-            setHistory([...historyBeforeSend, userMessage, errorResponse]);
+            console.error("Aria Cantata Error:", error);
+            const errorMessage: AriaCantataMessage = { role: 'model', parts: [{ text: "I'm having trouble connecting right now, darling. Please try again in a moment." }] };
+            setHistory([...newHistory, errorMessage]);
         } finally {
             setIsLoading(false);
         }
     };
-
+    
     if (!isOpen) return null;
 
     return (
-        <div 
-            className="fixed bottom-6 right-6 z-[60] w-[calc(100%-3rem)] max-w-sm h-[70vh] max-h-[600px] bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-zinc-700/50 flex flex-col animate-slide-up"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="aria-heading"
-        >
-            {/* Header */}
-            <header className="flex items-center justify-between p-4 border-b border-zinc-700/50 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-orange-500 to-purple-600 p-2 rounded-lg">
-                        <MagicWandIcon className="w-5 h-5 text-white" />
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-zinc-900 w-full max-w-2xl h-[80vh] rounded-2xl border border-zinc-700 shadow-2xl flex flex-col">
+                <header className="p-4 border-b border-zinc-700 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <img src={ARIA_CANTATA_IMAGE_URL} alt="Aria Cantata" className="w-10 h-10 rounded-full" />
+                        <h2 className="text-xl font-bold text-orange-400">Aria Cantata</h2>
                     </div>
-                    <h2 id="aria-heading" className="text-lg font-bold text-zinc-100">Aria Cantata</h2>
-                </div>
-                <button onClick={onClose} className="text-zinc-400 hover:text-zinc-100 transition-colors">
-                    <CloseIcon className="w-6 h-6" />
-                </button>
-            </header>
-
-            {/* Messages */}
-            <div className="flex-grow p-4 space-y-4 overflow-y-auto">
-                {history.map((msg, index) => {
-                    const isUser = msg.role === 'user';
-                    return (
-                        <div key={index} className={`flex items-end gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                            {!isUser && (
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                                    <MagicWandIcon className="w-5 h-5 text-white" />
-                                </div>
-                            )}
-                            <div className={`max-w-[80%] p-3 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-zinc-200 rounded-bl-lg'}`}>
-                                <p className="text-sm">{msg.parts[0].text}</p>
+                    <button onClick={onClose} className="text-zinc-400 hover:text-white"><CloseIcon className="w-6 h-6" /></button>
+                </header>
+                <main className="flex-grow overflow-y-auto p-4 space-y-4">
+                    {history.map((msg, index) => (
+                        <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                            {msg.role === 'model' && <img src={ARIA_CANTATA_IMAGE_URL} alt="Aria" className="w-8 h-8 rounded-full" />}
+                            <div className={`max-w-md p-3 rounded-2xl ${msg.role === 'user' ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-800 text-zinc-200 rounded-bl-lg'}`}>
+                                <p className="whitespace-pre-wrap">{msg.parts[0].text}</p>
                             </div>
                         </div>
-                    );
-                })}
-                {isLoading && (
-                    <div className="flex items-end gap-2.5 justify-start">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                            <MagicWandIcon className="w-5 h-5 text-white" />
+                    ))}
+                     {isLoading && (
+                        <div className="flex items-start gap-3">
+                           <img src={ARIA_CANTATA_IMAGE_URL} alt="Aria" className="w-8 h-8 rounded-full" />
+                           <div className="max-w-md p-3 rounded-2xl bg-zinc-800 text-zinc-200 rounded-bl-lg">
+                               <div className="flex items-center gap-2">
+                                   <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+                                   <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></div>
+                                   <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></div>
+                               </div>
+                           </div>
                         </div>
-                        <div className="max-w-xs p-3 rounded-2xl bg-zinc-700 text-zinc-200 rounded-bl-lg">
-                            <TypingIndicator />
-                        </div>
-                    </div>
-                )}
-                <div ref={messagesEndRef} />
+                    )}
+                    <div ref={messagesEndRef} />
+                </main>
+                <footer className="p-4 border-t border-zinc-700">
+                    <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="Ask Aria anything..."
+                            className="w-full bg-zinc-800 border-zinc-700 rounded-full py-2 px-4 focus:ring-2 focus:ring-orange-500"
+                            disabled={isLoading}
+                        />
+                        <button type="submit" disabled={!input.trim() || isLoading} className="bg-orange-500 text-white p-2 rounded-full hover:bg-orange-600 disabled:bg-zinc-600">
+                            <PaperAirplaneIcon className="w-6 h-6" />
+                        </button>
+                    </form>
+                </footer>
             </div>
-
-            {/* Input Form */}
-            <footer className="p-4 border-t border-zinc-700/50 flex-shrink-0">
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder="Ask Aria Cantata anything..."
-                        className="w-full bg-zinc-800 border-zinc-700 text-zinc-100 rounded-full py-2.5 px-4 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        aria-label="Your message to Aria Cantata"
-                    />
-                    <button type="submit" disabled={!inputValue.trim() || isLoading} className="bg-orange-500 text-white p-2.5 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-zinc-600 disabled:cursor-not-allowed">
-                        <PaperAirplaneIcon className="w-5 h-5" />
-                    </button>
-                </form>
-            </footer>
         </div>
     );
 };
 
-export default AriaCantataAssistant;
+export default AriaAssistant;

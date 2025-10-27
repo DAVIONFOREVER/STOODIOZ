@@ -1,156 +1,72 @@
+
 import React from 'react';
-import { AppView, UserRole } from '../types';
-import { CheckCircleIcon, SoundWaveIcon, HouseIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
+import { UserRole, SubscriptionPlan } from '../types';
+import { CheckCircleIcon } from './icons';
 
 interface SubscriptionPlansProps {
     onSelect: (role: UserRole) => void;
     onSubscribe: (role: UserRole) => void;
 }
 
-const FeatureListItem: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <li className="flex items-start gap-3">
-        <CheckCircleIcon className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
-        <span className="text-zinc-400">{children}</span>
-    </li>
-);
-
 const PlanCard: React.FC<{
-    icon: React.ReactNode;
     title: string;
     price: string;
-    pricePeriod?: string;
     features: string[];
-    tagline: string;
-    buttonText: string;
-    isFeatured?: boolean;
-    badge?: string;
-    onClick: () => void;
-}> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick }) => (
-    <div className={`relative border rounded-2xl p-8 flex flex-col ${isFeatured ? 'border-orange-500/50 bg-zinc-900 shadow-2xl shadow-orange-500/10' : 'border-zinc-700/50 bg-zinc-800/50'}`}>
-        {badge && (
-            <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">{badge}</div>
-        )}
-        <div className="flex-grow">
-            <div className="flex items-center gap-3 mb-4">
-                {icon}
-                <h3 className="text-2xl font-bold text-zinc-100">{title}</h3>
-            </div>
-            
-            <div className="mb-8">
-                <span className="text-5xl font-extrabold text-zinc-100">${price}</span>
-                {price !== '0' && <span className="text-zinc-400 font-medium">{pricePeriod}</span>}
-                 {price === '0' && <span className="text-zinc-400 font-medium">/ forever</span>}
-            </div>
-            <ul className="space-y-4 mb-8">
-                {features.map((feature, index) => (
-                    <FeatureListItem key={index}>{feature}</FeatureListItem>
-                ))}
-            </ul>
-        </div>
-        <div className="mt-auto">
-            <p className="text-center text-zinc-400 italic text-sm mb-6 h-10 flex items-center justify-center">“{tagline}”</p>
-            <button 
-                onClick={onClick}
-                className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${isFeatured ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' : 'bg-zinc-700 text-white hover:bg-zinc-600'}`}
-            >
-                {buttonText}
-            </button>
-        </div>
+    onSubscribe: () => void;
+}> = ({ title, price, features, onSubscribe }) => (
+    <div className="bg-zinc-800/50 p-8 rounded-2xl border border-zinc-700/50 flex flex-col">
+        <h3 className="text-2xl font-bold text-orange-400">{title}</h3>
+        <p className="text-4xl font-extrabold text-slate-100 my-4">{price}<span className="text-base font-medium text-slate-400">/mo</span></p>
+        <ul className="space-y-3 text-slate-300 mb-8 flex-grow">
+            {features.map(feature => (
+                <li key={feature} className="flex items-start">
+                    <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2 flex-shrink-0 mt-0.5" />
+                    <span>{feature}</span>
+                </li>
+            ))}
+        </ul>
+        <button onClick={onSubscribe} className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all">
+            Get Started
+        </button>
     </div>
 );
 
+
 const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubscribe }) => {
-    const { currentUser } = useAppState();
-    const { navigate } = useNavigation();
-
-    const handlePlanSelection = (role: UserRole, isPaid: boolean) => {
-        if (!isPaid) {
-            onSelect(role); // For free plan, go directly to setup
-            return;
-        }
-
-        if (currentUser) {
-            onSubscribe(role); // If logged in, start payment process
-        } else {
-            // If not logged in, force login/signup first
-            // A message could be passed to the login screen to provide context
-            navigate(AppView.LOGIN);
-        }
-    };
-
     return (
-        <div className="max-w-7xl mx-auto animate-fade-in">
-            <div className="text-center mb-16">
-                <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-zinc-100">
-                    Find the perfect plan
-                </h1>
-                <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-400">
-                    Unlock powerful tools to grow your career or business. Joining as an Artist is always free.
-                </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-stretch">
-                <PlanCard
-                    icon={<MicrophoneIcon className="w-8 h-8 text-green-400"/>}
-                    title="Artist"
-                    price="0"
-                    features={[
-                        "Create a profile and get verified",
-                        "Search and book studios, producers, and engineers",
-                        "Message and manage your sessions",
-                    ]}
-                    tagline="Start your journey — find your sound."
-                    buttonText="Start Free"
-                    onClick={() => handlePlanSelection(UserRole.ARTIST, false)}
+        <div className="max-w-5xl mx-auto text-center">
+            <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-100">
+                Choose Your <span className="text-orange-400">Pro Plan</span>
+            </h1>
+            <p className="max-w-2xl mx-auto mt-4 text-lg text-slate-400">
+                Unlock powerful features to grow your career and business on Stoodioz.
+            </p>
+
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <PlanCard 
+                    title="Engineer+"
+                    price="$19"
+                    features={["Receive push notifications for new job postings", "Advanced profile analytics", "Priority placement in search results", "Reduced service fees on sessions"]}
+                    onSubscribe={() => onSubscribe(UserRole.ENGINEER)}
                 />
-                <PlanCard
-                    icon={<MusicNoteIcon className="w-8 h-8 text-purple-400"/>}
+                 <PlanCard 
                     title="Producer Pro"
-                    price="39"
-                    badge="PRO"
-                    features={[
-                        "Verified producer profile",
-                        "Booking calendar and payment integration",
-                        "Analytics and client management",
-                        "Appear in search results for hiring artists",
-                    ]}
-                    tagline="Get found. Get paid. Get busy."
-                    buttonText="Upgrade Now"
-                    onClick={() => handlePlanSelection(UserRole.PRODUCER, true)}
+                    price="$29"
+                    features={["Unlimited beat uploads", "Featured placement on producer lists", "Advanced sales analytics", "Lower commission on all sales"]}
+                    onSubscribe={() => onSubscribe(UserRole.PRODUCER)}
                 />
-                 <PlanCard
-                    icon={<SoundWaveIcon className="w-8 h-8 text-indigo-400"/>}
-                    title="Engineer Pro"
-                    price="69"
-                    badge="PRO"
-                    isFeatured
-                    features={[
-                        "Verified engineer listing in marketplace",
-                        "Job board access and repeat-client automation",
-                        "Session calendar + automated reminders",
-                        "Insights dashboard for income and session tracking",
-                    ]}
-                    tagline="More sessions. Less chasing."
-                    buttonText="Upgrade Now"
-                    onClick={() => handlePlanSelection(UserRole.ENGINEER, true)}
-                />
-                 <PlanCard
-                    icon={<HouseIcon className="w-8 h-8 text-red-400"/>}
+                 <PlanCard 
                     title="Stoodio Pro"
-                    price="149"
-                    badge="PRO"
-                    features={[
-                        "Full studio management suite",
-                        "Multi-room scheduling and staff coordination",
-                        "Instant payments, financial dashboard, and reviews",
-                        "Google Maps integration for location-based bookings",
-                    ]}
-                    tagline="Run your studio like a business, not a hustle."
-                    buttonText="Upgrade Now"
-                    onClick={() => handlePlanSelection(UserRole.STOODIO, true)}
+                    price="$49"
+                    features={["Advanced booking and revenue analytics", "Priority placement in search and map views", "Create and post jobs for engineers", "Reduced service fees on all bookings"]}
+                    onSubscribe={() => onSubscribe(UserRole.STOODIO)}
                 />
+            </div>
+             <div className="mt-12">
+                <p className="text-slate-400">Are you an artist?</p>
+                <button onClick={() => onSelect(UserRole.ARTIST)} className="font-semibold text-orange-400 hover:underline">
+                    Create your free artist profile today!
+                </button>
             </div>
         </div>
     );

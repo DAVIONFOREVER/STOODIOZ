@@ -1,80 +1,63 @@
 import React, { useState } from 'react';
 import type { Stoodio } from '../types';
 import { VerificationStatus } from '../types';
-import { VerifiedIcon, ClockIcon, LinkIcon } from './icons';
+import { CheckCircleIcon, ClockIcon, ShieldCheckIcon } from './icons';
 
 interface VerificationManagerProps {
     stoodio: Stoodio;
-    onVerificationSubmit: (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => void;
+    onVerificationSubmit: (stoodioId: string, data: { googleBusinessProfileUrl: string, websiteUrl: string }) => void;
 }
 
 const VerificationManager: React.FC<VerificationManagerProps> = ({ stoodio, onVerificationSubmit }) => {
-    const [googleBusinessProfileUrl, setGoogleBusinessProfileUrl] = useState('');
+    const [googleUrl, setGoogleUrl] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onVerificationSubmit(stoodio.id, { googleBusinessProfileUrl, websiteUrl });
+        onVerificationSubmit(stoodio.id, { googleBusinessProfileUrl: googleUrl, websiteUrl });
     };
 
     if (stoodio.verificationStatus === VerificationStatus.VERIFIED) {
         return (
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-lg shadow-md border border-zinc-700/50 text-center">
-                <VerifiedIcon className="w-16 h-16 text-blue-500 mx-auto" />
-                <h3 className="text-2xl font-bold text-zinc-100 mt-4">You're Verified!</h3>
-                <p className="text-zinc-400 mt-2">Your stoodio is now marked as a trusted and legitimate business on the platform. Verified stoodioz get a boost in search results.</p>
+             <div className="bg-green-500/10 p-6 rounded-lg border border-green-500/30 text-center">
+                <CheckCircleIcon className="w-16 h-16 text-green-400 mx-auto mb-4"/>
+                <h2 className="text-2xl font-bold text-green-300">Your Stoodio is Verified!</h2>
+                <p className="text-green-400/80 mt-2">Your profile now has a verified badge, increasing trust and visibility.</p>
             </div>
         );
     }
 
     if (stoodio.verificationStatus === VerificationStatus.PENDING) {
         return (
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-lg shadow-md border border-zinc-700/50 text-center">
-                <ClockIcon className="w-16 h-16 text-yellow-500 mx-auto animate-pulse" />
-                <h3 className="text-2xl font-bold text-zinc-100 mt-4">Verification Pending</h3>
-                <p className="text-zinc-400 mt-2">Your submission is under review by our team. This usually takes 24-48 hours. We'll notify you once it's complete.</p>
+             <div className="bg-yellow-500/10 p-6 rounded-lg border border-yellow-500/30 text-center">
+                <ClockIcon className="w-16 h-16 text-yellow-400 mx-auto mb-4 animate-pulse"/>
+                <h2 className="text-2xl font-bold text-yellow-300">Verification Pending</h2>
+                <p className="text-yellow-400/80 mt-2">Our team is reviewing your submission. This usually takes 24-48 hours.</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-lg shadow-md border border-zinc-700/50">
-            <h1 className="text-2xl font-bold text-zinc-100 mb-2">Get Your Stoodio Verified</h1>
-            <p className="text-zinc-400 mb-6">
-                Submit your public business information to earn a "Verified" badge. This helps artists trust your listing and improves your visibility in search results.
-            </p>
+        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+            <h1 className="text-2xl font-bold text-zinc-100 mb-2 flex items-center gap-2">
+                <ShieldCheckIcon className="w-6 h-6 text-orange-400"/>
+                Get Verified
+            </h1>
+            <p className="text-zinc-400 mb-6">Verify your stoodio to gain trust, get a badge on your profile, and improve your search ranking.</p>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label htmlFor="google-url" className="block text-sm font-medium text-zinc-300 mb-1 flex items-center gap-2">
-                        <LinkIcon className="w-4 h-4" /> Google Business Profile URL
-                    </label>
-                    <input
-                        type="url"
-                        id="google-url"
-                        value={googleBusinessProfileUrl}
-                        onChange={(e) => setGoogleBusinessProfileUrl(e.target.value)}
-                        placeholder="https://maps.app.goo.gl/..."
-                        required
-                        className="w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-orange-500 focus:border-orange-500"
-                    />
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Google Business Profile URL</label>
+                    <input type="url" value={googleUrl} onChange={e => setGoogleUrl(e.target.value)} className="w-full p-2 bg-zinc-700 rounded-md" required placeholder="https://maps.google.com/..." />
                 </div>
-                 <div>
-                    <label htmlFor="website-url" className="block text-sm font-medium text-zinc-300 mb-1 flex items-center gap-2">
-                         <LinkIcon className="w-4 h-4" /> Official Website URL
-                    </label>
-                    <input
-                        type="url"
-                        id="website-url"
-                        value={websiteUrl}
-                        onChange={(e) => setWebsiteUrl(e.target.value)}
-                        placeholder="https://www.yourstudio.com"
-                        required
-                        className="w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-orange-500 focus:border-orange-500"
-                    />
+                <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Official Website URL (optional)</label>
+                    <input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} className="w-full p-2 bg-zinc-700 rounded-md" placeholder="https://mystudio.com" />
                 </div>
-                 <button type="submit" className="w-full bg-orange-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors">
-                    Submit for Verification
-                </button>
+                 <div className="flex justify-end">
+                    <button type="submit" className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all">
+                        Submit for Verification
+                    </button>
+                </div>
             </form>
         </div>
     );

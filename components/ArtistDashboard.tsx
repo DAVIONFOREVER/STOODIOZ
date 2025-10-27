@@ -1,22 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
-import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
-import { UserRole, AppView } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon } from './icons';
+import React, { useState } from 'react';
+import type { Artist, Booking } from '../types';
+import { BookingStatus, AppView, UserRole } from '../types';
+import { CalendarIcon, UsersIcon, DollarSignIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
-import Following from './Following';
-import FollowersList from './FollowersList';
 import Wallet from './Wallet';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
-import ProfileHeroHeader from './ProfileHeroHeader';
-
-type DashboardTab = 'dashboard' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-black/50 backdrop-blur-md p-4 rounded-xl flex items-center gap-4 border border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.1)]">
+    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -25,125 +20,127 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.Re
     </div>
 );
 
-const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
-    <button
-        onClick={onClick}
-        className={`px-4 py-3 font-semibold text-sm transition-colors whitespace-nowrap ${isActive ? 'border-b-2 border-orange-500 text-orange-400' : 'text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent'}`}
-    >
-        {label}
-    </button>
-);
+const ArtistSettings: React.FC<{ artist: Artist, onUpdateArtist: (updates: Partial<Artist>) => void }> = ({ artist, onUpdateArtist }) => {
+    const [name, setName] = useState(artist.name);
+    const [bio, setBio] = useState(artist.bio);
+    const [imageUrl, setImageUrl] = useState(artist.imageUrl);
+    const [coverUrl, setCoverUrl] = useState(artist.cover_image_url || '');
+
+    const handleSave = () => {
+        onUpdateArtist({ name, bio, imageUrl, cover_image_url: coverUrl });
+    };
+
+    const hasChanges = name !== artist.name || bio !== artist.bio || imageUrl !== artist.imageUrl || coverUrl !== (artist.cover_image_url || '');
+    
+    const inputClasses = "w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+    const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
+
+    return (
+        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+            <h1 className="text-2xl font-bold text-zinc-100 mb-2 flex items-center gap-2">
+                <EditIcon className="w-6 h-6 text-orange-400" />
+                Profile Settings
+            </h1>
+            <p className="text-zinc-400 mb-6">Update your public profile information.</p>
+            <div className="space-y-4">
+                <div>
+                    <label htmlFor="artist-name" className={labelClasses}>Artist Name</label>
+                    <input type="text" id="artist-name" value={name} onChange={e => setName(e.target.value)} className={inputClasses} />
+                </div>
+                 <div>
+                    <label htmlFor="artist-bio" className={labelClasses}>Bio</label>
+                    <textarea id="artist-bio" value={bio} onChange={e => setBio(e.target.value)} rows={4} className={inputClasses}></textarea>
+                </div>
+                <div>
+                    <label htmlFor="artist-image-url" className={labelClasses}>Profile Picture URL</label>
+                    <input type="text" id="artist-image-url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} className={inputClasses} placeholder="https://..." />
+                </div>
+                 <div>
+                    <label htmlFor="artist-cover-url" className={labelClasses}>Cover Image URL</label>
+                    <input type="text" id="artist-cover-url" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} className={inputClasses} placeholder="https://..." />
+                </div>
+            </div>
+             <div className="mt-6 flex justify-end">
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!hasChanges}
+                    className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all disabled:bg-zinc-600 disabled:text-zinc-400 disabled:cursor-not-allowed"
+                >
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    );
+};
 
 
 const ArtistDashboard: React.FC = () => {
-    const { currentUser, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
+    const { currentUser, bookings } = useAppState();
     const dispatch = useAppDispatch();
-    const artist = currentUser as Artist;
-
-    const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewBooking } = useNavigation();
-    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
+    const { navigate, viewArtistProfile, viewBooking } = useNavigation();
+    const { createPost, likePost, commentOnPost } = useSocial();
     const { updateProfile } = useProfile();
 
-    const onOpenVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: true } });
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const artist = currentUser as Artist;
+
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
 
-    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
-
-    useEffect(() => {
-        if (dashboardInitialTab) {
-            setActiveTab(dashboardInitialTab as DashboardTab);
-            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } }); // Clear it after use
-        }
-    }, [dashboardInitialTab, dispatch]);
-
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleImageUploadClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const imageUrl = e.target?.result as string;
-                updateProfile({ imageUrl });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    
-    const upcomingBookingsCount = bookings.filter(b => new Date(b.date) >= new Date()).length;
-    
-    const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => artist.followerIds.includes(u.id));
-
-    const followedArtists = artists.filter(a => artist.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => artist.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => artist.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => artist.following.producers.includes(p.id));
+    const upcomingBookings = bookings.filter(b => b.artist?.id === artist.id && b.status === BookingStatus.CONFIRMED && new Date(b.date) >= new Date());
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'wallet':
-                return (
-                    <Wallet
-                        user={artist}
-                        onAddFunds={onOpenAddFundsModal}
-                        onViewBooking={viewBooking}
-                        userRole={UserRole.ARTIST}
-                    />
-                );
-            case 'followers':
-                 return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile}/>;
-            case 'following':
-                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={toggleFollow} onSelectStudio={viewStoodioDetails} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile}/>;
-
             case 'dashboard':
-            default:
-                 return (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                return (
+                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={artist} onPost={createPost} />
-                            <PostFeed posts={artist.posts || []} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewArtistProfile} />
+                            <CreatePost currentUser={currentUser!} onPost={createPost} />
+                            <PostFeed posts={artist.posts || []} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewArtistProfile(artist)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
-                            <div className="bg-black/50 backdrop-blur-md rounded-2xl p-6 border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
-                                <h3 className="font-bold text-zinc-100 mb-4">Quick Actions</h3>
-                                <button
-                                    onClick={onOpenVibeMatcher}
-                                    className="w-full bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
-                                >
-                                    <MagicWandIcon className="w-5 h-5"/>
-                                    AI Vibe Matcher
-                                </button>
-                            </div>
-                         </div>
+                            {/* Placeholder for potential artist-specific widgets */}
+                        </div>
                     </div>
                 );
+            case 'settings':
+                return <ArtistSettings artist={artist} onUpdateArtist={updateProfile} />;
+            case 'wallet':
+                return <Wallet user={artist} onAddFunds={onOpenAddFundsModal} onRequestPayout={() => {}} onViewBooking={viewBooking} userRole={UserRole.ARTIST} />;
+            default:
+                return null;
         }
     };
-
+    
     return (
         <div className="space-y-8 animate-fade-in">
-            <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8">
-                <ProfileHeroHeader profile={artist} />
+            <div className="bg-zinc-800/50 p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <img src={artist.imageUrl} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
+                    <div className="text-center sm:text-left">
+                        <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{artist.name}</h1>
+                        <p className="text-zinc-400 mt-2">Artist Dashboard</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+                    <StatCard label="Wallet Balance" value={`$${artist.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                    <StatCard label="Upcoming Sessions" value={upcomingBookings.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                    <StatCard label="Followers" value={artist.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
+                </div>
             </div>
-            
-            <div className="bg-black/50 backdrop-blur-md rounded-xl border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
-                <div className="flex border-b border-orange-500/20 overflow-x-auto">
-                    <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
-                    <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
-                    <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+
+            <div className="bg-zinc-800/50 rounded-xl border border-zinc-700/50 shadow-lg">
+                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
+                    <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-3 font-semibold text-sm ${activeTab === 'dashboard' ? 'border-b-2 border-orange-500 text-orange-400' : 'text-zinc-400 hover:text-zinc-100'}`}>Dashboard</button>
+                    <button onClick={() => setActiveTab('settings')} className={`px-4 py-3 font-semibold text-sm ${activeTab === 'settings' ? 'border-b-2 border-orange-500 text-orange-400' : 'text-zinc-400 hover:text-zinc-100'}`}>Settings</button>
+                    <button onClick={() => setActiveTab('wallet')} className={`px-4 py-3 font-semibold text-sm ${activeTab === 'wallet' ? 'border-b-2 border-orange-500 text-orange-400' : 'text-zinc-400 hover:text-zinc-100'}`}>Wallet</button>
                 </div>
                 <div className="p-6">
                     {renderContent()}
                 </div>
             </div>
         </div>
-    )
+    );
 };
 
 export default ArtistDashboard;

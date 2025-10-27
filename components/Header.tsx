@@ -100,7 +100,7 @@ const Header: React.FC<HeaderProps> = (props) => {
 
     return (
         <>
-            <header className="bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-50 relative">
+            <header className="bg-black/60 backdrop-blur-md sticky top-0 z-50 border-b border-orange-500/20 shadow-[0_4px_30px_rgba(0,0,0,0.1),_0_2px_20px_rgba(249,115,22,0.1)]">
                 <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-20">
                         {/* LEFT SECTION */}
@@ -208,12 +208,6 @@ const Header: React.FC<HeaderProps> = (props) => {
                         </div>
                     </div>
                 </nav>
-                {/* The new glowing line effect */}
-                <div 
-                    className="absolute -bottom-px left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-indigo-500 to-sky-500 opacity-50" 
-                    style={{ filter: 'blur(12px)' }}
-                    aria-hidden="true"
-                ></div>
             </header>
 
             {/* MOBILE MENU */}
