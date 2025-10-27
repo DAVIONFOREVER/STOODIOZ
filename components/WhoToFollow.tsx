@@ -20,11 +20,11 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
     };
 
     return (
-        <div className="bg-black/50 backdrop-blur-md p-4 rounded-xl border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+        <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
             <h3 className="font-bold text-slate-100 px-3 mb-2">Who to Follow</h3>
             <div className="space-y-2">
                 {suggestions.map(user => (
-                    <div key={user.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-800/50">
+                    <div key={user.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-700/50">
                         <button onClick={() => onSelectUser(user)} className="flex items-center gap-3 text-left">
                             <img loading="lazy" src={user.imageUrl} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
                             <div>

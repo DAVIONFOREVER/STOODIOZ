@@ -77,7 +77,7 @@ const MyBookings: React.FC = () => {
             <h1 className="text-5xl font-extrabold text-center mb-2 tracking-tight text-orange-500">My Bookings</h1>
             <p className="text-center text-lg text-slate-500 mb-12">Here are your upcoming and past stoodio sessions.</p>
             {userBookings.length === 0 ? (
-                <div className="text-center py-16 bg-black/50 backdrop-blur-md rounded-2xl shadow-[0_0_20px_rgba(249,115,22,0.1)] border border-orange-500/20">
+                <div className="text-center py-16 bg-zinc-800 rounded-lg border border-zinc-700">
                     <h2 className="text-2xl font-semibold text-slate-100">No Bookings Yet</h2>
                     <p className="text-slate-400 mt-2">Time to book a stoodio and make some magic happen!</p>
                 </div>
@@ -88,7 +88,7 @@ const MyBookings: React.FC = () => {
                         const isUpcoming = new Date(`${booking.date}T${booking.startTime || '00:00'}`) >= new Date();
                         const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;
                         return (
-                        <div key={booking.id} className={`bg-black/50 backdrop-blur-md rounded-2xl p-6 flex flex-col md:flex-row gap-6 border border-orange-500/20 shadow-[0_0_20px_rgba(249,115,22,0.1)] hover:border-orange-500/40 transition-colors duration-300 ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
+                        <div key={booking.id} className={`bg-zinc-800 rounded-2xl shadow-lg p-6 flex flex-col md:flex-row gap-6 border border-zinc-700 hover:border-orange-500/50 transition-colors duration-300 ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
                             <div className="flex-shrink-0">
                                 <img src={getBookingImage(booking)} alt={booking.stoodio?.name || booking.engineer?.name} className="w-full md:w-48 h-32 object-cover rounded-xl" />
                             </div>

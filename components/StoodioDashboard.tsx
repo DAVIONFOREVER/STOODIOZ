@@ -145,14 +145,12 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
     const [description, setDescription] = useState(stoodio.description);
     const [location, setLocation] = useState(stoodio.location);
     const [businessAddress, setBusinessAddress] = useState(stoodio.businessAddress || '');
-    const [imageUrl, setImageUrl] = useState(stoodio.imageUrl);
-    const [coverUrl, setCoverUrl] = useState(stoodio.cover_image_url || '');
 
     const handleSave = () => {
-        onUpdateStoodio({ name, description, location, businessAddress, imageUrl, cover_image_url: coverUrl });
+        onUpdateStoodio({ name, description, location, businessAddress });
     };
 
-    const hasChanges = name !== stoodio.name || description !== stoodio.description || location !== stoodio.location || businessAddress !== (stoodio.businessAddress || '') || imageUrl !== stoodio.imageUrl || coverUrl !== (stoodio.cover_image_url || '');
+    const hasChanges = name !== stoodio.name || description !== stoodio.description || location !== stoodio.location || businessAddress !== (stoodio.businessAddress || '');
     
     const inputClasses = "w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
@@ -181,16 +179,6 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
                     <div>
                         <label htmlFor="stoodio-address" className={labelClasses}>Business Address</label>
                         <input type="text" id="stoodio-address" value={businessAddress} onChange={e => setBusinessAddress(e.target.value)} className={inputClasses} placeholder="123 Music Row, Nashville, TN" />
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="stoodio-image-url" className={labelClasses}>Profile Picture URL</label>
-                        <input type="text" id="stoodio-image-url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} className={inputClasses} placeholder="https://..." />
-                    </div>
-                    <div>
-                        <label htmlFor="stoodio-cover-url" className={labelClasses}>Cover Image URL</label>
-                        <input type="text" id="stoodio-cover-url" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} className={inputClasses} placeholder="https://..." />
                     </div>
                 </div>
             </div>

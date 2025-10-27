@@ -6,7 +6,6 @@ import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
-import ProfileHeroHeader from './ProfileHeroHeader';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -30,7 +29,7 @@ const ProfileCard: React.FC<{
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 bg-black/50 p-2 rounded-lg hover:bg-zinc-800 transition-colors text-left border border-orange-500/10 hover:border-orange-500/20">
+        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left">
             <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -80,28 +79,37 @@ const ArtistProfile: React.FC = () => {
 
     return (
         <div>
-            <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 lg:-mt-8">
-                 <ProfileHeroHeader profile={artist} />
-            </div>
-
+            <button onClick={goBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
+                <ChevronLeftIcon className="w-5 h-5" />
+                Back to Artists
+            </button>
             <div className="max-w-4xl mx-auto space-y-12">
-                 <div className="flex justify-center flex-wrap gap-2">
-                    <button 
-                        onClick={() => currentUser && startConversation(artist)}
-                        disabled={!currentUser || currentUser.id === artist.id}
-                        className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-800 text-slate-100 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <MessageIcon className="w-5 h-5" />
-                        Message
-                    </button>
-                    <button 
-                        onClick={() => currentUser && toggleFollow('artist', artist.id)}
-                        disabled={!currentUser || currentUser.id === artist.id || artist.id === 'artist-aria-cantata'}
-                        className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-800 text-orange-400 border-2 border-orange-400 hover:bg-zinc-700'}`}
-                    >
-                        {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
-                        {isFollowing ? 'Following' : 'Follow'}
-                    </button>
+                <div className="bg-zinc-800 rounded-2xl shadow-lg p-8 border border-zinc-700">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
+                        <img src={artist.imageUrl} alt={artist.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                        <div className="text-center sm:text-left flex-grow">
+                            <h1 className="text-4xl font-extrabold text-orange-500">{artist.name}</h1>
+                            <p className="text-slate-300 leading-relaxed mt-4">{artist.bio}</p>
+                            <div className="flex justify-center sm:justify-start gap-2 mt-6">
+                                <button 
+                                    onClick={() => currentUser && startConversation(artist)}
+                                    disabled={!currentUser || currentUser.id === artist.id}
+                                    className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <MessageIcon className="w-5 h-5" />
+                                    Message
+                                </button>
+                                <button 
+                                    onClick={() => currentUser && toggleFollow('artist', artist.id)}
+                                    disabled={!currentUser || currentUser.id === artist.id || artist.id === 'artist-aria-cantata'}
+                                    className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
+                                >
+                                    {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
+                                    {isFollowing ? 'Following' : 'Follow'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                  {artist.links && artist.links.length > 0 && (
@@ -109,7 +117,7 @@ const ArtistProfile: React.FC = () => {
                         <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-6 h-6" /> Links</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {artist.links.map(link => (
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="bg-black/50 p-3 rounded-lg hover:bg-zinc-800 transition-colors border border-orange-500/20 flex items-center gap-3">
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="bg-zinc-800 p-3 rounded-lg hover:bg-zinc-700 transition-colors border border-zinc-700 flex items-center gap-3">
                                     <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
                                     <div className="overflow-hidden">
                                         <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>

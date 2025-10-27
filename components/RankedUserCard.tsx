@@ -1,72 +1,57 @@
 import React from 'react';
-import type { Artist, Engineer, Stoodio, Producer } from '../types';
-import { UserRole } from '../types';
-import { useNavigation } from '../hooks/useNavigation';
+import type { Artist, Engineer, Producer, Stoodio } from '../types';
 import RankingBadge from './RankingBadge';
 import { StarIcon, CalendarIcon } from './icons';
 
-type User = Artist | Engineer | Stoodio | Producer;
+type AllUsers = Artist | Engineer | Producer | Stoodio;
 
 interface RankedUserCardProps {
-    user: User;
-    rank: number;
+    profile: AllUsers;
+    rank?: number;
+    isSpotlight?: boolean;
+    onSelectProfile: (profile: AllUsers) => void;
 }
 
-const getRole = (user: User): string => {
-    if ('amenities' in user) return 'Stoodio';
-    if ('specialties' in user) return 'Engineer';
-    if ('instrumentals' in user) return 'Producer';
-    return 'Artist';
-};
+const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotlight = false, onSelectProfile }) => {
 
-const RankedUserCard: React.FC<RankedUserCardProps> = ({ user, rank }) => {
-    const { viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewStoodioDetails } = useNavigation();
-    
-    const handleSelectUser = () => {
-        const role = getRole(user);
-        switch (role) {
-            case 'Stoodio': viewStoodioDetails(user as Stoodio); break;
-            case 'Engineer': viewEngineerProfile(user as Engineer); break;
-            case 'Producer': viewProducerProfile(user as Producer); break;
-            case 'Artist': viewArtistProfile(user as Artist); break;
-        }
-    };
-    
-    const rankColors: { [key: number]: string } = {
-        1: 'text-amber-400',
-        2: 'text-slate-300',
-        3: 'text-yellow-600',
-    };
+    if (isSpotlight) {
+        return (
+            <button 
+                onClick={() => onSelectProfile(profile)}
+                className="w-full bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-2xl p-6 border-2 border-orange-500/50 shadow-2xl shadow-orange-500/10 flex flex-col md:flex-row items-center gap-6 text-left transition-transform hover:scale-[1.02]"
+            >
+                <div className="relative flex-shrink-0">
+                    <img src={profile.imageUrl} alt={profile.name} className="w-32 h-32 rounded-full object-cover border-4 border-zinc-700" />
+                    <div className="absolute -top-2 -left-2 w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center text-white font-extrabold text-xl shadow-lg">#1</div>
+                </div>
+                <div>
+                    <h3 className="text-3xl font-bold text-orange-400">{profile.name}</h3>
+                    <div className="my-2"><RankingBadge tier={profile.ranking_tier} isOnStreak={profile.is_on_streak} /></div>
+                    <p className="text-zinc-400 text-sm mb-4 max-w-lg">{'bio' in profile ? profile.bio : 'description' in profile ? profile.description : ''}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                        <span className="flex items-center gap-1.5 font-semibold text-zinc-200"><StarIcon className="w-4 h-4 text-yellow-400" /> {profile.rating_overall.toFixed(1)} Rating</span>
+                        <span className="flex items-center gap-1.5 font-semibold text-zinc-200"><CalendarIcon className="w-4 h-4 text-orange-400" /> {profile.sessions_completed} Sessions</span>
+                        <span className="font-semibold text-zinc-200">Re-Hire Rate: {profile.repeat_hire_rate}%</span>
+                    </div>
+                </div>
+            </button>
+        );
+    }
 
     return (
-        <button
-            onClick={handleSelectUser}
-            className="w-full flex items-center gap-4 bg-zinc-800/50 p-3 rounded-lg border border-zinc-700/50 hover:bg-zinc-800 hover:border-orange-500/30 transition-all duration-200"
+        <button 
+            onClick={() => onSelectProfile(profile)}
+            className="w-full bg-zinc-900/50 p-4 rounded-xl border border-zinc-700/50 flex items-center gap-4 text-left transition-colors hover:bg-zinc-800"
         >
-            <div className={`text-2xl font-bold w-10 text-center flex-shrink-0 ${rankColors[rank] || 'text-zinc-400'}`}>
-                {rank > 0 ? `#${rank}` : '-'}
-            </div>
-            
-            <img src={user.imageUrl} alt={user.name} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
-            
-            <div className="flex-grow text-left overflow-hidden">
-                <p className="font-bold text-zinc-100 truncate">{user.name}</p>
-                <p className="text-xs text-zinc-400">{getRole(user)}</p>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1 text-yellow-400">
-                    <StarIcon className="w-4 h-4" />
-                    <span className="font-bold">{user.rating_overall.toFixed(1)}</span>
+            <div className="text-xl font-bold text-zinc-500 w-8 text-center">{rank}</div>
+            <img src={profile.imageUrl} alt={profile.name} className="w-16 h-16 rounded-lg object-cover" />
+            <div className="flex-grow">
+                <p className="font-bold text-zinc-100">{profile.name}</p>
+                <div className="my-1"><RankingBadge tier={profile.ranking_tier} isOnStreak={profile.is_on_streak} short /></div>
+                 <div className="flex items-center gap-3 text-xs text-zinc-400">
+                    <span className="flex items-center gap-1"><StarIcon className="w-3 h-3 text-yellow-400" /> {profile.rating_overall.toFixed(1)}</span>
+                    <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3 text-orange-400" /> {profile.sessions_completed}</span>
                 </div>
-                <div className="flex items-center gap-1 text-zinc-400">
-                    <CalendarIcon className="w-4 h-4" />
-                    <span>{user.sessions_completed} sessions</span>
-                </div>
-            </div>
-            
-            <div className="flex-shrink-0">
-                <RankingBadge tier={user.ranking_tier} isOnStreak={user.is_on_streak} short />
             </div>
         </button>
     );

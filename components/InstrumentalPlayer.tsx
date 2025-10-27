@@ -26,24 +26,24 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
 
     if (instrumentals.length === 0) {
         return (
-            <div className="bg-black/50 backdrop-blur-md rounded-2xl p-8 border border-orange-500/20 text-center shadow-[0_0_20px_rgba(249,115,22,0.1)]">
+            <div className="bg-zinc-800 rounded-2xl p-8 border border-zinc-700 text-center">
                 <p className="text-zinc-400">This producer hasn't uploaded any instrumentals yet.</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-black/50 backdrop-blur-md rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.15)] border border-orange-500/20">
+        <div className="bg-zinc-800 rounded-2xl shadow-lg border border-zinc-700">
              <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
-            <h2 className="text-2xl font-bold text-slate-100 p-6 border-b border-orange-500/20">Beat Store</h2>
-            <div className="divide-y divide-orange-500/20">
+            <h2 className="text-2xl font-bold text-slate-100 p-6 border-b border-zinc-700">Beat Store</h2>
+            <div className="divide-y divide-zinc-700">
                 {instrumentals.map(instrumental => (
-                    <div key={instrumental.id} className="p-4 flex flex-col sm:flex-row items-center gap-4 hover:bg-zinc-900/50">
+                    <div key={instrumental.id} className="p-4 flex flex-col sm:flex-row items-center gap-4 hover:bg-zinc-700/50">
                         {instrumental.coverArtUrl ? (
                             <img src={instrumental.coverArtUrl} alt={instrumental.title} className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
                         ) : (
-                            <div className="w-20 h-20 rounded-lg bg-zinc-800 flex items-center justify-center flex-shrink-0 border border-zinc-700">
-                                <MusicNoteIcon className="w-10 h-10 text-zinc-600" />
+                            <div className="w-20 h-20 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                                <MusicNoteIcon className="w-10 h-10 text-zinc-500" />
                             </div>
                         )}
                         <button onClick={() => handlePlayPause(instrumental)} className="bg-orange-500 text-white p-3 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0">

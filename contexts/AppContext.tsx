@@ -44,7 +44,6 @@ export interface AppState {
     ariaNudge: string | null;
     isNudgeVisible: boolean;
     dashboardInitialTab: string | null;
-    isSaved: boolean; // Added for save confirmation
 }
 
 type ActionMap<M extends { [index: string]: any }> = {
@@ -106,7 +105,6 @@ export enum ActionTypes {
     SET_IS_NUDGE_VISIBLE = 'SET_IS_NUDGE_VISIBLE',
     RESET_PROFILE_SELECTIONS = 'RESET_PROFILE_SELECTIONS',
     SET_DASHBOARD_TAB = 'SET_DASHBOARD_TAB',
-    SET_IS_SAVED = 'SET_IS_SAVED', // Added for save confirmation
 }
 
 type Payload = {
@@ -157,7 +155,6 @@ type Payload = {
     [ActionTypes.SET_IS_NUDGE_VISIBLE]: { isVisible: boolean };
     [ActionTypes.RESET_PROFILE_SELECTIONS]: undefined;
     [ActionTypes.SET_DASHBOARD_TAB]: { tab: string | null };
-    [ActionTypes.SET_IS_SAVED]: { isSaved: boolean }; // Added for save confirmation
 };
 
 export type AppAction = ActionMap<Payload>[keyof ActionMap<Payload>];
@@ -204,7 +201,6 @@ const initialState: AppState = {
     ariaNudge: null,
     isNudgeVisible: false,
     dashboardInitialTab: null,
-    isSaved: false, // Added for save confirmation
 };
 
 // --- REDUCER ---
@@ -335,42 +331,26 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookings: [...state.bookings, action.payload.booking] };
 
         case ActionTypes.UPDATE_USERS: {
-            const updatedUsersFromAction = action.payload.users;
-            const newState = { ...state };
-        
-            const artistsMap = new Map(newState.artists.map(u => [u.id, u]));
-            const engineersMap = new Map(newState.engineers.map(u => [u.id, u]));
-            const producersMap = new Map(newState.producers.map(u => [u.id, u]));
-            const stoodiozMap = new Map(newState.stoodioz.map(u => [u.id, u]));
-        
-            updatedUsersFromAction.forEach(updatedUser => {
-                if (artistsMap.has(updatedUser.id)) {
-                    artistsMap.set(updatedUser.id, { ...artistsMap.get(updatedUser.id)!, ...updatedUser });
-                } else if (engineersMap.has(updatedUser.id)) {
-                    engineersMap.set(updatedUser.id, { ...engineersMap.get(updatedUser.id)!, ...updatedUser });
-                } else if (producersMap.has(updatedUser.id)) {
-                    producersMap.set(updatedUser.id, { ...producersMap.get(updatedUser.id)!, ...updatedUser });
-                } else if (stoodiozMap.has(updatedUser.id)) {
-                    stoodiozMap.set(updatedUser.id, { ...stoodiozMap.get(updatedUser.id)!, ...updatedUser });
-                }
-            });
-
-            const newArtists = Array.from(artistsMap.values());
-            const newEngineers = Array.from(engineersMap.values());
-            const newProducers = Array.from(producersMap.values());
-            const newStoodioz = Array.from(stoodiozMap.values());
+            const users = action.payload.users;
+            const currentUser = state.currentUser ? users.find(u => u.id === state.currentUser!.id) || state.currentUser : null;
             
-            const updatedCurrentUser = newState.currentUser 
-                ? updatedUsersFromAction.find(u => u.id === newState.currentUser!.id) 
-                : null;
+            // This robust filtering logic prevents misclassification of users after partial updates.
+            const stoodioz = users.filter(u => 'amenities' in u) as Stoodio[];
+            const engineers = users.filter(u => 'specialties' in u) as Engineer[];
+            const producers = users.filter(u => 'instrumentals' in u) as Producer[];
+            const artists = users.filter(u => 
+                !('amenities' in u) && 
+                !('specialties' in u) && 
+                !('instrumentals' in u)
+            ) as Artist[];
 
             return {
-                ...newState,
-                artists: newArtists,
-                engineers: newEngineers,
-                producers: newProducers,
-                stoodioz: newStoodioz,
-                currentUser: updatedCurrentUser ? { ...newState.currentUser!, ...updatedCurrentUser } : newState.currentUser,
+                ...state,
+                artists,
+                engineers,
+                producers,
+                stoodioz,
+                currentUser,
             };
         }
         
@@ -434,9 +414,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         
         case ActionTypes.SET_DASHBOARD_TAB:
             return { ...state, dashboardInitialTab: action.payload.tab };
-
-        case ActionTypes.SET_IS_SAVED:
-            return { ...state, isSaved: action.payload.isSaved };
 
         default:
             return state;

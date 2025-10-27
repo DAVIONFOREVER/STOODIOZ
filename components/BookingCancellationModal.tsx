@@ -1,5 +1,5 @@
-
-import React from 'react';
+import React, { useState, useMemo } from 'react';
+import { differenceInHours } from 'date-fns';
 import type { Booking } from '../types';
 import { CloseIcon, TrashIcon } from './icons';
 
@@ -10,24 +10,102 @@ interface BookingCancellationModalProps {
 }
 
 const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ booking, onClose, onConfirm }) => {
+    const [isConfirmed, setIsConfirmed] = useState(false);
+
+    const { refundAmount, cancellationFee, policyMessage } = useMemo(() => {
+        const bookingStartTime = new Date(`${booking.date}T${booking.startTime}`);
+        const hoursUntilSession = differenceInHours(bookingStartTime, new Date());
+
+        let refundPercentage = 0;
+        let policyMessage = '';
+
+        if (hoursUntilSession > 48) {
+            refundPercentage = 1.0;
+            policyMessage = 'Full refund: Session is more than 48 hours away.';
+        } else if (hoursUntilSession > 24) {
+            refundPercentage = 0.5;
+            policyMessage = '50% fee: Session is within 48 hours.';
+        } else {
+            refundPercentage = 0.0;
+            policyMessage = 'Non-refundable: Session is within 24 hours.';
+        }
+
+        const refundAmount = booking.totalCost * refundPercentage;
+        const cancellationFee = booking.totalCost - refundAmount;
+
+        return { refundAmount, cancellationFee, policyMessage };
+    }, [booking]);
+
+
+    const handleConfirm = () => {
+        if (isConfirmed) {
+            onConfirm(booking.id);
+        }
+    };
+
     return (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-zinc-800 rounded-2xl shadow-xl w-full max-w-md border border-zinc-700 animate-slide-up">
-                <div className="p-4 border-b border-zinc-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-red-400">Cancel Booking</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-100"><CloseIcon className="w-6 h-6" /></button>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
+            <div className="bg-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg transform transition-all border border-zinc-700">
+                <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-slate-100">Cancel Booking</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
+                        <CloseIcon className="w-6 h-6" />
+                    </button>
                 </div>
+
                 <div className="p-6">
-                    <p className="text-slate-300">Are you sure you want to cancel your session at <strong className="text-slate-100">{booking.stoodio?.name}</strong> on {new Date(booking.date + 'T00:00:00').toLocaleDateString()} at {booking.startTime}?</p>
-                    <p className="text-sm text-yellow-400 bg-yellow-500/10 p-3 rounded-lg mt-4">Please note: Cancellations may be subject to a fee depending on the studio's policy and how close it is to the session date.</p>
+                    <p className="text-slate-300 text-center mb-4">
+                        Are you sure you want to cancel your session at <strong className="text-slate-100">{booking.stoodio.name}</strong> on {new Date(booking.date + 'T00:00').toLocaleDateString()}?
+                    </p>
+                    
+                    <div className="bg-red-500/10 p-4 rounded-lg border border-red-500/20">
+                        <h3 className="text-lg font-bold mb-4 flex items-center text-slate-100">Cancellation Summary</h3>
+                        <div className="space-y-2 text-sm text-slate-200">
+                            <div className="flex justify-between">
+                                <span>Total Amount Paid:</span> 
+                                <span>${booking.totalCost.toFixed(2)}</span>
+                            </div>
+                             <div className="flex justify-between text-red-400">
+                                <span>Cancellation Fee:</span> 
+                                <span>-${cancellationFee.toFixed(2)}</span>
+                            </div>
+                            <div className="border-t border-red-500/20 my-2"></div>
+                            <div className="flex justify-between font-bold text-lg text-green-400">
+                                <span>Amount to be Refunded:</span> 
+                                <span>${refundAmount.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <p className="text-xs text-center mt-3 text-slate-400">{policyMessage}</p>
+                    </div>
+
+                     <div className="mt-6">
+                        <label htmlFor="confirm-cancellation" className="flex items-start">
+                            <input
+                            type="checkbox"
+                            id="confirm-cancellation"
+                            checked={isConfirmed}
+                            onChange={(e) => setIsConfirmed(e.target.checked)}
+                            className="h-4 w-4 rounded border-zinc-500 bg-zinc-700 text-orange-500 focus:ring-orange-500 mt-1"
+                            />
+                            <span className="ml-3 text-sm text-slate-300">
+                                I understand the cancellation policy and wish to proceed.
+                            </span>
+                        </label>
+                    </div>
+
                 </div>
-                <div className="p-4 bg-zinc-800/50 border-t border-zinc-700 flex gap-4">
-                    <button onClick={onClose} className="w-full bg-zinc-700 text-slate-200 font-bold py-3 px-4 rounded-lg hover:bg-zinc-600 transition-all">
+
+                <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-2xl flex justify-end gap-3">
+                     <button type="button" onClick={onClose} className="text-slate-300 bg-transparent hover:bg-zinc-700 font-bold rounded-lg text-sm px-5 py-3 text-center transition-colors border border-zinc-600">
                         Keep Booking
                     </button>
-                    <button onClick={() => onConfirm(booking.id)} className="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-600 transition-all flex items-center justify-center gap-2">
-                        <TrashIcon className="w-5 h-5" />
-                        Yes, Cancel
+                    <button 
+                        onClick={handleConfirm}
+                        disabled={!isConfirmed}
+                        className="text-white bg-red-600 hover:bg-red-700 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed font-bold rounded-lg text-sm px-5 py-3 text-center transition-all shadow-md flex items-center gap-2"
+                    >
+                       <TrashIcon className="w-5 h-5" />
+                       Confirm Cancellation
                     </button>
                 </div>
             </div>

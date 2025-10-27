@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import type { AnalyticsData } from '../types';
-import * as apiService from '../services/apiService';
-import { DollarSignIcon, EyeIcon, UsersIcon, CalendarIcon } from './icons';
+import type { AnalyticsData, Stoodio, Engineer, Producer } from '../types';
+import { fetchAnalyticsData } from '../services/apiService';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { DollarSignIcon, UsersIcon, EyeIcon, CalendarIcon } from './icons';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
 interface AnalyticsDashboardProps {
-    userId: string;
+    user: Stoodio | Engineer | Producer;
 }
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -17,63 +21,139 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: React.Re
     </div>
 );
 
-const BarChart: React.FC<{ data: { date: string; revenue: number }[] }> = ({ data }) => {
-    const maxValue = Math.max(...data.map(d => d.revenue), 0);
-    return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700/50">
-            <h3 className="font-bold text-lg mb-4">Revenue Over Time (Last 30 Days)</h3>
-            <div className="flex gap-1 h-48 items-end">
-                {data.map(d => (
-                    <div
-                        key={d.date}
-                        className="flex-1 bg-orange-500 rounded-t-sm hover:bg-orange-400 transition-colors"
-                        style={{ height: `${(d.revenue / maxValue) * 100}%` }}
-                        title={`${d.date}: $${d.revenue.toFixed(2)}`}
-                    ></div>
-                ))}
-            </div>
-        </div>
-    );
-};
+const ChartContainer: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => (
+    <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <h3 className="text-xl font-bold text-zinc-100 mb-4">{title}</h3>
+        {children}
+    </div>
+);
 
-const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ userId }) => {
-    const [data, setData] = useState<AnalyticsData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+const LoadingSkeleton: React.FC = () => (
+    <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 bg-zinc-800/50 rounded-xl animate-pulse"></div>)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-80 bg-zinc-800/50 rounded-lg animate-pulse"></div>
+            <div className="h-80 bg-zinc-800/50 rounded-lg animate-pulse"></div>
+        </div>
+    </div>
+);
+
+const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user }) => {
+    const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+    const [timeframe, setTimeframe] = useState<30 | 60 | 90>(30);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setIsLoading(true);
-        apiService.fetchAnalyticsData(userId)
-            .then(setData)
-            .catch(console.error)
-            .finally(() => setIsLoading(false));
-    }, [userId]);
+        const loadData = async () => {
+            setLoading(true);
+            const data = await fetchAnalyticsData(user.id, timeframe);
+            setAnalyticsData(data);
+            setLoading(false);
+        };
+        loadData();
+    }, [user.id, timeframe]);
 
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-        );
+    if (loading || !analyticsData) {
+        return <LoadingSkeleton />;
     }
+
+    const { kpis, revenueOverTime, engagementOverTime, revenueSources } = analyticsData;
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#a1a1aa' }, grid: { color: 'rgba(161, 161, 170, 0.1)' } },
+            y: { ticks: { color: '#a1a1aa' }, grid: { color: 'rgba(161, 161, 170, 0.1)' } },
+        },
+    };
     
-    if (!data) {
-        return <div className="text-center text-red-400">Could not load analytics data.</div>;
-    }
+    const revenueChartData = {
+        labels: revenueOverTime.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+        datasets: [{
+            label: 'Revenue',
+            data: revenueOverTime.map(d => d.revenue),
+            borderColor: '#f97316',
+            backgroundColor: 'rgba(249, 115, 22, 0.2)',
+            fill: true,
+            tension: 0.4,
+        }],
+    };
 
-    const { kpis, revenueOverTime } = data;
+    const engagementChartData = {
+        labels: engagementOverTime.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+        datasets: [
+            { label: 'Views', data: engagementOverTime.map(d => d.views), backgroundColor: '#3b82f6' },
+            { label: 'Followers', data: engagementOverTime.map(d => d.followers), backgroundColor: '#8b5cf6' },
+            { label: 'Likes', data: engagementOverTime.map(d => d.likes), backgroundColor: '#ec4899' },
+        ]
+    };
+
+    const doughnutChartData = {
+        labels: revenueSources.map(s => s.name),
+        datasets: [{
+            data: revenueSources.map(s => s.revenue),
+            backgroundColor: ['#f97316', '#8b5cf6', '#ec4899'],
+            borderColor: '#27272a',
+            borderWidth: 2,
+        }],
+    };
+    
+    const doughnutOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right' as const,
+                labels: { color: '#e4e4e7' }
+            }
+        }
+    };
+
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label="Total Revenue" value={`$${kpis.totalRevenue.toLocaleString()}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                <StatCard label="Profile Views" value={kpis.profileViews.toLocaleString()} icon={<EyeIcon className="w-6 h-6 text-blue-400" />} />
-                <StatCard label="New Followers" value={kpis.newFollowers.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-purple-400" />} />
-                <StatCard label="Total Bookings" value={kpis.bookings.toLocaleString()} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+            <div className="flex justify-between items-center">
+                 <h2 className="text-2xl font-bold text-zinc-100">Performance Overview</h2>
+                <div className="flex items-center bg-zinc-900/50 rounded-lg p-1 border border-zinc-700">
+                    {[30, 60, 90].map(days => (
+                        <button 
+                            key={days}
+                            onClick={() => setTimeframe(days as 30|60|90)}
+                            className={`px-3 py-1 text-sm font-semibold rounded-md ${timeframe === days ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:bg-zinc-700'}`}
+                        >
+                            {days} days
+                        </button>
+                    ))}
+                </div>
             </div>
-            <BarChart data={revenueOverTime} />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard label="Total Revenue" value={`$${kpis.totalRevenue.toLocaleString()}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400"/>} />
+                <StatCard label="Profile Views" value={kpis.profileViews.toLocaleString()} icon={<EyeIcon className="w-6 h-6 text-blue-400"/>} />
+                <StatCard label="New Followers" value={kpis.newFollowers.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-purple-400"/>} />
+                <StatCard label="Bookings / Sales" value={kpis.bookings.toLocaleString()} icon={<CalendarIcon className="w-6 h-6 text-orange-400"/>} />
+            </div>
+
+            <ChartContainer title="Revenue Over Time">
+                <div className="h-72"><Line options={chartOptions as any} data={revenueChartData} /></div>
+            </ChartContainer>
+
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="lg:col-span-3">
+                    <ChartContainer title="Engagement Reach">
+                        <div className="h-80"><Bar options={chartOptions as any} data={engagementChartData} /></div>
+                    </ChartContainer>
+                </div>
+                <div className="lg:col-span-2">
+                     <ChartContainer title="Revenue Sources">
+                        <div className="h-80"><Doughnut data={doughnutChartData} options={doughnutOptions as any} /></div>
+                    </ChartContainer>
+                </div>
+            </div>
         </div>
     );
 };
