@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
@@ -43,7 +44,7 @@ const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onP
     const inputClasses = "mt-1 w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
-        <form onSubmit={handleSubmit} className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-xl border border-zinc-700/50 mb-6">
+        <form onSubmit={handleSubmit} className="p-6 mb-6 cardSurface">
             <h3 className="text-xl font-bold text-zinc-100 mb-4">Post a New Job</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
@@ -158,7 +159,7 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
 
     return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="p-6 cardSurface">
             <h1 className="text-2xl font-bold text-zinc-100 mb-2 flex items-center gap-2">
                 <EditIcon className="w-6 h-6 text-orange-400" />
                 Profile Settings
@@ -206,7 +207,7 @@ interface StoodioDashboardProps {
 type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
+    <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -314,7 +315,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 );
             case 'photos':
                 return (
-                    <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+                    <div className="p-6 cardSurface">
                         <h3 className="text-xl font-bold mb-4">Photo Management</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             {stoodio.photos.map((photo, index) => (
@@ -352,7 +353,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
+            <div className="p-6 md:p-8 cardSurface">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                      <div className="flex flex-col sm:flex-row items-center gap-6">
                         <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
@@ -391,7 +392,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 </div>
             </div>
 
-            <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
+            <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
@@ -415,3 +416,4 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
 };
 
 export default StoodioDashboard;
+      

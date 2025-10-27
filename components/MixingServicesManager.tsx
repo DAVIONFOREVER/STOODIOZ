@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Engineer, MixingServices } from '../types';
 import { DollarSignIcon, EditIcon } from './icons';
@@ -39,7 +40,7 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
 
 
     return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="p-6 cardSurface">
             <h1 className="text-2xl font-bold text-zinc-100 mb-2 flex items-center gap-2">
                 <EditIcon className="w-6 h-6 text-orange-400" />
                 Mixing & Mastering Services
@@ -130,3 +131,4 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
 };
 
 export default MixingServicesManager;
+      

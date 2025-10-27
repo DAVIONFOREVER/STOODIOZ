@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import type { Artist, Engineer, Stoodio, Producer } from '../types';
 import { UserPlusIcon } from './icons';
@@ -20,7 +19,7 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
     };
 
     return (
-        <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
+        <div className="p-4 cardSurface">
             <h3 className="font-bold text-slate-100 px-3 mb-2">Who to Follow</h3>
             <div className="space-y-2">
                 {suggestions.map(user => (
@@ -47,3 +46,4 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
 };
 
 export default WhoToFollow;
+      

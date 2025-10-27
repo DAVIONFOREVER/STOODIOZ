@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo } from 'react';
 // FIX: Import Booking type and useAppState hook to get booking data.
 import type { Stoodio, Engineer, Producer, Booking } from '../types';
@@ -107,7 +105,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
     const availableTimesForSelectedDate = selectedDate ? [...(availabilityMap.get(selectedDate) || [])].sort() : [];
 
     return (
-        <div className="bg-zinc-800 p-4 rounded-lg">
+        <div className="p-4 cardSurface">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-zinc-700 transition-colors">
@@ -202,3 +200,4 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
 
 // FIX: Correctly export the AvailabilityManager component.
 export default AvailabilityManager;
+      

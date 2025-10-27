@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { AppView, UserRole } from '../types';
 import { CheckCircleIcon, SoundWaveIcon, HouseIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
@@ -28,7 +29,7 @@ const PlanCard: React.FC<{
     badge?: string;
     onClick: () => void;
 }> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick }) => (
-    <div className={`relative border rounded-2xl p-8 flex flex-col ${isFeatured ? 'border-orange-500/50 bg-zinc-900 shadow-2xl shadow-orange-500/10' : 'border-zinc-700/50 bg-zinc-800/50'}`}>
+    <div className={`relative p-8 flex flex-col ${isFeatured ? 'border-orange-500/50 bg-zinc-900 shadow-2xl shadow-orange-500/10' : 'cardSurface'}`}>
         {badge && (
             <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">{badge}</div>
         )}
@@ -157,3 +158,4 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
 };
 
 export default SubscriptionPlans;
+      

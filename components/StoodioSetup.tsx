@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AppView, SmokingPolicy } from '../types';
 
@@ -25,7 +26,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
     const isFormValid = name.trim() && description.trim() && location.trim() && email.trim() && password.trim() && agreedToTerms;
 
     return (
-        <div className="max-w-2xl mx-auto bg-zinc-900/70 backdrop-blur-lg p-8 rounded-2xl border border-zinc-700/50 shadow-2xl animate-fade-in">
+        <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
             <h1 className="text-4xl font-extrabold text-center mb-2 text-zinc-100">Create Your <span className="text-orange-400">Stoodio Profile</span></h1>
             <p className="text-center text-zinc-400 mb-8">List your space for artists to discover and create your account.</p>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -132,3 +133,4 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
 };
 
 export default StoodioSetup;
+      

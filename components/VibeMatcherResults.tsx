@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { VibeMatchResult, Stoodio, Engineer, Producer } from '../types';
 import { ChevronLeftIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons';
@@ -34,7 +35,7 @@ const RecommendationCard: React.FC<{
     }[rec.type];
 
     return (
-        <div className="bg-zinc-800 rounded-2xl p-6 border border-zinc-700 flex flex-col gap-4 hover:border-orange-500/50 transition-colors">
+        <div className="p-6 flex flex-col gap-4 transition-colors cardSurface">
             <div className="flex items-center gap-4">
                 <img src={rec.entity.imageUrl} alt={rec.entity.name} className="w-16 h-16 rounded-xl object-cover" />
                 <div>
@@ -67,7 +68,7 @@ const VibeMatcherResults: React.FC<VibeMatcherResultsProps> = ({ onSelectStoodio
                 Back to Dashboard
             </button>
             
-            <div className="bg-zinc-800 rounded-2xl shadow-xl p-8 border border-zinc-700 mb-8">
+            <div className="p-8 mb-8 cardSurface">
                 <h1 className="text-5xl font-extrabold text-center mb-2 tracking-tight text-orange-500">Your Vibe Match</h1>
                 <p className="text-center text-lg text-slate-300 mb-6 max-w-3xl mx-auto">
                     {vibeMatchResults.vibeDescription}
@@ -98,3 +99,4 @@ const VibeMatcherResults: React.FC<VibeMatcherResultsProps> = ({ onSelectStoodio
 };
 
 export default VibeMatcherResults;
+      
