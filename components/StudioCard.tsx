@@ -11,7 +11,7 @@ interface StoodioCardProps {
 const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) => {
     return (
         <div
-            className="bg-zinc-900/50 backdrop-blur-sm rounded-2xl shadow-lg cursor-pointer group transition-all duration-400 ease-in-out border border-zinc-700/50 hover:shadow-[0_0_24px_rgba(249,115,22,0.4),_0_20px_40px_-15px_rgba(249,115,22,0.2)] hover:border-orange-500/50 hover:-translate-y-1 hover:rotate-1 shimmer glass-overlay relative overflow-hidden"
+            className="bg-zinc-900/50 backdrop-blur-sm rounded-2xl shadow-lg shadow-[0_0_12px_rgba(249,115,22,0.2)] cursor-pointer group transition-all duration-400 ease-in-out border border-zinc-700/50 hover:shadow-[0_0_24px_rgba(249,115,22,0.4),_0_20px_40px_-15px_rgba(249,115,22,0.2)] hover:border-orange-500/50 hover:-translate-y-1 hover:rotate-1 shimmer glass-overlay relative overflow-hidden"
             onClick={() => onSelectStoodio(stoodio)}
             style={{ '--shimmer-delay': (Math.random() * 8 + 2) } as React.CSSProperties}
         >
