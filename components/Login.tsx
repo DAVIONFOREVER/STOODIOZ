@@ -35,7 +35,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate }) => {
                         id="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-4 py-3 bg-zinc-800 border-zinc-700 text-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="you@example.com"
                         required
                         autoComplete="email"
@@ -48,7 +48,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate }) => {
                         id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-700 border-zinc-600 text-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-4 py-3 bg-zinc-800 border-zinc-700 text-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="••••••••"
                         required
                         autoComplete="current-password"
