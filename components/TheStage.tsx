@@ -91,7 +91,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 <aside className="lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
                        <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
-                       <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
+                       <div className="cardSurface p-4">
                            <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
                            <nav className="space-y-1">
                                <QuickLink icon={<CalendarIcon className="w-5 h-5 text-orange-400"/>} label="My Bookings" onClick={() => onNavigate(AppView.MY_BOOKINGS)} />
