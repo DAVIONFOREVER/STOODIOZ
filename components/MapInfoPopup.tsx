@@ -12,7 +12,8 @@ interface MapInfoPopupProps {
 }
 
 const MapInfoPopup: React.FC<MapInfoPopupProps> = ({ user, onClose, onSelect, onNavigate }) => {
-    const hasRating = 'rating' in user;
+    // FIX: Changed property from `rating` to `rating_overall`.
+    const hasRating = 'rating_overall' in user;
 
     return (
         <div className="bg-zinc-800 rounded-lg shadow-lg w-64 text-left">
@@ -25,7 +26,8 @@ const MapInfoPopup: React.FC<MapInfoPopupProps> = ({ user, onClose, onSelect, on
                             {hasRating && (
                                 <div className="flex items-center text-yellow-400 text-sm">
                                     <StarIcon className="w-4 h-4" />
-                                    <span className="font-bold ml-1">{(user as Engineer).rating.toFixed(1)}</span>
+                                    {/* FIX: Changed property from `rating` to `rating_overall` and removed type cast. */}
+                                    <span className="font-bold ml-1">{user.rating_overall.toFixed(1)}</span>
                                 </div>
                             )}
                         </div>

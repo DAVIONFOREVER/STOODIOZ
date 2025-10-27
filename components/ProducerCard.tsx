@@ -30,7 +30,8 @@ const ProducerCard: React.FC<ProducerCardProps> = ({ producer, onSelectProducer,
                     <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400 text-glow">{producer.name}</h3>
                      <div className="flex items-center justify-center gap-1 text-yellow-400 mt-1">
                         <StarIcon className="w-4 h-4" />
-                        <span className="font-bold text-sm text-slate-200">{producer.rating.toFixed(1)}</span>
+                        {/* FIX: Changed `producer.rating` to `producer.rating_overall` to match the property name in the `BaseUser` type. */}
+                        <span className="font-bold text-sm text-slate-200">{producer.rating_overall.toFixed(1)}</span>
                     </div>
                 </button>
                 <p className="text-slate-400 text-xs text-center mt-2 h-9 overflow-hidden">{producer.genres.join(' • ')}</p>

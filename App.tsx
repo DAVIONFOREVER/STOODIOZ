@@ -1,7 +1,8 @@
+
+
 import React, { useEffect, lazy, Suspense } from 'react';
-// FIX: The type `WalletTransaction` was renamed to `Transaction`. Since the type is not directly used in this component, the import has been removed to prevent build errors.
+// FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
-// FIX: Import VerificationStatus to use it as a value.
 import { AppView, UserRole, VerificationStatus, SmokingPolicy, TransactionCategory, TransactionStatus } from './types';
 import { getAriaNudge } from './services/geminiService';
 import * as apiService from './services/apiService';
@@ -62,6 +63,10 @@ const TheStage = lazy(() => import('./components/TheStage'));
 const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults'));
 const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans'));
 const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant'));
+const AdminRankings = lazy(() => import('./components/AdminRankings'));
+const StudioInsights = lazy(() => import('./components/StudioInsights'));
+// FIX: Added lazy import for the new Leaderboard component.
+const Leaderboard = lazy(() => import('./components/Leaderboard'));
 
 const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
     // If the current user is a studio and has a custom animated logo, display it.
@@ -221,6 +226,28 @@ const App: React.FC = () => {
                 />;
             case AppView.VIBE_MATCHER_RESULTS:
                 return <VibeMatcherResults onBack={() => navigate(AppView.ARTIST_DASHBOARD)} onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} />;
+            
+            // FIX: Added routing for the new Leaderboard component.
+            case AppView.LEADERBOARD:
+                if (!currentUser) {
+                    navigate(AppView.LOGIN);
+                    return null;
+                }
+                return <Leaderboard />;
+
+            case AppView.ADMIN_RANKINGS:
+                if (!currentUser?.isAdmin) {
+                    navigate(AppView.THE_STAGE);
+                    return null;
+                }
+                return <AdminRankings />;
+            
+            case AppView.STUDIO_INSIGHTS:
+                 if (!currentUser || userRole !== UserRole.STOODIO || (currentUser as Stoodio).verificationStatus !== VerificationStatus.VERIFIED) {
+                    navigate(AppView.STOODIO_DASHBOARD);
+                    return null;
+                }
+                return <StudioInsights />;
 
             // --- USER-SPECIFIC DASHBOARDS & SESSIONS ---
             default:

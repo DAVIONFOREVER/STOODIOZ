@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
-import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
+import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType, VerificationStatus } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, ChartBarIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
@@ -438,6 +439,16 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     <TabButton label="Photos" isActive={activeTab === 'photos'} onClick={() => setActiveTab('photos')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                    {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
+                        <button onClick={() => onNavigate(AppView.STUDIO_INSIGHTS)} className="ml-auto px-4 py-3 font-semibold text-sm text-cyan-400 hover:text-cyan-300 border-b-2 border-transparent">
+                            Insights
+                        </button>
+                    )}
+                    {stoodio.isAdmin && (
+                         <button onClick={() => onNavigate(AppView.ADMIN_RANKINGS)} className="px-4 py-3 font-semibold text-sm text-red-400 hover:text-red-300 border-b-2 border-transparent">
+                            Admin
+                        </button>
+                    )}
                 </div>
                 <div className="p-6">
                     {renderContent()}

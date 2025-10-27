@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
@@ -349,6 +350,24 @@ export const ChartBarIcon: React.FC<IconProps> = (props) => (
     </svg>
 );
 
+export const FireIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.97 5.97 0 00-2.243-3.546c.324.77.39 1.628.28 2.457A3.75 3.75 0 0012 18z" />
+  </svg>
+);
+
+export const ShieldCheckIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.623 0-1.602-.34-3.126-.95-4.522A11.959 11.959 0 0112 2.714z" />
+  </svg>
+);
+
+export const ChevronUpDownIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+  </svg>
+);
 
 export const DollarSignIcon: React.FC<IconProps> = PriceIcon;
 
@@ -363,5 +382,5 @@ export default {
     ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, FlagIcon, PlayIcon, PauseIcon,
     ArrowUpCircleIcon, ArrowDownCircleIcon, BanknotesIcon, PlusCircleIcon, EditIcon,
     ChatBubbleLeftRightIcon, NavigationArrowIcon, DollarSignIcon, ChartBarIcon,
-    EyeIcon
+    EyeIcon, FireIcon, ShieldCheckIcon, ChevronUpDownIcon
 };

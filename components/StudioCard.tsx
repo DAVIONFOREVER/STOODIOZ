@@ -30,7 +30,8 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                 </div>
                 <div className="absolute top-4 right-4 bg-zinc-900/80 px-3 py-1.5 rounded-full flex items-center gap-1.5 text-yellow-400 font-bold text-sm">
                     <StarIcon className="w-4 h-4" />
-                    <span>{stoodio.rating.toFixed(1)}</span>
+                    {/* FIX: Changed `stoodio.rating` to `stoodio.rating_overall` to match the property name in the `BaseUser` type. */}
+                    <span>{stoodio.rating_overall.toFixed(1)}</span>
                 </div>
             </div>
             <div className="p-4 relative">

@@ -1,4 +1,4 @@
-
+// All type definitions for the Stoodioz application
 
 export enum AppView {
     LANDING_PAGE = 'LANDING_PAGE',
@@ -9,34 +9,64 @@ export enum AppView {
     PRODUCER_SETUP = 'PRODUCER_SETUP',
     STOODIO_SETUP = 'STOODIO_SETUP',
     PRIVACY_POLICY = 'PRIVACY_POLICY',
+    SUBSCRIPTION_PLANS = 'SUBSCRIPTION_PLANS',
     STOODIO_LIST = 'STOODIO_LIST',
     STOODIO_DETAIL = 'STOODIO_DETAIL',
     BOOKING_MODAL = 'BOOKING_MODAL',
     CONFIRMATION = 'CONFIRMATION',
     MY_BOOKINGS = 'MY_BOOKINGS',
-    STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
-    ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
-    PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
-    ARTIST_DASHBOARD = 'ARTIST_DASHBOARD',
     INBOX = 'INBOX',
-    ACTIVE_SESSION = 'ACTIVE_SESSION',
+    MAP_VIEW = 'MAP_VIEW',
     ARTIST_LIST = 'ARTIST_LIST',
     ARTIST_PROFILE = 'ARTIST_PROFILE',
     ENGINEER_LIST = 'ENGINEER_LIST',
     ENGINEER_PROFILE = 'ENGINEER_PROFILE',
     PRODUCER_LIST = 'PRODUCER_LIST',
     PRODUCER_PROFILE = 'PRODUCER_PROFILE',
-    MAP_VIEW = 'MAP_VIEW',
     THE_STAGE = 'THE_STAGE',
     VIBE_MATCHER_RESULTS = 'VIBE_MATCHER_RESULTS',
-    SUBSCRIPTION_PLANS = 'SUBSCRIPTION_PLANS',
+    ARTIST_DASHBOARD = 'ARTIST_DASHBOARD',
+    STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
+    ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
+    PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
+    ACTIVE_SESSION = 'ACTIVE_SESSION',
+    ADMIN_RANKINGS = 'ADMIN_RANKINGS',
+    STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
+    LEADERBOARD = 'LEADERBOARD',
 }
 
 export enum UserRole {
     ARTIST = 'ARTIST',
     ENGINEER = 'ENGINEER',
-    STOODIO = 'STOODIO',
     PRODUCER = 'PRODUCER',
+    STOODIO = 'STOODIO',
+}
+
+export enum VerificationStatus {
+    UNVERIFIED = 'UNVERIFIED',
+    PENDING = 'PENDING',
+    VERIFIED = 'VERIFIED',
+}
+
+export enum SmokingPolicy {
+    NON_SMOKING = 'NON_SMOKING',
+    SMOKING_ALLOWED = 'SMOKING_ALLOWED',
+}
+
+export enum TransactionCategory {
+    ADD_FUNDS = 'ADD_FUNDS',
+    SESSION_PAYMENT = 'SESSION_PAYMENT',
+    SESSION_PAYOUT = 'SESSION_PAYOUT',
+    TIP_PAYMENT = 'TIP_PAYMENT',
+    TIP_PAYOUT = 'TIP_PAYOUT',
+    REFUND = 'REFUND',
+    WITHDRAWAL = 'WITHDRAWAL',
+}
+
+export enum TransactionStatus {
+    PENDING = 'PENDING',
+    COMPLETED = 'COMPLETED',
+    FAILED = 'FAILED',
 }
 
 export enum BookingStatus {
@@ -63,40 +93,19 @@ export enum NotificationType {
     NEW_TIP = 'NEW_TIP',
 }
 
-export enum VerificationStatus {
-    UNVERIFIED = 'UNVERIFIED',
-    PENDING = 'PENDING',
-    VERIFIED = 'VERIFIED',
-}
-
-export enum SmokingPolicy {
-    NON_SMOKING = 'NON_SMOKING',
-    SMOKING_ALLOWED = 'SMOKING_ALLOWED',
-}
-
 export enum SubscriptionPlan {
-    ARTIST_FREE = 'ARTIST_FREE',
     ENGINEER_PLUS = 'ENGINEER_PLUS',
     PRODUCER_PRO = 'PRODUCER_PRO',
     STOODIO_PRO = 'STOODIO_PRO',
 }
 
-export enum TransactionCategory {
-    ADD_FUNDS = 'ADD_FUNDS',
-    WITHDRAWAL = 'WITHDRAWAL',
-    SESSION_PAYMENT = 'SESSION_PAYMENT',
-    SESSION_PAYOUT = 'SESSION_PAYOUT',
-    TIP_PAYMENT = 'TIP_PAYMENT',
-    TIP_PAYOUT = 'TIP_PAYOUT',
-    REFUND = 'REFUND',
-    BEAT_PURCHASE = 'BEAT_PURCHASE',
-    BEAT_PAYOUT = 'BEAT_PAYOUT',
-}
-
-export enum TransactionStatus {
-    PENDING = 'PENDING',
-    COMPLETED = 'COMPLETED',
-    FAILED = 'FAILED',
+export enum RankingTier {
+    Provisional = 'Provisional',
+    Bronze = 'Bronze',
+    Silver = 'Silver',
+    Gold = 'Gold',
+    Platinum = 'Platinum',
+    Elite = 'Elite',
 }
 
 export interface Location {
@@ -105,16 +114,21 @@ export interface Location {
 }
 
 export interface Following {
-    stoodioz: string[];
-    engineers: string[];
     artists: string[];
+    engineers: string[];
+    stoodioz: string[];
     producers: string[];
+}
+
+export interface Link {
+    title: string;
+    url: string;
 }
 
 export interface LinkAttachment {
     url: string;
     title: string;
-    description: string;
+    description?: string;
     imageUrl?: string;
 }
 
@@ -131,26 +145,66 @@ export interface Post {
     id: string;
     authorId: string;
     authorType: UserRole;
+    timestamp: string;
     text: string;
     imageUrl?: string;
     videoUrl?: string;
     videoThumbnailUrl?: string;
     link?: LinkAttachment;
-    timestamp: string;
     likes: string[];
     comments: Comment[];
 }
 
-export interface Instrumental {
+export interface Transaction {
     id: string;
-    title: string;
-    audioUrl: string;
-    priceLease: number;
-    priceExclusive: number;
-    genre: string;
-    tags: string[];
-    coverArtUrl?: string;
-    isFreeDownloadAvailable?: boolean;
+    date: string;
+    description: string;
+    amount: number;
+    category: TransactionCategory;
+    status: TransactionStatus;
+    relatedBookingId?: string;
+    relatedUserName?: string;
+}
+
+export interface Subscription {
+    plan: SubscriptionPlan;
+    status: 'active' | 'cancelled' | 'past_due';
+    startDate: string;
+    endDate: string | null;
+}
+
+export interface BaseUser {
+    id: string;
+    name: string;
+    email: string;
+    password?: string;
+    imageUrl: string;
+    followers: number;
+    followerIds: string[];
+    following: Following;
+    posts?: Post[];
+    walletBalance: number;
+    walletTransactions: Transaction[];
+    coordinates: Location;
+    showOnMap: boolean;
+    isOnline: boolean;
+    links?: Link[];
+    isAdmin?: boolean;
+    subscription?: Subscription;
+    rating_overall: number;
+    sessions_completed: number;
+    ranking_tier: RankingTier;
+    is_on_streak: boolean;
+    on_time_rate: number;
+    completion_rate: number;
+    repeat_hire_rate: number;
+    strength_tags: string[];
+    local_rank_text: string;
+}
+
+export interface Artist extends BaseUser {
+    bio: string;
+    isSeekingSession: boolean;
 }
 
 export interface MixingSample {
@@ -164,72 +218,43 @@ export interface MixingServices {
     isEnabled: boolean;
     pricePerTrack: number;
     description: string;
-    turnaroundTime: string; // e.g., "3-5 business days"
-}
-
-// FIX: Renamed WalletTransaction to Transaction to fix multiple import errors.
-export interface Transaction {
-    id: string;
-    description: string;
-    amount: number;
-    date: string;
-    category: TransactionCategory;
-    status: TransactionStatus;
-    relatedBookingId?: string;
-    relatedUserName?: string;
-}
-
-export interface BaseUser {
-    id: string;
-    name: string;
-    email: string;
-    password?: string;
-    imageUrl: string;
-    followers: number;
-    following: Following;
-    followerIds: string[];
-    coordinates: Location;
-    isOnline?: boolean;
-    walletBalance: number;
-    // FIX: Changed Transaction to WalletTransaction to match the interface name. Now changed back as interface is renamed.
-    walletTransactions: Transaction[];
-    posts?: Post[];
-    links?: { title: string, url: string }[];
-    subscription?: {
-        plan: SubscriptionPlan;
-        validUntil: string;
-    }
-}
-
-export interface Artist extends BaseUser {
-    bio: string;
-    isSeekingSession: boolean;
-    showOnMap: boolean;
+    turnaroundTime: string;
 }
 
 export interface Engineer extends BaseUser {
     bio: string;
     specialties: string[];
-    rating: number;
-    sessionsCompleted: number;
-    isAvailable: boolean;
-    showOnMap: boolean;
-    displayExactLocation: boolean;
     mixingSamples?: MixingSample[];
-    minimumPayRate?: number;
+    isAvailable: boolean;
+    displayExactLocation?: boolean;
     notificationPreferences?: {
         enabled: boolean;
         radius: number;
     };
+    minimumPayRate?: number;
     mixingServices?: MixingServices;
-    // FIX: Added optional availability property for consistency with AvailabilityManager component.
-    availability?: { date: string; times: string[] }[];
 }
 
-export interface InHouseEngineerInfo {
-    engineerId: string;
-    payRate: number;
+export interface Instrumental {
+    id: string;
+    title: string;
+    genre: string;
+    tags: string[];
+    priceLease: number;
+    priceExclusive: number;
+    audioUrl: string;
+    coverArtUrl?: string;
+    isFreeDownloadAvailable?: boolean;
 }
+
+export interface Producer extends BaseUser {
+    bio: string;
+    genres: string[];
+    instrumentals: Instrumental[];
+    pullUpPrice?: number;
+    isAvailable: boolean;
+}
+
 export interface Room {
     id: string;
     name: string;
@@ -239,74 +264,23 @@ export interface Room {
     smokingPolicy: SmokingPolicy;
 }
 
+export interface InHouseEngineerInfo {
+    engineerId: string;
+    payRate: number;
+}
+
 export interface Stoodio extends BaseUser {
     description: string;
     location: string;
     businessAddress?: string;
-    hourlyRate: number;
+    hourlyRate: number; // Base rate
     engineerPayRate: number;
-    rating: number;
     amenities: string[];
-    availability: { date: string; times: string[] }[];
+    availability: { date: string, times: string[] }[];
     photos: string[];
-    inHouseEngineers?: InHouseEngineerInfo[];
     rooms: Room[];
+    inHouseEngineers?: InHouseEngineerInfo[];
     verificationStatus: VerificationStatus;
-    googleBusinessProfileUrl?: string;
-    websiteUrl?: string;
-    showOnMap?: boolean;
-    animatedLogoUrl?: string;
-}
-
-export interface Producer extends BaseUser {
-    bio: string;
-    genres: string[];
-    rating: number;
-    instrumentals: Instrumental[];
-    isAvailable: boolean;
-    showOnMap: boolean;
-    pullUpPrice?: number;
-    // FIX: Added optional availability property for consistency with AvailabilityManager component.
-    availability?: { date: string; times: string[] }[];
-}
-
-export interface Booking {
-    id: string;
-    stoodio: Stoodio | null;
-    artist: Artist | null;
-    engineer: Engineer | null;
-    producer: Producer | null;
-    date: string;
-    startTime: string;
-    duration: number;
-    totalCost: number;
-    status: BookingStatus;
-    bookedById: string;
-    bookedByRole: UserRole;
-    requestType: BookingRequestType;
-    requestedEngineerId: string | null;
-    engineerPayRate: number;
-    tip?: number;
-    instrumentalsPurchased?: Instrumental[];
-    mixingDetails?: MixingDetails;
-    postedBy?: UserRole;
-}
-
-export interface BookingRequest {
-    // FIX: Made room optional to accommodate remote mixing requests without a physical room.
-    room?: Room;
-    date: string;
-    startTime: string;
-    duration: number;
-    totalCost: number;
-    requestType: BookingRequestType;
-    requestedEngineerId?: string;
-    engineerPayRate: number;
-    producerId?: string;
-    instrumentalsToPurchase?: Instrumental[];
-    pullUpFee?: number;
-    mixingDetails?: MixingDetails;
-    requiredSkills?: string[];
 }
 
 export interface MixingDetails {
@@ -315,13 +289,50 @@ export interface MixingDetails {
     notes: string;
 }
 
+export interface BookingRequest {
+    room?: Room;
+    date: string;
+    startTime: string;
+    duration: number;
+    totalCost: number;
+    engineerPayRate: number;
+    requestType: BookingRequestType;
+    requestedEngineerId?: string;
+    producerId?: string;
+    instrumentalsToPurchase?: Instrumental[];
+    pullUpFee?: number;
+    mixingDetails?: MixingDetails;
+    requiredSkills?: string[];
+}
+
+export interface Booking {
+    id: string;
+    date: string;
+    startTime: string;
+    duration: number;
+    totalCost: number;
+    status: BookingStatus;
+    stoodio?: Stoodio;
+    artist?: Artist;
+    engineer?: Engineer;
+    producer?: Producer;
+    bookedById: string;
+    requestType: BookingRequestType;
+    requestedEngineerId?: string;
+    engineerPayRate: number;
+    instrumentalsPurchased?: Instrumental[];
+    tip?: number;
+    coordinates?: Location;
+    mixingDetails?: MixingDetails;
+    postedBy?: UserRole;
+}
+
 export interface Review {
     id: string;
-    reviewerName: string;
-    artistId?: string;
     stoodioId?: string;
     engineerId?: string;
-    producerId?: string;
+    artistId?: string;
+    reviewerName: string;
     rating: number;
     comment: string;
     date: string;
@@ -340,7 +351,7 @@ export interface AppNotification {
     };
     link?: {
         view: AppView;
-        entityId: string;
+        entityId?: string;
     };
 }
 
@@ -354,63 +365,45 @@ export interface Message {
     id: string;
     senderId: string;
     timestamp: string;
+    type: 'text' | 'image' | 'link' | 'audio' | 'files' | 'system';
     text?: string;
     imageUrl?: string;
+    link?: Link;
     audioUrl?: string;
-    audioInfo?: { filename: string, duration: string };
-    link?: { title: string, url: string };
+    audioInfo?: { filename: string; duration: string };
     files?: FileAttachment[];
-    type: 'text' | 'image' | 'audio' | 'link' | 'system' | 'files';
 }
 
 export interface Conversation {
     id: string;
-    participants: (Artist | Stoodio | Engineer | Producer)[];
+    participants: (Artist | Engineer | Stoodio | Producer)[];
     messages: Message[];
     unreadCount: number;
+    bookingId?: string;
     title?: string;
     imageUrl?: string;
-    bookingId?: string;
 }
 
 export interface VibeMatchResult {
     vibeDescription: string;
     tags: string[];
     recommendations: {
-        entity: Stoodio | Engineer | Producer;
         type: 'stoodio' | 'engineer' | 'producer';
+        entity: Stoodio | Engineer | Producer;
         reason: string;
     }[];
 }
 
-export type AriaCantataMessage = {
+export interface AriaCantataMessage {
     role: 'user' | 'model';
     parts: { text: string }[];
-};
+}
 
-export type AriaActionResponse = {
+export interface AriaActionResponse {
     type: 'text' | 'function';
     text: string;
     action?: string;
     payload?: any;
-};
-
-// Analytics Types
-export interface RevenueDataPoint {
-    date: string;
-    revenue: number;
-}
-
-export interface EngagementDataPoint {
-    date: string;
-    views: number;
-    followers: number;
-    likes: number;
-}
-
-export interface RevenueSource {
-    name: string;
-    revenue: number;
 }
 
 export interface AnalyticsData {
@@ -420,7 +413,17 @@ export interface AnalyticsData {
         newFollowers: number;
         bookings: number;
     };
-    revenueOverTime: RevenueDataPoint[];
-    engagementOverTime: EngagementDataPoint[];
-    revenueSources: RevenueSource[];
+    revenueOverTime: { date: string; revenue: number }[];
+    engagementOverTime: { date: string; views: number; followers: number; likes: number }[];
+    revenueSources: { name: string; revenue: number }[];
+}
+
+export interface SessionFeedback {
+    id: string;
+    booking_id: string;
+    target_user_id: string;
+    star_rating: number;
+    pro_tags: string[];
+    con_tags: string[];
+    timestamp: string;
 }
