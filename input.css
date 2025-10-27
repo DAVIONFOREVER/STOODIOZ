@@ -32,12 +32,11 @@
     /* ARIA Vibe Mode: Shimmer animation for cards */
     .shimmer::before {
         content: '';
-        @apply absolute top-0 w-1/2 h-full;
+        @apply absolute top-0 w-1/2 h-full z-20;
         background: linear-gradient(to right, transparent 0%, rgba(251, 146, 60, 0.15) 50%, transparent 100%);
         animation: shimmer-sweep 10s infinite ease-in-out;
         /* Use a CSS variable for delay, to be set inline on each card */
         animation-delay: calc(var(--shimmer-delay, 0) * 1s);
-        z-index: 2;
         pointer-events: none;
         transform: skewX(-25deg);
     }
@@ -45,8 +44,7 @@
     /* ARIA Vibe Mode: Glass overlay for cards */
     .glass-overlay::after {
         content: '';
-        @apply absolute inset-0 bg-white/5 group-hover:bg-white/10;
-        @apply transition-colors duration-400 ease-in-out z-1 pointer-events-none;
+        @apply absolute inset-0 bg-white/5 group-hover:bg-white/10 transition-colors duration-400 ease-in-out z-10 pointer-events-none;
     }
 }
 

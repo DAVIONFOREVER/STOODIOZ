@@ -24,7 +24,7 @@ const ProducerCard: React.FC<ProducerCardProps> = ({ producer, onSelectProducer,
             className="bg-zinc-900/50 backdrop-blur-sm rounded-2xl shadow-lg border border-zinc-700 p-6 group transition-all duration-400 ease-in-out hover:border-purple-500/50 hover:-translate-y-1 hover:shadow-[0_0_24px_rgba(249,115,22,0.4),_0_20px_40px_-15px_rgba(249,115,22,0.2)] hover:rotate-1 shimmer glass-overlay relative overflow-hidden"
             style={{ '--shimmer-delay': (Math.random() * 8 + 2) } as React.CSSProperties}
         >
-            <div className="relative z-10">
+            <div className="relative">
                 <button onClick={() => onSelectProducer(producer)} className="w-full text-center">
                     <img loading="lazy" src={producer.imageUrl} alt={producer.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-purple-500 transition-colors" />
                     <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-purple-400 text-glow">{producer.name}</h3>

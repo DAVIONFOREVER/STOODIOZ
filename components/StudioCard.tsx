@@ -15,7 +15,7 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
             onClick={() => onSelectStoodio(stoodio)}
             style={{ '--shimmer-delay': (Math.random() * 8 + 2) } as React.CSSProperties}
         >
-            <div className="relative z-[2]">
+            <div className="relative">
                 <img loading="lazy" src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 to-transparent"></div>
                 <div className="absolute bottom-4 left-4">
@@ -33,7 +33,7 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                     <span>{stoodio.rating.toFixed(1)}</span>
                 </div>
             </div>
-            <div className="p-4 relative z-[2]">
+            <div className="p-4 relative">
                 <p className="text-zinc-400 text-sm mb-3 h-10 overflow-hidden">{stoodio.description}</p>
                 <div className="flex justify-between items-center">
                     <div>
