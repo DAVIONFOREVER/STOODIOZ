@@ -17,7 +17,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
-const StudioInsights = lazy(() => import('./StudioInsights'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -320,7 +320,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 }
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <StudioInsights />
+                        <AnalyticsDashboard user={stoodio} />
                     </Suspense>
                 );
             case 'settings':
