@@ -157,10 +157,6 @@ const Header: React.FC<HeaderProps> = (props) => {
                                         <UserCircleIcon className="w-5 h-5" />
                                         <span>My Dashboard</span>
                                     </button>
-                                     <button onClick={() => onNavigate(AppView.LEADERBOARD)} className={`${navLinkClasses} flex items-center gap-1.5`}>
-                                        <ChartBarIcon className="w-5 h-5" />
-                                        <span>Top Talent</span>
-                                    </button>
                                     <button onClick={() => onNavigate(AppView.MAP_VIEW)} className={`${navLinkClasses} flex items-center gap-1.5`}>
                                         <MapIcon className="w-5 h-5" />
                                         <span>Map</span>
@@ -234,7 +230,6 @@ const Header: React.FC<HeaderProps> = (props) => {
                                 <>
                                     <MobileNavLink icon={<MicrophoneIcon className="w-5 h-5"/>} label="The Stage" onClick={() => handleMobileNav(AppView.THE_STAGE)} />
                                     <MobileNavLink icon={<UserCircleIcon className="w-5 h-5"/>} label="My Dashboard" onClick={handleMobileDashboardNav} />
-                                    <MobileNavLink icon={<ChartBarIcon className="w-5 h-5"/>} label="Top Talent" onClick={() => handleMobileNav(AppView.LEADERBOARD)} />
                                     <MobileNavLink icon={<MapIcon className="w-5 h-5"/>} label="Map View" onClick={() => handleMobileNav(AppView.MAP_VIEW)} />
                                     <MobileNavLink icon={<InboxIcon className="w-5 h-5"/>} label="Inbox" onClick={() => handleMobileNav(AppView.INBOX)} />
                                     <div className="border-t border-zinc-700 my-2"></div>

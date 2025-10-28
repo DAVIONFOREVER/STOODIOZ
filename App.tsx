@@ -1,6 +1,3 @@
-
-
-
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
@@ -64,9 +61,6 @@ const TheStage = lazy(() => import('./components/TheStage'));
 const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults'));
 const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans'));
 const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant'));
-const AdminRankings = lazy(() => import('./components/AdminRankings'));
-// FIX: Added lazy import for the new Leaderboard component.
-const Leaderboard = lazy(() => import('./components/Leaderboard'));
 
 const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
     // If the current user is a studio and has a custom animated logo, display it.
@@ -111,6 +105,7 @@ const App: React.FC = () => {
     const { toggleFollow, createPost, likePost, commentOnPost, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
     const { fetchSmartReplies, sendMessage, startConversation, selectConversation } = useMessaging(navigate);
+    // FIX: Destructure `isSaved` from the `useProfile` hook return value instead of the global app state. The `isSaved` state is managed within the `useProfile` hook and was being incorrectly accessed from `state`.
     const { updateProfile, verificationSubmit, isSaved } = useProfile();
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
@@ -168,7 +163,7 @@ const App: React.FC = () => {
         
         switch (currentView) {
             case AppView.LANDING_PAGE:
-                return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
+                return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onSelectEngineer={viewEngineerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
             case AppView.LOGIN:
                 return <Login onLogin={login} error={loginError} onNavigate={navigate} />;
             case AppView.CHOOSE_PROFILE:
@@ -227,21 +222,6 @@ const App: React.FC = () => {
             case AppView.VIBE_MATCHER_RESULTS:
                 return <VibeMatcherResults onBack={() => navigate(AppView.ARTIST_DASHBOARD)} onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} />;
             
-            // FIX: Added routing for the new Leaderboard component.
-            case AppView.LEADERBOARD:
-                if (!currentUser) {
-                    navigate(AppView.LOGIN);
-                    return null;
-                }
-                return <Leaderboard />;
-
-            case AppView.ADMIN_RANKINGS:
-                if (!currentUser?.isAdmin) {
-                    navigate(AppView.THE_STAGE);
-                    return null;
-                }
-                return <AdminRankings />;
-
             // --- USER-SPECIFIC DASHBOARDS & SESSIONS ---
             default:
                 if (!currentUser || !userRole) {
@@ -259,7 +239,7 @@ const App: React.FC = () => {
                     case AppView.ACTIVE_SESSION:
                         return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
                     default:
-                        return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
+                        return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onSelectEngineer={viewEngineerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
                 }
         }
     };

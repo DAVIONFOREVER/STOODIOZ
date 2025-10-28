@@ -103,7 +103,7 @@ const EngineerProfile: React.FC = () => {
                             <h1 className="text-4xl font-extrabold text-orange-500">{engineer.name}</h1>
                             <div className="flex items-center justify-center sm:justify-start gap-1 text-yellow-400 mt-2">
                                 <StarIcon className="w-5 h-5" />
-                                {/* FIX: Changed `engineer.rating` to `engineer.rating_overall` to match the property name in the `BaseUser` type. */}
+                                
                                 <span className="font-bold text-lg text-slate-200">{engineer.rating_overall.toFixed(1)}</span>
                                 <span className="text-slate-400 text-sm">({engineerReviews.length} reviews)</span>
                             </div>

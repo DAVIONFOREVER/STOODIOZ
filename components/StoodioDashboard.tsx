@@ -257,11 +257,11 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
             ...jobData,
             room: stoodio.rooms[0],
             totalCost: 0,
+            engineerPayRate: jobData.engineerPayRate,
             requestType: BookingRequestType.FIND_AVAILABLE,
         };
         
         try {
-            // FIX: The createBooking function expects 4 arguments, but 6 were provided. The extra 'engineers' and 'producers' arguments have been removed.
             const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO);
             dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, postedBy: UserRole.STOODIO } } });
         } catch(error) {

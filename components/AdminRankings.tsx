@@ -7,7 +7,7 @@ import RankingBadge from './RankingBadge';
 import { format } from 'date-fns';
 
 type AllUsers = Artist | Engineer | Producer | Stoodio;
-type SortKey = 'tier' | 'sessions_completed' | 'location' | 'rating_overall' | 'on_time_rate' | 'repeat_hire_rate';
+type SortKey = 'name' | 'tier' | 'sessions_completed' | 'location' | 'rating_overall' | 'on_time_rate' | 'repeat_hire_rate';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-6 flex items-start gap-4 cardSurface">
@@ -129,6 +129,10 @@ const AdminRankings: React.FC = () => {
         let filtered = allUsers.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
         
         return filtered.sort((a, b) => {
+            if (sortConfig.key === 'name') {
+                return a.name.localeCompare(b.name) * (sortConfig.direction === 'asc' ? 1 : -1);
+            }
+            
             let aValue: string | number = a[sortConfig.key as keyof BaseUser] as any;
             let bValue: string | number = b[sortConfig.key as keyof BaseUser] as any;
 

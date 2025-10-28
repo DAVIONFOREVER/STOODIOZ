@@ -14,7 +14,7 @@ const getStripe = (): Promise<any> => {
     if (!stripePromise) {
         // The Stripe publishable key should be stored as an environment variable.
         // It's safe to expose this key in frontend code.
-        const publishableKey = "YOUR_STRIPE_PUBLISHABLE_KEY_HERE";
+        const publishableKey = (process as any).env.VITE_STRIPE_PUBLISHABLE_KEY || (import.meta as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
         if (!publishableKey || !publishableKey.startsWith('pk_')) {
              console.error("Stripe publishable key is missing or invalid. Please set it in your environment variables.");
              return Promise.reject("Stripe key is not configured.");
