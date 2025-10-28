@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
 // FIX: Import UsersIcon to be used for the Leaderboard link in the mobile menu.
-import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon } from './icons';
+import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, LogoutIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon } from './icons';
 import NotificationPanel from './NotificationPanel';
 import UniversalSearch from './UniversalSearch';
 import { useAppState } from '../contexts/AppContext';
@@ -121,11 +121,46 @@ const Header: React.FC<HeaderProps> = (props) => {
                                             onMarkAsRead={onMarkAsRead}
                                             onMarkAllAsRead={onMarkAllAsRead}
                                             onNavigate={(view, entityId) => {
-                                                if (entityId) {
-                                                    console.warn("Entity navigation from notification not fully implemented.");
-                                                }
-                                                onNavigate(view);
                                                 setIsPanelOpen(false);
+                                                if (entityId) {
+                                                    switch (view) {
+                                                        case AppView.ARTIST_PROFILE: {
+                                                            const artist = artists.find(a => a.id === entityId);
+                                                            if (artist) {
+                                                                onSelectArtist(artist);
+                                                                return;
+                                                            }
+                                                            break;
+                                                        }
+                                                        case AppView.ENGINEER_PROFILE: {
+                                                            const engineer = engineers.find(e => e.id === entityId);
+                                                            if (engineer) {
+                                                                onSelectEngineer(engineer);
+                                                                return;
+                                                            }
+                                                            break;
+                                                        }
+                                                        case AppView.PRODUCER_PROFILE: {
+                                                            const producer = producers.find(p => p.id === entityId);
+                                                            if (producer) {
+                                                                onSelectProducer(producer);
+                                                                return;
+                                                            }
+                                                            break;
+                                                        }
+                                                        case AppView.STOODIO_DETAIL: {
+                                                            const stoodio = stoodioz.find(s => s.id === entityId);
+                                                            if (stoodio) {
+                                                                onSelectStoodio(stoodio);
+                                                                return;
+                                                            }
+                                                            break;
+                                                        }
+                                                    }
+                                                    console.warn(`Could not find entity with ID: ${entityId} for view: ${view}`);
+                                                }
+                                                // Fallback for simple navigation or if entity not found
+                                                onNavigate(view);
                                             }}
                                             onClose={() => setIsPanelOpen(false)}
                                         />
