@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
@@ -64,9 +65,6 @@ const TheStage = lazy(() => import('./components/TheStage'));
 const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults'));
 const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans'));
 const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant'));
-const AdminRankings = lazy(() => import('./components/AdminRankings'));
-// FIX: Added lazy import for the new Leaderboard component.
-const Leaderboard = lazy(() => import('./components/Leaderboard'));
 
 const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
     // If the current user is a studio and has a custom animated logo, display it.
@@ -227,21 +225,6 @@ const App: React.FC = () => {
             case AppView.VIBE_MATCHER_RESULTS:
                 return <VibeMatcherResults onBack={() => navigate(AppView.ARTIST_DASHBOARD)} onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} />;
             
-            // FIX: Added routing for the new Leaderboard component.
-            case AppView.LEADERBOARD:
-                if (!currentUser) {
-                    navigate(AppView.LOGIN);
-                    return null;
-                }
-                return <Leaderboard />;
-
-            case AppView.ADMIN_RANKINGS:
-                if (!currentUser?.isAdmin) {
-                    navigate(AppView.THE_STAGE);
-                    return null;
-                }
-                return <AdminRankings />;
-
             // --- USER-SPECIFIC DASHBOARDS & SESSIONS ---
             default:
                 if (!currentUser || !userRole) {

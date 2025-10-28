@@ -30,8 +30,6 @@ export enum AppView {
     ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
     PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
-    ADMIN_RANKINGS = 'ADMIN_RANKINGS',
-    LEADERBOARD = 'LEADERBOARD',
 }
 
 export enum UserRole {
@@ -98,6 +96,7 @@ export enum SubscriptionPlan {
     STOODIO_PRO = 'STOODIO_PRO',
 }
 
+// FIX: Added missing RankingTier enum.
 export enum RankingTier {
     Provisional = 'Provisional',
     Bronze = 'Bronze',
@@ -193,6 +192,7 @@ export interface BaseUser {
     subscription?: Subscription;
     rating_overall: number;
     sessions_completed: number;
+    // FIX: Added missing ranking and performance properties to BaseUser.
     ranking_tier: RankingTier;
     is_on_streak: boolean;
     on_time_rate: number;
@@ -394,6 +394,17 @@ export interface VibeMatchResult {
     }[];
 }
 
+// FIX: Added missing SessionFeedback interface.
+export interface SessionFeedback {
+    id: string;
+    target_user_id: string;
+    reviewer_id: string;
+    timestamp: string;
+    star_rating: number;
+    pro_tags: string[];
+    con_tags: string[];
+}
+
 export interface AriaCantataMessage {
     role: 'user' | 'model';
     parts: { text: string }[];
@@ -416,14 +427,4 @@ export interface AnalyticsData {
     revenueOverTime: { date: string; revenue: number }[];
     engagementOverTime: { date: string; views: number; followers: number; likes: number }[];
     revenueSources: { name: string; revenue: number }[];
-}
-
-export interface SessionFeedback {
-    id: string;
-    booking_id: string;
-    target_user_id: string;
-    star_rating: number;
-    pro_tags: string[];
-    con_tags: string[];
-    timestamp: string;
 }
