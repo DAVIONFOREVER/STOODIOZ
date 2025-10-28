@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { AnalyticsData, Stoodio, Engineer, Producer } from '../types';
+import type { AnalyticsData, Stoodio, Engineer, Producer, Artist } from '../types';
 import { fetchAnalyticsData } from '../services/apiService';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
@@ -8,7 +8,7 @@ import { DollarSignIcon, UsersIcon, EyeIcon, CalendarIcon } from './icons';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
 interface AnalyticsDashboardProps {
-    user: Stoodio | Engineer | Producer;
+    user: Stoodio | Engineer | Producer | Artist;
 }
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (

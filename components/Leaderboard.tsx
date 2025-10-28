@@ -22,8 +22,13 @@ const Leaderboard: React.FC = () => {
     const cities = useMemo(() => {
         const citySet = new Set<string>();
         allUsers.forEach(user => {
-            if ('location' in user && user.location) {
+            if ('location' in user && user.location) { // For Studios
                 citySet.add(user.location);
+            } else if (user.local_rank_text && user.local_rank_text.includes(' in ')) { // For others
+                const city = user.local_rank_text.split(' in ')[1];
+                if (city) {
+                    citySet.add(city.trim());
+                }
             }
         });
         return ['All', ...Array.from(citySet).sort()];
@@ -48,7 +53,16 @@ const Leaderboard: React.FC = () => {
         }
 
         if (activeCity !== 'All') {
-            filtered = filtered.filter(user => 'location' in user && user.location === activeCity);
+            filtered = filtered.filter(user => {
+                if ('location' in user && user.location === activeCity) {
+                    return true;
+                }
+                if (user.local_rank_text && user.local_rank_text.includes(' in ')) {
+                     const city = user.local_rank_text.split(' in ')[1]?.trim();
+                     return city === activeCity;
+                }
+                return false;
+            });
         }
 
         return filtered.sort((a, b) => {
