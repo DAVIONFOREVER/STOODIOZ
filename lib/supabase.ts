@@ -11,9 +11,9 @@ export const getSupabase = (): SupabaseClient | null => {
     return supabaseInstance;
   }
 
-  // Use environment variables to configure Supabase client, checking multiple sources.
-  const supabaseUrl = (process as any).env.VITE_SUPABASE_URL || (import.meta as any).env?.VITE_SUPABASE_URL;
-  const supabaseAnonKey = (process as any).env.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+  // Use environment variables from process.env, which is more reliable.
+  const supabaseUrl = (process as any).env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = (process as any).env.VITE_SUPABASE_ANON_KEY;
 
   const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 

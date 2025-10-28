@@ -1,6 +1,7 @@
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
-import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
+import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage } from './types';
 import { AppView, UserRole, VerificationStatus, SmokingPolicy, TransactionCategory, TransactionStatus } from './types';
 import { getAriaNudge } from './services/geminiService';
 import * as apiService from './services/apiService';
@@ -30,6 +31,7 @@ import RequestPayoutModal from './components/RequestPayoutModal';
 import MixingRequestModal from './components/MixingRequestModal';
 import { MagicWandIcon } from './components/icons';
 import AriaNudge from './components/AriaNudge';
+import DevNotificationButton from './components/DevNotificationButton';
 
 // --- Lazy Loaded Components ---
 const StoodioList = lazy(() => import('./components/StudioList'));
@@ -61,294 +63,228 @@ const TheStage = lazy(() => import('./components/TheStage'));
 const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults'));
 const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans'));
 const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant'));
-
-const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
-    // If the current user is a studio and has a custom animated logo, display it.
-    if (currentUser && 'animatedLogoUrl' in currentUser && currentUser.animatedLogoUrl) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <img src={currentUser.animatedLogoUrl} alt="Loading..." className="h-24 w-auto" />
-            </div>
-        );
-    }
-
-    // Default SVG spinner
-    return (
-        <div className="flex justify-center items-center py-20">
-            <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-        </div>
-    );
-};
+// FIX: The import for Leaderboard was truncated, causing a syntax error.
+const Leaderboard = lazy(() => import('./components/Leaderboard'));
 
 const App: React.FC = () => {
-    const state = useAppState();
-    const dispatch = useAppDispatch();
-    const { 
-        history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
-        latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
-        isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
-        ariaNudge, isNudgeVisible
-    } = state;
+  const state = useAppState();
+  const dispatch = useAppDispatch();
 
-    // --- Derived State ---
-    const currentView = history[historyIndex];
-    const canGoBack = historyIndex > 0;
-    const canGoForward = historyIndex < history.length - 1;
-    
-    // --- Custom Hooks for Logic ---
-    const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, viewBooking } = useNavigation();
-    const { login, logout, selectRoleToSetup, completeSetup } = useAuth(navigate);
-    const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation, acceptBooking, denyBooking } = useBookings(navigate);
-    const { toggleFollow, createPost, likePost, commentOnPost, markAsRead, markAllAsRead, dismissNotification } = useSocial();
-    const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
-    const { fetchSmartReplies, sendMessage, startConversation, selectConversation } = useMessaging(navigate);
-    // FIX: Destructure `isSaved` from the `useProfile` hook return value instead of the global app state. The `isSaved` state is managed within the `useProfile` hook and was being incorrectly accessed from `state`.
-    const { updateProfile, verificationSubmit, isSaved } = useProfile();
-    const { vibeMatch } = useVibeMatcher();
-    const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
-    const { handleSubscribe } = useSubscription(navigate);
-    const { handleAriaCantataBooking, handleShowVibeResults, handleAriaGroupConversation, handleAriaSendMessage, handleAriaNavigation, handleAriaGetDirections, handleAriaSendDocument, handleAriaNudgeClick, handleDismissAriaNudge, ariaHistory, initialAriaCantataPrompt } = useAria(startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking);
+  const {
+    history,
+    historyIndex,
+    currentUser,
+    userRole,
+    loginError,
+    notifications,
+    tipModalBooking,
+    bookingToCancel,
+    isVibeMatcherOpen,
+    isVibeMatcherLoading,
+    isAddFundsOpen,
+    isPayoutOpen,
+    isMixingModalOpen,
+    isAriaCantataOpen,
+    ariaHistory,
+    initialAriaCantataPrompt,
+    ariaNudge,
+    isNudgeVisible,
+  } = state;
 
+  const currentView = history[historyIndex];
 
-    // --- Data Fetching ---
-    useEffect(() => {
-        const loadData = async () => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            try {
-                const [artistsData, engineersData, producersData, stoodiozData, reviewsData, bookingsData] = await Promise.all([
-                    apiService.fetchArtists(), 
-                    apiService.fetchEngineers(), 
-                    apiService.fetchProducers(), 
-                    apiService.fetchStoodioz(), 
-                    apiService.fetchReviews(),
-                    apiService.fetchBookings()
-                ]);
-                dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { artists: artistsData, engineers: engineersData, producers: producersData, stoodioz: stoodiozData, reviews: reviewsData }});
-                dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookingsData } });
+  // Hooks
+  const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio } = useNavigation();
+  const { login, logout, selectRoleToSetup, completeSetup } = useAuth(navigate);
+  const { confirmBooking, confirmCancellation } = useBookings(navigate);
+  const { toggleFollow, createPost, likePost, commentOnPost, markAsRead, markAllAsRead, dismissNotification } = useSocial();
+  const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
+  const { startConversation } = useMessaging(navigate);
+  const { vibeMatch } = useVibeMatcher();
+  const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
+  const { handleSubscribe } = useSubscription(navigate);
+  const { updateProfile } = useProfile();
+   const { 
+      handleAriaCantataBooking, 
+      handleShowVibeResults, 
+      handleAriaGroupConversation,
+      handleAriaSendMessage,
+      handleAriaSendDocument,
+      handleAriaNavigation,
+      handleAriaGetDirections,
+      handleAriaNudgeClick,
+      handleDismissAriaNudge,
+  } = useAria(
+      startConversation,
+      navigate,
+      viewStoodioDetails,
+      viewEngineerProfile,
+      viewProducerProfile,
+      viewArtistProfile,
+      navigateToStudio,
+      confirmBooking
+  );
 
-            } catch (error) {
-                console.error("Failed to fetch initial app data:", error);
-            } finally {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+  // Effect to get initial nudge
+  useEffect(() => {
+    if (currentUser && userRole) {
+        getAriaNudge(currentUser, userRole).then(nudge => {
+            if (nudge) {
+                dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
+                setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
             }
-        };
-        loadData();
-    }, [dispatch]);
+        });
+    }
+  }, [currentUser, userRole, dispatch]);
+  
+  const renderView = () => {
+    switch (currentView) {
+        case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
+        case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} />;
+        case AppView.CHOOSE_PROFILE: return <ChooseProfile onSelectRole={selectRoleToSetup} />;
+        case AppView.ARTIST_SETUP: return <ArtistSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.ARTIST)} onNavigate={navigate} />;
+        case AppView.ENGINEER_SETUP: return <EngineerSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.ENGINEER)} onNavigate={navigate} />;
+        case AppView.PRODUCER_SETUP: return <ProducerSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.PRODUCER)} onNavigate={navigate} />;
+        case AppView.STOODIO_SETUP: return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password) => completeSetup({ name, description, location, businessAddress, email, password }, UserRole.STOODIO)} onNavigate={navigate} />;
+        case AppView.PRIVACY_POLICY: return <PrivacyPolicy onBack={goBack} />;
+        case AppView.SUBSCRIPTION_PLANS: return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
+        case AppView.STOODIO_LIST: return <StoodioList onSelectStoodio={viewStoodioDetails} />;
+        case AppView.STOODIO_DETAIL: return <StoodioDetail />;
+        case AppView.CONFIRMATION: return <BookingConfirmation onDone={() => navigate(AppView.MY_BOOKINGS)} />;
+        case AppView.MY_BOOKINGS: return <MyBookings />;
+        case AppView.INBOX: return <Inbox />;
+        case AppView.ACTIVE_SESSION: return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
+        case AppView.ARTIST_LIST: return <ArtistList onSelectArtist={viewArtistProfile} onToggleFollow={toggleFollow} />;
+        case AppView.ARTIST_PROFILE: return <ArtistProfile />;
+        case AppView.ENGINEER_LIST: return <EngineerList onSelectEngineer={viewEngineerProfile} onToggleFollow={toggleFollow} />;
+        case AppView.ENGINEER_PROFILE: return <EngineerProfile />;
+        case AppView.PRODUCER_LIST: return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
+        case AppView.PRODUCER_PROFILE: return <ProducerProfile />;
+        case AppView.MAP_VIEW: return <MapView onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} onInitiateBooking={() => {}} />;
+        case AppView.THE_STAGE: return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
+        case AppView.VIBE_MATCHER_RESULTS: return <VibeMatcherResults onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onBack={() => navigate(AppView.ARTIST_DASHBOARD)} />;
+        case AppView.ARTIST_DASHBOARD: return <ArtistDashboard />;
+        case AppView.STOODIO_DASHBOARD: return <StoodioDashboard onNavigate={navigate} />;
+        case AppView.ENGINEER_DASHBOARD: return <EngineerDashboard />;
+        case AppView.PRODUCER_DASHBOARD: return <ProducerDashboard />;
+        case AppView.LEADERBOARD: return <Leaderboard />;
+        default: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
+    }
+  };
 
-    // --- Aria Cantata Proactive Nudge ---
-    useEffect(() => {
-        if (currentUser && userRole && [UserRole.STOODIO, UserRole.ENGINEER, UserRole.PRODUCER].includes(userRole)) {
-            dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge: null } });
-            dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
-            const nudgeTimer = setTimeout(async () => {
-                try {
-                    const nudgeMessage = await getAriaNudge(currentUser, userRole);
-                    dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge: nudgeMessage } });
-                    dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } });
-                } catch (error) { console.error("Failed to get Aria nudge:", error); }
-            }, 8000);
-            return () => clearTimeout(nudgeTimer);
-        } else {
-            dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge: null } });
-            dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
-        }
-    }, [currentUser, userRole, dispatch]);
+  const setAriaHistory = (history: AriaCantataMessage[]) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history } });
+  const clearInitialAriaPrompt = () => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } });
 
+  return (
+    <>
+      <div className="bg-zinc-950 text-zinc-200 font-sans min-h-screen">
+        <Header 
+          onNavigate={navigate}
+          onGoBack={goBack}
+          onGoForward={goForward}
+          canGoBack={historyIndex > 0}
+          canGoForward={historyIndex < history.length - 1}
+          onLogout={logout}
+          onMarkAsRead={markAsRead}
+          onMarkAllAsRead={markAllAsRead}
+          onSelectArtist={viewArtistProfile}
+          onSelectEngineer={viewEngineerProfile}
+          onSelectProducer={viewProducerProfile}
+          onSelectStoodio={viewStoodioDetails}
+        />
+        <main className="main-container py-8">
+            <Suspense fallback={<div className="text-center p-12">Loading...</div>}>
+                {renderView()}
+            </Suspense>
+        </main>
+      </div>
 
-    const renderAppContent = () => {
-        const handleGuestInteraction = () => navigate(AppView.LOGIN);
-        
-        switch (currentView) {
-            case AppView.LANDING_PAGE:
-                return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onSelectEngineer={viewEngineerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
-            case AppView.LOGIN:
-                return <Login onLogin={login} error={loginError} onNavigate={navigate} />;
-            case AppView.CHOOSE_PROFILE:
-                return <ChooseProfile onSelectRole={selectRoleToSetup} />;
-            case AppView.ARTIST_SETUP:
-                return <ArtistSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.ARTIST)} onNavigate={navigate} />;
-            case AppView.ENGINEER_SETUP:
-                return <EngineerSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.ENGINEER)} onNavigate={navigate} />;
-            case AppView.PRODUCER_SETUP:
-                return <ProducerSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.PRODUCER)} onNavigate={navigate} />;
-            case AppView.STOODIO_SETUP:
-                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password) => completeSetup({ name, description, location, businessAddress, email, password }, UserRole.STOODIO)} onNavigate={navigate} />;
-            case AppView.PRIVACY_POLICY:
-                return <PrivacyPolicy onBack={goBack} />;
-            case AppView.SUBSCRIPTION_PLANS:
-                return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
+      {state.bookingTime && (
+          <Suspense>
+              <BookingModal onClose={() => dispatch({ type: ActionTypes.OPEN_BOOKING_MODAL, payload: { date: '', time: '', room: null as any } })} onConfirm={confirmBooking} />
+          </Suspense>
+      )}
 
-            case AppView.STOODIO_LIST:
-                return <StoodioList onSelectStoodio={viewStoodioDetails} />;
-            case AppView.STOODIO_DETAIL:
-                return <StoodioDetail />;
-            case AppView.BOOKING_MODAL:
-                return <BookingModal onClose={goBack} onConfirm={confirmBooking} />;
-            case AppView.CONFIRMATION:
-                return <BookingConfirmation onDone={() => navigate(AppView.MY_BOOKINGS)} />;
-            case AppView.MY_BOOKINGS:
-                return <MyBookings />;
-            case AppView.INBOX:
-                return <Inbox />;
-            case AppView.MAP_VIEW:
-                return <MapView onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} onInitiateBooking={initiateBookingWithEngineer} />;
-            case AppView.ARTIST_LIST:
-                return <ArtistList onSelectArtist={viewArtistProfile} onToggleFollow={(type, id) => toggleFollow(type, id)} />;
-            case AppView.ARTIST_PROFILE:
-                return <ArtistProfile />;
-            case AppView.ENGINEER_LIST:
-                return <EngineerList onSelectEngineer={viewEngineerProfile} onToggleFollow={(type, id) => toggleFollow(type, id)} />;
-            case AppView.ENGINEER_PROFILE:
-                return <EngineerProfile />;
-            case AppView.PRODUCER_LIST:
-                 return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={(type, id) => toggleFollow(type, id)} />;
-            case AppView.PRODUCER_PROFILE:
-                return <ProducerProfile />;
-            case AppView.THE_STAGE:
-                return <TheStage 
-                    onPost={createPost} 
-                    onLikePost={likePost} 
-                    onCommentOnPost={commentOnPost}
-                    onToggleFollow={toggleFollow}
-                    onSelectArtist={viewArtistProfile}
-                    onSelectEngineer={viewEngineerProfile}
-                    onSelectStoodio={viewStoodioDetails}
-                    onSelectProducer={viewProducerProfile}
-                    onNavigate={navigate}
-                />;
-            case AppView.VIBE_MATCHER_RESULTS:
-                return <VibeMatcherResults onBack={() => navigate(AppView.ARTIST_DASHBOARD)} onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} />;
-            
-            // --- USER-SPECIFIC DASHBOARDS & SESSIONS ---
-            default:
-                if (!currentUser || !userRole) {
-                    return <Login onLogin={login} error={loginError} onNavigate={navigate} />;
-                }
-                switch (currentView) {
-                    case AppView.ARTIST_DASHBOARD:
-                        return <ArtistDashboard />;
-                    case AppView.STOODIO_DASHBOARD:
-                        return <StoodioDashboard onNavigate={navigate} />;
-                    case AppView.ENGINEER_DASHBOARD:
-                        return <EngineerDashboard />;
-                    case AppView.PRODUCER_DASHBOARD:
-                        return <ProducerDashboard />;
-                    case AppView.ACTIVE_SESSION:
-                        return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
-                    default:
-                        return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onSelectEngineer={viewEngineerProfile} onOpenAriaCantata={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } })} />;
-                }
-        }
-    };
+      {tipModalBooking && (
+        <TipModal booking={tipModalBooking} onClose={() => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL })} onConfirmTip={confirmTip} />
+      )}
 
-    return (
-        <>
-            <Header
-                onNavigate={navigate}
-                onGoBack={goBack}
-                onGoForward={goForward}
-                canGoBack={canGoBack}
-                canGoForward={canGoForward}
-                onLogout={logout}
-                onMarkAsRead={markAsRead}
-                onMarkAllAsRead={markAllAsRead}
-                onSelectArtist={viewArtistProfile}
-                onSelectEngineer={viewEngineerProfile}
-                onSelectStoodio={viewStoodioDetails}
-                onSelectProducer={viewProducerProfile}
-            />
-            <main className="container mx-auto p-4 sm:p-6 lg:p-8">
-                 <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {renderAppContent()}
-                </Suspense>
-            </main>
-            {isVibeMatcherOpen && (
-                <VibeMatcherModal
-                    onClose={() => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } })}
-                    onAnalyze={vibeMatch}
-                    isLoading={isVibeMatcherLoading}
-                />
-            )}
-            {tipModalBooking && (
-                <TipModal
-                    booking={tipModalBooking}
-                    onClose={() => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL })}
-                    onConfirmTip={confirmTip}
-                />
-            )}
-            {bookingToCancel && (
-                <BookingCancellationModal
-                    booking={bookingToCancel}
-                    onClose={() => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL })}
-                    onConfirm={confirmCancellation}
-                />
-            )}
-            {isAddFundsOpen && (
-                 <AddFundsModal
-                    onClose={() => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } })}
-                    onConfirm={addFunds}
-                />
-            )}
-            {isPayoutOpen && currentUser && (
-                 <RequestPayoutModal
-                    onClose={() => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } })}
-                    onConfirm={requestPayout}
-                    currentBalance={currentUser.walletBalance}
-                />
-            )}
-             {isMixingModalOpen && selectedEngineer && (
-                 <MixingRequestModal
-                    engineer={selectedEngineer}
-                    onClose={() => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } })}
-                    onConfirm={confirmRemoteMix}
-                    onInitiateInStudio={initiateInStudioMix}
-                    isLoading={isLoading}
-                />
-            )}
-             {isAriaCantataOpen && (
-                <AriaCantataAssistant
-                    isOpen={isAriaCantataOpen}
-                    onClose={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } })}
-                    onStartConversation={startConversation}
-                    onStartGroupConversation={handleAriaGroupConversation}
-                    onUpdateProfile={updateProfile}
-                    onBookStudio={handleAriaCantataBooking}
-                    onShowVibeMatchResults={handleShowVibeResults}
-                    onNavigateRequest={handleAriaNavigation}
-                    onSendMessageRequest={(recipient, text) => handleAriaSendMessage(recipient, text, currentUser)}
-                    onGetDirectionsRequest={handleAriaGetDirections}
-                    onSendDocument={handleAriaSendDocument}
-                    onStartSetupRequest={(role) => {
-                        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-                        selectRoleToSetup(role);
-                    }}
-                    history={ariaHistory}
-                    setHistory={(history) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history } })}
-                    initialPrompt={initialAriaCantataPrompt}
-                    clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })}
-                />
-            )}
-            <NotificationToasts 
-                notifications={state.notifications.filter(n => !n.read)}
-                onDismiss={dismissNotification}
-            />
-            {isNudgeVisible && ariaNudge && (
-                <AriaNudge 
-                    message={ariaNudge} 
-                    onDismiss={handleDismissAriaNudge} 
-                    onClick={handleAriaNudgeClick} 
-                />
-            )}
-             {isSaved && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg animate-fade-in-up">
-                    Changes Saved!
-                </div>
-            )}
-        </>
-    );
+      {bookingToCancel && (
+        <BookingCancellationModal booking={bookingToCancel} onClose={() => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL })} onConfirm={confirmCancellation} />
+      )}
+
+      <NotificationToasts notifications={notifications.filter(n => !n.read)} onDismiss={dismissNotification} />
+
+      {isVibeMatcherOpen && (
+          <VibeMatcherModal
+              onClose={() => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } })}
+              onAnalyze={vibeMatch}
+              isLoading={isVibeMatcherLoading}
+          />
+      )}
+      
+      {isAddFundsOpen && (
+        <AddFundsModal onClose={() => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } })} onConfirm={addFunds} />
+      )}
+
+      {isPayoutOpen && currentUser && (
+        <RequestPayoutModal 
+          onClose={() => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } })} 
+          onConfirm={requestPayout}
+          currentBalance={currentUser.walletBalance}
+        />
+      )}
+
+      {isMixingModalOpen && state.selectedEngineer && (
+          <MixingRequestModal
+              engineer={state.selectedEngineer}
+              onClose={() => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } })}
+              onConfirm={confirmRemoteMix}
+              onInitiateInStudio={(engineer, mixingDetails) => {
+                  dispatch({ type: ActionTypes.SET_BOOKING_INTENT, payload: { intent: { engineer, mixingDetails } } });
+                  dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
+                  navigate(AppView.STOODIO_LIST);
+              }}
+              isLoading={state.isLoading}
+          />
+      )}
+
+      {isNudgeVisible && ariaNudge && (
+          <AriaNudge
+              message={ariaNudge}
+              onClick={handleAriaNudgeClick}
+              onDismiss={handleDismissAriaNudge}
+          />
+      )}
+      
+      {isAriaCantataOpen && (
+          <AriaCantataAssistant
+              isOpen={isAriaCantataOpen}
+              onClose={() => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } })}
+              onStartConversation={startConversation}
+              onStartGroupConversation={handleAriaGroupConversation}
+              onUpdateProfile={updateProfile}
+              onBookStudio={handleAriaCantataBooking}
+              onShowVibeMatchResults={handleShowVibeResults}
+              onNavigateRequest={handleAriaNavigation}
+              onStartSetupRequest={(role) => {
+                selectRoleToSetup(role);
+                dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
+              }}
+              onSendMessageRequest={(recipientName, messageText) => handleAriaSendMessage(recipientName, messageText, currentUser)}
+              onSendDocument={handleAriaSendDocument}
+              onGetDirectionsRequest={handleAriaGetDirections}
+              history={ariaHistory}
+              setHistory={setAriaHistory}
+              initialPrompt={initialAriaCantataPrompt}
+              clearInitialPrompt={clearInitialAriaPrompt}
+          />
+      )}
+
+      {/* For development only, to test notifications */}
+      <DevNotificationButton />
+    </>
+  );
 };
 
 export default App;

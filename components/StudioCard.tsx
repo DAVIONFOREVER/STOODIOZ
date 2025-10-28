@@ -23,7 +23,7 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                         {stoodio.name}
                         {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
                             
-                            <VerifiedIcon className="w-6 h-6 text-blue-400"><title>Verified Stoodio</title></VerifiedIcon>
+                            <VerifiedIcon className="w-6 h-6 text-blue-400" />
                         )}
                     </h3>
                     <p className="text-zinc-300 font-semibold flex items-center gap-1.5"><LocationIcon className="w-4 h-4" /> {stoodio.location}</p>

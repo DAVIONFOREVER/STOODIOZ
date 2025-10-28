@@ -126,8 +126,7 @@ const StoodioDetail: React.FC = () => {
                             <div className="flex items-center gap-3">
                                 <h1 className="text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
                                 {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
-                                    
-                                    <VerifiedIcon className="w-10 h-10 text-blue-500"><title>Verified Stoodio</title></VerifiedIcon>
+                                    <VerifiedIcon className="w-10 h-10 text-blue-500" />
                                 )}
                             </div>
                             <p className="text-slate-400 mt-2">{stoodio.location} &middot; {stoodio.followers.toLocaleString()} followers</p>
@@ -166,7 +165,7 @@ const StoodioDetail: React.FC = () => {
                                 ))}
                             </ul>
                         </div>
-                        
+                        {/* FIX: Use selectedRoom.smokingPolicy instead of stoodio.smokingPolicy and make the block conditional. */}
                         {selectedRoom && (
                             <div>
                                 <h3 className="text-2xl font-bold mb-4 text-orange-400">Policies for {selectedRoom.name}</h3>

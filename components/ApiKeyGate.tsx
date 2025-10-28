@@ -1,18 +1,18 @@
 import React from 'react';
 
 const DebugInfo: React.FC = () => {
-    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-    const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
-    const mapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
-    const stripePk = (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY;
+    const supabaseUrl = (process as any).env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = (process as any).env.VITE_SUPABASE_ANON_KEY;
+    const geminiApiKey = (process as any).env.API_KEY;
+    const mapsApiKey = (process as any).env.VITE_GOOGLE_MAPS_API_KEY;
+    const stripePk = (process as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
     
     const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
     const varStatus = [
         { name: 'VITE_SUPABASE_URL', found: areKeysValid(supabaseUrl) },
         { name: 'VITE_SUPABASE_ANON_KEY', found: areKeysValid(supabaseAnonKey) },
-        { name: 'VITE_API_KEY (for Gemini)', found: areKeysValid(geminiApiKey) },
+        { name: 'API_KEY (for Gemini)', found: areKeysValid(geminiApiKey) },
         { name: 'VITE_GOOGLE_MAPS_API_KEY', found: areKeysValid(mapsApiKey) },
         { name: 'VITE_STRIPE_PUBLISHABLE_KEY', found: areKeysValid(stripePk) }
     ];
@@ -39,12 +39,12 @@ const DebugInfo: React.FC = () => {
 
 
 const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // Check for all required environment variables for both Supabase and Gemini.
-    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-    const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
-    const mapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
-    const stripePk = (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY;
+    // Check for all required environment variables using the robust process.env
+    const supabaseUrl = (process as any).env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = (process as any).env.VITE_SUPABASE_ANON_KEY;
+    const geminiApiKey = (process as any).env.API_KEY;
+    const mapsApiKey = (process as any).env.VITE_GOOGLE_MAPS_API_KEY;
+    const stripePk = (process as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
 
     const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
@@ -77,7 +77,7 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             <code>
                                 VITE_SUPABASE_URL="YOUR_SUPABASE_URL_HERE"<br />
                                 VITE_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY_HERE"<br />
-                                VITE_API_KEY="YOUR_GEMINI_API_KEY_HERE"<br/>
+                                API_KEY="YOUR_GEMINI_API_KEY_HERE"<br/>
                                 VITE_GOOGLE_MAPS_API_KEY="YOUR_GOOGLE_MAPS_API_KEY_HERE"<br/>
                                 VITE_STRIPE_PUBLISHABLE_KEY="YOUR_STRIPE_PK_HERE"
                             </code>
@@ -96,7 +96,7 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                                 <ul className="list-disc list-inside pl-6 mt-2 space-y-2 font-mono text-sm">
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_URL</code> <br/><strong>Value:</strong> Your Supabase Project URL</li>
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_ANON_KEY</code> <br/><strong>Value:</strong> Your Supabase anon public key</li>
-                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_API_KEY</code> <br/><strong>Value:</strong> Your Google AI Studio API Key for Gemini</li>
+                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">API_KEY</code> <br/><strong>Value:</strong> Your Google AI Studio API Key for Gemini</li>
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> <br/><strong>Value:</strong> Your Google Cloud API Key for Maps</li>
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_STRIPE_PUBLISHABLE_KEY</code> <br/><strong>Value:</strong> Your Stripe Publishable Key</li>
                                 </ul>
