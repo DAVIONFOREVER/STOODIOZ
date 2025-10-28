@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType, VerificationStatus } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
@@ -18,6 +18,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
+// FIX: Replaced non-existent StudioInsights with AnalyticsDashboard and added lazy loading.
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
@@ -258,7 +259,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
             ...jobData,
             room: stoodio.rooms[0],
             totalCost: 0,
-            engineerPayRate: jobData.engineerPayRate,
             requestType: BookingRequestType.FIND_AVAILABLE,
         };
         
