@@ -25,7 +25,10 @@
 
 @layer components {
   .cardSurface {
-    @apply bg-zinc-950/80 backdrop-blur-xl rounded-2xl border border-orange-500/20 shadow-[0_30px_60px_rgba(0,0,0,0.8),_0_0_20px_rgba(249,115,22,0.4)];
+    --shadow-dark: 0 30px 60px rgba(0,0,0,0.8);
+    --shadow-glow: 0 0 20px rgba(249,115,22,0.4);
+    box-shadow: var(--shadow-dark), var(--shadow-glow);
+    @apply bg-zinc-950/80 backdrop-blur-xl rounded-2xl border border-orange-500/20;
   }
 }
 
@@ -50,7 +53,7 @@
     /* ARIA Vibe Mode: Glass overlay for cards */
     .glass-overlay::after {
         content: '';
-        @apply absolute inset-0 bg-white/5 group-hover:bg-white/10 transition-colors duration-400 ease-in-out z-10 pointer-events-none;
+        @apply absolute inset-0 bg-white/5 group-hover:bg-white/10 transition-colors duration-400 ease-in-out z-10 pointer-events: none;
     }
 }
 

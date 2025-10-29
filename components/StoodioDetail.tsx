@@ -165,7 +165,6 @@ const StoodioDetail: React.FC = () => {
                                 ))}
                             </ul>
                         </div>
-                        {/* FIX: Use selectedRoom.smokingPolicy instead of stoodio.smokingPolicy and make the block conditional. */}
                         {selectedRoom && (
                             <div>
                                 <h3 className="text-2xl font-bold mb-4 text-orange-400">Policies for {selectedRoom.name}</h3>
