@@ -14,8 +14,20 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     const { onClose, onConfirm } = props;
     const { stoodioz, engineers, producers, currentUser, isLoading, bookingTime, bookingIntent, selectedStoodio } = useAppState();
 
-    const stoodio = selectedStoodio!;
-    const initialRoom = bookingTime!.room;
+    // FIX: Add a guard clause to prevent crashes if the modal is opened with incomplete data.
+    if (!selectedStoodio || !bookingTime || !bookingTime.room) {
+        return (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true">
+                <div className="w-full max-w-md p-8 text-center cardSurface">
+                    <h2 className="text-xl font-bold text-zinc-100">Loading Booking...</h2>
+                    <p className="text-zinc-400 mt-2">Preparing your session details. If this takes too long, please close and try again.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const stoodio = selectedStoodio;
+    const initialRoom = bookingTime.room;
 
     const today = new Date().toISOString().split('T')[0];
     const [date, setDate] = useState<string>(bookingTime?.date || bookingIntent?.date || today);

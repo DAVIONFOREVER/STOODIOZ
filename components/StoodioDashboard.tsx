@@ -18,7 +18,6 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
-// FIX: Replaced non-existent StudioInsights with AnalyticsDashboard and added lazy loading.
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
@@ -253,7 +252,14 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     }, [dashboardInitialTab, dispatch]);
 
      const onPostJob = async (jobData: JobPostData) => {
-        if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) return;
+        if (!currentUser || currentUser.id !== stoodio.id) return;
+        
+        // FIX: Improve guard clause with user feedback for better UX.
+        if (!stoodio.rooms || stoodio.rooms.length === 0) {
+            alert("You must add at least one room to your studio before you can post a job. Please go to the 'Rooms' tab to add one.");
+            setActiveTab('rooms');
+            return;
+        }
 
         const bookingRequest: BookingRequest = {
             ...jobData,
@@ -305,20 +311,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     const renderContent = () => {
         switch (activeTab) {
             case 'analytics':
-                if (stoodio.verificationStatus !== VerificationStatus.VERIFIED) {
-                    return (
-                        <div className="text-center p-8 cardSurface">
-                            <h3 className="text-xl font-bold text-zinc-100">Unlock Studio Insights</h3>
-                            <p className="text-zinc-400 mt-2">Verify your studio to access detailed analytics about your performance, bookings, and top engineers.</p>
-                            <button 
-                                onClick={() => setActiveTab('verification')}
-                                className="mt-4 bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600"
-                            >
-                                Go to Verification
-                            </button>
-                        </div>
-                    );
-                }
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
                         <AnalyticsDashboard user={stoodio} />
