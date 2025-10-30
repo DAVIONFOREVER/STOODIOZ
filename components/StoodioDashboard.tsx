@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, Post, BookingRequest, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType, VerificationStatus } from '../types';
@@ -41,7 +40,7 @@ const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onP
         });
     };
     
-    const inputClasses = "mt-1 w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+    const inputClasses = "mt-1 w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
         <form onSubmit={handleSubmit} className="p-6 mb-6 cardSurface">
@@ -155,7 +154,7 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
 
     const hasChanges = name !== stoodio.name || description !== stoodio.description || location !== stoodio.location || businessAddress !== (stoodio.businessAddress || '');
     
-    const inputClasses = "w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+    const inputClasses = "w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
 
     return (

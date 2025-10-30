@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Engineer, MixingServices } from '../types';
 import { EditIcon } from './icons';
@@ -35,7 +34,7 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
 
     const hasChanges = JSON.stringify(services) !== JSON.stringify(initialServices);
     
-    const inputClasses = "w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+    const inputClasses = "w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
 
 

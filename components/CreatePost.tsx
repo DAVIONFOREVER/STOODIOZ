@@ -60,7 +60,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                             value={text}
                             onChange={(e) => setText(e.target.value)}
                             placeholder="Share an update, a new track, or a session video..."
-                            className="w-full bg-zinc-700 border-zinc-600 text-slate-200 placeholder:text-slate-400 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500"
+                            className="w-full bg-zinc-900/50 border-zinc-700 text-slate-200 placeholder:text-slate-400 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500"
                             rows={3}
                         />
 

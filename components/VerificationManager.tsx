@@ -55,7 +55,7 @@ const VerificationManager: React.FC<VerificationManagerProps> = ({ stoodio, onVe
                         onChange={(e) => setGoogleBusinessProfileUrl(e.target.value)}
                         placeholder="https://maps.app.goo.gl/..."
                         required
-                        className="w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md focus:ring-orange-500 focus:border-orange-500"
                     />
                 </div>
                  <div>
@@ -69,7 +69,7 @@ const VerificationManager: React.FC<VerificationManagerProps> = ({ stoodio, onVe
                         onChange={(e) => setWebsiteUrl(e.target.value)}
                         placeholder="https://www.yourstudio.com"
                         required
-                        className="w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md focus:ring-orange-500 focus:border-orange-500"
                     />
                 </div>
                  <button type="submit" className="w-full bg-orange-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors">

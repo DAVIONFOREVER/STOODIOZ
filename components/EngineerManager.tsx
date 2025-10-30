@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, InHouseEngineerInfo } from '../types';
 import { DollarSignIcon, TrashIcon, PlusCircleIcon } from './icons';
@@ -67,7 +66,7 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
                         id="engineer-select"
                         value={selectedEngineerId}
                         onChange={e => setSelectedEngineerId(e.target.value)}
-                        className="w-full p-2 bg-zinc-800 border-zinc-700 text-zinc-200 rounded-md"
+                        className="w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md"
                     >
                         <option value="" disabled>-- Choose an engineer --</option>
                         {availableEngineers.map(eng => (
@@ -83,7 +82,7 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
                         value={payRate}
                         onChange={e => setPayRate(Number(e.target.value))}
                         min="0"
-                        className="w-full p-2 bg-zinc-800 border-zinc-700 text-zinc-200 rounded-md"
+                        className="w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md"
                     />
                 </div>
                 <button type="submit" className="flex items-center justify-center gap-2 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm w-full">
