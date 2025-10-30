@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
-import { CalendarIcon, StarIcon, CheckCircleIcon, UserGroupIcon, SearchIcon, CloseIcon, ChevronUpDownIcon } from './icons';
+import { CalendarIcon, StarIcon, CheckCircleIcon, UsersIcon, SearchIcon, CloseIcon, ChevronUpDownIcon } from './icons';
 import type { Artist, Engineer, Producer, Stoodio, SessionFeedback, BaseUser } from '../types';
 import { UserRole, RankingTier } from '../types';
 import RankingBadge from './RankingBadge';
@@ -175,7 +176,7 @@ const AdminRankings: React.FC = () => {
                 <StatCard label="Total Sessions Completed" value={totalSessions.toLocaleString()} icon={<CalendarIcon className="w-8 h-8 text-orange-400" />} />
                 <StatCard label="Global Avg Rating" value={avgRating} icon={<StarIcon className="w-8 h-8 text-yellow-400" />} />
                 <StatCard label="Global On-Time Rate" value={avgOnTimeRate} icon={<CheckCircleIcon className="w-8 h-8 text-green-400" />} />
-                <StatCard label="Total Talent Profiles" value={allUsers.length.toLocaleString()} icon={<UserGroupIcon className="w-8 h-8 text-blue-400" />} />
+                <StatCard label="Total Talent Profiles" value={allUsers.length.toLocaleString()} icon={<UsersIcon className="w-8 h-8 text-blue-400" />} />
             </div>
 
             <div className="cardSurface">

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import type { Engineer, MixingSample } from '../types';
-import { MusicNoteIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
+import { MusicNoteIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon } from './icons';
 
 interface MixingSampleManagerProps {
     engineer: Engineer;
@@ -132,4 +132,3 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
 };
 
 export default MixingSampleManager;
-      

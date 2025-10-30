@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, InHouseEngineerInfo } from '../types';
-import { SoundWaveIcon, DollarSignIcon, TrashIcon, PlusCircleIcon } from './icons';
+import { DollarSignIcon, TrashIcon, PlusCircleIcon } from './icons';
 
 interface EngineerManagerProps {
     stoodio: Stoodio;
@@ -119,4 +119,3 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
 };
 
 export default EngineerManager;
-      

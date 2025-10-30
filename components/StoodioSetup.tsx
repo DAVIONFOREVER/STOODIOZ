@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AppView, SmokingPolicy } from '../types';
+import { AppView } from '../types';
 
 interface StoodioSetupProps {
     onCompleteSetup: (name: string, description: string, location: string, businessAddress: string, email: string, password: string) => void;
@@ -133,4 +133,3 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
 };
 
 export default StoodioSetup;
-      

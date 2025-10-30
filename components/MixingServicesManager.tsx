@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { Engineer, MixingServices } from '../types';
-import { DollarSignIcon, EditIcon } from './icons';
+import { EditIcon } from './icons';
 
 interface MixingServicesManagerProps {
     engineer: Engineer;
@@ -131,4 +131,3 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
 };
 
 export default MixingServicesManager;
-      

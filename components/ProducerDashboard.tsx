@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, MagicWandIcon, EditIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import Following from './Following';

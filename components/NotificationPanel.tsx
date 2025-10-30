@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import type { AppNotification } from '../types';
 import { AppView, NotificationType } from '../types';
-import { BellIcon, CalendarIcon, UserPlusIcon, HeartIcon, ChatBubbleIcon, DollarSignIcon, CheckCircleIcon } from './icons';
+import { BellIcon, CalendarIcon, UserPlusIcon, HeartIcon, ChatBubbleIcon, DollarSignIcon } from './icons';
 
 interface NotificationPanelProps {
   notifications: AppNotification[];

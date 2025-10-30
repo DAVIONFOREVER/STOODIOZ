@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
+import type { Stoodio, Booking, Artist, Engineer, Post, BookingRequest, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType, VerificationStatus } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';

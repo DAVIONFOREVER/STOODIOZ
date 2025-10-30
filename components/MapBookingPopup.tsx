@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import type { Engineer } from '../types';
-import { CloseIcon, StarIcon, CogIcon, CalendarIcon } from './icons';
+import { CloseIcon, StarIcon, CalendarIcon } from './icons';
 
 interface MapBookingPopupProps {
     engineer: Engineer;
