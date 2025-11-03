@@ -3,7 +3,6 @@ import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole, SmokingPolicy } from '../types';
 import { SERVICE_FEE_PERCENTAGE, ARIA_CANTATA_IMAGE_URL } from '../constants';
-import { generatePlaceholderUrl } from '../utils/location';
 
 let ai: GoogleGenAI | null = null;
 /**
@@ -13,7 +12,7 @@ let ai: GoogleGenAI | null = null;
  */
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
-        const apiKey = (process as any).env.API_KEY;
+        const apiKey = (process as any).env.API_KEY || (import.meta as any).env.VITE_API_KEY;
         if (!apiKey || apiKey.startsWith('{{')) {
             return null;
         }
@@ -47,7 +46,7 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
                 url,
                 title: 'Stoodioz Sessions Vol. 1',
                 description: 'A curated playlist of tracks made in Stoodioz. By Various Artists.',
-                imageUrl: generatePlaceholderUrl(url),
+                imageUrl: `https://picsum.photos/seed/${encodeURIComponent(url)}/400/200`,
             };
         }
         if (lowerUrl.includes('soundcloud.com')) {
@@ -55,7 +54,7 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
                 url,
                 title: 'UNRELEASED DEMO by Luna Vance',
                 description: 'A sneak peek of what I\'m working on at Echo Chamber. Lmk what you think!',
-                imageUrl: generatePlaceholderUrl(url),
+                imageUrl: `https://picsum.photos/seed/${encodeURIComponent(url)}/400/200`,
             };
         }
         // Fallback for generic URLs
@@ -63,7 +62,7 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
             url,
             title: `Webpage at ${new URL(url).hostname}`,
             description: 'A link shared from the web.',
-            imageUrl: generatePlaceholderUrl(url),
+            imageUrl: `https://picsum.photos/seed/${encodeURIComponent(url)}/400/200`,
         };
     } catch (error) {
         console.error("Failed to fetch link metadata:", error);

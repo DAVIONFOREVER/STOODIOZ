@@ -1,20 +1,18 @@
 import React from 'react';
 
 const DebugInfo: React.FC = () => {
-    const supabaseUrl = (process as any).env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (process as any).env.VITE_SUPABASE_ANON_KEY;
-    const geminiApiKey = (process as any).env.API_KEY;
-    const mapsApiKey = (process as any).env.VITE_GOOGLE_MAPS_API_KEY;
-    const stripePk = (process as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
+    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+    const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+    const mapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
     
     const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
     const varStatus = [
         { name: 'VITE_SUPABASE_URL', found: areKeysValid(supabaseUrl) },
         { name: 'VITE_SUPABASE_ANON_KEY', found: areKeysValid(supabaseAnonKey) },
-        { name: 'API_KEY (for Gemini)', found: areKeysValid(geminiApiKey) },
-        { name: 'VITE_GOOGLE_MAPS_API_KEY', found: areKeysValid(mapsApiKey) },
-        { name: 'VITE_STRIPE_PUBLISHABLE_KEY', found: areKeysValid(stripePk) }
+        { name: 'VITE_API_KEY (for Gemini)', found: areKeysValid(geminiApiKey) },
+        { name: 'VITE_GOOGLE_MAPS_API_KEY', found: areKeysValid(mapsApiKey) }
     ];
 
     return (
@@ -39,16 +37,15 @@ const DebugInfo: React.FC = () => {
 
 
 const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // Check for all required environment variables using the robust process.env
-    const supabaseUrl = (process as any).env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (process as any).env.VITE_SUPABASE_ANON_KEY;
-    const geminiApiKey = (process as any).env.API_KEY;
-    const mapsApiKey = (process as any).env.VITE_GOOGLE_MAPS_API_KEY;
-    const stripePk = (process as any).env.VITE_STRIPE_PUBLISHABLE_KEY;
+    // Check for all required environment variables for both Supabase and Gemini.
+    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+    const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+    const mapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
 
     const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
-    if (areKeysValid(supabaseUrl) && areKeysValid(supabaseAnonKey) && areKeysValid(geminiApiKey) && areKeysValid(mapsApiKey) && areKeysValid(stripePk)) {
+    if (areKeysValid(supabaseUrl) && areKeysValid(supabaseAnonKey) && areKeysValid(geminiApiKey) && areKeysValid(mapsApiKey)) {
         // If all keys exist and are not placeholders, render the main application.
         return <>{children}</>;
     }
@@ -77,9 +74,8 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             <code>
                                 VITE_SUPABASE_URL="YOUR_SUPABASE_URL_HERE"<br />
                                 VITE_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY_HERE"<br />
-                                API_KEY="YOUR_GEMINI_API_KEY_HERE"<br/>
-                                VITE_GOOGLE_MAPS_API_KEY="YOUR_GOOGLE_MAPS_API_KEY_HERE"<br/>
-                                VITE_STRIPE_PUBLISHABLE_KEY="YOUR_STRIPE_PK_HERE"
+                                VITE_API_KEY="YOUR_GEMINI_API_KEY_HERE"<br/>
+                                VITE_GOOGLE_MAPS_API_KEY="YOUR_GOOGLE_MAPS_API_KEY_HERE"
                             </code>
                         </pre>
                         <p className="text-zinc-400 mt-4">After creating and saving the file, you must <strong className="text-orange-400">stop and restart the development server</strong> for the changes to take effect.</p>
@@ -92,13 +88,12 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         <ol className="list-decimal list-inside space-y-3 text-zinc-300">
                             <li>In your Vercel project dashboard, go to <strong className="text-orange-400">Settings &gt; Environment Variables</strong>.</li>
                             <li>
-                                Add the following five variables:
+                                Add the following four variables:
                                 <ul className="list-disc list-inside pl-6 mt-2 space-y-2 font-mono text-sm">
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_URL</code> <br/><strong>Value:</strong> Your Supabase Project URL</li>
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_SUPABASE_ANON_KEY</code> <br/><strong>Value:</strong> Your Supabase anon public key</li>
-                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">API_KEY</code> <br/><strong>Value:</strong> Your Google AI Studio API Key for Gemini</li>
+                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_API_KEY</code> <br/><strong>Value:</strong> Your Google AI Studio API Key for Gemini</li>
                                     <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> <br/><strong>Value:</strong> Your Google Cloud API Key for Maps</li>
-                                    <li><strong>Key:</strong> <code className="bg-zinc-900 p-1 rounded">VITE_STRIPE_PUBLISHABLE_KEY</code> <br/><strong>Value:</strong> Your Stripe Publishable Key</li>
                                 </ul>
                             </li>
                             <li>
@@ -114,7 +109,6 @@ const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             <li><strong>Supabase Keys:</strong> Go to <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">supabase.com</a>, create a project, then navigate to <strong className="text-orange-400">Project Settings &gt; API</strong>. You'll find the URL and the `anon` public key.</li>
                             <li><strong>Gemini API Key:</strong> Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">Google AI Studio</a> to get your API key.</li>
                             <li><strong>Google Maps API Key:</strong> Go to the <a href="https://console.cloud.google.com/google/maps-apis/overview" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">Google Cloud Console</a>. Create a new project (or select an existing one), then go to the <strong className="text-orange-400">APIs & Services &gt; Library</strong> page and enable the <strong className="text-orange-400">"Maps JavaScript API"</strong>. Finally, go to <strong className="text-orange-400">Credentials</strong> and create a new API key. It's recommended to restrict this key to your website's domain for security.</li>
-                            <li><strong>Stripe Publishable Key:</strong> Go to your <a href="https://dashboard.stripe.com/" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline">Stripe Dashboard</a>. Under the <strong className="text-orange-400">Developers &gt; API keys</strong> section, you will find your "Publishable key". Make sure you are using your Test key for development.</li>
                         </ol>
                     </div>
                 </div>

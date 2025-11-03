@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -132,13 +133,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
             
             {/* Comments Section */}
             {showComments && (
-                <div className="border-t border-zinc-700 p-6 space-y-4 bg-zinc-900/50 rounded-b-2xl">
+                <div className="border-t border-zinc-700 p-6 space-y-4 bg-zinc-800/50 rounded-b-2xl">
                     {post.comments.length > 0 ? (
                         post.comments.map(comment => (
                             <div key={comment.id} className="flex items-start gap-3">
                                 <img src={comment.authorImageUrl} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
                                 <div>
-                                    <div className="bg-zinc-800 rounded-xl p-3">
+                                    <div className="bg-zinc-700 rounded-xl p-3">
                                         <p className="font-semibold text-sm text-slate-200">{comment.authorName}</p>
                                         <p className="text-sm text-slate-300">{comment.text}</p>
                                     </div>
@@ -157,7 +158,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                             value={commentText}
                             onChange={(e) => setCommentText(e.target.value)}
                             placeholder="Write a comment..."
-                            className="w-full bg-zinc-900/50 border-zinc-700 text-slate-200 placeholder:text-slate-400 rounded-full py-2 px-4 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                            className="w-full bg-zinc-700 border-zinc-600 text-slate-200 placeholder:text-slate-400 rounded-full py-2 px-4 focus:ring-orange-500 focus:border-orange-500 text-sm"
                         />
                         <button type="submit" disabled={!commentText.trim()} className="bg-orange-500 text-white p-2 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-slate-600">
                             <PaperAirplaneIcon className="w-5 h-5" />
@@ -170,3 +171,4 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
 };
 
 export default PostCard;
+      

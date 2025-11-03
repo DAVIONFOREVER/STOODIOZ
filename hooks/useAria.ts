@@ -41,30 +41,15 @@ export const useAria = (
         if (!currentUser) return;
         const recipient = allUsers.find(u => u.name.toLowerCase() === recipientName.toLowerCase());
         if (!recipient) return;
-
-        const newMessage: Message = {
-            id: `msg-text-${Date.now()}`,
-            senderId: currentUser.id,
-            timestamp: new Date().toISOString(),
-            type: 'text',
-            text: messageText,
-        };
-        
-        let convo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [recipient.id, currentUser.id].includes(p.id)));
-        let updatedConversations = [...conversations];
-
-        if (convo) {
-            updatedConversations = updatedConversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, newMessage], unreadCount: 0 } : c);
-        } else {
-            convo = { id: `convo-${recipient.id}-${currentUser.id}`, participants: [recipient, currentUser], messages: [newMessage], unreadCount: 0 };
-            updatedConversations = [convo, ...updatedConversations];
-        }
-
-        dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
-        dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: convo.id } });
-        handleNavigate(AppView.INBOX);
+        handleStartConversation(recipient);
+        setTimeout(() => {
+            const newMessage = { type: 'text', text: messageText };
+            const conversationId = `convo-${currentUser.id}-${recipient.id}`; // Reconstruct convo ID to send message
+            // @ts-ignore - This is a mock implementation detail
+            dispatch({ type: 'SEND_MESSAGE', payload: { conversationId, messageContent: newMessage } });
+        }, 100);
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-    }, [allUsers, conversations, dispatch, handleNavigate]);
+    }, [allUsers, handleStartConversation, dispatch]);
     
     const handleAriaSendDocument = useCallback((recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => {
         const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');

@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import type { Engineer } from '../types';
-import { CloseIcon, StarIcon, CalendarIcon } from './icons';
+import { CloseIcon, StarIcon, CogIcon, CalendarIcon } from './icons';
 
 interface MapBookingPopupProps {
     engineer: Engineer;
@@ -35,7 +34,7 @@ const MapBookingPopup: React.FC<MapBookingPopupProps> = ({ engineer, onClose, on
                             <h3 className="text-2xl font-bold text-orange-400">{engineer.name}</h3>
                             <div className="flex items-center gap-1 text-yellow-400 mt-1">
                                 <StarIcon className="w-5 h-5" />
-                                
+                                {/* FIX: Changed engineer.rating to engineer.rating_overall to match the BaseUser type. */}
                                 <span className="font-bold text-lg text-slate-200">{engineer.rating_overall.toFixed(1)}</span>
                             </div>
                         </div>

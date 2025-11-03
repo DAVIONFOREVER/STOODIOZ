@@ -1,5 +1,4 @@
 // A simple service worker to handle push notifications.
-import { generatePlaceholderUrl } from './utils/location';
 
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Installed');
@@ -19,8 +18,6 @@ self.addEventListener('push', (event) => {
     return;
   }
   
-  const iconUrl = 'data:image/svg+xml,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3e%3cpath d="M50 5 L95 27.5 L95 72.5 L50 95 L5 72.5 L5 27.5 Z" stroke="%23f97316" stroke-width="5" fill="none" /%3e%3ccircle cx="50" cy="50" r="15" fill="%23f97316" /%3e%3c/svg%3e';
-
   try {
     const data = event.data.json();
     console.log('[Service Worker] Push data:', data);
@@ -28,8 +25,8 @@ self.addEventListener('push', (event) => {
     const title = data.title || 'Stoodioz';
     const options = {
       body: data.body,
-      icon: iconUrl, 
-      badge: iconUrl, 
+      icon: 'https://picsum.photos/seed/stoodiozicon/192/192', 
+      badge: 'https://picsum.photos/seed/stoodiozbadge/72/72', 
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
@@ -38,8 +35,8 @@ self.addEventListener('push', (event) => {
       const title = 'Stoodioz';
       const options = {
           body: event.data.text(),
-          icon: iconUrl,
-          badge: iconUrl,
+          icon: 'https://picsum.photos/seed/stoodiozicon/192/192',
+          badge: 'https://picsum.photos/seed/stoodiozbadge/72/72',
       };
       event.waitUntil(self.registration.showNotification(title, options));
   }

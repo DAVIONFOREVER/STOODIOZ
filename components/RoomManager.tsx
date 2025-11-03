@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Stoodio, Room } from '../types';
 import { SmokingPolicy } from '../types';
@@ -31,7 +32,7 @@ const RoomFormModal: React.FC<{
         onSave(finalRoom);
     };
     
-    const inputClasses = "w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+    const inputClasses = "w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -146,3 +147,4 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) =
 };
 
 export default RoomManager;
+      

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Stoodio, Producer, Engineer } from '../types';
+import type { Stoodio, Producer } from '../types';
 import { AppView } from '../types';
 import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons';
 import StoodioCard from './StudioCard';
@@ -14,7 +14,6 @@ interface LandingPageProps {
     onNavigate: (view: AppView) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectProducer: (producer: Producer) => void;
-    onSelectEngineer: (engineer: Engineer) => void;
     onOpenAriaCantata: () => void;
 }
 
@@ -25,7 +24,7 @@ const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
     </div>
 );
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, onSelectEngineer, onOpenAriaCantata }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, onOpenAriaCantata }) => {
     const { stoodioz, engineers, artists, producers } = useAppState();
     
     const featuredStoodioz = stoodioz.slice(0, 3);
@@ -85,7 +84,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {featuredEngineers.map(engineer => (
-                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={onSelectEngineer} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
+                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={() => onNavigate(AppView.ENGINEER_PROFILE)} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
                     ))}
                 </div>
             </section>
@@ -143,7 +142,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                         <p className="text-zinc-400 mt-2">Showcase your portfolio, get discovered by artists, and manage your bookings effortlessly.</p>
                     </div>
                      <div className="p-8 text-center cardSurface">
-                        <HouseIcon className="w-12 h-12 text-red-400 mx-auto mb-4"/>
+                        <HouseIcon className="w-12 h-12 text-orange-400 mx-auto mb-4"/>
                         <h3 className="text-2xl font-bold text-zinc-100">For Stoodioz</h3>
                         <p className="text-zinc-400 mt-2">List your space, manage your calendar, find in-house talent, and keep your rooms booked.</p>
                     </div>

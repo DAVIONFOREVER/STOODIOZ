@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Engineer } from '../types';
 import { BellIcon, RoadIcon, DollarSignIcon } from './icons';
@@ -97,7 +98,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
                             id="pay-rate-input"
                             value={engineer.minimumPayRate || ''}
                             onChange={(e) => handlePayRateChange(parseInt(e.target.value))}
-                            className="w-full pl-7 pr-12 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                            className="w-full pl-7 pr-12 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="e.g., 50"
                             min="0"
                         />
@@ -112,3 +113,4 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
 };
 
 export default NotificationSettings;
+      

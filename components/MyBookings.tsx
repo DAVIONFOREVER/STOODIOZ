@@ -1,12 +1,10 @@
 
-
 import React, { useMemo } from 'react';
 import type { Booking, Location } from '../types';
 import { BookingStatus, BookingRequestType } from '../types';
 import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon, SoundWaveIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
-import { generatePlaceholderUrl } from '../utils/location';
 
 const MyBookings: React.FC = () => {
     const { bookings, engineers, currentUser } = useAppState();
@@ -71,7 +69,7 @@ const MyBookings: React.FC = () => {
             const reqEngineer = engineers.find(e => e.id === booking.requestedEngineerId);
             if (reqEngineer?.imageUrl) return reqEngineer.imageUrl;
         }
-        return generatePlaceholderUrl(booking.id);
+        return `https://source.unsplash.com/random/400x300?music-studio&${booking.id}`;
     }
 
 

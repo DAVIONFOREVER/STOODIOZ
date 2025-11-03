@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 // FIX: Import Booking type and useAppState hook to get booking data.
 import type { Stoodio, Engineer, Producer, Booking } from '../types';
@@ -184,7 +185,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
                             type="time"
                             value={newTime}
                             onChange={(e) => setNewTime(e.target.value)}
-                            className="w-full bg-zinc-900/50 border-zinc-700 rounded-md p-2 text-sm"
+                            className="w-full bg-zinc-700 border-zinc-600 rounded-md p-2 text-sm"
                             required
                         />
                         <button type="submit" className="p-2 rounded-md bg-orange-500 text-white hover:bg-orange-600">
@@ -199,3 +200,4 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
 
 // FIX: Correctly export the AvailabilityManager component.
 export default AvailabilityManager;
+      

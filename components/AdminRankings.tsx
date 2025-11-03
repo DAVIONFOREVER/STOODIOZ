@@ -1,14 +1,13 @@
-
 import React, { useState, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
-import { CalendarIcon, StarIcon, CheckCircleIcon, UsersIcon, SearchIcon, CloseIcon, ChevronUpDownIcon } from './icons';
+import { CalendarIcon, StarIcon, CheckCircleIcon, UserGroupIcon, SearchIcon, CloseIcon, ChevronUpDownIcon } from './icons';
 import type { Artist, Engineer, Producer, Stoodio, SessionFeedback, BaseUser } from '../types';
 import { UserRole, RankingTier } from '../types';
 import RankingBadge from './RankingBadge';
 import { format } from 'date-fns';
 
 type AllUsers = Artist | Engineer | Producer | Stoodio;
-type SortKey = 'name' | 'tier' | 'sessions_completed' | 'location' | 'rating_overall' | 'on_time_rate' | 'repeat_hire_rate';
+type SortKey = 'tier' | 'sessions_completed' | 'location' | 'rating_overall' | 'on_time_rate' | 'repeat_hire_rate';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-6 flex items-start gap-4 cardSurface">
@@ -130,10 +129,6 @@ const AdminRankings: React.FC = () => {
         let filtered = allUsers.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
         
         return filtered.sort((a, b) => {
-            if (sortConfig.key === 'name') {
-                return a.name.localeCompare(b.name) * (sortConfig.direction === 'asc' ? 1 : -1);
-            }
-            
             let aValue: string | number = a[sortConfig.key as keyof BaseUser] as any;
             let bValue: string | number = b[sortConfig.key as keyof BaseUser] as any;
 
@@ -176,7 +171,7 @@ const AdminRankings: React.FC = () => {
                 <StatCard label="Total Sessions Completed" value={totalSessions.toLocaleString()} icon={<CalendarIcon className="w-8 h-8 text-orange-400" />} />
                 <StatCard label="Global Avg Rating" value={avgRating} icon={<StarIcon className="w-8 h-8 text-yellow-400" />} />
                 <StatCard label="Global On-Time Rate" value={avgOnTimeRate} icon={<CheckCircleIcon className="w-8 h-8 text-green-400" />} />
-                <StatCard label="Total Talent Profiles" value={allUsers.length.toLocaleString()} icon={<UsersIcon className="w-8 h-8 text-blue-400" />} />
+                <StatCard label="Total Talent Profiles" value={allUsers.length.toLocaleString()} icon={<UserGroupIcon className="w-8 h-8 text-blue-400" />} />
             </div>
 
             <div className="cardSurface">

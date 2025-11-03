@@ -14,20 +14,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     const { onClose, onConfirm } = props;
     const { stoodioz, engineers, producers, currentUser, isLoading, bookingTime, bookingIntent, selectedStoodio } = useAppState();
 
-    // FIX: Add a guard clause to prevent crashes if the modal is opened with incomplete data.
-    if (!selectedStoodio || !bookingTime || !bookingTime.room) {
-        return (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true">
-                <div className="w-full max-w-md p-8 text-center cardSurface">
-                    <h2 className="text-xl font-bold text-zinc-100">Loading Booking...</h2>
-                    <p className="text-zinc-400 mt-2">Preparing your session details. If this takes too long, please close and try again.</p>
-                </div>
-            </div>
-        );
-    }
-
-    const stoodio = selectedStoodio;
-    const initialRoom = bookingTime.room;
+    const stoodio = selectedStoodio!;
+    const initialRoom = bookingTime!.room;
 
     const today = new Date().toISOString().split('T')[0];
     const [date, setDate] = useState<string>(bookingTime?.date || bookingIntent?.date || today);
@@ -164,15 +152,15 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                             <div className="lg:col-span-1 space-y-4">
                                 <div>
                                     <label htmlFor="date" className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><CalendarIcon className="w-4 h-4 mr-2" /> Date</label>
-                                    <input type="date" id="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="w-full bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                                    <input type="date" id="date" value={date} min={today} onChange={e => setDate(e.target.value)} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
                                 </div>
                                 <div>
                                     <label htmlFor="startTime" className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><ClockIcon className="w-4 h-4 mr-2" /> Start Time</label>
-                                    <input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                                    <input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
                                 </div>
                                 <div>
                                     <label htmlFor="duration" className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><DurationIcon className="w-4 h-4 mr-2" /> Duration (hours)</label>
-                                    <input type="number" id="duration" value={duration} min="1" max="12" onChange={e => setDuration(parseInt(e.target.value))} className="w-full bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                                    <input type="number" id="duration" value={duration} min="1" max="12" onChange={e => setDuration(parseInt(e.target.value))} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
                                 </div>
                             </div>
 
@@ -189,7 +177,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                 {requestType === BookingRequestType.SPECIFIC_ENGINEER && (
                                     <div className="animate-fade-in-fast">
                                         <label htmlFor="engineer-select" className="sr-only">Select Engineer</label>
-                                        <select id="engineer-select" value={requestedEngineerId} onChange={e => setRequestedEngineerId(e.target.value)} className="w-full bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" disabled={!!bookingIntent?.mixingDetails}>
+                                        <select id="engineer-select" value={requestedEngineerId} onChange={e => setRequestedEngineerId(e.target.value)} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" disabled={!!bookingIntent?.mixingDetails}>
                                             <option value="" disabled>-- Select an Engineer --</option>
                                             {engineerOptions.map(engineer => (
                                                 <option key={engineer.id} value={engineer.id}>{engineer.name}</option>
@@ -198,7 +186,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                     </div>
                                 )}
                                 {requestType === BookingRequestType.SPECIFIC_ENGINEER && canOfferMixing && (
-                                    <div className="animate-fade-in-fast bg-zinc-900/50 p-3 rounded-lg border border-zinc-700/50 mt-4">
+                                    <div className="animate-fade-in-fast bg-zinc-800/60 p-3 rounded-lg border border-zinc-700/50 mt-4">
                                         <label className="flex items-center gap-3 p-2 cursor-pointer">
                                             <input 
                                                 type="checkbox" 
@@ -230,9 +218,9 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                         )}
                                     </div>
                                 )}
-                                <div className="bg-zinc-900/50 p-3 rounded-lg border border-zinc-700/50">
+                                <div className="bg-zinc-800/60 p-3 rounded-lg border border-zinc-700/50">
                                     <label htmlFor="producer-select" className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><MusicNoteIcon className="w-4 h-4 mr-2" /> Producer (Optional)</label>
-                                    <select id="producer-select" value={selectedProducerId} onChange={e => setSelectedProducerId(e.target.value)} className="w-full bg-zinc-800/80 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                                    <select id="producer-select" value={selectedProducerId} onChange={e => setSelectedProducerId(e.target.value)} className="w-full bg-zinc-700/80 border-zinc-600 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
                                         <option value="">-- No Producer --</option>
                                         {producers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                     </select>
@@ -258,7 +246,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                             {selectedProducer.instrumentals.length > 0 && (
                                                 <div className="space-y-2 mt-3 max-h-48 overflow-y-auto border-t border-zinc-700 pt-3">
                                                     {selectedProducer.instrumentals.map(beat => (
-                                                        <label key={beat.id} className="flex items-center gap-3 p-2 bg-zinc-800/50 rounded-md cursor-pointer">
+                                                        <label key={beat.id} className="flex items-center gap-3 p-2 bg-zinc-700/50 rounded-md cursor-pointer">
                                                             <input type="checkbox" onChange={() => handleBeatToggle(beat)} checked={selectedBeats.some(b => b.id === beat.id)} className="h-4 w-4 rounded border-zinc-500 bg-zinc-800 text-orange-500 focus:ring-orange-500"/>
                                                             <div className="flex-grow">
                                                                 <p className="text-sm font-semibold text-zinc-200">{beat.title}</p>
@@ -340,7 +328,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 };
 
 const RadioOption: React.FC<{id: string, value: BookingRequestType, label: string, description: string, checked: boolean, onChange: (value: BookingRequestType) => void, disabled?: boolean}> = ({id, value, label, description, checked, onChange, disabled}) => (
-    <label htmlFor={id} className={`block p-3 rounded-lg border-2 transition-all ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${checked ? 'bg-orange-500/10 border-orange-500' : 'bg-zinc-900/50 border-zinc-700 hover:border-zinc-500'}`}>
+    <label htmlFor={id} className={`block p-3 rounded-lg border-2 transition-all ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${checked ? 'bg-orange-500/10 border-orange-500' : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-500'}`}>
         <input type="radio" name="requestType" id={id} value={value} checked={checked} onChange={() => onChange(value)} className="sr-only" disabled={disabled}/>
         <p className={`font-bold ${checked ? 'text-orange-400' : 'text-zinc-100'}`}>{label}</p>
         <p className="text-xs text-zinc-400">{description}</p>

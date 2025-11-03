@@ -29,9 +29,9 @@ export enum AppView {
     STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
     ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
     PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
-    // FIX: Add missing LEADERBOARD view to AppView enum
-    LEADERBOARD = 'LEADERBOARD',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
+    ADMIN_RANKINGS = 'ADMIN_RANKINGS',
+    LEADERBOARD = 'LEADERBOARD',
 }
 
 export enum UserRole {
@@ -98,7 +98,6 @@ export enum SubscriptionPlan {
     STOODIO_PRO = 'STOODIO_PRO',
 }
 
-// FIX: Add missing RankingTier enum
 export enum RankingTier {
     Provisional = 'Provisional',
     Bronze = 'Bronze',
@@ -194,13 +193,12 @@ export interface BaseUser {
     subscription?: Subscription;
     rating_overall: number;
     sessions_completed: number;
-    // FIX: Add missing ranking and performance properties
     ranking_tier: RankingTier;
     is_on_streak: boolean;
-    strength_tags: string[];
     on_time_rate: number;
     completion_rate: number;
     repeat_hire_rate: number;
+    strength_tags: string[];
     local_rank_text: string;
 }
 
@@ -283,7 +281,6 @@ export interface Stoodio extends BaseUser {
     rooms: Room[];
     inHouseEngineers?: InHouseEngineerInfo[];
     verificationStatus: VerificationStatus;
-    animatedLogoUrl?: string;
 }
 
 export interface MixingDetails {
@@ -387,15 +384,6 @@ export interface Conversation {
     imageUrl?: string;
 }
 
-// FIX: Add missing SessionFeedback interface
-export interface SessionFeedback {
-    id: string;
-    target_user_id: string;
-    timestamp: string;
-    star_rating: number;
-    pro_tags: string[];
-}
-
 export interface VibeMatchResult {
     vibeDescription: string;
     tags: string[];
@@ -428,4 +416,14 @@ export interface AnalyticsData {
     revenueOverTime: { date: string; revenue: number }[];
     engagementOverTime: { date: string; views: number; followers: number; likes: number }[];
     revenueSources: { name: string; revenue: number }[];
+}
+
+export interface SessionFeedback {
+    id: string;
+    booking_id: string;
+    target_user_id: string;
+    star_rating: number;
+    pro_tags: string[];
+    con_tags: string[];
+    timestamp: string;
 }

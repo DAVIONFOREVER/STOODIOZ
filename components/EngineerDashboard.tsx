@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import type { Engineer, Artist, Stoodio, Producer, Booking } from '../types';
-import { AppView, SubscriptionPlan, UserRole, BookingStatus } from '../types';
-import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, ClockIcon } from './icons';
+import type { Engineer, Artist, Stoodio, Producer } from '../types';
+import { AppView, SubscriptionPlan, UserRole } from '../types';
+import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -13,47 +12,11 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
-import { useBookings } from '../hooks/useBookings';
 import MixingSampleManager from './MixingSampleManager';
-import FollowersList from './FollowersList';
-import Following from './Following';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 
 type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
-
-const JobBoard: React.FC<{ 
-    jobs: Booking[];
-    onAcceptJob: (booking: Booking) => void;
-}> = ({ jobs, onAcceptJob }) => {
-    return (
-        <div className="p-6 cardSurface">
-            <h1 className="text-2xl font-bold text-zinc-100 mb-6">Available Jobs</h1>
-            <div className="space-y-4">
-                {jobs.length > 0 ? jobs.map(job => (
-                    <div key={job.id} className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50 flex flex-col md:flex-row gap-4 justify-between items-start">
-                        <div>
-                            <p className="font-bold text-lg text-orange-400">{job.stoodio?.name}</p>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-300 mt-2">
-                                <span className="flex items-center gap-1.5"><CalendarIcon className="w-4 h-4 text-zinc-400"/> {new Date(job.date + 'T00:00:00').toLocaleDateString()}</span>
-                                <span className="flex items-center gap-1.5"><ClockIcon className="w-4 h-4 text-zinc-400"/> {job.startTime} for {job.duration} hours</span>
-                                <span className="flex items-center gap-1.5"><DollarSignIcon className="w-4 h-4 text-zinc-400"/> ${job.engineerPayRate}/hr</span>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={() => onAcceptJob(job)}
-                            className="w-full md:w-auto bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm"
-                        >
-                            Accept Job
-                        </button>
-                    </div>
-                )) : (
-                    <p className="text-center py-8 text-zinc-500">No jobs available right now. Check back later!</p>
-                )}
-            </div>
-        </div>
-    );
-};
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -89,14 +52,13 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 );
 
 const EngineerDashboard: React.FC = () => {
-    const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers } = useAppState();
+    const { currentUser, bookings, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
     const engineer = currentUser as Engineer;
     
-    const { navigate, viewBooking, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
-    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
+    const { navigate, viewBooking } = useNavigation();
+    const { createPost, likePost, commentOnPost } = useSocial();
     const { updateProfile } = useProfile();
-    const { acceptBooking } = useBookings(navigate);
 
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
@@ -131,15 +93,7 @@ const EngineerDashboard: React.FC = () => {
     
     const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requestedEngineerId === engineer.id) && new Date(`${b.date}T${b.startTime}`) >= new Date());
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
-    const availableJobs = bookings.filter(b => b.postedBy === UserRole.STOODIO && b.status === BookingStatus.PENDING);
     
-    const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => engineer.followerIds.includes(u.id));
-    const followedArtists = artists.filter(a => engineer.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => engineer.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => engineer.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => engineer.following.producers.includes(p.id));
-
     const renderContent = () => {
          switch(activeTab) {
              case 'analytics':
@@ -148,14 +102,12 @@ const EngineerDashboard: React.FC = () => {
                         <AnalyticsDashboard user={engineer} />
                     </Suspense>
                 );
-             case 'jobBoard': return <JobBoard jobs={availableJobs} onAcceptJob={acceptBooking} />;
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
              case 'mixingSamples': return <MixingSampleManager engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.ENGINEER} />;
-             case 'followers': return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
-             case 'following': return <Following artists={followedArtists} engineers={followedEngineers} studios={followedStoodioz} producers={followedProducers} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStudio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
+             // Other cases would be here...
              default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">

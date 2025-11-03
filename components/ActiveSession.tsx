@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { Artist } from '../types';
 import { LocationIcon, NavigationArrowIcon, ClockIcon, DollarSignIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
-import { generatePlaceholderUrl } from '../utils/location';
 
 interface ActiveSessionProps {
     onEndSession: (bookingId: string) => void;
@@ -57,7 +56,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArt
             <div className="overflow-hidden cardSurface">
                 {/* Map/Navigation View */}
                 <div className="relative">
-                    <img src={generatePlaceholderUrl('map-route')} alt="Map route to stoodio" className="w-full h-64 md:h-80 object-cover" />
+                    <img src="https://source.unsplash.com/seeded/map-route/1200x500" alt="Map route to stoodio" className="w-full h-64 md:h-80 object-cover" />
                     <div className="absolute top-0 left-0 w-full h-full bg-black/30"></div>
                     <div className="absolute top-4 left-4 bg-zinc-800/80 backdrop-blur-sm p-4 rounded-lg shadow-lg">
                         <h2 className="text-2xl font-bold text-slate-100">{session.stoodio?.name}</h2>

@@ -202,7 +202,7 @@ const ChatThread: React.FC<{
                             return (
                                 <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
                                     {!isUser && <img loading="lazy" src={participant.imageUrl} className="w-6 h-6 rounded-full self-start"/>}
-                                    <div className={`max-w-xs md:max-w-md lg:max-w-lg p-1 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-800 text-zinc-200 rounded-bl-lg'}`}>
+                                    <div className={`max-w-xs md:max-w-md lg:max-w-lg p-1 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-zinc-200 rounded-bl-lg'}`}>
                                         <div className="p-2 space-y-2">
                                             {msg.text && <p>{msg.text}</p>}
                                             {msg.type === 'image' && msg.imageUrl && <img loading="lazy" src={msg.imageUrl} alt="Sent image" className="rounded-xl w-full h-auto" />}

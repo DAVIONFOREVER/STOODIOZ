@@ -126,7 +126,7 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
             </div>
 
             {isActive && searchTerm.length >= 2 && (
-                <div className="absolute top-full mt-2 w-full cardSurface z-10 max-h-96 overflow-y-auto animate-fade-in-down p-2">
+                <div className="absolute top-full mt-2 w-full bg-zinc-800 rounded-xl shadow-lg border border-zinc-700 z-10 max-h-96 overflow-y-auto animate-fade-in-down">
                     {filteredResults ? (
                         <>
                             {filteredResults.artists.length > 0 && (

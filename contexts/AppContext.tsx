@@ -301,13 +301,13 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         }
         
         case ActionTypes.VIEW_STOODIO_DETAILS:
-            return { ...state, selectedStoodio: action.payload.stoodio, selectedArtist: null, selectedEngineer: null, selectedProducer: null };
+            return { ...state, selectedStoodio: action.payload.stoodio };
         case ActionTypes.VIEW_ARTIST_PROFILE:
-            return { ...state, selectedArtist: action.payload.artist, selectedStoodio: null, selectedEngineer: null, selectedProducer: null };
+            return { ...state, selectedArtist: action.payload.artist };
         case ActionTypes.VIEW_ENGINEER_PROFILE:
-            return { ...state, selectedEngineer: action.payload.engineer, selectedStoodio: null, selectedArtist: null, selectedProducer: null };
+            return { ...state, selectedEngineer: action.payload.engineer };
         case ActionTypes.VIEW_PRODUCER_PROFILE:
-            return { ...state, selectedProducer: action.payload.producer, selectedStoodio: null, selectedArtist: null, selectedEngineer: null };
+            return { ...state, selectedProducer: action.payload.producer };
         
         case ActionTypes.OPEN_BOOKING_MODAL:
             return { ...state, bookingTime: action.payload };

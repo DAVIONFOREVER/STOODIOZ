@@ -22,15 +22,15 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                     <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors flex items-center gap-2 text-glow">
                         {stoodio.name}
                         {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
-                            
-                            <VerifiedIcon className="w-6 h-6 text-blue-400" />
+                            // FIX: The `title` attribute is not a valid prop for the `VerifiedIcon` component. The fix is to use an SVG `<title>` element for accessibility.
+                            <VerifiedIcon className="w-6 h-6 text-blue-400"><title>Verified Stoodio</title></VerifiedIcon>
                         )}
                     </h3>
                     <p className="text-zinc-300 font-semibold flex items-center gap-1.5"><LocationIcon className="w-4 h-4" /> {stoodio.location}</p>
                 </div>
                 <div className="absolute top-4 right-4 bg-zinc-900/80 px-3 py-1.5 rounded-full flex items-center gap-1.5 text-yellow-400 font-bold text-sm">
                     <StarIcon className="w-4 h-4" />
-                    
+                    {/* FIX: Changed `stoodio.rating` to `stoodio.rating_overall` to match the property name in the `BaseUser` type. */}
                     <span>{stoodio.rating_overall.toFixed(1)}</span>
                 </div>
             </div>
