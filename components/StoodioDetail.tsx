@@ -292,7 +292,7 @@ const StoodioDetail: React.FC = () => {
 
                 {/* Right Column: Calendar and Booking */}
                 <div className="lg:col-span-2">
-                    <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg border border-zinc-700 sticky top-28">
+                    <div className="p-6 sticky top-28 cardSurface">
                         <h2 className="text-3xl font-bold mb-4 text-center text-slate-100">Book a Room</h2>
                         <div className="space-y-4 mb-6">
                             {stoodio.rooms.map(room => (

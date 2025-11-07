@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
@@ -37,19 +38,32 @@ export const useAria = (
         handleNavigate(AppView.INBOX);
     }, [dispatch, handleNavigate, conversations]);
 
-    const handleAriaSendMessage = useCallback((recipientName: string, messageText: string, currentUser: any) => {
+    const handleAriaSendMessage = useCallback((recipientName: string, messageText: string, currentUser: Artist | Engineer | Stoodio | Producer | null) => {
         if (!currentUser) return;
         const recipient = allUsers.find(u => u.name.toLowerCase() === recipientName.toLowerCase());
         if (!recipient) return;
         handleStartConversation(recipient);
         setTimeout(() => {
-            const newMessage = { type: 'text', text: messageText };
-            const conversationId = `convo-${currentUser.id}-${recipient.id}`; // Reconstruct convo ID to send message
-            // @ts-ignore - This is a mock implementation detail
-            dispatch({ type: 'SEND_MESSAGE', payload: { conversationId, messageContent: newMessage } });
+            const newMessage: Message = { 
+                type: 'text', 
+                text: messageText, 
+                id: `msg-${Date.now()}`, 
+                senderId: currentUser.id, 
+                timestamp: new Date().toISOString() 
+            };
+            
+            const existingConvo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [currentUser.id, recipient.id].includes(p.id)));
+            const conversationId = existingConvo ? existingConvo.id : `convo-${currentUser.id}-${recipient.id}`;
+
+            const updatedConversations = conversations.map(convo => 
+                convo.id === conversationId ? { ...convo, messages: [...convo.messages, newMessage] } : convo
+            );
+
+            // FIX: Replaced invalid 'SEND_MESSAGE' dispatch with the correct action and payload.
+            dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
         }, 100);
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-    }, [allUsers, handleStartConversation, dispatch]);
+    }, [allUsers, handleStartConversation, dispatch, conversations]);
     
     const handleAriaSendDocument = useCallback((recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => {
         const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');

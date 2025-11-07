@@ -1,3 +1,4 @@
+
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -233,6 +234,8 @@ export interface Engineer extends BaseUser {
     };
     minimumPayRate?: number;
     mixingServices?: MixingServices;
+    // FIX: Add optional availability property to match Stoodio and Producer types.
+    availability?: { date: string, times: string[] }[];
 }
 
 export interface Instrumental {
@@ -253,6 +256,8 @@ export interface Producer extends BaseUser {
     instrumentals: Instrumental[];
     pullUpPrice?: number;
     isAvailable: boolean;
+    // FIX: Add optional availability property to match Stoodio and Engineer types.
+    availability?: { date: string, times: string[] }[];
 }
 
 export interface Room {
