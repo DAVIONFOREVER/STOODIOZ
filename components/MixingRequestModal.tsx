@@ -48,7 +48,7 @@ const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClo
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true">
-            <div className="w-full max-w-lg transform animate-slide-up flex flex-col cardSurface">
+            <div className="bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl w-full max-w-lg transform animate-slide-up border border-zinc-700/50 flex flex-col">
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
                     <div>
                         <h2 className="text-2xl font-bold text-zinc-100">Request Mix from {engineer.name}</h2>
@@ -123,4 +123,3 @@ const RadioOption: React.FC<{id: string, value: 'REMOTE' | 'IN_STUDIO', label: s
 );
 
 export default MixingRequestModal;
-      

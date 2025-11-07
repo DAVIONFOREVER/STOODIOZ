@@ -55,7 +55,7 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
     
 
     return (
-        <div className="p-6 cardSurface">
+        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
              <h1 className="text-2xl font-bold text-zinc-100 mb-2">Manage In-House Engineers</h1>
              <p className="text-sm text-zinc-400 mb-6">Add engineers to your studio's roster and set custom pay rates for sessions booked here.</p>
             
@@ -119,4 +119,3 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
 };
 
 export default EngineerManager;
-      

@@ -8,7 +8,7 @@ import { format, isThisMonth, startOfMonth, endOfMonth } from 'date-fns';
 import RankingBadge from './RankingBadge';
 
 const StatCard: React.FC<{ label: string; value: string | React.ReactNode; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="p-6 flex items-start gap-4 cardSurface">
+    <div className="bg-zinc-900/50 p-6 rounded-2xl flex items-start gap-4 border border-zinc-700/50 shadow-[0_0_15px_rgba(249,115,22,0.1)]">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 font-medium">{label}</p>
@@ -85,7 +85,7 @@ const StudioInsights: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 p-6 cardSurface">
+                <div className="lg:col-span-2 bg-zinc-900/50 rounded-2xl border border-zinc-700/50 p-6 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
                     <h2 className="text-2xl font-bold text-zinc-100 mb-4">Upcoming Sessions</h2>
                      <div className="space-y-3">
                         {upcomingSessions.length > 0 ? upcomingSessions.map(b => (
@@ -111,7 +111,7 @@ const StudioInsights: React.FC = () => {
                         )) : <p className="text-zinc-500 text-center py-8">No upcoming sessions.</p>}
                      </div>
                 </div>
-                 <div className="p-6 cardSurface">
+                 <div className="bg-zinc-900/50 rounded-2xl border border-zinc-700/50 p-6 shadow-[0_0_20px_rgba(249,115,22,0.1)]">
                     <h2 className="text-2xl font-bold text-zinc-100 mb-4">Top Talent</h2>
                      <div className="space-y-4">
                         {engineers.slice(0, 3).map(eng => (
@@ -140,4 +140,3 @@ const StudioInsights: React.FC = () => {
 }
 
 export default StudioInsights;
-      

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Artist, Engineer, Producer, Stoodio } from '../types';
 import RankingBadge from './RankingBadge';
@@ -44,7 +43,8 @@ const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotli
     return (
         <button 
             onClick={() => onSelectProfile(profile)}
-            className="w-full p-4 flex items-center gap-4 text-left transition-all duration-300 ease-in-out hover:-translate-y-1 cardSurface"
+            className="w-full bg-zinc-900/50 backdrop-blur-sm rounded-2xl shadow-lg shadow-[0_0_12px_rgba(249,115,22,0.1)] border border-zinc-700/50 p-4 flex items-center gap-4 text-left transition-all duration-400 ease-in-out hover:border-orange-500/50 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(249,115,22,0.3)] shimmer glass-overlay relative overflow-hidden"
+            style={{ '--shimmer-delay': (Math.random() * 8 + 2) } as React.CSSProperties}
         >
             <div className="text-xl font-bold text-zinc-500 w-8 text-center flex-shrink-0">{rank}</div>
             <img src={profile.imageUrl} alt={profile.name} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
@@ -61,4 +61,3 @@ const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotli
 };
 
 export default RankedUserCard;
-      

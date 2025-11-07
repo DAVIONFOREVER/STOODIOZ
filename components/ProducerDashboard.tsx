@@ -20,7 +20,7 @@ const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="p-4 flex items-center gap-4 cardSurface">
+    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -74,20 +74,19 @@ const ProducerDashboard: React.FC = () => {
         }
     }, [dashboardInitialTab, dispatch]);
 
-    const profileFileInputRef = useRef<HTMLInputElement>(null);
-    const coverFileInputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'cover') => {
+    const handleImageUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                if (type === 'profile') {
-                    updateProfile({ imageUrl });
-                } else {
-                    updateProfile({ coverImageUrl: imageUrl });
-                }
+                updateProfile({ imageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -132,53 +131,53 @@ const ProducerDashboard: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-fade-in">
-             {/* Profile Header */}
-            <div className="cardSurface overflow-hidden">
-                <div className="relative h-40 md:h-56 bg-zinc-700">
-                    <img src={producer.coverImageUrl || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=800&auto=format&fit=crop'} alt="Cover" className="w-full h-full object-cover"/>
-                    <button 
-                        onClick={() => coverFileInputRef.current?.click()}
-                        className="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-black/70 transition-colors"
-                        aria-label="Change cover photo"
-                    >
-                        <EditIcon className="w-5 h-5" />
-                    </button>
-                    <input type="file" ref={coverFileInputRef} onChange={(e) => handleFileChange(e, 'cover')} className="hidden" accept="image/*"/>
-                </div>
-                <div className="p-6 pt-0">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-20 gap-4">
-                         <div className="relative group flex-shrink-0">
-                            <img src={producer.imageUrl} alt={producer.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-zinc-800" />
-                            <button 
-                                onClick={() => profileFileInputRef.current?.click()}
+            {/* Profile Header */}
+            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                     <div className="flex flex-col sm:flex-row items-center gap-6">
+                        <div className="relative group flex-shrink-0">
+                            <img src={producer.imageUrl} alt={producer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
+                             <button 
+                                onClick={handleImageUploadClick} 
                                 className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                                 aria-label="Change profile photo"
                             >
                                 <EditIcon className="w-8 h-8 text-white" />
                             </button>
-                            <input type="file" ref={profileFileInputRef} onChange={(e) => handleFileChange(e, 'profile')} className="hidden" accept="image/*" />
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept="image/*"
+                            />
                         </div>
-                        <div className="flex-grow text-center sm:text-left sm:pb-4">
+                        <div className="text-center sm:text-left">
                             <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{producer.name}</h1>
-                            <p className="text-zinc-400 mt-1">Producer Dashboard</p>
+                            <p className="text-zinc-400 mt-2">Producer Dashboard</p>
                         </div>
-                        <label className="flex items-center cursor-pointer sm:pb-4">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
-                            <div className="relative">
-                                <input type="checkbox" className="sr-only" checked={producer.isAvailable} onChange={(e) => updateProfile({ isAvailable: e.target.checked })} />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${producer.isAvailable ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.isAvailable ? 'translate-x-6' : ''}`}></div>
-                            </div>
-                        </label>
                     </div>
+                     <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                        <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
+                        <div className="relative">
+                            <input 
+                                type="checkbox" 
+                                className="sr-only" 
+                                checked={producer.isAvailable} 
+                                onChange={(e) => updateProfile({ isAvailable: e.target.checked })} 
+                            />
+                            <div className={`block w-12 h-6 rounded-full transition-colors ${producer.isAvailable ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                            <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.isAvailable ? 'translate-x-6' : ''}`}></div>
+                        </div>
+                    </label>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-white/5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
                     <StatCard label="Wallet Balance" value={`$${producer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                     <StatCard label="Beats for Sale" value={producer.instrumentals.length} icon={<MusicNoteIcon className="w-6 h-6 text-purple-400" />} />
                     <StatCard label="Followers" value={producer.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 </div>
             </div>
-            <div className="cardSurface">
+            <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />

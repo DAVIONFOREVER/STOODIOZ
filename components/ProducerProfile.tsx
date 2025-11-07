@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import type { Producer, Artist, Stoodio, Engineer } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons';
@@ -32,7 +31,7 @@ const ProfileCard: React.FC<{
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left cardSurface">
+        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left">
             <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -81,7 +80,7 @@ const ProducerProfile: React.FC = () => {
                 Back to Producers
             </button>
             <div className="max-w-4xl mx-auto space-y-12">
-                <div className="p-8 cardSurface">
+                <div className="bg-zinc-800 rounded-2xl shadow-lg p-8 border border-zinc-700">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
                         <img src={producer.imageUrl} alt={producer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left flex-grow">
@@ -133,7 +132,7 @@ const ProducerProfile: React.FC = () => {
                         <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-6 h-6" /> Links</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {producer.links.map(link => (
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="p-3 transition-colors flex items-center gap-3 cardSurface">
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="bg-zinc-800 p-3 rounded-lg hover:bg-zinc-700 transition-colors border border-zinc-700 flex items-center gap-3">
                                     <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
                                     <div className="overflow-hidden">
                                         <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>
@@ -191,4 +190,3 @@ const ProducerProfile: React.FC = () => {
 };
 
 export default ProducerProfile;
-      

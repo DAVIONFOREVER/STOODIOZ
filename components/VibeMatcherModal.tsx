@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CloseIcon, MagicWandIcon } from './icons';
 
@@ -20,7 +19,7 @@ const VibeMatcherModal: React.FC<VibeMatcherModalProps> = ({ onClose, onAnalyze,
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="w-full max-w-lg transform animate-slide-up cardSurface" role="dialog" aria-modal="true">
+            <div className="bg-zinc-800 rounded-xl shadow-2xl w-full max-w-lg transform animate-slide-up border border-zinc-700" role="dialog" aria-modal="true">
                 <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-slate-100">AI Vibe Matcher</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-200 transition-colors">
@@ -74,4 +73,3 @@ const VibeMatcherModal: React.FC<VibeMatcherModalProps> = ({ onClose, onAnalyze,
 };
 
 export default VibeMatcherModal;
-      
