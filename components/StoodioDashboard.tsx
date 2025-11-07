@@ -1,6 +1,6 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
-import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType, VerificationStatus } from '../types';
+import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
@@ -16,7 +16,6 @@ import * as apiService from '../services/apiService';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
-import StudioInsights from './StudioInsights';
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -42,7 +41,7 @@ const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onP
     const inputClasses = "mt-1 w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
-        <form onSubmit={handleSubmit} className="p-6 mb-6 cardSurface">
+        <form onSubmit={handleSubmit} className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-xl border border-zinc-700/50 mb-6">
             <h3 className="text-xl font-bold text-zinc-100 mb-4">Post a New Job</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
@@ -128,7 +127,7 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
 };
 
 const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
-    <div className="cardSurface p-6 text-white text-center">
+    <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 rounded-2xl text-white text-center shadow-lg shadow-orange-500/10">
         <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
         <h3 className="text-xl font-bold mb-2">Upgrade to Stoodio Pro</h3>
         <p className="text-sm opacity-90 mb-4">Unlock advanced features, lower service fees, and priority support to grow your business.</p>
@@ -157,7 +156,7 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
 
     return (
-        <div className="p-6 cardSurface">
+        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
             <h1 className="text-2xl font-bold text-zinc-100 mb-2 flex items-center gap-2">
                 <EditIcon className="w-6 h-6 text-orange-400" />
                 Profile Settings
@@ -202,10 +201,10 @@ interface StoodioDashboardProps {
     onNavigate: (view: AppView) => void;
 }
 
-type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
+    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -238,9 +237,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
     const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
-    
-    const profileFileInputRef = React.useRef<HTMLInputElement>(null);
-    const coverFileInputRef = React.useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (dashboardInitialTab) {
@@ -268,22 +264,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
         }
     };
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'cover') => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const imageUrl = e.target?.result as string;
-                if (type === 'profile') {
-                    updateProfile({ imageUrl });
-                } else {
-                    updateProfile({ coverImageUrl: imageUrl });
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
     const upcomingBookingsCount = bookings
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
@@ -302,22 +282,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'analytics':
-                if (stoodio.verificationStatus !== VerificationStatus.VERIFIED) {
-                    return (
-                        <div className="text-center p-8 cardSurface">
-                            <h3 className="text-xl font-bold text-zinc-100">Unlock Studio Insights</h3>
-                            <p className="text-zinc-400 mt-2">Verify your studio to access detailed analytics about your performance, bookings, and top engineers.</p>
-                            <button 
-                                onClick={() => setActiveTab('verification')}
-                                className="mt-4 bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600"
-                            >
-                                Go to Verification
-                            </button>
-                        </div>
-                    );
-                }
-                return <StudioInsights />;
             case 'settings':
                 return <StoodioSettings stoodio={stoodio} onUpdateStoodio={updateProfile} />;
             case 'verification':
@@ -342,7 +306,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                 );
             case 'photos':
                 return (
-                    <div className="p-6 cardSurface">
+                    <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
                         <h3 className="text-xl font-bold mb-4">Photo Management</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             {stoodio.photos.map((photo, index) => (
@@ -366,6 +330,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             <CreatePost currentUser={currentUser!} onPost={createPost} />
+                            {/* FIX: Removed invalid `currentUser` prop. */}
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
@@ -379,65 +344,48 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="cardSurface overflow-hidden">
-                <div className="relative h-40 md:h-56 bg-zinc-700">
-                    <img src={stoodio.coverImageUrl || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=800&auto=format&fit=crop'} alt="Cover" className="w-full h-full object-cover"/>
-                    <button 
-                        onClick={() => coverFileInputRef.current?.click()}
-                        className="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-black/70 transition-colors"
-                        aria-label="Change cover photo"
-                    >
-                        <EditIcon className="w-5 h-5" />
-                    </button>
-                    <input type="file" ref={coverFileInputRef} onChange={(e) => handleFileChange(e, 'cover')} className="hidden" accept="image/*"/>
-                </div>
-                <div className="p-6 pt-0">
-                     <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-20 gap-4">
-                        <div className="relative group flex-shrink-0">
-                            <img src={stoodio.imageUrl} alt={stoodio.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-zinc-800" />
-                            <button 
-                                onClick={() => profileFileInputRef.current?.click()}
-                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                aria-label="Change profile photo"
-                            >
-                                <EditIcon className="w-8 h-8 text-white" />
-                            </button>
-                            <input type="file" ref={profileFileInputRef} onChange={(e) => handleFileChange(e, 'profile')} className="hidden" accept="image/*" />
-                        </div>
-                        <div className="flex-grow text-center sm:text-left sm:pb-4">
+            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                     <div className="flex flex-col sm:flex-row items-center gap-6">
+                        <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                        <div className="text-center sm:text-left">
                             <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
-                            <p className="text-zinc-400 mt-1">Stoodio Dashboard</p>
-                        </div>
-                         <div className="flex-shrink-0 flex flex-col gap-y-2 sm:pb-4">
-                            <button
-                                onClick={handleBookSession}
-                                className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm shadow-md flex items-center justify-center gap-2"
-                            >
-                                <CalendarIcon className="w-4 h-4"/>
-                                View Public Profile
-                            </button>
-                            <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                                <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
-                                <div className="relative">
-                                    <input type="checkbox" className="sr-only" checked={stoodio.showOnMap ?? false} onChange={(e) => updateProfile({ showOnMap: e.target.checked })} />
-                                    <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
-                                </div>
-                            </label>
+                            <p className="text-zinc-400 mt-2">Stoodio Dashboard</p>
                         </div>
                     </div>
+                    <div className="flex-shrink-0 flex flex-col gap-y-4">
+                        <button
+                            onClick={handleBookSession}
+                            className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                        >
+                            <CalendarIcon className="w-5 h-5"/>
+                            Book a New Session
+                        </button>
+                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+                            <div className="relative">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only" 
+                                    checked={stoodio.showOnMap ?? false} 
+                                    onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
+                                />
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-white/5">
-                    <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+                     <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                     <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                     <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 </div>
             </div>
 
-            <div className="cardSurface">
+            <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
                     <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />

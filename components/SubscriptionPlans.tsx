@@ -109,6 +109,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     icon={<MusicNoteIcon className="w-8 h-8 text-purple-400"/>}
                     title="Producer Pro"
                     price="39"
+                    badge="PRO"
                     features={[
                         "Verified producer profile",
                         "Booking calendar and payment integration",
@@ -123,6 +124,8 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     icon={<SoundWaveIcon className="w-8 h-8 text-indigo-400"/>}
                     title="Engineer Pro"
                     price="69"
+                    badge="PRO"
+                    isFeatured
                     features={[
                         "Verified listing in marketplace",
                         "Job board access & automation",
@@ -137,6 +140,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     icon={<HouseIcon className="w-8 h-8 text-red-400"/>}
                     title="Stoodio Pro"
                     price="149"
+                    badge="PRO"
                     features={[
                         "Full studio management suite",
                         "Multi-room scheduling and staff coordination",
