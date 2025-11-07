@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
@@ -35,7 +33,7 @@ const ProfileCard: React.FC<{
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left">
+        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left cardSurface">
             <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -292,7 +290,7 @@ const StoodioDetail: React.FC = () => {
 
                 {/* Right Column: Calendar and Booking */}
                 <div className="lg:col-span-2">
-                    <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg border border-zinc-700 sticky top-28">
+                    <div className="p-6 sticky top-28 cardSurface">
                         <h2 className="text-3xl font-bold mb-4 text-center text-slate-100">Book a Room</h2>
                         <div className="space-y-4 mb-6">
                             {stoodio.rooms.map(room => (

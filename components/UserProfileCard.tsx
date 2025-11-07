@@ -18,7 +18,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, onNavigate }) =
     };
 
     return (
-        <div className="bg-zinc-800 rounded-2xl shadow-lg border border-zinc-700 overflow-hidden">
+        <div className="overflow-hidden cardSurface">
             <div className="h-20 bg-gradient-to-r from-orange-500 to-amber-500"></div>
             <div className="p-4 pt-0 -mt-10">
                 <img 
@@ -41,3 +41,4 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, onNavigate }) =
 };
 
 export default UserProfileCard;
+      

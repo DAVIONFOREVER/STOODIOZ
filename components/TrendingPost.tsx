@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Post, Artist, Engineer, Stoodio, Producer } from '../types';
 import { HeartIcon, ChatBubbleIcon } from './icons';
@@ -16,7 +17,7 @@ const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onSelectUser 
     const isLiked = currentUser ? post.likes.includes(currentUser.id) : false;
 
     return (
-        <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-lg">
+        <div className="p-4 cardSurface">
             <h3 className="font-bold text-slate-100 px-1 mb-2">Trending on Stoodioz</h3>
             <div className="bg-zinc-700/50 rounded-lg p-3 border border-zinc-600">
                 <button onClick={() => onSelectUser(author)} className="flex items-center gap-3 mb-2 text-left">
@@ -40,3 +41,4 @@ const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onSelectUser 
 };
 
 export default TrendingPost;
+      

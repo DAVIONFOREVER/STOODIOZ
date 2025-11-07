@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Engineer, MixingSample } from '../types';
 import { MusicNoteIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
@@ -99,7 +100,7 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
     };
 
     return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="p-6 cardSurface">
              <div className="flex justify-between items-center mb-6">
                  <h1 className="text-2xl font-bold text-zinc-100">My Mixing Samples</h1>
                  <button onClick={() => handleOpenModal({})} className="flex items-center gap-2 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm">
@@ -131,3 +132,4 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
 };
 
 export default MixingSampleManager;
+      

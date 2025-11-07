@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Engineer } from '../types';
 import { BellIcon, RoadIcon, DollarSignIcon } from './icons';
@@ -24,7 +25,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
     };
 
     return (
-        <div className="bg-zinc-800/50 p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="p-6 cardSurface">
             <h1 className="text-2xl font-bold text-zinc-100 mb-2 flex items-center gap-2">
                 <BellIcon className="w-6 h-6 text-orange-400" />
                 Job Preferences
@@ -112,3 +113,4 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
 };
 
 export default NotificationSettings;
+      
