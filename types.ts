@@ -31,6 +31,7 @@ export enum AppView {
     PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
     ADMIN_RANKINGS = 'ADMIN_RANKINGS',
+    STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
     LEADERBOARD = 'LEADERBOARD',
 }
 
@@ -178,7 +179,6 @@ export interface BaseUser {
     email: string;
     password?: string;
     imageUrl: string;
-    coverImageUrl?: string;
     followers: number;
     followerIds: string[];
     following: Following;

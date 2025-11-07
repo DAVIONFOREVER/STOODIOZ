@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { AppView, UserRole } from '../types';
 import { CheckCircleIcon, SoundWaveIcon, HouseIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
@@ -28,7 +29,7 @@ const PlanCard: React.FC<{
     badge?: string;
     onClick: () => void;
 }> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick }) => (
-    <div className={`relative p-8 flex flex-col ${isFeatured ? 'border-2 border-orange-500/50 bg-zinc-900 shadow-2xl shadow-orange-500/10' : 'cardSurface'}`}>
+    <div className={`relative p-8 flex flex-col ${isFeatured ? 'border-orange-500/50 bg-zinc-900 shadow-2xl shadow-orange-500/10' : 'cardSurface'}`}>
         {badge && (
             <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">{badge}</div>
         )}
@@ -109,6 +110,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     icon={<MusicNoteIcon className="w-8 h-8 text-purple-400"/>}
                     title="Producer Pro"
                     price="39"
+                    badge="PRO"
                     features={[
                         "Verified producer profile",
                         "Booking calendar and payment integration",
@@ -123,11 +125,13 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     icon={<SoundWaveIcon className="w-8 h-8 text-indigo-400"/>}
                     title="Engineer Pro"
                     price="69"
+                    badge="PRO"
+                    isFeatured
                     features={[
-                        "Verified listing in marketplace",
-                        "Job board access & automation",
-                        "Session calendar & reminders",
-                        "Income and session tracking insights",
+                        "Verified engineer listing in marketplace",
+                        "Job board access and repeat-client automation",
+                        "Session calendar + automated reminders",
+                        "Insights dashboard for income and session tracking",
                     ]}
                     tagline="More sessions. Less chasing."
                     buttonText="Upgrade Now"
@@ -137,6 +141,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     icon={<HouseIcon className="w-8 h-8 text-red-400"/>}
                     title="Stoodio Pro"
                     price="149"
+                    badge="PRO"
                     features={[
                         "Full studio management suite",
                         "Multi-room scheduling and staff coordination",
@@ -153,3 +158,4 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
 };
 
 export default SubscriptionPlans;
+      

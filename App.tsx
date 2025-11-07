@@ -1,6 +1,5 @@
 
 
-
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
@@ -65,6 +64,7 @@ const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults'))
 const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans'));
 const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant'));
 const AdminRankings = lazy(() => import('./components/AdminRankings'));
+const StudioInsights = lazy(() => import('./components/StudioInsights'));
 // FIX: Added lazy import for the new Leaderboard component.
 const Leaderboard = lazy(() => import('./components/Leaderboard'));
 
@@ -241,6 +241,13 @@ const App: React.FC = () => {
                     return null;
                 }
                 return <AdminRankings />;
+            
+            case AppView.STUDIO_INSIGHTS:
+                 if (!currentUser || userRole !== UserRole.STOODIO || (currentUser as Stoodio).verificationStatus !== VerificationStatus.VERIFIED) {
+                    navigate(AppView.STOODIO_DASHBOARD);
+                    return null;
+                }
+                return <StudioInsights />;
 
             // --- USER-SPECIFIC DASHBOARDS & SESSIONS ---
             default:

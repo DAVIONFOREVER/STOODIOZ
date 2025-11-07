@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
@@ -33,7 +34,7 @@ const ProfileCard: React.FC<{
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left cardSurface">
+        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left">
             <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -336,3 +337,4 @@ const StoodioDetail: React.FC = () => {
 };
 
 export default StoodioDetail;
+      
