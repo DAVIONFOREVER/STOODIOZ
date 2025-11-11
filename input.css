@@ -16,7 +16,7 @@
     right: 0;
     bottom: 0;
     background: radial-gradient(ellipse 40% 50% at 20% 30%, rgba(249, 115, 22, 0.15) 0%, transparent 100%),
-                radial-gradient(ellipse 40% 50% at 80% 70%, rgba(251, 146, 60, 0.1) 0%, transparent 100%);
+                radial-gradient(ellipse 40% 50% at 80% 70%, rgba(124, 58, 237, 0.1) 0%, transparent 100%);
     animation: ambient-drift 30s alternate infinite ease-in-out;
     z-index: -1;
     will-change: transform;
@@ -38,12 +38,11 @@
     /* ARIA Vibe Mode: Shimmer animation for cards */
     .shimmer::before {
         content: '';
-        @apply absolute top-0 w-1/2 h-full z-20;
+        @apply absolute top-0 w-1/2 h-full z-20 pointer-events-none;
         background: linear-gradient(to right, transparent 0%, rgba(251, 146, 60, 0.15) 50%, transparent 100%);
         animation: shimmer-sweep 10s infinite ease-in-out;
         /* Use a CSS variable for delay, to be set inline on each card */
         animation-delay: calc(var(--shimmer-delay, 0) * 1s);
-        pointer-events: none;
         transform: skewX(-25deg);
     }
 
