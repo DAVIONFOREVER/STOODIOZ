@@ -1,4 +1,3 @@
-
 // All type definitions for the Stoodioz application
 
 export enum AppView {

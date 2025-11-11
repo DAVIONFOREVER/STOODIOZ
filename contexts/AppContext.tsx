@@ -44,6 +44,7 @@ export interface AppState {
     ariaNudge: string | null;
     isNudgeVisible: boolean;
     dashboardInitialTab: string | null;
+    isSaved: boolean;
 }
 
 type ActionMap<M extends { [index: string]: any }> = {
@@ -201,6 +202,7 @@ const initialState: AppState = {
     ariaNudge: null,
     isNudgeVisible: false,
     dashboardInitialTab: null,
+    isSaved: false,
 };
 
 // --- REDUCER ---
@@ -281,12 +283,13 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             // Make Aria Cantata follow the new user back permanently.
             const aria = updatedState.artists.find(a => a.id === 'artist-aria-cantata');
             if (aria) {
-                const newFollowerIds = [...new Set([...aria.followerIds, newUser.id])];
-                const updatedAria = {
-                    ...aria,
-                    followerIds: newFollowerIds,
-                    followers: newFollowerIds.length,
-                };
+                let newFollowing: Following = { ...aria.following };
+                if (role === UserRole.ARTIST && !newFollowing.artists.includes(newUser.id)) newFollowing.artists.push(newUser.id);
+                if (role === UserRole.ENGINEER && !newFollowing.engineers.includes(newUser.id)) newFollowing.engineers.push(newUser.id);
+                if (role === UserRole.PRODUCER && !newFollowing.producers.includes(newUser.id)) newFollowing.producers.push(newUser.id);
+                if (role === UserRole.STOODIO && !newFollowing.stoodioz.includes(newUser.id)) newFollowing.stoodioz.push(newUser.id);
+
+                const updatedAria = { ...aria, following: newFollowing };
                 updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
             }
 
