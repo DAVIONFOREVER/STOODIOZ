@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Engineer } from '../types';
 import { UserPlusIcon, UserCheckIcon, StarIcon } from './icons';
@@ -21,8 +22,7 @@ const EngineerCard: React.FC<EngineerCardProps> = ({ engineer, onSelectEngineer,
 
     return (
         <div 
-            className="p-6 group transition-all duration-400 ease-in-out hover:border-orange-500/50 hover:-translate-y-1 hover:rotate-1 shimmer glass-overlay relative overflow-hidden cardSurface"
-            style={{ '--shimmer-delay': (Math.random() * 8 + 2) } as React.CSSProperties}
+            className="cardSurface p-6 group relative overflow-hidden"
         >
             <div className="relative">
                 <button onClick={() => onSelectEngineer(engineer)} className="w-full text-center">

@@ -12,9 +12,8 @@ interface StoodioCardProps {
 const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) => {
     return (
         <div
-            className="bg-zinc-900/50 backdrop-blur-sm rounded-2xl shadow-lg shadow-[0_0_12px_rgba(249,115,22,0.2)] cursor-pointer group transition-all duration-400 ease-in-out border border-zinc-700/50 hover:shadow-[0_0_24px_rgba(249,115,22,0.4),_0_20px_40px_-15px_rgba(249,115,22,0.2)] hover:border-orange-500/50 hover:-translate-y-1 hover:rotate-1 shimmer glass-overlay relative overflow-hidden"
+            className="cardSurface cursor-pointer group relative overflow-hidden"
             onClick={() => onSelectStoodio(stoodio)}
-            style={{ '--shimmer-delay': (Math.random() * 8 + 2) } as React.CSSProperties}
         >
             <div className="relative">
                 <img loading="lazy" src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -29,7 +28,7 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                     </h3>
                     <p className="text-zinc-300 font-semibold flex items-center gap-1.5"><LocationIcon className="w-4 h-4" /> {stoodio.location}</p>
                 </div>
-                <div className="absolute top-4 right-4 bg-zinc-900/80 px-3 py-1.5 rounded-full flex items-center gap-1.5 text-yellow-400 font-bold text-sm">
+                <div className="absolute top-4 right-4 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5 text-yellow-400 font-bold text-sm">
                     <StarIcon className="w-4 h-4" />
                     {/* FIX: Changed `stoodio.rating` to `stoodio.rating_overall` to match the property name in the `BaseUser` type. */}
                     <span>{stoodio.rating_overall.toFixed(1)}</span>

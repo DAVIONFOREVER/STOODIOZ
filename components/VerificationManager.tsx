@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Stoodio } from '../types';
 import { VerificationStatus } from '../types';
@@ -19,7 +20,7 @@ const VerificationManager: React.FC<VerificationManagerProps> = ({ stoodio, onVe
 
     if (stoodio.verificationStatus === VerificationStatus.VERIFIED) {
         return (
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-lg shadow-md border border-zinc-700/50 text-center">
+            <div className="cardSurface p-6 text-center">
                 <VerifiedIcon className="w-16 h-16 text-blue-500 mx-auto" />
                 <h3 className="text-2xl font-bold text-zinc-100 mt-4">You're Verified!</h3>
                 <p className="text-zinc-400 mt-2">Your stoodio is now marked as a trusted and legitimate business on the platform. Verified stoodioz get a boost in search results.</p>
@@ -29,7 +30,7 @@ const VerificationManager: React.FC<VerificationManagerProps> = ({ stoodio, onVe
 
     if (stoodio.verificationStatus === VerificationStatus.PENDING) {
         return (
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-lg shadow-md border border-zinc-700/50 text-center">
+            <div className="cardSurface p-6 text-center">
                 <ClockIcon className="w-16 h-16 text-yellow-500 mx-auto animate-pulse" />
                 <h3 className="text-2xl font-bold text-zinc-100 mt-4">Verification Pending</h3>
                 <p className="text-zinc-400 mt-2">Your submission is under review by our team. This usually takes 24-48 hours. We'll notify you once it's complete.</p>
@@ -38,7 +39,7 @@ const VerificationManager: React.FC<VerificationManagerProps> = ({ stoodio, onVe
     }
 
     return (
-        <div className="bg-zinc-800/50 backdrop-blur-sm p-6 rounded-lg shadow-md border border-zinc-700/50">
+        <div className="cardSurface p-6">
             <h1 className="text-2xl font-bold text-zinc-100 mb-2">Get Your Stoodio Verified</h1>
             <p className="text-zinc-400 mb-6">
                 Submit your public business information to earn a "Verified" badge. This helps artists trust your listing and improves your visibility in search results.
