@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { AppView, SmokingPolicy } from '../types';
 
@@ -133,4 +134,3 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
 };
 
 export default StoodioSetup;
-      

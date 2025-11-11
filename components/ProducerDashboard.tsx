@@ -20,7 +20,7 @@ const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
-    <div className="bg-zinc-800/50 p-4 rounded-xl flex items-center gap-4 border border-zinc-700/50">
+    <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
         <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
         <div>
             <p className="text-zinc-400 text-sm font-medium">{label}</p>
@@ -132,7 +132,7 @@ const ProducerDashboard: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="bg-zinc-800/50 backdrop-blur-sm p-6 md:p-8 rounded-2xl border border-zinc-700/50 shadow-lg">
+            <div className="p-6 md:p-8 cardSurface">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                      <div className="flex flex-col sm:flex-row items-center gap-6">
                         <div className="relative group flex-shrink-0">
@@ -177,7 +177,7 @@ const ProducerDashboard: React.FC = () => {
                     <StatCard label="Followers" value={producer.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 </div>
             </div>
-            <div className="bg-zinc-800/50 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-lg">
+            <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
