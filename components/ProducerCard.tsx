@@ -34,7 +34,7 @@ const ProducerCard: React.FC<ProducerCardProps> = ({ producer, onSelectProducer,
                         <span className="font-bold text-sm text-slate-200">{producer.rating_overall.toFixed(1)}</span>
                     </div>
                 </button>
-                <p className="text-slate-400 text-xs text-center mt-2 h-9 overflow-hidden">{producer.genres.join(' • ')}</p>
+                <p className="text-slate-400 text-xs text-center mt-2 h-9 overflow-hidden">{producer.genres?.join(' • ')}</p>
                 <div className="mt-4">
                     {isLoggedIn && !isSelf && (
                          <button

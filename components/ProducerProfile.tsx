@@ -1,6 +1,4 @@
 
-
-
 import React, { useMemo } from 'react';
 import type { Producer, Artist, Stoodio, Engineer } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons';
@@ -24,10 +22,10 @@ const ProfileCard: React.FC<{
         details = (profile as Stoodio).location;
     } else if (type === 'engineer') {
         icon = <SoundWaveIcon className="w-4 h-4" />;
-        details = (profile as Engineer).specialties.join(', ');
+        details = (profile as Engineer).specialties?.join(', ');
     } else if (type === 'producer') {
         icon = <MusicNoteIcon className="w-4 h-4" />;
-        details = (profile as Producer).genres.join(', ');
+        details = (profile as Producer).genres?.join(', ');
     } else { // artist
         icon = <MicrophoneIcon className="w-4 h-4" />;
         details = (profile as Artist).bio;

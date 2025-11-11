@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo } from 'react';
 import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
 import { UserRole } from '../types';
@@ -25,10 +23,10 @@ const ProfileCard: React.FC<{
         details = (profile as Stoodio).location;
     } else if (type === 'engineer') {
         icon = <SoundWaveIcon className="w-4 h-4" />;
-        details = (profile as Engineer).specialties.join(', ');
+        details = (profile as Engineer).specialties?.join(', ');
     } else if (type === 'producer') {
         icon = <MusicNoteIcon className="w-4 h-4" />;
-        details = (profile as Producer).genres.join(', ');
+        details = (profile as Producer).genres?.join(', ');
     } else { // artist
         icon = <MicrophoneIcon className="w-4 h-4" />;
         details = (profile as Artist).bio;

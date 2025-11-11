@@ -12,10 +12,15 @@ interface TipModalProps {
 const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) => {
     const [tipPercentage, setTipPercentage] = useState<number | null>(20);
     const [customAmount, setCustomAmount] = useState<string>('');
+
+    if (!booking.engineer) {
+        // This is an invalid state, but we handle it gracefully by not rendering the modal.
+        return null;
+    }
     
     const tipOptions = [15, 20, 25];
 
-    const engineerPayout = booking.engineer ? booking.engineerPayRate * booking.duration : 0;
+    const engineerPayout = booking.engineerPayRate * booking.duration;
 
     const finalTipAmount = useMemo(() => {
         if (customAmount) return parseFloat(customAmount) || 0;
@@ -38,10 +43,6 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
             onConfirmTip(booking.id, finalTipAmount);
         }
     };
-
-    if (!booking.engineer) {
-        return null; // Should not be able to tip if there's no engineer
-    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
@@ -111,4 +112,3 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
 };
 
 export default TipModal;
-      

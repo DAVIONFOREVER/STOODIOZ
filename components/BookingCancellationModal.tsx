@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Booking } from '../types';
@@ -55,7 +56,7 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
 
                 <div className="p-6">
                     <p className="text-slate-300 text-center mb-4">
-                        Are you sure you want to cancel your session at <strong className="text-slate-100">{booking.stoodio.name}</strong> on {new Date(booking.date + 'T00:00').toLocaleDateString()}?
+                        Are you sure you want to cancel your session {booking.stoodio ? <>at <strong className="text-slate-100">{booking.stoodio.name}</strong></> : booking.engineer ? <>with <strong className="text-slate-100">{booking.engineer.name}</strong></> : ''} on {new Date(booking.date + 'T00:00').toLocaleDateString()}?
                     </p>
                     
                     <div className="bg-red-500/10 p-4 rounded-lg border border-red-500/20">
