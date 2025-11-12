@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole, AriaActionResponse } from '../types';
 import { askAriaCantata } from '../services/geminiService';
 import { CloseIcon, PaperAirplaneIcon, MagicWandIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
@@ -7,16 +7,7 @@ import { useAppState } from '../contexts/AppContext';
 interface AriaCantataAssistantProps {
     isOpen: boolean;
     onClose: () => void;
-    onStartConversation: (participant: Artist | Engineer | Stoodio | Producer) => void;
-    onStartGroupConversation: (participants: (Artist | Engineer | Stoodio | Producer)[], title: string) => void;
-    onUpdateProfile: (updates: Partial<Artist | Engineer | Stoodio | Producer>) => void;
-    onBookStudio: (details: Omit<Booking, 'id' | 'status'>) => void;
-    onShowVibeMatchResults: (results: VibeMatchResult) => void;
-    onNavigateRequest: (view: AppView, entityName?: string) => void;
-    onStartSetupRequest: (role: UserRole) => void;
-    onSendMessageRequest: (recipientName: string, messageText: string) => void;
-    onSendDocument: (recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => void;
-    onGetDirectionsRequest: (entityName: string) => void;
+    onExecuteCommand: (command: AriaActionResponse, onClose: () => void) => void;
     history: AriaCantataMessage[];
     setHistory: (history: AriaCantataMessage[]) => void;
     initialPrompt: string | null;
@@ -33,9 +24,7 @@ const TypingIndicator: React.FC = () => (
 
 const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     const { 
-        isOpen, onClose, onStartConversation, onStartGroupConversation, onUpdateProfile,
-        onBookStudio, onShowVibeMatchResults, onNavigateRequest, onStartSetupRequest, onSendMessageRequest,
-        onSendDocument, onGetDirectionsRequest, history, setHistory, initialPrompt, clearInitialPrompt 
+        isOpen, onClose, onExecuteCommand, history, setHistory, initialPrompt, clearInitialPrompt 
     } = props;
     const { currentUser, artists, engineers, producers, stoodioz, bookings } = useAppState();
     
@@ -44,9 +33,6 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
             `Welcome back, ${currentUser?.name || 'superstar'}. Let’s create something worth remembering.`,
             `Hey, ${currentUser?.name || 'gorgeous'}. Ready to make the world listen?`,
             `Your sound is waiting, ${currentUser?.name || 'creative'}. Let’s make it timeless.`,
-            `Back in the studio? That’s power. Let’s get to work, ${currentUser?.name || 'superstar'}.`,
-            `Welcome home to Stoodioz, ${currentUser?.name || 'creative'}. The stage is yours.`,
-            `Oh, you’re back. Let’s turn creativity into luxury, ${currentUser?.name || 'darling'}.`
         ];
         const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
         return {
@@ -70,7 +56,6 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     useEffect(() => {
         if (isOpen) {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-            // Set focus to the input when the assistant opens.
             inputRef.current?.focus();
         }
     }, [history, isOpen]);
@@ -90,54 +75,30 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
         if (!question || isLoading) return;
 
         const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text: question }] };
-        const historyBeforeSend = history; // Capture history before optimistic update
+        const historyBeforeSend = [...history, userMessage];
         
-        setHistory([...historyBeforeSend, userMessage]); // Optimistic UI update
+        setHistory(historyBeforeSend);
         setInputValue('');
         setIsLoading(true);
 
         try {
-            // Pass the OLD history and the new question string to the service
-            const response = await askAriaCantata(historyBeforeSend, question, currentUser, { artists, engineers, producers, stoodioz, bookings });
+            const command = await askAriaCantata(history, question, currentUser, { artists, engineers, producers, stoodioz, bookings });
             
-            const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
+            const responseText = command.text || (command.type === 'error' ? command.value : "Done.");
+            const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: responseText }] };
             
-            // Final state update with the model's response
-            setHistory([...historyBeforeSend, userMessage, ariaResponse]);
+            setHistory([...historyBeforeSend, ariaResponse]);
 
-            if (response.type === 'function') {
-                setTimeout(() => {
-                    if (response.action === 'assistAccountSetup') {
-                        onStartSetupRequest(response.payload.role);
-                        onClose();
-                    } else if (response.action === 'navigateApp') {
-                        onNavigateRequest(response.payload.view, response.payload.entityName);
-                        onClose();
-                    } else if (response.action === 'getDirections') {
-                        onGetDirectionsRequest(response.payload.entityName);
-                    } else if (response.action === 'startConversation') {
-                        onStartConversation(response.payload.participant);
-                    } else if (response.action === 'startGroupConversation') {
-                        onStartGroupConversation(response.payload.participants, response.payload.conversationTitle);
-                    } else if (response.action === 'updateProfile') {
-                        onUpdateProfile(response.payload.updates);
-                    } else if (response.action === 'bookStudio') {
-                        onBookStudio(response.payload.bookingDetails);
-                    } else if (response.action === 'showVibeMatchResults') {
-                        onShowVibeMatchResults(response.payload.results);
-                        onClose();
-                    } else if (response.action === 'sendMessage') {
-                        onSendMessageRequest(response.payload.recipientName, response.payload.messageText);
-                    } else if (response.action === 'sendDocumentMessage') {
-                        onSendDocument(response.payload.recipient, response.payload.documentContent, response.payload.fileName);
-                    }
-                }, 1500);
+            if (command.type !== 'speak' && command.type !== 'error') {
+                 setTimeout(() => {
+                    onExecuteCommand(command, onClose);
+                }, 1000); // Small delay to let user read the response
             }
 
         } catch (error) {
-            const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I encountered an error. Please try again." }] };
-            // On error, also update the history correctly
-            setHistory([...historyBeforeSend, userMessage, errorResponse]);
+            console.error("Aria parsing error:", error);
+            const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I had a moment. Please try that again." }] };
+            setHistory([...historyBeforeSend, errorResponse]);
         } finally {
             setIsLoading(false);
         }

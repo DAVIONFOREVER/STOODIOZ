@@ -2,7 +2,7 @@
 
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
-import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage } from './types';
+import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
 import { AppView, UserRole } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
@@ -111,26 +111,23 @@ const App: React.FC = () => {
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
-    
-    // FIX: The `startConversation` function was not defined, causing errors when passed to the `useAria` hook and used in the `AriaCantataAssistant` component. This is fixed by instantiating the `useMessaging` hook.
     const { startConversation } = useMessaging(navigate);
-
-    const {
-        handleAriaCantataBooking,
-        handleShowVibeResults,
-        handleAriaGroupConversation,
-        handleAriaSendMessage,
-        handleAriaSendDocument,
-        handleAriaNavigation,
-        handleAriaGetDirections,
-        handleAriaNudgeClick,
-        handleDismissAriaNudge
-    } = useAria(startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking);
-
     const { updateProfile } = useProfile();
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
     const { handleSubscribe } = useSubscription(navigate);
+    const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
+        startConversation,
+        navigate,
+        viewStoodioDetails,
+        viewEngineerProfile,
+        viewProducerProfile,
+        viewArtistProfile,
+        navigateToStudio,
+        confirmBooking,
+        updateProfile,
+        selectRoleToSetup,
+    });
 
     useEffect(() => {
         if (currentUser && userRole) {
@@ -259,16 +256,7 @@ const App: React.FC = () => {
             <AriaCantataAssistant 
                 isOpen={isAriaCantataOpen}
                 onClose={closeAriaCantata}
-                onStartConversation={startConversation}
-                onStartGroupConversation={handleAriaGroupConversation}
-                onUpdateProfile={updateProfile}
-                onBookStudio={handleAriaCantataBooking as any}
-                onShowVibeMatchResults={handleShowVibeResults}
-                onNavigateRequest={handleAriaNavigation}
-                onStartSetupRequest={selectRoleToSetup}
-                onSendMessageRequest={(recipientName, messageText) => handleAriaSendMessage(recipientName, messageText, currentUser)}
-                onSendDocument={handleAriaSendDocument}
-                onGetDirectionsRequest={handleAriaGetDirections}
+                onExecuteCommand={(command: AriaActionResponse) => executeCommand(command, closeAriaCantata)}
                 history={ariaHistory}
                 setHistory={(h: AriaCantataMessage[]) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: h }})}
                 initialPrompt={initialAriaCantataPrompt}

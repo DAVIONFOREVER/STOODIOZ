@@ -407,10 +407,10 @@ export interface AriaCantataMessage {
 }
 
 export interface AriaActionResponse {
-    type: 'text' | 'function';
-    text: string;
-    action?: string;
-    payload?: any;
+    type: string;
+    target: string | null;
+    value: any | null;
+    text?: string;
 }
 
 export interface AnalyticsData {
