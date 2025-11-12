@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Engineer, Artist, Stoodio, Producer } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
@@ -56,13 +57,25 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 const EngineerDashboard: React.FC = () => {
     const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers } = useAppState();
     const dispatch = useAppDispatch();
-    const engineer = currentUser as Engineer;
     
     const { navigate, viewBooking, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
     const { updateProfile } = useProfile();
 
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
+
+    // FIX: Add a guard clause to prevent crashes if the component is rendered with a null user.
+    // This can happen in rare edge cases during logout or navigation race conditions.
+    if (!currentUser) {
+        // Render a loading state or null to prevent the component from crashing.
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p>Loading user data...</p>
+            </div>
+        );
+    }
+    
+    const engineer = currentUser as Engineer;
 
     useEffect(() => {
         if (dashboardInitialTab) {

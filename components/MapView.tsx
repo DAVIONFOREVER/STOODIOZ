@@ -309,7 +309,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                         <OverlayViewF
                             key={item.id}
                             position={{ lat: item.coordinates!.lat, lng: item.coordinates!.lon }}
-                            mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
+                            // FIX: Replace OverlayViewF.OVERLAY_MOUSE_TARGET with the correct string literal 'overlayMouseTarget'.
+                            mapPaneName={'overlayMouseTarget'}
                         >
                             <MapMarker item={item} onSelect={handleSelect} />
                         </OverlayViewF>
@@ -319,7 +320,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                         <OverlayViewF
                             key={`${item.id}-animated`}
                             position={{ lat: animatedPositions[item.id].lat, lng: animatedPositions[item.id].lon }}
-                            mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
+                            // FIX: Replace OverlayViewF.OVERLAY_MOUSE_TARGET with the correct string literal 'overlayMouseTarget'.
+                            mapPaneName={'overlayMouseTarget'}
                         >
                             <MapMarker item={item} onSelect={handleSelect} inTransit={true} />
                         </OverlayViewF>
