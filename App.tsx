@@ -256,26 +256,24 @@ const App: React.FC = () => {
             { isNudgeVisible && ariaNudge &&
                 <AriaNudge message={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />
             }
-             { isAriaCantataOpen &&
-                <AriaCantataAssistant 
-                    isOpen={isAriaCantataOpen}
-                    onClose={closeAriaCantata}
-                    onStartConversation={startConversation}
-                    onStartGroupConversation={handleAriaGroupConversation}
-                    onUpdateProfile={updateProfile}
-                    onBookStudio={handleAriaCantataBooking as any}
-                    onShowVibeMatchResults={handleShowVibeResults}
-                    onNavigateRequest={handleAriaNavigation}
-                    onStartSetupRequest={selectRoleToSetup}
-                    onSendMessageRequest={(recipientName, messageText) => handleAriaSendMessage(recipientName, messageText, currentUser)}
-                    onSendDocument={handleAriaSendDocument}
-                    onGetDirectionsRequest={handleAriaGetDirections}
-                    history={ariaHistory}
-                    setHistory={(h: AriaCantataMessage[]) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: h }})}
-                    initialPrompt={initialAriaCantataPrompt}
-                    clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null }})}
-                />
-            }
+            <AriaCantataAssistant 
+                isOpen={isAriaCantataOpen}
+                onClose={closeAriaCantata}
+                onStartConversation={startConversation}
+                onStartGroupConversation={handleAriaGroupConversation}
+                onUpdateProfile={updateProfile}
+                onBookStudio={handleAriaCantataBooking as any}
+                onShowVibeMatchResults={handleShowVibeResults}
+                onNavigateRequest={handleAriaNavigation}
+                onStartSetupRequest={selectRoleToSetup}
+                onSendMessageRequest={(recipientName, messageText) => handleAriaSendMessage(recipientName, messageText, currentUser)}
+                onSendDocument={handleAriaSendDocument}
+                onGetDirectionsRequest={handleAriaGetDirections}
+                history={ariaHistory}
+                setHistory={(h: AriaCantataMessage[]) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: h }})}
+                initialPrompt={initialAriaCantataPrompt}
+                clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null }})}
+            />
             
             <button
                 onClick={toggleAriaCantata}

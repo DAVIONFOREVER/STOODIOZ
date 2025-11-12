@@ -35,7 +35,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     const { 
         isOpen, onClose, onStartConversation, onStartGroupConversation, onUpdateProfile,
         onBookStudio, onShowVibeMatchResults, onNavigateRequest, onStartSetupRequest, onSendMessageRequest,
-        onGetDirectionsRequest, onSendDocument, history, setHistory, initialPrompt, clearInitialPrompt 
+        onSendDocument, onGetDirectionsRequest, history, setHistory, initialPrompt, clearInitialPrompt 
     } = props;
     const { currentUser, artists, engineers, producers, stoodioz, bookings } = useAppState();
     
@@ -58,6 +58,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const isProcessingInitialPrompt = useRef(false);
 
     useEffect(() => {
@@ -69,6 +70,8 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     useEffect(() => {
         if (isOpen) {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            // Set focus to the input when the assistant opens.
+            inputRef.current?.focus();
         }
     }, [history, isOpen]);
 
@@ -140,14 +143,18 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
         }
     };
 
-    if (!isOpen) return null;
-
     return (
         <div 
-            className="fixed bottom-6 right-6 z-[60] w-[calc(100%-3rem)] max-w-sm h-[70vh] max-h-[600px] bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-zinc-700/50 flex flex-col animate-slide-up"
+            className={`
+                fixed bottom-6 right-6 z-[60] w-[calc(100%-3rem)] max-w-sm h-[70vh] max-h-[600px] 
+                bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-zinc-700/50 
+                flex flex-col transition-all duration-300 ease-in-out
+                ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}
+            `}
             role="dialog"
             aria-modal="true"
             aria-labelledby="aria-heading"
+            aria-hidden={!isOpen}
         >
             {/* Header */}
             <header className="flex items-center justify-between p-4 border-b border-zinc-700/50 flex-shrink-0">
@@ -157,7 +164,11 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
                     </div>
                     <h2 id="aria-heading" className="text-lg font-bold text-zinc-100">Aria Cantata</h2>
                 </div>
-                <button onClick={onClose} className="text-zinc-400 hover:text-zinc-100 transition-colors">
+                <button 
+                    onClick={onClose} 
+                    className="text-zinc-400 hover:text-zinc-100 transition-colors"
+                    tabIndex={isOpen ? 0 : -1}
+                >
                     <CloseIcon className="w-6 h-6" />
                 </button>
             </header>
@@ -196,14 +207,21 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
             <footer className="p-4 border-t border-zinc-700/50 flex-shrink-0">
                 <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                     <input
+                        ref={inputRef}
                         type="text"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder="Ask Aria Cantata anything..."
                         className="w-full bg-zinc-800 border-zinc-700 text-zinc-100 rounded-full py-2.5 px-4 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         aria-label="Your message to Aria Cantata"
+                        tabIndex={isOpen ? 0 : -1}
                     />
-                    <button type="submit" disabled={!inputValue.trim() || isLoading} className="bg-orange-500 text-white p-2.5 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-zinc-600 disabled:cursor-not-allowed">
+                    <button 
+                        type="submit" 
+                        disabled={!inputValue.trim() || isLoading} 
+                        className="bg-orange-500 text-white p-2.5 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-zinc-600 disabled:cursor-not-allowed"
+                        tabIndex={isOpen ? 0 : -1}
+                    >
                         <PaperAirplaneIcon className="w-5 h-5" />
                     </button>
                 </form>
