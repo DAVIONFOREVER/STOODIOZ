@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
@@ -369,6 +370,12 @@ export const ChevronUpDownIcon: React.FC<IconProps> = (props) => (
   </svg>
 );
 
+export const DiamondIcon: React.FC<IconProps> = (props) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+        <path d="M12 2L2 12l10 10 10-10L12 2z" />
+    </svg>
+);
+
 export const DollarSignIcon: React.FC<IconProps> = PriceIcon;
 
 export default {
@@ -382,5 +389,5 @@ export default {
     ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, FlagIcon, PlayIcon, PauseIcon,
     ArrowUpCircleIcon, ArrowDownCircleIcon, BanknotesIcon, PlusCircleIcon, EditIcon,
     ChatBubbleLeftRightIcon, NavigationArrowIcon, DollarSignIcon, ChartBarIcon,
-    EyeIcon, FireIcon, ShieldCheckIcon, ChevronUpDownIcon
+    EyeIcon, FireIcon, ShieldCheckIcon, ChevronUpDownIcon, DiamondIcon
 };

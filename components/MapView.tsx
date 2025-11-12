@@ -1,100 +1,144 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
-import type { Stoodio, Artist, Engineer, Producer } from '../types';
+import { GoogleMap, useJsApiLoader, OverlayViewF } from '@react-google-maps/api';
+import type { Stoodio, Artist, Engineer, Producer, Booking } from '../types';
+import { UserRole, BookingStatus } from '../types';
 import { useAppState } from '../contexts/AppContext';
-import MapInfoPopup from './MapInfoPopup';
 import { useNavigation } from '../hooks/useNavigation';
+import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DiamondIcon, StarIcon, EyeIcon, CalendarIcon } from './icons';
 
+// --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio;
+type MapJob = Booking & { itemType: 'JOB' };
+type MapItem = (MapUser | MapJob) & { itemType: 'USER' | 'JOB' };
+type RoleFilter = UserRole | 'JOBS';
 
+
+// --- MAP CONFIGURATION ---
 const mapContainerStyle = {
   width: '100%',
-  height: 'calc(100vh - 10rem)',
-  borderRadius: '1rem',
+  height: 'calc(100vh - 80px)', // Full viewport height minus header
+  position: 'absolute' as const,
+  top: '80px',
+  left: 0,
+  right: 0,
+  bottom: 0,
 };
 
-const defaultCenter = {
-  lat: 39.8283,
-  lng: -98.5795,
-};
+const defaultCenter = { lat: 39.8283, lng: -98.5795 };
 
-// Dark "Aubergine" map style from Google Maps Platform
 const mapOptions = {
   styles: [
-    { elementType: 'geometry', stylers: [{ color: '#242f3e' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#242f3e' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-    {
-      featureType: 'administrative.locality',
-      elementType: 'labels.text.fill',
-      stylers: [{ color: '#d59563' }],
-    },
-    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-    {
-      featureType: 'poi.park',
-      elementType: 'geometry',
-      stylers: [{ color: '#263c3f' }],
-    },
-    {
-      featureType: 'poi.park',
-      elementType: 'labels.text.fill',
-      stylers: [{ color: '#6b9a76' }],
-    },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#38414e' }] },
-    {
-      featureType: 'road',
-      elementType: 'geometry.stroke',
-      stylers: [{ color: '#212a37' }],
-    },
-    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-    {
-      featureType: 'road.highway',
-      elementType: 'geometry',
-      stylers: [{ color: '#746855' }],
-    },
-    {
-      featureType: 'road.highway',
-      elementType: 'geometry.stroke',
-      stylers: [{ color: '#1f2835' }],
-    },
-    {
-      featureType: 'road.highway',
-      elementType: 'labels.text.fill',
-      stylers: [{ color: '#f3d19c' }],
-    },
-    { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#2f3948' }] },
-    {
-      featureType: 'transit.station',
-      elementType: 'labels.text.fill',
-      stylers: [{ color: '#d59563' }],
-    },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#17263c' }] },
-    {
-      featureType: 'water',
-      elementType: 'labels.text.fill',
-      stylers: [{ color: '#515c6d' }],
-    },
-    {
-      featureType: 'water',
-      elementType: 'labels.text.stroke',
-      stylers: [{ color: '#17263c' }],
-    },
+    { elementType: 'geometry', stylers: [{ color: '#18181b' }] }, // Darker background
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#18181b' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#737373' }] }, // Muted labels
+    { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#f97316' }] },
+    { featureType: 'poi', stylers: [{ visibility: 'off' }] }, // Hide points of interest
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#27272a' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#18181b' }] },
+    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#f97316' }] },
+    { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#444444' }] },
+    { featureType: 'road.highway', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#09090b' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
   ],
   disableDefaultUI: true,
   zoomControl: true,
-  mapTypeControl: false,
-  streetViewControl: false,
-  fullscreenControl: false,
 };
 
 const libraries: ('places')[] = ['places'];
 
+// --- HELPER & CHILD COMPONENTS ---
+
+const getRole = (user: MapUser): UserRole => {
+    if ('amenities' in user) return UserRole.STOODIO;
+    if ('specialties' in user) return UserRole.ENGINEER;
+    if ('instrumentals' in user) return UserRole.PRODUCER;
+    return UserRole.ARTIST;
+};
+
+const MapHoverCard: React.FC<{ item: MapItem }> = ({ item }) => {
+    let title = '', subtitle = '', icon = null;
+    if (item.itemType === 'USER') {
+        const user = item as MapUser;
+        title = user.name;
+        const role = getRole(user);
+        subtitle = role.charAt(0) + role.slice(1).toLowerCase();
+        if ('rating_overall' in user) {
+            subtitle += ` • ${user.rating_overall.toFixed(1)} ★`;
+        }
+    } else {
+        const job = item as MapJob;
+        title = `Engineer Needed`;
+        subtitle = job.stoodio?.name || 'Unknown Studio';
+    }
+
+    return (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-60 p-3 cardSurface border-2 border-orange-500/50 animate-fade-in-up" style={{ animationDuration: '200ms'}}>
+            <p className="font-bold text-orange-400 truncate">{title}</p>
+            <p className="text-sm text-zinc-400 truncate">{subtitle}</p>
+        </div>
+    );
+};
+
+const MapMarker: React.FC<{ item: MapItem, onSelect: (item: MapItem) => void }> = ({ item, onSelect }) => {
+    const [isHovered, setIsHovered] = useState(false);
+    let icon = null, classes = '';
+
+    if (item.itemType === 'JOB') {
+        icon = <StarIcon className="w-5 h-5 text-orange-400 marker-glow" />;
+        classes = "w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center marker-pulse";
+    } else {
+        const user = item as MapUser;
+        const role = getRole(user);
+        switch(role) {
+            case UserRole.ARTIST:
+                icon = <MicrophoneIcon className="w-4 h-4 text-white" />;
+                classes = "w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center marker-pulse marker-glow";
+                break;
+            case UserRole.PRODUCER:
+                icon = <DiamondIcon className="w-5 h-5 text-orange-400 marker-glow" />;
+                break;
+            case UserRole.ENGINEER:
+                icon = <SoundWaveIcon className="w-5 h-5 text-orange-400 marker-glow" />;
+                break;
+            case UserRole.STOODIO:
+                icon = <HouseIcon className="w-5 h-5 text-orange-400 marker-glow" />;
+                break;
+        }
+    }
+
+    return (
+        <div 
+            onMouseOver={() => setIsHovered(true)} 
+            onMouseOut={() => setIsHovered(false)} 
+            onClick={() => onSelect(item)}
+            className="relative flex items-center justify-center cursor-pointer"
+            style={{ transform: 'translate(-50%, -50%)' }} // Center the marker
+        >
+            <div className={classes}>{icon}</div>
+            {isHovered && <MapHoverCard item={item} />}
+        </div>
+    );
+}
+
+const FilterButton: React.FC<{ icon: React.ReactNode, label: RoleFilter, isActive: boolean, onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
+    <button 
+        onClick={onClick}
+        className={`px-3 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-colors border-2 ${isActive ? 'bg-orange-500 border-orange-400 text-white' : 'bg-black/50 border-zinc-700 text-zinc-300 hover:border-orange-500/50'}`}
+    >
+        {icon}{label}
+    </button>
+);
+
+
+// --- MAIN COMPONENT ---
 interface MapViewProps {
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectProducer: (producer: Producer) => void;
-    onInitiateBooking: (engineer: Engineer, date: string, time: string) => void;
 }
 
 const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, onSelectArtist, onSelectProducer }) => {
@@ -104,119 +148,116 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
         libraries,
     });
 
-    const { stoodioz, artists, engineers, producers } = useAppState();
-    const { navigateToStudio } = useNavigation();
-    const [selected, setSelected] = useState<MapUser | null>(null);
+    const { stoodioz, artists, engineers, producers, bookings } = useAppState();
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-
+    const [activeFilters, setActiveFilters] = useState<Set<RoleFilter>>(new Set(Object.values(UserRole)));
+    const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+    
     useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setUserLocation({
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                    });
-                },
-                () => {
-                    console.log("Geolocation permission denied. Using default map center.");
-                }
+                (position) => setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude }),
+                () => console.log("Geolocation permission denied.")
             );
         }
     }, []);
 
     const mapCenter = useMemo(() => userLocation || defaultCenter, [userLocation]);
 
-    const mapUsers = useMemo<MapUser[]>(() => {
-        const allUsers: MapUser[] = [
-            ...stoodioz,
-            ...artists,
-            ...engineers,
-            ...producers,
-        ];
-        return allUsers.filter(u => u.showOnMap && u.coordinates);
-    }, [stoodioz, artists, engineers, producers]);
+    const openJobs = useMemo<MapJob[]>(() => {
+        return bookings
+            .filter(b => b.postedBy === UserRole.STOODIO && b.status === BookingStatus.PENDING && b.stoodio?.coordinates)
+            .map(b => ({ ...b, itemType: 'JOB' }));
+    }, [bookings]);
 
-    const handleMarkerClick = useCallback((user: MapUser) => {
-        setSelected(user);
-    }, []);
+    const mapItems = useMemo<MapItem[]>(() => {
+        const allUsers: MapUser[] = [...stoodioz, ...artists, ...engineers, ...producers];
+        const userItems: MapItem[] = allUsers
+            .filter(u => u.showOnMap && u.coordinates)
+            .filter(u => !showAvailableOnly || ('isAvailable' in u && u.isAvailable))
+            .filter(u => activeFilters.size === 0 || activeFilters.has(getRole(u)))
+            .map(u => ({ ...u, itemType: 'USER' }));
 
-    const handleInfoWindowClose = useCallback(() => {
-        setSelected(null);
-    }, []);
-    
-    const handleSelectFromPopup = useCallback((user: MapUser) => {
-        setSelected(null); // Close the popup on selection
-        if ('amenities' in user) onSelectStoodio(user);
-        else if ('specialties' in user) onSelectEngineer(user);
-        else if ('instrumentals' in user) onSelectProducer(user);
-        else onSelectArtist(user as Artist);
+        const jobItems: MapItem[] = (activeFilters.size === 0 || activeFilters.has('JOBS')) ? openJobs : [];
+
+        return [...userItems, ...jobItems];
+    }, [stoodioz, artists, engineers, producers, openJobs, activeFilters, showAvailableOnly]);
+
+    const handleFilterToggle = (filter: RoleFilter) => {
+        setActiveFilters(prev => {
+            const newFilters = new Set(prev);
+            if (newFilters.has(filter)) {
+                newFilters.delete(filter);
+            } else {
+                newFilters.add(filter);
+            }
+            // If all are selected, treat as if none are (show all)
+            if (newFilters.size === 5) return new Set();
+            return newFilters;
+        });
+    };
+
+    const handleSelect = useCallback((item: MapItem) => {
+        if (item.itemType === 'USER') {
+            const user = item as MapUser;
+            if ('amenities' in user) onSelectStoodio(user as Stoodio);
+            else if ('specialties' in user) onSelectEngineer(user as Engineer);
+            else if ('instrumentals' in user) onSelectProducer(user as Producer);
+            else onSelectArtist(user as Artist);
+        } else {
+            // Future: Implement job detail modal
+            const job = item as MapJob;
+            if (job.stoodio) onSelectStoodio(job.stoodio);
+        }
     }, [onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer]);
 
-    const markerIcon = useMemo(() => {
-        if (!isLoaded || !(window as any).google) return undefined;
-        return {
-            path: (window as any).google.maps.SymbolPath.CIRCLE,
-            fillColor: '#f97316',
-            fillOpacity: 1,
-            strokeColor: '#ffffff',
-            strokeWeight: 1.5,
-            scale: 7,
-        };
-    }, [isLoaded]);
+    if (loadError) return <div className="p-4 text-red-400">Error loading maps.</div>;
+    if (!isLoaded) return <div className="flex justify-center items-center h-full"><div className="w-10 h-10 border-4 border-t-orange-500 border-zinc-700 rounded-full animate-spin"></div></div>;
 
-    const infoWindowOptions = useMemo(() => {
-        if (!isLoaded || !(window as any).google) return undefined;
-        return { pixelOffset: new (window as any).google.maps.Size(0, -30) };
-    }, [isLoaded]);
-
-
-    const renderMap = () => (
-        <GoogleMap
-            mapContainerStyle={mapContainerStyle}
-            center={mapCenter}
-            zoom={userLocation ? 11 : 4}
-            options={mapOptions}
-        >
-            <>
-                {markerIcon && mapUsers.map(user => (
-                    <Marker
-                        key={user.id}
-                        position={{ lat: user.coordinates.lat, lng: user.coordinates.lon }}
-                        onClick={() => handleMarkerClick(user)}
-                        icon={markerIcon}
-                        title={user.name}
-                    />
-                ))}
-
-                {selected && infoWindowOptions && (
-                    <InfoWindow
-                        position={{ lat: selected.coordinates.lat, lng: selected.coordinates.lon }}
-                        onCloseClick={handleInfoWindowClose}
-                        options={infoWindowOptions}
+    return (
+        <div className="relative w-full" style={{ height: 'calc(100vh - 80px)' }}>
+            <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={userLocation ? 11 : 4} options={mapOptions}>
+                {mapItems.map(item => (
+                    <OverlayViewF
+                        key={item.id}
+                        position={{ lat: item.coordinates!.lat, lng: item.coordinates!.lon }}
+                        mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
                     >
-                        <MapInfoPopup 
-                            user={selected} 
-                            onClose={handleInfoWindowClose}
-                            onSelect={handleSelectFromPopup}
-                            onNavigate={navigateToStudio}
-                        />
-                    </InfoWindow>
-                )}
-            </>
-        </GoogleMap>
-    );
-
-    if (loadError) {
-        return <div className="text-red-400 p-4 bg-red-900/50 rounded-lg">Error loading maps. Please check your API key and internet connection.</div>;
-    }
-
-    return isLoaded ? renderMap() : (
-         <div className="flex justify-center items-center" style={mapContainerStyle}>
-            <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+                        <MapMarker item={item} onSelect={handleSelect} />
+                    </OverlayViewF>
+                ))}
+            </GoogleMap>
+            
+            {/* UI Overlay */}
+            <div className="absolute top-4 right-4 p-3 cardSurface space-y-3">
+                <h3 className="font-bold text-zinc-100 px-1">Filter Marketplace</h3>
+                <div className="flex flex-col gap-2">
+                    <FilterButton icon={<MicrophoneIcon className="w-4 h-4 text-green-400"/>} label={UserRole.ARTIST} isActive={activeFilters.has(UserRole.ARTIST)} onClick={() => handleFilterToggle(UserRole.ARTIST)} />
+                    <FilterButton icon={<SoundWaveIcon className="w-4 h-4 text-amber-400"/>} label={UserRole.ENGINEER} isActive={activeFilters.has(UserRole.ENGINEER)} onClick={() => handleFilterToggle(UserRole.ENGINEER)} />
+                    <FilterButton icon={<DiamondIcon className="w-4 h-4 text-purple-400"/>} label={UserRole.PRODUCER} isActive={activeFilters.has(UserRole.PRODUCER)} onClick={() => handleFilterToggle(UserRole.PRODUCER)} />
+                    <FilterButton icon={<HouseIcon className="w-4 h-4 text-red-400"/>} label={UserRole.STOODIO} isActive={activeFilters.has(UserRole.STOODIO)} onClick={() => handleFilterToggle(UserRole.STOODIO)} />
+                    <FilterButton icon={<StarIcon className="w-4 h-4 text-orange-400"/>} label="JOBS" isActive={activeFilters.has('JOBS')} onClick={() => handleFilterToggle('JOBS')} />
+                </div>
+                 <label className="flex items-center justify-between cursor-pointer p-2 rounded-lg hover:bg-zinc-800">
+                    <span className="text-sm font-semibold text-zinc-300">Available Now</span>
+                    <div className="relative">
+                        <input type="checkbox" className="sr-only" checked={showAvailableOnly} onChange={e => setShowAvailableOnly(e.target.checked)} />
+                        <div className={`block w-10 h-5 rounded-full transition-colors ${showAvailableOnly ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                        <div className={`absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform ${showAvailableOnly ? 'translate-x-5' : ''}`}></div>
+                    </div>
+                </label>
+            </div>
+            
+             <div className="absolute bottom-4 left-4 p-3 cardSurface space-y-2">
+                 <h3 className="font-bold text-zinc-100 px-1 text-sm">Legend</h3>
+                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-400">
+                    <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-500 marker-glow"></div> Artist</span>
+                    <span className="flex items-center gap-1.5"><DiamondIcon className="w-3 h-3 text-orange-400 marker-glow"/> Producer</span>
+                    <span className="flex items-center gap-1.5"><SoundWaveIcon className="w-3 h-3 text-orange-400 marker-glow"/> Engineer</span>
+                    <span className="flex items-center gap-1.5"><HouseIcon className="w-3 h-3 text-orange-400 marker-glow"/> Stoodio</span>
+                    <span className="flex items-center gap-1.5"><StarIcon className="w-3 h-3 text-orange-400 marker-glow"/> Job</span>
+                 </div>
+            </div>
         </div>
     );
 };
