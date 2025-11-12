@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
@@ -25,17 +23,17 @@ const ProfileCard: React.FC<{
         details = (profile as Stoodio).location;
     } else if (type === 'engineer') {
         icon = <SoundWaveIcon className="w-4 h-4" />;
-        details = (profile as Engineer).specialties.join(', ');
+        details = (profile as Engineer).specialties?.join(', ');
     } else if (type === 'producer') {
         icon = <MusicNoteIcon className="w-4 h-4" />;
-        details = (profile as Producer).genres.join(', ');
+        details = (profile as Producer).genres?.join(', ');
     } else { // artist
         icon = <MicrophoneIcon className="w-4 h-4" />;
         details = (profile as Artist).bio;
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left">
+        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg text-left cardSurface">
             <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -106,7 +104,7 @@ const StoodioDetail: React.FC = () => {
 
     const getButtonText = (mobile: boolean = false) => {
         if (!currentUser) return 'Login to Book';
-        if (userRole === UserRole.STOODIO) return 'Cannot Book a Stoodio';
+        if (userRole === UserRole.STOODIO && currentUser.id === stoodio.id) return 'Cannot Book Your Own Stoodio';
         if (!selectedRoom) return 'Select a Room';
         if (!selectedTimeSlot) return 'Select a Time Slot';
         return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom.name}: ${selectedTimeSlot.time}`;
@@ -284,7 +282,7 @@ const StoodioDetail: React.FC = () => {
                         <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><PhotoIcon className="w-6 h-6" /> Photo Gallery</h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {stoodio.photos.map((photo, index) => (
-                                <img key={index} src={photo} alt={`${stoodio.name} gallery image ${index + 1}`} className="w-full h-32 object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300" />
+                                <img key={index} src={photo} alt={`${stoodio.name} gallery image ${index + 1}`} className="w-full h-32 object-cover rounded-lg shadow-md transition-transform duration-300" />
                             ))}
                         </div>
                     </div>
@@ -316,7 +314,7 @@ const StoodioDetail: React.FC = () => {
                             <button 
                                 onClick={() => selectedTimeSlot && selectedRoom && onBook(selectedTimeSlot.date, selectedTimeSlot.time, selectedRoom)}
                                 disabled={isBookingDisabled}
-                                className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
+                                className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
                                 {getButtonText()}
                             </button>
                         </div>
