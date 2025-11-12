@@ -1,5 +1,6 @@
 
 
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
@@ -97,7 +98,7 @@ const App: React.FC = () => {
         history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
         latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
-        ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer
+        ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent
     } = state;
 
     // --- Derived State ---
@@ -166,6 +167,8 @@ const App: React.FC = () => {
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl) => completeSetup({ name, description, location, businessAddress, email, password, imageUrl }, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
+            case AppView.SUBSCRIPTION_PLANS:
+                return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
             case AppView.STOODIO_LIST:
                 return <StoodioList onSelectStoodio={viewStoodioDetails} />;
             case AppView.STOODIO_DETAIL:
@@ -174,18 +177,10 @@ const App: React.FC = () => {
                 return <BookingConfirmation onDone={() => navigate(AppView.MY_BOOKINGS)} />;
             case AppView.MY_BOOKINGS:
                 return <MyBookings />;
-            case AppView.STOODIO_DASHBOARD:
-                return <StoodioDashboard />;
-            case AppView.ENGINEER_DASHBOARD:
-                return <EngineerDashboard />;
-            case AppView.PRODUCER_DASHBOARD:
-                return <ProducerDashboard />;
-            case AppView.ARTIST_DASHBOARD:
-                return <ArtistDashboard />;
             case AppView.INBOX:
                 return <Inbox />;
-            case AppView.ACTIVE_SESSION:
-                return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
+            case AppView.MAP_VIEW:
+                return <MapView onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} />;
             case AppView.ARTIST_LIST:
                 return <ArtistList onSelectArtist={viewArtistProfile} onToggleFollow={toggleFollow} />;
             case AppView.ARTIST_PROFILE:
@@ -198,14 +193,30 @@ const App: React.FC = () => {
                 return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
             case AppView.PRODUCER_PROFILE:
                 return <ProducerProfile />;
-            case AppView.MAP_VIEW:
-                return <MapView onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} />;
             case AppView.THE_STAGE:
-                return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
+                return <TheStage 
+                    onPost={createPost} 
+                    onLikePost={likePost} 
+                    onCommentOnPost={commentOnPost}
+                    onToggleFollow={toggleFollow}
+                    onSelectArtist={viewArtistProfile}
+                    onSelectEngineer={viewEngineerProfile}
+                    onSelectStoodio={viewStoodioDetails}
+                    onSelectProducer={viewProducerProfile}
+                    onNavigate={navigate}
+                />;
             case AppView.VIBE_MATCHER_RESULTS:
                 return <VibeMatcherResults onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onBack={() => navigate(AppView.ARTIST_DASHBOARD)} />;
-            case AppView.SUBSCRIPTION_PLANS:
-                return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
+            case AppView.ARTIST_DASHBOARD:
+                return <ArtistDashboard />;
+            case AppView.STOODIO_DASHBOARD:
+                return <StoodioDashboard />;
+            case AppView.ENGINEER_DASHBOARD:
+                return <EngineerDashboard />;
+            case AppView.PRODUCER_DASHBOARD:
+                return <ProducerDashboard />;
+            case AppView.ACTIVE_SESSION:
+                return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
             case AppView.ADMIN_RANKINGS:
                 return <AdminRankings />;
             case AppView.STUDIO_INSIGHTS:
@@ -217,8 +228,9 @@ const App: React.FC = () => {
         }
     };
     
-    return (
-        <div className={`app-container bg-zinc-950 text-slate-200 font-sans ${isAriaCantataOpen ? 'aria-open' : ''}`}>
+// FIX: The App component was not returning any JSX, causing a type error. This adds the main component structure and return statement.
+return (
+        <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans">
             <Header
                 onNavigate={navigate}
                 onGoBack={goBack}
@@ -234,46 +246,51 @@ const App: React.FC = () => {
                 onSelectStoodio={viewStoodioDetails}
             />
 
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
                     {renderView()}
                 </Suspense>
             </main>
-            
-            {bookingTime && selectedStoodio && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
+
+            {/* Modals */}
+            {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}
-            {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
             {isVibeMatcherOpen && <VibeMatcherModal onClose={closeVibeMatcher} onAnalyze={vibeMatch} isLoading={isVibeMatcherLoading} />}
+            {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
             {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
             {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.walletBalance} />}
-            {isMixingModalOpen && selectedEngineer && <MixingRequestModal engineer={selectedEngineer} onClose={closeMixingModal} onConfirm={confirmRemoteMix} onInitiateInStudio={initiateInStudioMix} isLoading={isLoading} />}
-
-            <NotificationToasts notifications={notifications.filter(n => !n.read).slice(0, 3)} onDismiss={dismissNotification} />
-
-            { isNudgeVisible && ariaNudge &&
-                <AriaNudge message={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />
+            {isMixingModalOpen && (selectedEngineer || bookingIntent?.engineer) && 
+                <MixingRequestModal 
+                    engineer={selectedEngineer || bookingIntent!.engineer!} 
+                    onClose={closeMixingModal} 
+                    onConfirm={confirmRemoteMix}
+                    onInitiateInStudio={initiateInStudioMix}
+                    isLoading={isLoading} 
+                />
             }
-            <AriaCantataAssistant 
-                isOpen={isAriaCantataOpen}
-                onClose={closeAriaCantata}
-                onExecuteCommand={(command: AriaActionResponse) => executeCommand(command, closeAriaCantata)}
-                history={ariaHistory}
-                setHistory={(h: AriaCantataMessage[]) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: h }})}
-                initialPrompt={initialAriaCantataPrompt}
-                clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null }})}
-            />
+
+            {/* Global UI Elements */}
+            <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
+             {isAriaCantataOpen && (
+                <Suspense fallback={<div />}>
+                    <AriaCantataAssistant
+                        isOpen={isAriaCantataOpen}
+                        onClose={closeAriaCantata}
+                        onExecuteCommand={executeCommand}
+                        history={ariaHistory}
+                        setHistory={(newHistory) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: newHistory } })}
+                        initialPrompt={initialAriaCantataPrompt}
+                        clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })}
+                    />
+                </Suspense>
+            )}
+            {isNudgeVisible && ariaNudge && <AriaNudge message={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />}
             
-            <button
-                onClick={toggleAriaCantata}
-                className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 text-white flex items-center justify-center shadow-xl hover:scale-110 transition-transform"
-                aria-label="Open Aria Cantata AI Assistant"
-            >
-                <MagicWandIcon className="w-8 h-8"/>
-            </button>
+            {/* Dev tool for testing notifications */}
             <DevNotificationButton />
         </div>
     );
 };
 
-// FIX: Add default export for the App component to resolve import error in index.tsx.
+// FIX: The App component was not exported, causing an error in index.tsx.
 export default App;

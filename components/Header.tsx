@@ -97,6 +97,11 @@ const Header: React.FC<HeaderProps> = (props) => {
         onLogout();
         setIsMobileMenuOpen(false);
     }
+    
+    const handleMobileSelect = (callback: (item: any) => void) => (item: any) => {
+        callback(item);
+        setIsMobileMenuOpen(false);
+    };
 
     return (
         <>
@@ -229,6 +234,20 @@ const Header: React.FC<HeaderProps> = (props) => {
                                 <CloseIcon className="w-6 h-6"/>
                             </button>
                         </div>
+                        {userRole && (
+                            <div className="mb-6 px-1">
+                                <UniversalSearch 
+                                    allArtists={artists}
+                                    allEngineers={engineers}
+                                    allProducers={producers}
+                                    allStoodioz={stoodioz}
+                                    onSelectArtist={handleMobileSelect(onSelectArtist)}
+                                    onSelectEngineer={handleMobileSelect(onSelectEngineer)}
+                                    onSelectProducer={handleMobileSelect(onSelectProducer)}
+                                    onSelectStoodio={handleMobileSelect(onSelectStoodio)}
+                                />
+                            </div>
+                        )}
                         <nav className={`flex flex-col flex-grow ${userRole ? 'space-y-2' : ''}`}>
                             {userRole ? (
                                 <>

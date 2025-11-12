@@ -282,7 +282,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
     return (
         <div className="flex gap-6" style={{ height: 'calc(100vh - 144px)' }}>
             {/* UI Sidebar */}
-            <div className="w-72 flex-shrink-0 h-full overflow-y-auto p-4 cardSurface space-y-4">
+            <div className="hidden lg:block w-72 flex-shrink-0 h-full overflow-y-auto p-4 cardSurface space-y-4">
                 <h3 className="font-bold text-zinc-100 text-lg px-1">Filter Marketplace</h3>
                 <div className="flex flex-col gap-2">
                     <FilterButton icon={<MicrophoneIcon className="w-4 h-4 text-green-400"/>} label={UserRole.ARTIST} isActive={activeFilters.has(UserRole.ARTIST)} onClick={() => handleFilterToggle(UserRole.ARTIST)} />

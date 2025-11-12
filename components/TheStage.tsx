@@ -92,9 +92,9 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     return (
         <div>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-12 lg:grid-cols-12 gap-8">
                 {/* Left Sidebar */}
-                <aside className="lg:col-span-3">
+                <aside className="hidden lg:block lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
                        <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
                        <div className="cardSurface p-4">
@@ -111,7 +111,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 </aside>
 
                 {/* Main Content */}
-                <main className="lg:col-span-6">
+                <main className="col-span-12 lg:col-span-6">
                     <div className="space-y-8">
                         <CreatePost currentUser={currentUser} onPost={onPost} />
                         <PostFeed 
@@ -125,7 +125,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 </main>
 
                 {/* Right Sidebar */}
-                 <aside className="lg:col-span-3">
+                 <aside className="hidden lg:block lg:col-span-3">
                      <div className="lg:sticky lg:top-28 space-y-6">
                         {suggestions.length > 0 && (
                             <WhoToFollow 
