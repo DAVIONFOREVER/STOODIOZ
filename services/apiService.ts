@@ -1,4 +1,3 @@
-
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum } from '../types';
 import { getSupabase } from '../lib/supabase';
@@ -96,7 +95,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         name: userData.name,
         email: userData.email,
         password: userData.password,
-        imageUrl: USER_SILHOUETTE_URL,
+        imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
         followerIds: [],
@@ -123,7 +122,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             break;
         case 'STOODIO':
             tableName = 'stoodioz';
-            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, hourlyRate: 100, engineerPayRate: 50, rating: 5, amenities: [], availability: [], photos: [baseData.imageUrl], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
+            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, hourlyRate: 100, engineerPayRate: 50, rating: 5, amenities: [], availability: [], photos: [userData.imageUrl || USER_SILHOUETTE_URL], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
             break;
     }
     

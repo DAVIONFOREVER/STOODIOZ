@@ -1,10 +1,9 @@
-
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AppView, SmokingPolicy } from '../types';
+import { PhotoIcon } from './icons';
 
 interface StoodioSetupProps {
-    onCompleteSetup: (name: string, description: string, location: string, businessAddress: string, email: string, password: string) => void;
+    onCompleteSetup: (name: string, description: string, location: string, businessAddress: string, email: string, password: string, imageUrl: string | null) => void;
     onNavigate: (view: AppView) => void;
 }
 
@@ -16,11 +15,26 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const triggerFileInput = () => fileInputRef.current?.click();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (name.trim() && description.trim() && location.trim() && email.trim() && password.trim() && agreedToTerms) {
-            onCompleteSetup(name, description, location, businessAddress, email, password);
+            onCompleteSetup(name, description, location, businessAddress, email, password, imagePreview);
         }
     };
 
@@ -31,6 +45,32 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
             <h1 className="text-4xl font-extrabold text-center mb-2 text-zinc-100">Create Your <span className="text-orange-400">Stoodio Profile</span></h1>
             <p className="text-center text-zinc-400 mb-8">List your space for artists to discover and create your account.</p>
             <form onSubmit={handleSubmit} className="space-y-6">
+                 <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">Stoodio Logo/Photo</label>
+                    <div className="mt-2 flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden">
+                            {imagePreview ? (
+                                <img src={imagePreview} alt="Stoodio preview" className="w-full h-full object-cover" />
+                            ) : (
+                                <PhotoIcon className="w-10 h-10 text-zinc-500" />
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={triggerFileInput}
+                            className="px-4 py-2 text-sm font-semibold bg-zinc-700 text-zinc-200 rounded-lg hover:bg-zinc-600"
+                        >
+                            Upload Photo
+                        </button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImageChange}
+                            className="hidden"
+                            accept="image/*"
+                        />
+                    </div>
+                </div>
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium text-zinc-300 mb-2">Stoodio Name</label>
                     <input

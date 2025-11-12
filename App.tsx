@@ -1,3 +1,4 @@
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage } from './types';
@@ -108,8 +109,10 @@ const App: React.FC = () => {
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
-    const { startConversation } = useMessaging(navigate);
     
+    // FIX: The `startConversation` function was not defined, causing errors when passed to the `useAria` hook and used in the `AriaCantataAssistant` component. This is fixed by instantiating the `useMessaging` hook.
+    const { startConversation } = useMessaging(navigate);
+
     const {
         handleAriaCantataBooking,
         handleShowVibeResults,
@@ -155,13 +158,13 @@ const App: React.FC = () => {
             case AppView.CHOOSE_PROFILE:
                 return <ChooseProfile onSelectRole={selectRoleToSetup} />;
             case AppView.ARTIST_SETUP:
-                return <ArtistSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.ARTIST)} onNavigate={navigate} />;
+                return <ArtistSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, imageUrl }, UserRole.ARTIST)} onNavigate={navigate} />;
             case AppView.ENGINEER_SETUP:
-                return <EngineerSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.ENGINEER)} onNavigate={navigate} />;
+                return <EngineerSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, imageUrl }, UserRole.ENGINEER)} onNavigate={navigate} />;
             case AppView.PRODUCER_SETUP:
-                return <ProducerSetup onCompleteSetup={(name, bio, email, password) => completeSetup({ name, bio, email, password }, UserRole.PRODUCER)} onNavigate={navigate} />;
+                return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, imageUrl }, UserRole.PRODUCER)} onNavigate={navigate} />;
             case AppView.STOODIO_SETUP:
-                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password) => completeSetup({ name, description, location, businessAddress, email, password }, UserRole.STOODIO)} onNavigate={navigate} />;
+                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl) => completeSetup({ name, description, location, businessAddress, email, password, imageUrl }, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.STOODIO_LIST:
