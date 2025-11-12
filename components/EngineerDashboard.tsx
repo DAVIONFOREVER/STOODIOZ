@@ -1,20 +1,23 @@
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Engineer, Artist, Stoodio, Producer } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
 import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon } from './icons';
-import CreatePost from './CreatePost';
-import PostFeed from './PostFeed';
-import AvailabilityManager from './AvailabilityManager';
-import NotificationSettings from './NotificationSettings';
-import Wallet from './Wallet';
-import MixingServicesManager from './MixingServicesManager';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
-import { useSocial } from '../hooks/useSocial';
-import { useProfile } from '../hooks/useProfile';
-import MixingSampleManager from './MixingSampleManager';
+import CreatePost from './CreatePost.tsx';
+import PostFeed from './PostFeed.tsx';
+import AvailabilityManager from './AvailabilityManager.tsx';
+import NotificationSettings from './NotificationSettings.tsx';
+import Wallet from './Wallet.tsx';
+import MixingServicesManager from './MixingServicesManager.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import { useNavigation } from '../hooks/useNavigation.ts';
+import { useSocial } from '../hooks/useSocial.ts';
+import { useProfile } from '../hooks/useProfile.ts';
+import MixingSampleManager from './MixingSampleManager.tsx';
+import Following from './Following.tsx';
+import FollowersList from './FollowersList.tsx';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 
 type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
 
@@ -52,12 +55,12 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 );
 
 const EngineerDashboard: React.FC = () => {
-    const { currentUser, bookings, dashboardInitialTab } = useAppState();
+    const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers } = useAppState();
     const dispatch = useAppDispatch();
     const engineer = currentUser as Engineer;
     
-    const { navigate, viewBooking } = useNavigation();
-    const { createPost, likePost, commentOnPost } = useSocial();
+    const { navigate, viewBooking, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
+    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
     const { updateProfile } = useProfile();
 
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
@@ -93,6 +96,13 @@ const EngineerDashboard: React.FC = () => {
     const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requestedEngineerId === engineer.id) && new Date(`${b.date}T${b.startTime}`) >= new Date());
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
     
+    const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+    const followers = allUsers.filter(u => engineer.followerIds.includes(u.id));
+    const followedArtists = artists.filter(a => engineer.following.artists.includes(a.id));
+    const followedEngineers = engineers.filter(e => engineer.following.engineers.includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => engineer.following.stoodioz.includes(s.id));
+    const followedProducers = producers.filter(p => engineer.following.producers.includes(p.id));
+    
     const renderContent = () => {
          switch(activeTab) {
              case 'analytics':
@@ -106,12 +116,13 @@ const EngineerDashboard: React.FC = () => {
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.ENGINEER} />;
-             // Other cases would be here...
+             case 'followers': return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
+             case 'following': return <Following artists={followedArtists} engineers={followedEngineers} studios={followedStoodioz} producers={followedProducers} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStudio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
              default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
                         <CreatePost currentUser={engineer} onPost={createPost} />
-                        <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => {}} />
+                        <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewEngineerProfile(engineer)} />
                     </div>
                     <div className="lg:col-span-1 space-y-6">
                         {!isProPlan && <UpgradePlusCard onNavigate={navigate} />}
@@ -166,7 +177,6 @@ const EngineerDashboard: React.FC = () => {
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
                     <StatCard label="Wallet Balance" value={`$${engineer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                     <StatCard label="Upcoming Sessions" value={upcomingBookings.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
-                    {/* FIX: Changed `engineer.rating` to `engineer.rating_overall` to match the property name in the `BaseUser` type. */}
                     <StatCard label="Overall Rating" value={engineer.rating_overall.toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
                 </div>
             </div>
