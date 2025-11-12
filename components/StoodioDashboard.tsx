@@ -1,23 +1,23 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
-import CreatePost from './CreatePost';
-import PostFeed from './PostFeed';
-import AvailabilityManager from './AvailabilityManager';
-import Following from './Following';
-import FollowersList from './FollowersList';
-import RoomManager from './RoomManager';
-import EngineerManager from './EngineerManager';
-import VerificationManager from './VerificationManager';
-import Wallet from './Wallet';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import * as apiService from '../services/apiService';
-import { useNavigation } from '../hooks/useNavigation';
-import { useSocial } from '../hooks/useSocial';
-import { useProfile } from '../hooks/useProfile';
+import CreatePost from './CreatePost.tsx';
+import PostFeed from './PostFeed.tsx';
+import AvailabilityManager from './AvailabilityManager.tsx';
+import Following from './Following.tsx';
+import FollowersList from './FollowersList.tsx';
+import RoomManager from './RoomManager.tsx';
+import EngineerManager from './EngineerManager.tsx';
+import VerificationManager from './VerificationManager.tsx';
+import Wallet from './Wallet.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import * as apiService from '../services/apiService.ts';
+import { useNavigation } from '../hooks/useNavigation.ts';
+import { useSocial } from '../hooks/useSocial.ts';
+import { useProfile } from '../hooks/useProfile.ts';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -102,7 +102,7 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
                 {postedJobs.length > 0 ? postedJobs.map(job => {
                     const status = getStatusInfo(job);
                     return (
-                        <div key={job.id} className="cardSurface p-4 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                        <div key={job.id} className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
                             <div>
                                 <p className="text-xs text-zinc-400">Date</p>
                                 <p className="font-semibold">{new Date(job.date + 'T00:00:00').toLocaleDateString()}</p>
@@ -129,13 +129,13 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
 };
 
 const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
-    <div className="cardSurface border-2 border-orange-500 p-6 text-zinc-100 text-center">
-        <StarIcon className="w-10 h-10 mx-auto text-orange-400/80 mb-2" />
+    <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 rounded-2xl text-white text-center shadow-lg shadow-orange-500/10">
+        <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
         <h3 className="text-xl font-bold mb-2">Upgrade to Stoodio Pro</h3>
-        <p className="text-sm text-zinc-400 mb-4">Unlock advanced features, lower service fees, and priority support to grow your business.</p>
+        <p className="text-sm opacity-90 mb-4">Unlock advanced features, lower service fees, and priority support to grow your business.</p>
         <button 
             onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
-            className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all duration-300"
+            className="bg-white text-orange-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
         >
             View Plans
         </button>
@@ -234,6 +234,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
     const { onNavigate } = props;
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
+    const photoInputRef = useRef<HTMLInputElement>(null);
 
     const stoodio = currentUser as Stoodio;
     
@@ -247,6 +248,20 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
         }
     }, [dashboardInitialTab, dispatch]);
 
+    const handlePhotoUploadClick = () => {
+        photoInputRef.current?.click();
+    };
+
+    const handlePhotoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            // In a real app, you would upload the file and get a URL.
+            // Here, we'll just simulate it with a placeholder.
+            const newPhotoUrl = `https://picsum.photos/seed/stoodio${Date.now()}/800/600`;
+            updateProfile({ photos: [...stoodio.photos, newPhotoUrl] });
+        }
+    };
+
      const onPostJob = async (jobData: JobPostData) => {
         if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) return;
 
@@ -258,7 +273,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
         };
         
         try {
-            // FIX: The createBooking function expects 4 arguments, but 6 were provided. The extra 'engineers' and 'producers' arguments have been removed.
             const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO);
             dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, postedBy: UserRole.STOODIO } } });
         } catch(error) {
@@ -321,11 +335,19 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                                 <img key={index} src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
                             ))}
                         </div>
-                        <div className="border-2 border-dashed border-zinc-600 rounded-lg p-8 text-center">
+                        <div onClick={handlePhotoUploadClick} className="border-2 border-dashed border-zinc-600 rounded-lg p-8 text-center cursor-pointer hover:border-orange-500 transition-colors">
                             <PhotoIcon className="mx-auto h-12 w-12 text-zinc-500" />
                             <p className="mt-2 text-sm text-zinc-400">Drag & drop photos here or click to upload</p>
-                            <button className="mt-4 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Upload Photos</button>
+                            <button type="button" className="mt-4 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Upload Photos</button>
                         </div>
+                        <input
+                            type="file"
+                            ref={photoInputRef}
+                            onChange={handlePhotoFileChange}
+                            className="hidden"
+                            accept="image/*"
+                            multiple
+                        />
                     </div>
                 );
             case 'followers':
@@ -338,7 +360,6 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             <CreatePost currentUser={currentUser!} onPost={createPost} />
-                            {/* FIX: Removed invalid `currentUser` prop. */}
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">

@@ -1,17 +1,16 @@
-
-
-
 import React, { useMemo } from 'react';
 import type { Booking, Location } from '../types';
-import { BookingStatus, BookingRequestType } from '../types';
+import { BookingStatus, BookingRequestType, UserRole } from '../types';
 import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon, SoundWaveIcon } from './icons';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import { useNavigation } from '../hooks/useNavigation.ts';
+import { useSession } from '../hooks/useSession.ts';
 
 const MyBookings: React.FC = () => {
-    const { bookings, engineers, currentUser } = useAppState();
+    const { bookings, engineers, currentUser, userRole } = useAppState();
     const dispatch = useAppDispatch();
-    const { navigateToStudio } = useNavigation();
+    const navigation = useNavigation();
+    const { startSession } = useSession(navigation.navigate);
 
     const onOpenTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
     const onOpenCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
@@ -147,7 +146,13 @@ const MyBookings: React.FC = () => {
                                  </div>
                                  {booking.stoodio && booking.status === BookingStatus.CONFIRMED && isUpcoming && (
                                      <button 
-                                        onClick={() => navigateToStudio(booking.stoodio!.coordinates)}
+                                        onClick={() => {
+                                            if (userRole === UserRole.ARTIST) {
+                                                startSession(booking);
+                                            } else {
+                                                navigation.navigateToStudio(booking.stoodio!.coordinates);
+                                            }
+                                        }}
                                         className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
                                      >
                                         <RoadIcon className="w-4 h-4"/>
