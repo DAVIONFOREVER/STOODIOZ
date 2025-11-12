@@ -40,13 +40,10 @@ const ArtistDashboard: React.FC = () => {
     const { currentUser, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
     
-    // FIX: Add a guard clause to prevent crashes if the component is rendered with a null user.
-    // This can happen in rare edge cases during logout or navigation race conditions.
     if (!currentUser) {
-        // Render a loading state or null to prevent the component from crashing.
         return (
             <div className="flex justify-center items-center py-20">
-                <p>Loading user data...</p>
+                <p className="text-zinc-400">Loading user data...</p>
             </div>
         );
     }
@@ -107,7 +104,6 @@ const ArtistDashboard: React.FC = () => {
     const upcomingBookingsCount = bookings.filter(b => new Date(b.date) >= new Date()).length;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    // FIX: Safely access follower and following data to prevent crashes on profiles with missing data.
     const followers = allUsers.filter(u => (artist.followerIds || []).includes(u.id));
     const followedArtists = artists.filter(a => (artist.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (artist.following?.engineers || []).includes(e.id));

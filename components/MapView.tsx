@@ -151,7 +151,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
     const [activeFilters, setActiveFilters] = useState<Set<RoleFilter>>(new Set(Object.values(UserRole)));
     const [showAvailableOnly, setShowAvailableOnly] = useState(false);
     const [animatedPositions, setAnimatedPositions] = useState<Record<string, { lat: number, lon: number }>>({});
-    const animationFrameRef = useRef<number>();
+    // FIX: The `useRef` hook requires an initial value. Provide `null` as the initial value for the ref.
+    const animationFrameRef = useRef<number | null>(null);
     const animationStartRef = useRef<number | null>(null);
     const SIMULATION_DURATION = 30000; // 30 seconds for a full journey simulation
 
@@ -253,7 +254,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             } else {
                 newFilters.add(filter);
             }
-            // FIX: The `Set` constructor was called without arguments. Pass an empty array to create an empty set.
             if (newFilters.size === 5) return new Set<RoleFilter>([]);
             return newFilters;
         });
@@ -309,7 +309,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                         <OverlayViewF
                             key={item.id}
                             position={{ lat: item.coordinates!.lat, lng: item.coordinates!.lon }}
-                            // FIX: Replace OverlayViewF.OVERLAY_MOUSE_TARGET with the correct string literal 'overlayMouseTarget'.
                             mapPaneName={'overlayMouseTarget'}
                         >
                             <MapMarker item={item} onSelect={handleSelect} />
@@ -320,7 +319,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                         <OverlayViewF
                             key={`${item.id}-animated`}
                             position={{ lat: animatedPositions[item.id].lat, lng: animatedPositions[item.id].lon }}
-                            // FIX: Replace OverlayViewF.OVERLAY_MOUSE_TARGET with the correct string literal 'overlayMouseTarget'.
                             mapPaneName={'overlayMouseTarget'}
                         >
                             <MapMarker item={item} onSelect={handleSelect} inTransit={true} />

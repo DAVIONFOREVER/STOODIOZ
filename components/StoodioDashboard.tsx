@@ -230,13 +230,10 @@ const StoodioDashboard: React.FC = () => {
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
-    // FIX: Add a guard clause to prevent crashes if the component is rendered with a null user.
-    // This can happen in rare edge cases during logout or navigation race conditions.
     if (!currentUser) {
-        // Render a loading state or null to prevent the component from crashing.
         return (
             <div className="flex justify-center items-center py-20">
-                <p>Loading user data...</p>
+                <p className="text-zinc-400">Loading user data...</p>
             </div>
         );
     }
@@ -261,10 +258,10 @@ const StoodioDashboard: React.FC = () => {
             room: stoodio.rooms[0],
             totalCost: 0,
             requestType: BookingRequestType.FIND_AVAILABLE,
+            engineerPayRate: jobData.engineerPayRate,
         };
         
         try {
-            // FIX: The createBooking function expects 4 arguments, but 6 were provided. The extra 'engineers' and 'producers' arguments have been removed.
             const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO);
             dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, postedBy: UserRole.STOODIO } } });
         } catch(error) {
@@ -276,7 +273,6 @@ const StoodioDashboard: React.FC = () => {
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    // FIX: Safely access follower and following data to prevent crashes on profiles with missing data.
     const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.followerIds || []).includes(u.id));
     const followedArtists = artists.filter(a => (stoodio.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
