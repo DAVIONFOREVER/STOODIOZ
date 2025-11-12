@@ -124,11 +124,12 @@ const ProducerDashboard: React.FC = () => {
     const isProPlan = producer.subscription?.plan === SubscriptionPlan.PRODUCER_PRO;
 
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => producer.followerIds.includes(u.id));
-    const followedArtists = artists.filter(a => producer.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => producer.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => producer.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => producer.following.producers.includes(p.id));
+    // FIX: Safely access follower and following data to prevent crashes on profiles with missing data.
+    const followers = allUsers.filter(u => (producer.followerIds || []).includes(u.id));
+    const followedArtists = artists.filter(a => (producer.following?.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (producer.following?.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (producer.following?.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (producer.following?.producers || []).includes(p.id));
 
     const renderContent = () => {
         switch(activeTab) {

@@ -276,11 +276,13 @@ const StoodioDashboard: React.FC = () => {
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => stoodio.followerIds.includes(u.id));
-    const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => stoodio.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => stoodio.following.producers.includes(p.id));
+    // FIX: Safely access follower and following data to prevent crashes on profiles with missing data.
+    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.followerIds || []).includes(u.id));
+    const followedArtists = artists.filter(a => (stoodio.following?.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (stoodio.following?.producers || []).includes(p.id));
+
 
     const handleBookSession = () => {
         viewStoodioDetails(stoodio);
@@ -344,7 +346,6 @@ const StoodioDashboard: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             <CreatePost currentUser={currentUser!} onPost={createPost} />
-                            {/* FIX: Removed invalid `currentUser` prop. */}
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">

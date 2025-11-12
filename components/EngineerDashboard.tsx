@@ -61,8 +61,6 @@ const EngineerDashboard: React.FC = () => {
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
     const { updateProfile } = useProfile();
 
-    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
-
     // FIX: Add a guard clause to prevent crashes if the component is rendered with a null user.
     // This can happen in rare edge cases during logout or navigation race conditions.
     if (!currentUser) {
@@ -75,6 +73,8 @@ const EngineerDashboard: React.FC = () => {
     }
     
     const engineer = currentUser as Engineer;
+    
+    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
     useEffect(() => {
         if (dashboardInitialTab) {
@@ -125,11 +125,12 @@ const EngineerDashboard: React.FC = () => {
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => engineer.followerIds.includes(u.id));
-    const followedArtists = artists.filter(a => engineer.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => engineer.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => engineer.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => engineer.following.producers.includes(p.id));
+    // FIX: Safely access follower and following data to prevent crashes on profiles with missing data.
+    const followers = allUsers.filter(u => (engineer.followerIds || []).includes(u.id));
+    const followedArtists = artists.filter(a => (engineer.following?.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (engineer.following?.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (engineer.following?.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (engineer.following?.producers || []).includes(p.id));
     
     const renderContent = () => {
          switch(activeTab) {
