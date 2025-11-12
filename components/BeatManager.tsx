@@ -10,7 +10,7 @@ interface BeatManagerProps {
 
 const BeatFormModal: React.FC<{
     instrumental: Partial<Instrumental> | null;
-    onSave: (instrumental: Instrumental, file: File | null) => void;
+    onSave: (instrumental: Instrumental, audioFile: File | null, coverArtUrl: string) => void;
     onClose: () => void;
 }> = ({ instrumental, onSave, onClose }) => {
     const [title, setTitle] = useState(instrumental?.title || '');
@@ -18,12 +18,17 @@ const BeatFormModal: React.FC<{
     const [priceLease, setPriceLease] = useState(instrumental?.priceLease || 29.99);
     const [priceExclusive, setPriceExclusive] = useState(instrumental?.priceExclusive || 299.99);
     const [tags, setTags] = useState((instrumental?.tags || []).join(', '));
-    const [coverArtUrl, setCoverArtUrl] = useState(instrumental?.coverArtUrl || '');
+    const [coverArtPreview, setCoverArtPreview] = useState(instrumental?.coverArtUrl || '');
     const [audioFile, setAudioFile] = useState<File | null>(null);
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const audioFileInputRef = React.useRef<HTMLInputElement>(null);
+    const coverArtInputRef = React.useRef<HTMLInputElement>(null);
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!audioFile && !instrumental?.id) {
+            alert('Please select an audio file for new instrumentals.');
+            return;
+        }
         const finalInstrumental: Instrumental = {
             id: instrumental?.id || `inst-${Date.now()}`,
             title,
@@ -32,15 +37,26 @@ const BeatFormModal: React.FC<{
             priceExclusive,
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
             audioUrl: instrumental?.audioUrl || '', // Will be replaced by the uploaded file URL
-            coverArtUrl: coverArtUrl || `https://picsum.photos/seed/${title.replace(/\s+/g, '')}/200/200`,
+            coverArtUrl: coverArtPreview || `https://picsum.photos/seed/${title.replace(/\s+/g, '')}/200/200`,
         };
-        onSave(finalInstrumental, audioFile);
+        onSave(finalInstrumental, audioFile, coverArtPreview);
     };
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAudioFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             setAudioFile(file);
+        }
+    };
+
+    const handleCoverArtChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setCoverArtPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
         }
     };
     
@@ -60,7 +76,7 @@ const BeatFormModal: React.FC<{
                             <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className={inputClasses}/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                             <div className="cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                             <div className="cursor-pointer" onClick={() => audioFileInputRef.current?.click()}>
                                 <label className="block text-sm font-medium text-zinc-300 mb-1">Audio File</label>
                                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md hover:border-orange-500 transition-colors">
                                     <div className="space-y-1 text-center">
@@ -68,16 +84,21 @@ const BeatFormModal: React.FC<{
                                         <p className="text-xs text-zinc-400">{audioFile ? audioFile.name : 'Click to select MP3 or WAV'}</p>
                                     </div>
                                 </div>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".mp3,.wav" className="hidden" />
+                                <input type="file" ref={audioFileInputRef} onChange={handleAudioFileChange} accept=".mp3,.wav" className="hidden" />
                             </div>
-                             <div>
+                             <div className="cursor-pointer" onClick={() => coverArtInputRef.current?.click()}>
                                 <label className="block text-sm font-medium text-zinc-300 mb-1">Cover Art</label>
-                                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md">
-                                    <div className="space-y-1 text-center">
-                                        <PhotoIcon className="mx-auto h-12 w-12 text-zinc-500" />
-                                        <p className="text-xs text-zinc-400">PNG or JPG (Simulated)</p>
-                                    </div>
+                                <div className="mt-1 flex justify-center items-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md hover:border-orange-500 transition-colors h-full">
+                                    {coverArtPreview ? (
+                                        <img src={coverArtPreview} alt="Cover art preview" className="max-h-24 object-contain rounded"/>
+                                    ) : (
+                                        <div className="space-y-1 text-center">
+                                            <PhotoIcon className="mx-auto h-12 w-12 text-zinc-500" />
+                                            <p className="text-xs text-zinc-400">Click to select PNG or JPG</p>
+                                        </div>
+                                    )}
                                 </div>
+                                <input type="file" ref={coverArtInputRef} onChange={handleCoverArtChange} accept="image/png, image/jpeg" className="hidden" />
                             </div>
                         </div>
 
@@ -122,14 +143,14 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer })
         setIsModalOpen(true);
     };
 
-    const handleSaveInstrumental = async (instrumentalToSave: Instrumental, file: File | null) => {
+    const handleSaveInstrumental = async (instrumentalToSave: Instrumental, audioFile: File | null, coverArtUrl: string) => {
         setIsUploading(true);
-        let finalInstrumental = { ...instrumentalToSave };
+        let finalInstrumental = { ...instrumentalToSave, coverArtUrl };
 
         try {
-            if (file) {
-                const audioUrl = await uploadBeatFile(file, producer.id);
-                finalInstrumental.audioUrl = audioUrl;
+            if (audioFile) {
+                const uploadedAudioUrl = await uploadBeatFile(audioFile, producer.id);
+                finalInstrumental.audioUrl = uploadedAudioUrl;
             }
 
             let updatedInstrumentals: Instrumental[];

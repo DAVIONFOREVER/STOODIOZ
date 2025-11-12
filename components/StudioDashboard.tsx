@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
@@ -201,10 +199,6 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
 };
 
 
-interface StoodioDashboardProps {
-    onNavigate: (view: AppView) => void;
-}
-
 type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -226,14 +220,13 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
     </button>
 );
 
-const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
+const StoodioDashboard: React.FC = () => {
     const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
     
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
     const { updateProfile, verificationSubmit } = useProfile();
-    const { onNavigate } = props;
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
@@ -344,7 +337,7 @@ const StoodioDashboard: React.FC<StoodioDashboardProps> = (props) => {
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
-                            {!isProPlan && <UpgradeProCard onNavigate={onNavigate} />}
+                            {!isProPlan && <UpgradeProCard onNavigate={navigate} />}
                         </div>
                     </div>
                 );

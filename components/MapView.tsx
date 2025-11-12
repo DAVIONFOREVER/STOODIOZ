@@ -253,7 +253,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             } else {
                 newFilters.add(filter);
             }
-            if (newFilters.size === 5) return new Set();
+            // FIX: Changed new Set() to new Set([]) to satisfy a linter/type-checker rule that expects an argument.
+            if (newFilters.size === 5) return new Set([]);
             return newFilters;
         });
     };

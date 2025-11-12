@@ -180,6 +180,8 @@ export interface BaseUser {
     password?: string;
     imageUrl: string;
     coverImageUrl?: string;
+    // FIX: Add optional animatedLogoUrl property to BaseUser type to resolve type error in App.tsx
+    animatedLogoUrl?: string;
     followers: number;
     followerIds: string[];
     following: Following;

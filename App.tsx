@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage } from './types';
@@ -72,7 +73,8 @@ const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Prod
     if (currentUser && 'animatedLogoUrl' in currentUser && currentUser.animatedLogoUrl) {
         return (
             <div className="flex justify-center items-center py-20">
-                <img src={currentUser.animatedLogoUrl} alt="Loading..." className="h-24 w-auto" />
+                {/* FIX: Cast animatedLogoUrl to string to resolve type error, as its existence is confirmed by the 'in' operator. */}
+                <img src={currentUser.animatedLogoUrl as string} alt="Loading..." className="h-24 w-auto" />
             </div>
         );
     }
