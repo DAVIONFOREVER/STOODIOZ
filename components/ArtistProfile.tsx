@@ -1,13 +1,11 @@
-
-
 import React, { useMemo } from 'react';
 import type { Artist, Engineer, Stoodio, Producer } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon } from './icons';
-import PostFeed from './PostFeed';
-import { useAppState } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
-import { useSocial } from '../hooks/useSocial';
-import { useMessaging } from '../hooks/useMessaging';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon } from './icons.tsx';
+import PostFeed from './PostFeed.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
+import { useNavigation } from '../hooks/useNavigation.ts';
+import { useSocial } from '../hooks/useSocial.ts';
+import { useMessaging } from '../hooks/useMessaging.ts';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;

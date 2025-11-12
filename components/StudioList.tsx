@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import type { Stoodio } from '../types';
 import { VerificationStatus, SmokingPolicy } from '../types';
-import StoodioCard from './StudioCard';
-import { SearchIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import StoodioCard from './StudioCard.tsx';
+import { SearchIcon } from './icons.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface StoodioListProps {
     onSelectStoodio: (stoodio: Stoodio) => void;

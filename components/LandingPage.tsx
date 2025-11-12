@@ -1,14 +1,14 @@
 import React from 'react';
 import type { Stoodio, Producer } from '../types';
 import { AppView } from '../types';
-import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons';
-import StoodioCard from './StudioCard';
-import EngineerCard from './EngineerCard';
-import ProducerCard from './ProducerCard';
-import AiHeroText from './AiHeroText';
-import ProductTour from './ProductTour';
-import AriaCantataHero from './AriaHero';
-import { useAppState } from '../contexts/AppContext';
+import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons.tsx';
+import StoodioCard from './StudioCard.tsx';
+import EngineerCard from './EngineerCard.tsx';
+import ProducerCard from './ProducerCard.tsx';
+import AiHeroText from './AiHeroText.tsx';
+import ProductTour from './ProductTour.tsx';
+import AriaCantataHero from './AriaHero.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface LandingPageProps {
     onNavigate: (view: AppView) => void;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Artist } from '../types';
-import { LocationIcon, NavigationArrowIcon, ClockIcon, DollarSignIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import { LocationIcon, NavigationArrowIcon, ClockIcon, DollarSignIcon } from './icons.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface ActiveSessionProps {
     onEndSession: (bookingId: string) => void;

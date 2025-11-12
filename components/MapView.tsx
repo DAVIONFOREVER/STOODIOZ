@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, OverlayViewF } from '@react-google-maps/api';
-import type { Stoodio, Artist, Engineer, Producer, Booking } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, Location } from '../types';
 import { UserRole, BookingStatus } from '../types';
-import { useAppState } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
-import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DiamondIcon, StarIcon, EyeIcon, CalendarIcon } from './icons';
+import { useAppState } from '../contexts/AppContext.tsx';
+import { HouseIcon, MicrophoneIcon, SoundWaveIcon, DiamondIcon, StarIcon } from './icons.tsx';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio;
@@ -53,8 +52,12 @@ const getRole = (user: MapUser): UserRole => {
     return UserRole.ARTIST;
 };
 
+// Linear interpolation function for smooth animation
+const lerp = (start: number, end: number, amt: number) => (1 - amt) * start + amt * end;
+
+
 const MapHoverCard: React.FC<{ item: MapItem }> = ({ item }) => {
-    let title = '', subtitle = '', icon = null;
+    let title = '', subtitle = '';
     if (item.itemType === 'USER') {
         const user = item as MapUser;
         title = user.name;
@@ -77,7 +80,7 @@ const MapHoverCard: React.FC<{ item: MapItem }> = ({ item }) => {
     );
 };
 
-const MapMarker: React.FC<{ item: MapItem, onSelect: (item: MapItem) => void }> = ({ item, onSelect }) => {
+const MapMarker: React.FC<{ item: MapItem, onSelect: (item: MapItem) => void, inTransit?: boolean }> = ({ item, onSelect, inTransit }) => {
     const [isHovered, setIsHovered] = useState(false);
     let icon = null, classes = '';
 
@@ -90,13 +93,13 @@ const MapMarker: React.FC<{ item: MapItem, onSelect: (item: MapItem) => void }> 
         switch(role) {
             case UserRole.ARTIST:
                 icon = <MicrophoneIcon className="w-4 h-4 text-white" />;
-                classes = "w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center marker-pulse marker-glow";
+                classes = `w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center marker-glow ${inTransit ? 'marker-pulse' : ''}`;
                 break;
             case UserRole.PRODUCER:
-                icon = <DiamondIcon className="w-5 h-5 text-orange-400 marker-glow" />;
+                icon = <DiamondIcon className={`w-5 h-5 text-orange-400 marker-glow ${inTransit ? 'marker-pulse' : ''}`} />;
                 break;
             case UserRole.ENGINEER:
-                icon = <SoundWaveIcon className="w-5 h-5 text-orange-400 marker-glow" />;
+                icon = <SoundWaveIcon className={`w-5 h-5 text-orange-400 marker-glow ${inTransit ? 'marker-pulse' : ''}`} />;
                 break;
             case UserRole.STOODIO:
                 icon = <HouseIcon className="w-5 h-5 text-orange-400 marker-glow" />;
@@ -147,7 +150,11 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [activeFilters, setActiveFilters] = useState<Set<RoleFilter>>(new Set(Object.values(UserRole)));
     const [showAvailableOnly, setShowAvailableOnly] = useState(false);
-    
+    const [animatedPositions, setAnimatedPositions] = useState<Record<string, { lat: number, lon: number }>>({});
+    const animationFrameRef = useRef<number>();
+    const animationStartRef = useRef<number | null>(null);
+    const SIMULATION_DURATION = 30000; // 30 seconds for a full journey simulation
+
     useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -164,6 +171,66 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             .filter(b => b.postedBy === UserRole.STOODIO && b.status === BookingStatus.PENDING && b.stoodio?.coordinates)
             .map(b => ({ ...b, itemType: 'JOB' }));
     }, [bookings]);
+
+    // Identify users who are "in transit" to a session
+    const inTransitUsers = useMemo(() => {
+        const now = new Date();
+        return bookings
+            .filter(b => {
+                const startTime = new Date(`${b.date}T${b.startTime}`);
+                const timeDiff = startTime.getTime() - now.getTime();
+                // Consider "in transit" if session is confirmed and starts within the next hour
+                return b.status === BookingStatus.CONFIRMED && timeDiff > 0 && timeDiff <= 60 * 60 * 1000;
+            })
+            .map(b => ({
+                user: b.artist || b.engineer || b.producer,
+                destination: b.stoodio
+            }))
+            .filter(item => item.user && item.user.coordinates && item.destination && item.destination.coordinates)
+            .map(item => ({
+                user: item.user!,
+                start: item.user!.coordinates,
+                end: item.destination!.coordinates
+            }));
+    }, [bookings, artists, engineers, producers]);
+
+
+    // Animation loop for moving users
+    useEffect(() => {
+        const animate = (timestamp: number) => {
+            if (animationStartRef.current === null) {
+                animationStartRef.current = timestamp;
+            }
+
+            const elapsed = timestamp - animationStartRef.current;
+            const progress = Math.min(elapsed / SIMULATION_DURATION, 1);
+            
+            const newPositions: Record<string, { lat: number, lon: number }> = {};
+            inTransitUsers.forEach(journey => {
+                const newLat = lerp(journey.start.lat, journey.end.lat, progress);
+                const newLon = lerp(journey.start.lon, journey.end.lon, progress);
+                newPositions[journey.user.id] = { lat: newLat, lon: newLon };
+            });
+
+            setAnimatedPositions(newPositions);
+
+            if (progress < 1) {
+                animationFrameRef.current = requestAnimationFrame(animate);
+            }
+        };
+
+        if (inTransitUsers.length > 0) {
+            animationFrameRef.current = requestAnimationFrame(animate);
+        }
+
+        return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+            animationStartRef.current = null;
+        };
+    }, [inTransitUsers]);
+
 
     const mapItems = useMemo<MapItem[]>(() => {
         const allUsers: MapUser[] = [...stoodioz, ...artists, ...engineers, ...producers];
@@ -186,7 +253,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             } else {
                 newFilters.add(filter);
             }
-            // If all are selected, treat as if none are (show all)
             if (newFilters.size === 5) return new Set();
             return newFilters;
         });
@@ -200,7 +266,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             else if ('instrumentals' in user) onSelectProducer(user as Producer);
             else onSelectArtist(user as Artist);
         } else {
-            // Future: Implement job detail modal
             const job = item as MapJob;
             if (job.stoodio) onSelectStoodio(job.stoodio);
         }
@@ -208,6 +273,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
 
     if (loadError) return <div className="p-4 text-red-400">Error loading maps.</div>;
     if (!isLoaded) return <div className="flex justify-center items-center h-full"><div className="w-10 h-10 border-4 border-t-orange-500 border-zinc-700 rounded-full animate-spin"></div></div>;
+
+    const inTransitIds = new Set(Object.keys(animatedPositions));
+    const staticItems = mapItems.filter(item => !inTransitIds.has(item.id));
+    const animatedItems = mapItems.filter(item => inTransitIds.has(item.id));
 
     return (
         <div className="flex gap-6" style={{ height: 'calc(100vh - 144px)' }}>
@@ -234,13 +303,24 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             {/* Map Container */}
             <div className="flex-grow relative h-full rounded-lg overflow-hidden cardSurface">
                  <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={userLocation ? 11 : 4} options={mapOptions}>
-                    {mapItems.map(item => (
+                    {/* Render static markers */}
+                    {staticItems.map(item => (
                         <OverlayViewF
                             key={item.id}
                             position={{ lat: item.coordinates!.lat, lng: item.coordinates!.lon }}
                             mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
                         >
                             <MapMarker item={item} onSelect={handleSelect} />
+                        </OverlayViewF>
+                    ))}
+                     {/* Render animated markers */}
+                    {animatedItems.map(item => (
+                        <OverlayViewF
+                            key={`${item.id}-animated`}
+                            position={{ lat: animatedPositions[item.id].lat, lng: animatedPositions[item.id].lon }}
+                            mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
+                        >
+                            <MapMarker item={item} onSelect={handleSelect} inTransit={true} />
                         </OverlayViewF>
                     ))}
                 </GoogleMap>

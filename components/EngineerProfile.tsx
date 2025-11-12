@@ -1,15 +1,14 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
 import { UserRole } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
-import PostFeed from './PostFeed';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
-import { useSocial } from '../hooks/useSocial';
-import { useMessaging } from '../hooks/useMessaging';
-import { useBookings } from '../hooks/useBookings';
-import MixingSamplePlayer from './MixingSamplePlayer';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons.tsx';
+import PostFeed from './PostFeed.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import { useNavigation } from '../hooks/useNavigation.ts';
+import { useSocial } from '../hooks/useSocial.ts';
+import { useMessaging } from '../hooks/useMessaging.ts';
+import { useBookings } from '../hooks/useBookings.ts';
+import MixingSamplePlayer from './MixingSamplePlayer.tsx';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;

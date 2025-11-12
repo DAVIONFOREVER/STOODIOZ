@@ -1,8 +1,8 @@
 import React from 'react';
 import type { Engineer } from '../types';
 import { BookingRequestType, BookingStatus } from '../types';
-import { CheckCircleIcon, CogIcon, ClockIcon, DownloadIcon, MusicNoteIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import { CheckCircleIcon, CogIcon, ClockIcon, DownloadIcon, MusicNoteIcon } from './icons.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface BookingConfirmationProps {
     onDone: () => void;

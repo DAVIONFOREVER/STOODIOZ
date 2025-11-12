@@ -1,72 +1,70 @@
-
-
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer } from './types';
 import { AppView, UserRole, VerificationStatus, SmokingPolicy, TransactionCategory, TransactionStatus } from './types';
-import { getAriaNudge } from './services/geminiService';
+import { getAriaNudge } from './services/geminiService.ts';
 import * as apiService from './services/apiService';
-import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext';
+import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
 
 // Import Custom Hooks
-import { useNavigation } from './hooks/useNavigation';
-import { useAuth } from './hooks/useAuth';
-import { useBookings } from './hooks/useBookings';
-import { useSocial } from './hooks/useSocial';
-import { useSession } from './hooks/useSession';
-import { useMessaging } from './hooks/useMessaging';
-import { useAria } from './hooks/useAria';
-import { useProfile } from './hooks/useProfile';
-import { useVibeMatcher } from './hooks/useVibeMatcher';
-import { useMixing } from './hooks/useMixing';
-import { useSubscription } from './hooks/useSubscription';
+import { useNavigation } from './hooks/useNavigation.ts';
+import { useAuth } from './hooks/useAuth.ts';
+import { useBookings } from './hooks/useBookings.ts';
+import { useSocial } from './hooks/useSocial.ts';
+import { useSession } from './hooks/useSession.ts';
+import { useMessaging } from './hooks/useMessaging.ts';
+import { useAria } from './hooks/useAria.ts';
+import { useProfile } from './hooks/useProfile.ts';
+import { useVibeMatcher } from './hooks/useVibeMatcher.ts';
+import { useMixing } from './hooks/useMixing.ts';
+import { useSubscription } from './hooks/useSubscription.ts';
 
-import Header from './components/Header';
-import BookingModal from './components/BookingModal';
-import TipModal from './components/TipModal';
-import NotificationToasts from './components/NotificationToasts';
-import VibeMatcherModal from './components/VibeMatcherModal';
-import BookingCancellationModal from './components/BookingCancellationModal';
-import AddFundsModal from './components/AddFundsModal';
-import RequestPayoutModal from './components/RequestPayoutModal';
-import MixingRequestModal from './components/MixingRequestModal';
-import { MagicWandIcon } from './components/icons';
-import AriaNudge from './components/AriaNudge';
+import Header from './components/Header.tsx';
+import BookingModal from './components/BookingModal.tsx';
+import TipModal from './components/TipModal.tsx';
+import NotificationToasts from './components/NotificationToasts.tsx';
+import VibeMatcherModal from './components/VibeMatcherModal.tsx';
+import BookingCancellationModal from './components/BookingCancellationModal.tsx';
+import AddFundsModal from './components/AddFundsModal.tsx';
+import RequestPayoutModal from './components/RequestPayoutModal.tsx';
+import MixingRequestModal from './components/MixingRequestModal.tsx';
+import { MagicWandIcon } from './components/icons.tsx';
+import AriaNudge from './components/AriaNudge.tsx';
 
 // --- Lazy Loaded Components ---
-const StoodioList = lazy(() => import('./components/StudioList'));
-const StoodioDetail = lazy(() => import('./components/StudioDetail'));
-const BookingConfirmation = lazy(() => import('./components/BookingConfirmation'));
-const MyBookings = lazy(() => import('./components/MyBookings'));
-const StoodioDashboard = lazy(() => import('./components/StoodioDashboard'));
-const EngineerDashboard = lazy(() => import('./components/EngineerDashboard'));
-const ProducerDashboard = lazy(() => import('./components/ProducerDashboard'));
-const Inbox = lazy(() => import('./components/Inbox'));
-const ActiveSession = lazy(() => import('./components/ActiveSession'));
-const ArtistList = lazy(() => import('./components/ArtistList'));
-const ArtistProfile = lazy(() => import('./components/ArtistProfile'));
-const ArtistDashboard = lazy(() => import('./components/ArtistDashboard'));
-const EngineerList = lazy(() => import('./components/EngineerList'));
-const EngineerProfile = lazy(() => import('./components/EngineerProfile'));
-const ProducerList = lazy(() => import('./components/ProducerList'));
-const ProducerProfile = lazy(() => import('./components/ProducerProfile'));
-const MapView = lazy(() => import('./components/MapView'));
-const LandingPage = lazy(() => import('./components/LandingPage'));
-const ChooseProfile = lazy(() => import('./components/ChooseProfile'));
-const ArtistSetup = lazy(() => import('./components/ArtistSetup'));
-const EngineerSetup = lazy(() => import('./components/EngineerSetup'));
-const ProducerSetup = lazy(() => import('./components/ProducerSetup'));
-const StoodioSetup = lazy(() => import('./components/StoodioSetup'));
-const Login = lazy(() => import('./components/Login'));
-const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
-const TheStage = lazy(() => import('./components/TheStage'));
-const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults'));
-const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans'));
-const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant'));
-const AdminRankings = lazy(() => import('./components/AdminRankings'));
-const StudioInsights = lazy(() => import('./components/StudioInsights'));
+const StoodioList = lazy(() => import('./components/StudioList.tsx'));
+const StoodioDetail = lazy(() => import('./components/StudioDetail.tsx'));
+const BookingConfirmation = lazy(() => import('./components/BookingConfirmation.tsx'));
+const MyBookings = lazy(() => import('./components/MyBookings.tsx'));
+const StoodioDashboard = lazy(() => import('./components/StoodioDashboard.tsx'));
+const EngineerDashboard = lazy(() => import('./components/EngineerDashboard.tsx'));
+const ProducerDashboard = lazy(() => import('./components/ProducerDashboard.tsx'));
+const Inbox = lazy(() => import('./components/Inbox.tsx'));
+const ActiveSession = lazy(() => import('./components/ActiveSession.tsx'));
+const ArtistList = lazy(() => import('./components/ArtistList.tsx'));
+const ArtistProfile = lazy(() => import('./components/ArtistProfile.tsx'));
+const ArtistDashboard = lazy(() => import('./components/ArtistDashboard.tsx'));
+const EngineerList = lazy(() => import('./components/EngineerList.tsx'));
+const EngineerProfile = lazy(() => import('./components/EngineerProfile.tsx'));
+const ProducerList = lazy(() => import('./components/ProducerList.tsx'));
+const ProducerProfile = lazy(() => import('./components/ProducerProfile.tsx'));
+const MapView = lazy(() => import('./components/MapView.tsx'));
+const LandingPage = lazy(() => import('./components/LandingPage.tsx'));
+const ChooseProfile = lazy(() => import('./components/ChooseProfile.tsx'));
+const ArtistSetup = lazy(() => import('./components/ArtistSetup.tsx'));
+const EngineerSetup = lazy(() => import('./components/EngineerSetup.tsx'));
+const ProducerSetup = lazy(() => import('./components/ProducerSetup.tsx'));
+const StoodioSetup = lazy(() => import('./components/StoodioSetup.tsx'));
+const Login = lazy(() => import('./components/Login.tsx'));
+const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.tsx'));
+const TheStage = lazy(() => import('./components/TheStage.tsx'));
+const VibeMatcherResults = lazy(() => import('./components/VibeMatcherResults.tsx'));
+const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans.tsx'));
+const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant.tsx'));
+const AdminRankings = lazy(() => import('./components/AdminRankings.tsx'));
+const StudioInsights = lazy(() => import('./components/StudioInsights.tsx'));
 // FIX: Added lazy import for the new Leaderboard component.
-const Leaderboard = lazy(() => import('./components/Leaderboard'));
+const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 
 const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
     // If the current user is a studio and has a custom animated logo, display it.
@@ -199,7 +197,7 @@ const App: React.FC = () => {
             case AppView.INBOX:
                 return <Inbox />;
             case AppView.MAP_VIEW:
-                return <MapView onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} onInitiateBooking={initiateBookingWithEngineer} />;
+                return <MapView onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} />;
             case AppView.ARTIST_LIST:
                 return <ArtistList onSelectArtist={viewArtistProfile} onToggleFollow={(type, id) => toggleFollow(type, id)} />;
             case AppView.ARTIST_PROFILE:

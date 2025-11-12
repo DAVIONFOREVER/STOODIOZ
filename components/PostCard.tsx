@@ -1,9 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface PostCardProps {
     post: Post;
@@ -171,4 +170,3 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
 };
 
 export default PostCard;
-      

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import type { Artist } from '../types';
-import ArtistCard from './ArtistCard';
-import { useAppState } from '../contexts/AppContext';
+import ArtistCard from './ArtistCard.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface ArtistListProps {
     onSelectArtist: (artist: Artist) => void;

@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import type { BookingRequest, Room, Instrumental } from '../types';
 import { BookingRequestType } from '../types';
 import { SERVICE_FEE_PERCENTAGE } from '../constants';
-import { CloseIcon, CalendarIcon, ClockIcon, DurationIcon, PriceIcon, UserGroupIcon, MusicNoteIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import { CloseIcon, CalendarIcon, ClockIcon, DurationIcon, PriceIcon, UserGroupIcon, MusicNoteIcon } from './icons.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface BookingModalProps {
     onClose: () => void;

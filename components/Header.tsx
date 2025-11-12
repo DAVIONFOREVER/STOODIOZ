@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
-import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon } from './icons';
-import NotificationPanel from './NotificationPanel';
-import UniversalSearch from './UniversalSearch';
-import { useAppState } from '../contexts/AppContext';
+import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon } from './icons.tsx';
+import NotificationPanel from './NotificationPanel.tsx';
+import UniversalSearch from './UniversalSearch.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface HeaderProps {
     onNavigate: (view: AppView) => void;

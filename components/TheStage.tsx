@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { AppView } from '../types';
-import CreatePost from './CreatePost';
-import PostFeed from './PostFeed';
-import UserProfileCard from './UserProfileCard';
-import WhoToFollow from './WhoToFollow';
-import TrendingPost from './TrendingPost';
-import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import CreatePost from './CreatePost.tsx';
+import PostFeed from './PostFeed.tsx';
+import UserProfileCard from './UserProfileCard.tsx';
+import WhoToFollow from './WhoToFollow.tsx';
+import TrendingPost from './TrendingPost.tsx';
+import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface TheStageProps {
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
@@ -46,34 +46,40 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
         const authorsMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
         allUsers.forEach(u => authorsMap.set(u.id, u));
-
-        if (!currentUser || !('following' in currentUser)) {
-            return { feedPosts: [], authorsMap, suggestions: [], trendingPost: null, trendingPostAuthor: null };
-        }
-
-        const followedIds = new Set([
-            ...currentUser.following.artists,
-            ...currentUser.following.engineers,
-            ...currentUser.following.stoodioz,
-            ...currentUser.following.producers,
-            currentUser.id
-        ]);
         
         const allPosts = allUsers.flatMap(user => user.posts || []);
+
+        let feedPosts: Post[] = [];
+        let suggestions: (Artist | Engineer | Stoodio | Producer)[] = [];
         
-        const feedPosts = [...allPosts]
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        
-        const suggestions = allUsers.filter(u => !followedIds.has(u.id) && u.id !== currentUser.id).slice(0, 4);
+        if (currentUser && 'following' in currentUser) {
+            const followedIds = new Set([
+                ...currentUser.following.artists,
+                ...currentUser.following.engineers,
+                ...currentUser.following.stoodioz,
+                ...currentUser.following.producers,
+                currentUser.id
+            ]);
+            
+            feedPosts = allPosts
+                .filter(post => followedIds.has(post.authorId))
+                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                
+            suggestions = allUsers.filter(u => !followedIds.has(u.id) && u.id !== currentUser.id).slice(0, 4);
+        } else {
+            // Guest view: show all posts
+            feedPosts = allPosts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            suggestions = allUsers.filter(u => u.id !== 'artist-aria-cantata').slice(0, 4);
+        }
 
         const trendingPost = [...allPosts]
             .sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0] || null;
             
         const trendingPostAuthor = trendingPost ? authorsMap.get(trendingPost.authorId) : null;
 
-
         return { feedPosts, authorsMap, suggestions, trendingPost, trendingPostAuthor };
     }, [currentUser, artists, engineers, stoodioz, producers]);
+
 
     const handleSelectUser = (user: Artist | Engineer | Stoodio | Producer) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
