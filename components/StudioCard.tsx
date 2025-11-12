@@ -9,6 +9,12 @@ interface StoodioCardProps {
 }
 
 const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) => {
+    // Prevents crash if stoodio is undefined
+    if (!stoodio) return null; 
+
+    const rating = stoodio.rating_overall != null ? stoodio.rating_overall.toFixed(1) : "0.0";
+    const hourlyRate = stoodio.hourlyRate != null ? stoodio.hourlyRate : 0;
+
     return (
         <div
             className="cardSurface cursor-pointer group relative overflow-hidden"
@@ -19,18 +25,18 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 to-transparent"></div>
                 <div className="absolute bottom-4 left-4">
                     <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors flex items-center gap-2 text-glow">
-                        {stoodio.name}
+                        {stoodio.name || "Unnamed Studio"}
                         {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
                             // FIX: The `title` attribute is not a valid prop for the `VerifiedIcon` component. The fix is to use an SVG `<title>` element for accessibility.
                             <VerifiedIcon className="w-6 h-6 text-blue-400"><title>Verified Stoodio</title></VerifiedIcon>
                         )}
                     </h3>
-                    <p className="text-zinc-300 font-semibold flex items-center gap-1.5"><LocationIcon className="w-4 h-4" /> {stoodio.location}</p>
+                    <p className="text-zinc-300 font-semibold flex items-center gap-1.5"><LocationIcon className="w-4 h-4" /> {stoodio.location || "Location not available"}</p>
                 </div>
                 <div className="absolute top-4 right-4 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5 text-yellow-400 font-bold text-sm">
                     <StarIcon className="w-4 h-4" />
                     {/* FIX: Changed `stoodio.rating` to `stoodio.rating_overall` to match the property name in the `BaseUser` type. */}
-                    <span>{stoodio.rating_overall.toFixed(1)}</span>
+                    <span>{rating}</span>
                 </div>
             </div>
             <div className="p-4 relative">
@@ -38,7 +44,7 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
                 <div className="flex justify-between items-center">
                     <div>
                         <p className="text-zinc-400 text-xs">From</p>
-                        <p className="text-xl font-bold text-zinc-100">${stoodio.hourlyRate}<span className="text-sm font-normal text-zinc-400">/hr</span></p>
+                        <p className="text-xl font-bold text-zinc-100">${hourlyRate}<span className="text-sm font-normal text-zinc-400">/hr</span></p>
                     </div>
                 </div>
             </div>
