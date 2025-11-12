@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon } from './icons.tsx';
+import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import Following from './Following.tsx';
@@ -58,9 +58,14 @@ const ArtistDashboard: React.FC = () => {
     }, [dashboardInitialTab, dispatch]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const coverImageInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageUploadClick = () => {
         fileInputRef.current?.click();
+    };
+    
+    const handleCoverImageUploadClick = () => {
+        coverImageInputRef.current?.click();
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,6 +75,18 @@ const ArtistDashboard: React.FC = () => {
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
                 updateProfile({ imageUrl });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    const handleCoverFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const coverImageUrl = e.target?.result as string;
+                updateProfile({ coverImageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -123,45 +140,72 @@ const ArtistDashboard: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="p-6 md:p-8 cardSurface">
-                <div className="flex flex-col sm:flex-row items-start justify-between gap-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <div className="relative group flex-shrink-0">
-                            <img src={artist.imageUrl} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
-                            <button 
-                                onClick={handleImageUploadClick} 
-                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                aria-label="Change profile photo"
-                            >
-                                <EditIcon className="w-8 h-8 text-white" />
-                            </button>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept="image/*"
-                            />
+            <div className="relative rounded-2xl overflow-hidden cardSurface group">
+                {/* Cover Image */}
+                <img 
+                    src={artist.coverImageUrl || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'} 
+                    alt={`${artist.name}'s cover photo`}
+                    className="w-full h-48 md:h-64 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                
+                {/* Edit Cover Button */}
+                <button 
+                    onClick={handleCoverImageUploadClick}
+                    className="absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold py-1.5 px-3 rounded-full hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100 flex items-center gap-2"
+                >
+                    <PhotoIcon className="w-4 h-4" /> Edit Cover
+                </button>
+                <input
+                    type="file"
+                    ref={coverImageInputRef}
+                    onChange={handleCoverFileChange}
+                    className="hidden"
+                    accept="image/*"
+                />
+
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
+                        <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
+                            <div className="relative group/pfp flex-shrink-0">
+                                <img src={artist.imageUrl} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <button 
+                                    onClick={handleImageUploadClick} 
+                                    className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
+                                    aria-label="Change profile photo"
+                                >
+                                    <EditIcon className="w-8 h-8 text-white" />
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept="image/*"
+                                />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{artist.name}</h1>
+                                <p className="text-zinc-400 mt-1">Artist Dashboard</p>
+                            </div>
                         </div>
-                        <div className="text-center sm:text-left">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{artist.name}</h1>
-                            <p className="text-zinc-400 mt-2">Artist Dashboard</p>
-                        </div>
+                        <button
+                            onClick={onOpenVibeMatcher}
+                            className="bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                        >
+                            <MagicWandIcon className="w-5 h-5"/>
+                            AI Vibe Matcher
+                        </button>
                     </div>
-                    <button
-                        onClick={onOpenVibeMatcher}
-                        className="bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
-                    >
-                        <MagicWandIcon className="w-5 h-5"/>
-                        AI Vibe Matcher
-                    </button>
-                </div>
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                     <StatCard label="Wallet Balance" value={`$${artist.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
-                    <StatCard label="Followers" value={artist.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <StatCard label="Wallet Balance" value={`$${artist.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                <StatCard label="Followers" value={artist.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
+            </div>
+
              <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />

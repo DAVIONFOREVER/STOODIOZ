@@ -179,6 +179,7 @@ export interface BaseUser {
     email: string;
     password?: string;
     imageUrl: string;
+    coverImageUrl?: string;
     followers: number;
     followerIds: string[];
     following: Following;

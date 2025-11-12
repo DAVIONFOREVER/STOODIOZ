@@ -20,6 +20,7 @@
     "ranking_tier": "Gold",
     "local_rank_text": "#1 Most Booked Studio in Atlanta",
     "imageUrl": "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=800&auto=format&fit=crop",
+    "coverImageUrl": "https://images.unsplash.com/photo-1516223725357-628a158b6692?q=80&w=1200&auto=format&fit=crop",
     "amenities": ["Vocal Booth", "Lounge Area", "Free WiFi", "Vintage Mics"],
     "coordinates": { "lat": 33.7490, "lon": -84.3880 },
     "availability": [
@@ -98,6 +99,7 @@
     "ranking_tier": "Silver",
     "local_rank_text": "Top 20 in Nashville",
     "imageUrl": "https://images.unsplash.com/photo-1549219782-5c591d853372?q=80&w=800&auto=format&fit=crop",
+    "coverImageUrl": "https://images.unsplash.com/photo-1619983081593-e22f5899fa24?q=80&w=1200&auto=format&fit=crop",
     "amenities": ["Vocal Booth", "Free Coffee", "Acoustic Guitars"],
     "coordinates": { "lat": 36.1627, "lon": -86.7816 },
     "availability": [],
