@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Artist, Engineer, Stoodio, Transaction, Producer } from '../types';
 import { TransactionCategory, TransactionStatus, UserRole } from '../types';
@@ -77,7 +76,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
                 {sortedTransactions.length > 0 ? sortedTransactions.map((tx) => {
                     const isCredit = tx.amount > 0;
                     return (
-                        <div key={tx.id} className="flex items-center gap-4 bg-zinc-700/50 p-3 rounded-md">
+                        <div key={tx.id} className="cardSurface p-3 flex items-center gap-4">
                             <TransactionIcon category={tx.category} />
                             <div className="flex-grow">
                                 <p className="font-semibold text-slate-200">{tx.description}</p>
@@ -106,4 +105,3 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
 };
 
 export default Wallet;
-      

@@ -62,7 +62,7 @@ const ConversationList: React.FC<{
 }
 
 const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => (
-    <div className="bg-black/20 p-3 rounded-lg flex items-center gap-3">
+    <div className="bg-black/40 p-3 rounded-lg flex items-center gap-3">
         <PaperclipIcon className="w-6 h-6 text-zinc-400 flex-shrink-0" />
         <div className="flex-grow overflow-hidden">
             <p className="text-sm font-semibold truncate">{file.name}</p>
@@ -158,14 +158,14 @@ const ChatThread: React.FC<{
         <div className="flex flex-col h-full bg-zinc-900">
             {/* Header */}
             <header className="flex-shrink-0 z-10">
-                <div className="flex items-center gap-4 p-3 border-b border-zinc-700/50 bg-zinc-900/70 backdrop-blur-sm">
+                <div className="flex items-center gap-4 p-3 border-b border-zinc-700/50 bg-zinc-950/80 backdrop-blur-sm">
                     <button onClick={onBack} className="md:hidden p-2 rounded-full hover:bg-zinc-800">
                         <ChevronLeftIcon className="w-6 h-6" />
                     </button>
                     <img src={participant.imageUrl} alt={participant.name} className="w-10 h-10 rounded-xl object-cover" />
                     <h3 className="font-bold text-lg text-zinc-100">{participant.name}</h3>
                 </div>
-                <div className="flex border-b border-zinc-700/50 bg-zinc-900/70 backdrop-blur-sm">
+                <div className="flex border-b border-zinc-700/50 bg-zinc-950/80 backdrop-blur-sm">
                     <TabButton 
                         label="Messages" 
                         isActive={activeTab === 'messages'} 
@@ -271,7 +271,7 @@ const ChatThread: React.FC<{
                             )}
                         </div>
                     )}
-                    <div className="relative p-4 bg-zinc-900/70 backdrop-blur-sm border-t border-zinc-700/50">
+                    <div className="relative p-4 bg-zinc-950/80 backdrop-blur-sm border-t border-zinc-700/50">
                         {isAttachmentMenuOpen && (
                             <div className="absolute bottom-20 left-4 bg-zinc-800 p-2 rounded-lg border border-zinc-700 shadow-xl flex flex-col gap-1 z-20 text-zinc-200">
                                 <button onClick={() => handleSendAttachment('image')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PhotoIcon className="w-5 h-5 text-zinc-400" /> Send Photo</button>

@@ -172,7 +172,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer })
             
             <div className="space-y-4">
                 {producer.instrumentals.length > 0 ? producer.instrumentals.map(inst => (
-                    <div key={inst.id} className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-700 flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div key={inst.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                         <img src={inst.coverArtUrl} alt={inst.title} className="w-16 h-16 rounded-md object-cover flex-shrink-0" />
                         <div className="flex-grow">
                             <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><MusicNoteIcon className="w-5 h-5 text-purple-400"/> {inst.title}</h3>

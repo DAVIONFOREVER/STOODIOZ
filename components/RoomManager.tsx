@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Stoodio, Room } from '../types';
 import { SmokingPolicy } from '../types';
@@ -118,7 +117,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) =
             
             <div className="space-y-4">
                 {stoodio.rooms.length > 0 ? stoodio.rooms.map(room => (
-                    <div key={room.id} className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div key={room.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex-grow">
                             <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><HouseIcon className="w-5 h-5 text-orange-400"/> {room.name}</h3>
                             <p className="text-sm text-zinc-400 mt-1 mb-2">{room.description}</p>
@@ -147,4 +146,3 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) =
 };
 
 export default RoomManager;
-      

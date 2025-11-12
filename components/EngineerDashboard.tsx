@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Engineer, Artist, Stoodio, Producer } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
@@ -40,13 +38,13 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
-    <div className="p-6 text-white text-center cardSurface">
-        <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
+    <div className="cardSurface border-2 border-orange-500 p-6 text-zinc-100 text-center">
+        <StarIcon className="w-10 h-10 mx-auto text-orange-400/80 mb-2" />
         <h3 className="text-xl font-bold mb-2">Upgrade to Engineer Plus</h3>
-        <p className="text-sm opacity-90 mb-4">Unlock advanced job filters, lower service fees, and priority support to boost your career.</p>
+        <p className="text-sm text-zinc-400 mb-4">Unlock advanced job filters, lower service fees, and priority support to boost your career.</p>
         <button 
             onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
-            className="bg-white text-orange-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
+            className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all duration-300"
         >
             View Plans
         </button>

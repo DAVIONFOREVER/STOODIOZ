@@ -26,7 +26,7 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                     {studios.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {studios.map(studio => (
-                                <div key={studio.id} className="bg-zinc-900/50 rounded-xl p-3 flex items-center gap-4 border border-zinc-700">
+                                <div key={studio.id} className="cardSurface p-3 flex items-center gap-4">
                                     <img src={studio.imageUrl} alt={studio.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectStudio(studio)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{studio.name}</button>
@@ -56,7 +56,7 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                      {engineers.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {engineers.map(engineer => (
-                                <div key={engineer.id} className="bg-zinc-900/50 rounded-xl p-3 flex items-center gap-4 border border-zinc-700">
+                                <div key={engineer.id} className="cardSurface p-3 flex items-center gap-4">
                                     <img src={engineer.imageUrl} alt={engineer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectEngineer(engineer)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{engineer.name}</button>
@@ -83,7 +83,7 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                      {artists.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {artists.map(artist => (
-                                <div key={artist.id} className="bg-zinc-900/50 rounded-xl p-3 flex items-center gap-4 border border-zinc-700">
+                                <div key={artist.id} className="cardSurface p-3 flex items-center gap-4">
                                     <img src={artist.imageUrl} alt={artist.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectArtist(artist)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{artist.name}</button>
@@ -111,7 +111,7 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                      {producers.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
                             {producers.map(producer => (
-                                <div key={producer.id} className="bg-zinc-900/50 rounded-xl p-3 flex items-center gap-4 border border-zinc-700">
+                                <div key={producer.id} className="cardSurface p-3 flex items-center gap-4">
                                     <img src={producer.imageUrl} alt={producer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectProducer(producer)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{producer.name}</button>

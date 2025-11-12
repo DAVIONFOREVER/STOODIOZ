@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Engineer } from '../types';
 import { BellIcon, RoadIcon, DollarSignIcon } from './icons';
@@ -36,7 +35,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
 
             <div className="space-y-6">
                 {/* Enable/Disable Toggle */}
-                <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
+                <div className="cardSurface p-4 flex items-center justify-between">
                     <div>
                         <h3 className="font-semibold text-zinc-200">Enable Job Alerts</h3>
                         <p className="text-sm text-zinc-400">Receive push notifications for new opportunities.</p>
@@ -56,7 +55,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
                 </div>
 
                 {/* Radius Slider */}
-                <div className={`bg-zinc-900/50 p-4 rounded-lg border border-zinc-700 transition-opacity ${prefs.enabled ? 'opacity-100' : 'opacity-50'}`}>
+                <div className={`cardSurface p-4 transition-opacity ${prefs.enabled ? 'opacity-100' : 'opacity-50'}`}>
                     <div className="flex justify-between items-center mb-2">
                         <label htmlFor="radius-slider" className="font-semibold text-zinc-200 flex items-center gap-2">
                            <RoadIcon className="w-5 h-5"/> Notification Radius
@@ -80,7 +79,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
                 </div>
 
                 {/* Minimum Pay Rate */}
-                 <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
+                 <div className="cardSurface p-4">
                     <div className="flex justify-between items-center mb-2">
                         <label htmlFor="pay-rate-input" className="font-semibold text-zinc-200 flex items-center gap-2">
                            <DollarSignIcon className="w-5 h-5"/> Minimum Pay Rate
@@ -113,4 +112,3 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
 };
 
 export default NotificationSettings;
-      

@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { AppView, BookingStatus } from '../types';
@@ -89,7 +88,7 @@ const StudioInsights: React.FC = () => {
                     <h2 className="text-2xl font-bold text-zinc-100 mb-4">Upcoming Sessions</h2>
                      <div className="space-y-3">
                         {upcomingSessions.length > 0 ? upcomingSessions.map(b => (
-                            <div key={b.id} className="bg-zinc-800/70 p-4 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div key={b.id} className="cardSurface p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div>
                                     <p className="font-bold text-zinc-200">{format(new Date(b.date), 'EEE, MMM d')} @ {b.startTime}</p>
                                     <p className="text-sm text-zinc-400">{b.artist?.name || 'Studio Booking'} • {b.duration} hrs</p>
@@ -115,7 +114,7 @@ const StudioInsights: React.FC = () => {
                     <h2 className="text-2xl font-bold text-zinc-100 mb-4">Top Talent</h2>
                      <div className="space-y-4">
                         {engineers.slice(0, 3).map(eng => (
-                            <div key={eng.id} className="bg-zinc-800/70 p-3 rounded-lg">
+                            <div key={eng.id} className="cardSurface p-3">
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">
                                         <img src={eng.imageUrl} alt={eng.name} className="w-10 h-10 rounded-lg object-cover" />
@@ -140,4 +139,3 @@ const StudioInsights: React.FC = () => {
 }
 
 export default StudioInsights;
-      

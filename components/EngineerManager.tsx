@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, InHouseEngineerInfo } from '../types';
 import { SoundWaveIcon, DollarSignIcon, TrashIcon, PlusCircleIcon } from './icons';
@@ -60,7 +59,7 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
              <p className="text-sm text-zinc-400 mb-6">Add engineers to your studio's roster and set custom pay rates for sessions booked here.</p>
             
             {/* Add Engineer Form */}
-            <form onSubmit={handleAddEngineer} className="bg-zinc-900/50 p-4 rounded-xl border border-zinc-700 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <form onSubmit={handleAddEngineer} className="cardSurface p-4 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div>
                     <label htmlFor="engineer-select" className="block text-sm font-medium text-zinc-300 mb-1">Select Engineer</label>
                     <select
@@ -96,7 +95,7 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
             {/* Current Roster */}
             <div className="space-y-4">
                 {inHouseEngineers.length > 0 ? inHouseEngineers.map(({ engineer, payRate }) => (
-                    <div key={engineer.id} className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div key={engineer.id} className="cardSurface p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3 flex-grow">
                             <img src={engineer.imageUrl} alt={engineer.name} className="w-12 h-12 rounded-lg object-cover" />
                             <div>
@@ -119,4 +118,3 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
 };
 
 export default EngineerManager;
-      

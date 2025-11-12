@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Engineer, MixingServices } from '../types';
 import { DollarSignIcon, EditIcon } from './icons';
@@ -51,7 +50,7 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
             
             <div className="space-y-6">
                 {/* Enable/Disable Toggle */}
-                <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
+                <div className="cardSurface p-4 flex items-center justify-between">
                     <div>
                         <h3 className="font-semibold text-zinc-200">Offer Remote Mixing Services</h3>
                         <p className="text-sm text-zinc-400">Allow artists to book you for remote mixing jobs.</p>
@@ -131,4 +130,3 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
 };
 
 export default MixingServicesManager;
-      

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Engineer, MixingSample } from '../types';
 import { MusicNoteIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
@@ -32,7 +31,7 @@ const MixingSampleFormModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-zinc-900/80 backdrop-blur-lg rounded-xl shadow-2xl w-full max-w-lg border border-zinc-700/50">
+            <div className="w-full max-w-lg cardSurface">
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-zinc-100">{sample?.id ? 'Edit Mixing Sample' : 'Add New Sample'}</h2>
                     <button onClick={onClose}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
@@ -111,7 +110,7 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
             
             <div className="space-y-4">
                 {(engineer.mixingSamples || []).length > 0 ? (engineer.mixingSamples || []).map(sample => (
-                    <div key={sample.id} className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-700 flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div key={sample.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                         <div className="flex-grow">
                             <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><MusicNoteIcon className="w-5 h-5 text-purple-400"/> {sample.title}</h3>
                             <p className="text-sm text-zinc-400 mt-1">{sample.description}</p>
@@ -132,4 +131,3 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
 };
 
 export default MixingSampleManager;
-      

@@ -47,7 +47,7 @@ const FollowersList: React.FC<FollowersListProps> = ({ followers, onSelectStoodi
                             <button 
                                 key={user.id} 
                                 onClick={() => handleSelect(user)}
-                                className="bg-zinc-900/50 rounded-xl p-3 flex items-center gap-4 border border-zinc-700 hover:border-orange-500/50 transition-colors text-left w-full"
+                                className="cardSurface p-3 flex items-center gap-4 text-left w-full"
                             >
                                 <img src={user.imageUrl} alt={user.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                 <div className="flex-grow">

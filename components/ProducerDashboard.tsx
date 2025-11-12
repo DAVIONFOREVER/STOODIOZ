@@ -39,13 +39,13 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
-    <div className="bg-gradient-to-r from-purple-500 to-fuchsia-500 p-6 rounded-2xl text-white text-center shadow-lg shadow-purple-500/10">
-        <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
+    <div className="cardSurface border-2 border-purple-500 p-6 text-zinc-100 text-center">
+        <StarIcon className="w-10 h-10 mx-auto text-purple-400/80 mb-2" />
         <h3 className="text-xl font-bold mb-2">Upgrade to Producer Pro</h3>
-        <p className="text-sm opacity-90 mb-4">Unlock lower commission fees, unlimited uploads, and priority placement to boost your sales.</p>
+        <p className="text-sm text-zinc-400 mb-4">Unlock lower commission fees, unlimited uploads, and priority placement to boost your sales.</p>
         <button 
             onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
-            className="bg-white text-purple-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
+            className="bg-purple-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-purple-600 transition-all duration-300"
         >
             View Plans
         </button>
