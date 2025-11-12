@@ -15,6 +15,7 @@ interface RankedUserCardProps {
 const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotlight = false, onSelectProfile }) => {
 
     const descriptionOrBio = 'description' in profile ? profile.description : 'bio' in profile ? profile.bio : '';
+    const rating = (profile.rating_overall ?? 0).toFixed(1);
 
     if (isSpotlight) {
         return (
@@ -31,7 +32,7 @@ const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotli
                     <div className="my-2"><RankingBadge tier={profile.ranking_tier} isOnStreak={profile.is_on_streak} /></div>
                     <p className="text-zinc-400 text-sm mb-4 max-w-lg">{descriptionOrBio}</p>
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-                        <span className="flex items-center gap-1.5 font-semibold text-zinc-200"><StarIcon className="w-4 h-4 text-yellow-400" /> {profile.rating_overall.toFixed(1)} Rating</span>
+                        <span className="flex items-center gap-1.5 font-semibold text-zinc-200"><StarIcon className="w-4 h-4 text-yellow-400" /> {rating} Rating</span>
                         <span className="flex items-center gap-1.5 font-semibold text-zinc-200"><CalendarIcon className="w-4 h-4 text-orange-400" /> {profile.sessions_completed} Sessions</span>
                         <span className="font-semibold text-zinc-200">Re-Hire Rate: {profile.repeat_hire_rate}%</span>
                     </div>
@@ -51,7 +52,7 @@ const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotli
                 <p className="font-bold text-zinc-100 truncate">{profile.name}</p>
                 <div className="my-1"><RankingBadge tier={profile.ranking_tier} isOnStreak={profile.is_on_streak} short /></div>
                  <div className="flex items-center gap-3 text-xs text-zinc-400">
-                    <span className="flex items-center gap-1"><StarIcon className="w-3 h-3 text-yellow-400" /> {profile.rating_overall.toFixed(1)}</span>
+                    <span className="flex items-center gap-1"><StarIcon className="w-3 h-3 text-yellow-400" /> {rating}</span>
                     <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3 text-orange-400" /> {profile.sessions_completed}</span>
                 </div>
             </div>
