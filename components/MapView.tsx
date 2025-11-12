@@ -16,12 +16,7 @@ type RoleFilter = UserRole | 'JOBS';
 // --- MAP CONFIGURATION ---
 const mapContainerStyle = {
   width: '100%',
-  height: 'calc(100vh - 80px)', // Full viewport height minus header
-  position: 'absolute' as const,
-  top: '80px',
-  left: 0,
-  right: 0,
-  bottom: 0,
+  height: '100%',
 };
 
 const defaultCenter = { lat: 39.8283, lng: -98.5795 };
@@ -215,22 +210,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
     if (!isLoaded) return <div className="flex justify-center items-center h-full"><div className="w-10 h-10 border-4 border-t-orange-500 border-zinc-700 rounded-full animate-spin"></div></div>;
 
     return (
-        <div className="relative w-full" style={{ height: 'calc(100vh - 80px)' }}>
-            <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={userLocation ? 11 : 4} options={mapOptions}>
-                {mapItems.map(item => (
-                    <OverlayViewF
-                        key={item.id}
-                        position={{ lat: item.coordinates!.lat, lng: item.coordinates!.lon }}
-                        mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
-                    >
-                        <MapMarker item={item} onSelect={handleSelect} />
-                    </OverlayViewF>
-                ))}
-            </GoogleMap>
-            
-            {/* UI Overlay */}
-            <div className="absolute top-4 right-4 p-3 cardSurface space-y-3">
-                <h3 className="font-bold text-zinc-100 px-1">Filter Marketplace</h3>
+        <div className="flex gap-6" style={{ height: 'calc(100vh - 144px)' }}>
+            {/* UI Sidebar */}
+            <div className="w-72 flex-shrink-0 h-full overflow-y-auto p-4 cardSurface space-y-4">
+                <h3 className="font-bold text-zinc-100 text-lg px-1">Filter Marketplace</h3>
                 <div className="flex flex-col gap-2">
                     <FilterButton icon={<MicrophoneIcon className="w-4 h-4 text-green-400"/>} label={UserRole.ARTIST} isActive={activeFilters.has(UserRole.ARTIST)} onClick={() => handleFilterToggle(UserRole.ARTIST)} />
                     <FilterButton icon={<SoundWaveIcon className="w-4 h-4 text-amber-400"/>} label={UserRole.ENGINEER} isActive={activeFilters.has(UserRole.ENGINEER)} onClick={() => handleFilterToggle(UserRole.ENGINEER)} />
@@ -248,15 +231,31 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                 </label>
             </div>
             
-             <div className="absolute bottom-4 left-4 p-3 cardSurface space-y-2">
-                 <h3 className="font-bold text-zinc-100 px-1 text-sm">Legend</h3>
-                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-400">
-                    <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-500 marker-glow"></div> Artist</span>
-                    <span className="flex items-center gap-1.5"><DiamondIcon className="w-3 h-3 text-orange-400 marker-glow"/> Producer</span>
-                    <span className="flex items-center gap-1.5"><SoundWaveIcon className="w-3 h-3 text-orange-400 marker-glow"/> Engineer</span>
-                    <span className="flex items-center gap-1.5"><HouseIcon className="w-3 h-3 text-orange-400 marker-glow"/> Stoodio</span>
-                    <span className="flex items-center gap-1.5"><StarIcon className="w-3 h-3 text-orange-400 marker-glow"/> Job</span>
-                 </div>
+            {/* Map Container */}
+            <div className="flex-grow relative h-full rounded-lg overflow-hidden cardSurface">
+                 <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={userLocation ? 11 : 4} options={mapOptions}>
+                    {mapItems.map(item => (
+                        <OverlayViewF
+                            key={item.id}
+                            position={{ lat: item.coordinates!.lat, lng: item.coordinates!.lon }}
+                            mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
+                        >
+                            <MapMarker item={item} onSelect={handleSelect} />
+                        </OverlayViewF>
+                    ))}
+                </GoogleMap>
+                
+                {/* Legend Overlay */}
+                <div className="absolute bottom-4 left-4 p-3 cardSurface space-y-2">
+                    <h3 className="font-bold text-zinc-100 px-1 text-sm">Legend</h3>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-400">
+                        <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-500 marker-glow"></div> Artist</span>
+                        <span className="flex items-center gap-1.5"><DiamondIcon className="w-3 h-3 text-orange-400 marker-glow"/> Producer</span>
+                        <span className="flex items-center gap-1.5"><SoundWaveIcon className="w-3 h-3 text-orange-400 marker-glow"/> Engineer</span>
+                        <span className="flex items-center gap-1.5"><HouseIcon className="w-3 h-3 text-orange-400 marker-glow"/> Stoodio</span>
+                        <span className="flex items-center gap-1.5"><StarIcon className="w-3 h-3 text-orange-400 marker-glow"/> Job</span>
+                    </div>
+                </div>
             </div>
         </div>
     );
