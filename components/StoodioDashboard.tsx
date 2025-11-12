@@ -198,6 +198,7 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
     );
 };
 
+
 type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -228,6 +229,17 @@ const StoodioDashboard: React.FC = () => {
     const { updateProfile, verificationSubmit } = useProfile();
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
+
+    // FIX: Add a guard clause to prevent crashes if the component is rendered with a null user.
+    // This can happen in rare edge cases during logout or navigation race conditions.
+    if (!currentUser) {
+        // Render a loading state or null to prevent the component from crashing.
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p>Loading user data...</p>
+            </div>
+        );
+    }
 
     const stoodio = currentUser as Stoodio;
     

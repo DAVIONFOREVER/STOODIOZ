@@ -39,6 +39,18 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 const ArtistDashboard: React.FC = () => {
     const { currentUser, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
+    
+    // FIX: Add a guard clause to prevent crashes if the component is rendered with a null user.
+    // This can happen in rare edge cases during logout or navigation race conditions.
+    if (!currentUser) {
+        // Render a loading state or null to prevent the component from crashing.
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p>Loading user data...</p>
+            </div>
+        );
+    }
+
     const artist = currentUser as Artist;
 
     const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewBooking } = useNavigation();

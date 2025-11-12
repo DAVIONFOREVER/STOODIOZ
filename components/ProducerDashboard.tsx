@@ -56,6 +56,18 @@ const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onN
 const ProducerDashboard: React.FC = () => {
     const { currentUser, artists, engineers, stoodioz, producers, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
+
+    // FIX: Add a guard clause to prevent crashes if the component is rendered with a null user.
+    // This can happen in rare edge cases during logout or navigation race conditions.
+    if (!currentUser) {
+        // Render a loading state or null to prevent the component from crashing.
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p>Loading user data...</p>
+            </div>
+        );
+    }
+
     const producer = currentUser as Producer;
 
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
