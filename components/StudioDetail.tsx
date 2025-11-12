@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
@@ -283,7 +282,7 @@ const StoodioDetail: React.FC = () => {
                         <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><PhotoIcon className="w-6 h-6" /> Photo Gallery</h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {stoodio.photos.map((photo, index) => (
-                                <img key={index} src={photo} alt={`${stoodio.name} gallery image ${index + 1}`} className="w-full h-32 object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300" />
+                                <img key={index} src={photo} alt={`${stoodio.name} gallery image ${index + 1}`} className="w-full h-32 object-cover rounded-lg shadow-md transition-transform duration-300" />
                             ))}
                         </div>
                     </div>
@@ -315,7 +314,7 @@ const StoodioDetail: React.FC = () => {
                             <button 
                                 onClick={() => selectedTimeSlot && selectedRoom && onBook(selectedTimeSlot.date, selectedTimeSlot.time, selectedRoom)}
                                 disabled={isBookingDisabled}
-                                className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
+                                className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
                                 {getButtonText()}
                             </button>
                         </div>

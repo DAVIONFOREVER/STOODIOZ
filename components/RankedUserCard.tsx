@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Artist, Engineer, Producer, Stoodio } from '../types';
 import RankingBadge from './RankingBadge';
@@ -21,7 +20,7 @@ const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotli
         return (
             <button 
                 onClick={() => onSelectProfile(profile)}
-                className="w-full bg-black rounded-lg p-6 border-2 border-orange-500 shadow-2xl shadow-orange-500/20 flex flex-col md:flex-row items-center gap-6 text-left transition-all hover:scale-[1.02] hover:shadow-orange-500/30"
+                className="w-full bg-black rounded-lg p-6 border-2 border-orange-500 shadow-2xl shadow-orange-500/20 flex flex-col md:flex-row items-center gap-6 text-left transition-all hover:shadow-orange-500/30"
             >
                 <div className="relative flex-shrink-0">
                     <img src={profile.imageUrl} alt={profile.name} className="w-32 h-32 rounded-full object-cover border-4 border-zinc-700" />

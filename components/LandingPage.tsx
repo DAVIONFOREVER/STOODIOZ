@@ -46,7 +46,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                 <div className="mt-10 flex justify-center items-center gap-4">
                     <button 
                         onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
-                        className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg"
+                        className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg"
                     >
                         Get Started
                     </button>
@@ -142,7 +142,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                         <p className="text-zinc-400 mt-2">Showcase your portfolio, get discovered by artists, and manage your bookings effortlessly.</p>
                     </div>
                      <div className="p-8 text-center cardSurface">
-                        <HouseIcon className="w-12 h-12 text-orange-400 mx-auto mb-4"/>
+                        <HouseIcon className="w-12 h-12 text-red-400 mx-auto mb-4"/>
                         <h3 className="text-2xl font-bold text-zinc-100">For Stoodioz</h3>
                         <p className="text-zinc-400 mt-2">List your space, manage your calendar, find in-house talent, and keep your rooms booked.</p>
                     </div>
@@ -162,7 +162,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                 </p>
                 <button 
                     onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
-                    className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 shadow-lg"
+                    className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 shadow-lg"
                 >
                     Sign Up for Free
                 </button>
