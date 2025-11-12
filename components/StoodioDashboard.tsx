@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
@@ -230,14 +230,6 @@ const StoodioDashboard: React.FC = () => {
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
-    if (!currentUser) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <p className="text-zinc-400">Loading user data...</p>
-            </div>
-        );
-    }
-
     const stoodio = currentUser as Stoodio;
     
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
@@ -278,7 +270,6 @@ const StoodioDashboard: React.FC = () => {
     const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));
     const followedProducers = producers.filter(p => (stoodio.following?.producers || []).includes(p.id));
-
 
     const handleBookSession = () => {
         viewStoodioDetails(stoodio);
