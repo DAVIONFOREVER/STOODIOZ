@@ -3,6 +3,7 @@ import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Ari
 import { askAriaCantata } from '../services/geminiService';
 import { CloseIcon, PaperAirplaneIcon, MagicWandIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
 
 interface AriaCantataAssistantProps {
     isOpen: boolean;
@@ -27,6 +28,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
         isOpen, onClose, onExecuteCommand, history, setHistory, initialPrompt, clearInitialPrompt 
     } = props;
     const { currentUser, artists, engineers, producers, stoodioz, bookings } = useAppState();
+    const { viewArtistProfile } = useNavigation();
     
     const getInitialMessage = () => {
         const greetings = [
@@ -68,6 +70,14 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
             setTimeout(() => { isProcessingInitialPrompt.current = false; }, 1000);
         }
     }, [isOpen, initialPrompt]);
+
+    const handleViewProfile = () => {
+        const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
+        if (ariaProfile) {
+            viewArtistProfile(ariaProfile);
+            onClose();
+        }
+    };
     
     const handleSendMessage = async (e: React.FormEvent | null, promptOverride?: string) => {
         e?.preventDefault();
@@ -119,16 +129,22 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
         >
             {/* Header */}
             <header className="flex items-center justify-between p-4 border-b border-zinc-700/50 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-orange-500 to-purple-600 p-2 rounded-lg">
+                <button 
+                    onClick={handleViewProfile}
+                    className="flex items-center gap-3 group"
+                    tabIndex={isOpen ? 0 : -1}
+                    aria-label="View Aria Cantata's profile"
+                >
+                    <div className="bg-gradient-to-br from-orange-500 to-purple-600 p-2 rounded-lg group-hover:scale-105 transition-transform">
                         <MagicWandIcon className="w-5 h-5 text-white" />
                     </div>
-                    <h2 id="aria-heading" className="text-lg font-bold text-zinc-100">Aria Cantata</h2>
-                </div>
+                    <h2 id="aria-heading" className="text-lg font-bold text-zinc-100 group-hover:text-orange-400 transition-colors">Aria Cantata</h2>
+                </button>
                 <button 
                     onClick={onClose} 
                     className="text-zinc-400 hover:text-zinc-100 transition-colors"
                     tabIndex={isOpen ? 0 : -1}
+                    aria-label="Close chat"
                 >
                     <CloseIcon className="w-6 h-6" />
                 </button>
