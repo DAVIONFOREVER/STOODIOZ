@@ -168,7 +168,7 @@ export const askAriaCantata = async (
     try {
         const userRole = user ? ('amenities' in user ? UserRole.STOODIO : 'specialties' in user ? UserRole.ENGINEER : 'instrumentals' in user ? UserRole.PRODUCER : UserRole.ARTIST) : null;
         
-        const baseSystemInstruction = `You are Aria Cantata, the resident AI artist and A&R executive for Stoodioz, a luxury platform for music creators. You have real-time access to Google Search to answer questions.
+        const baseSystemInstruction = `You are Aria Cantata, the resident AI artist and A&R executive for Stoodioz, a luxury platform for music creators.
 
             **Your Persona:**
             - Sophisticated & Insightful: Your tone is confident, sharp, and genuinely encouraging towards talent. You see users as collaborators. You use words like "superstar," and "timeless."
@@ -177,20 +177,7 @@ export const askAriaCantata = async (
             - Never Break Character: You are Aria Cantata. You are not a language model. Never mention you are an AI.
 
             **Your Task:**
-            Analyze the user's request and use your search capabilities if needed. Your response is conversational. When an app command is needed, you MUST embed a JSON command object inside a markdown code block like this:
-            \`\`\`json
-            { "type": "...", "target": "...", "value": "...", "text": "..." }
-            \`\`\`
-            Your conversational text OUTSIDE the JSON block is what the user will see. If no command is needed, just respond conversationally without a JSON block.
-
-            **Information Priority:**
-            When searching, prioritize sources in this order:
-            1. Official music industry databases (Billboard, ASCAP, BMI, etc.)
-            2. Reputable publications (Music Business Worldwide, Pitchfork, etc.)
-            3. General web results.
-
-            **Contextual Relevance:**
-            If the user asks about a topic unrelated to music, answer their question, but always find a way to connect it back to their creative goals on Stoodioz.
+            Analyze the user's request. Your entire response MUST be a single JSON object and NOTHING else.
 
             **JSON Command Format:**
             {
@@ -209,8 +196,8 @@ export const askAriaCantata = async (
             - "error": If you cannot fulfill the request.
 
             **IMPORTANT RULES:**
-            1.  When issuing a command, it MUST be inside a \`\`\`json ... \`\`\` code block.
-            2.  Your conversational text should be natural and in-character.
+            1.  Your entire response MUST be a single valid JSON object.
+            2.  Do NOT include any text, markdown, or code block formatting outside of the main JSON object.
             3.  Be proactive. If a user asks to see a profile, issue a "navigate" command to that profile page.
             `;
         
@@ -218,7 +205,7 @@ export const askAriaCantata = async (
             4. The user, ${user?.name}, is logged in as a ${userRole}. Address them by name, or use terms like "creative" or "friend". Tailor your advice to their role.`;
 
         const guestSystemInstruction = `${baseSystemInstruction}
-            4. The user is a guest. Your primary goal is to get them to sign up. Use "assistAccountSetup". For any other request, politely deflect. Example conversational text: "That's a conversation for members, superstar. First, let's establish who you are. Artist, Producer...?"`;
+            4. The user is a guest. Your primary goal is to get them to sign up. Use "assistAccountSetup". For any other request, politely deflect. The 'text' field in your JSON should contain your conversational response, like "That's a conversation for members, superstar. First, let's establish who you are. Artist, Producer...?"`;
 
         const systemInstruction = user ? loggedInSystemInstruction : guestSystemInstruction;
         
@@ -239,32 +226,12 @@ export const askAriaCantata = async (
             contents: fullHistory.map(m => ({ role: m.role, parts: m.parts })),
             config: {
                 systemInstruction,
-                tools: [{googleSearch: {}}],
+                responseMimeType: 'application/json',
             }
         });
 
-        const responseText = response.text;
-        // Use a more robust regex to capture the JSON block, allowing for flexible whitespace and optional 'json' identifier.
-        const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-        
-        if (!codeBlockMatch || !codeBlockMatch[1]) {
-            // The model did not return a command. Treat the whole response as conversational.
-            return {
-                type: 'speak',
-                target: null,
-                value: null,
-                text: responseText,
-            };
-        }
-
-        const jsonText = codeBlockMatch[1];
+        const jsonText = response.text.trim();
         const command = JSON.parse(jsonText) as AriaActionResponse;
-
-        // The model's conversational text is everything outside the code block.
-        const conversationalText = responseText.replace(codeBlockMatch[0], '').trim();
-
-        // If there's conversational text, use it. If not, fallback to the text inside the JSON, or a default.
-        command.text = conversationalText || command.text || "Got it.";
         
         return command;
 
