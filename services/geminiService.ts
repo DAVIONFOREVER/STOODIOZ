@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole } from '../types';
@@ -250,7 +244,8 @@ export const askAriaCantata = async (
         });
 
         const responseText = response.text;
-        const codeBlockMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
+        // Use a more robust regex to capture the JSON block, allowing for flexible whitespace and optional 'json' identifier.
+        const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
         
         if (!codeBlockMatch || !codeBlockMatch[1]) {
             // The model did not return a command. Treat the whole response as conversational.
