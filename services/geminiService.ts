@@ -1,5 +1,6 @@
 
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole } from '../types';
@@ -52,8 +53,8 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
         if (lowerUrl.includes('soundcloud.com')) {
              return {
                 url,
-                title: 'UNRELEASED DEMO by Luna Vance',
-                description: 'A sneak peek of what I\'m working on at Echo Chamber. Lmk what you think!',
+                title: 'UNRELEASED DEMO',
+                description: 'A sneak peek of a new track from a Stoodioz artist. Lmk what you think!',
                 imageUrl: `https://picsum.photos/seed/${encodeURIComponent(url)}/400/200`,
             };
         }

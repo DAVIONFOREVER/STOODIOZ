@@ -365,33 +365,17 @@ export const approveVerification = async (stoodioId: string): Promise<Partial<St
 };
 
 export const fetchAnalyticsData = async (userId: string, days: number = 30): Promise<AnalyticsData> => {
-    await new Promise(res => setTimeout(res, 800));
-    const revenueOverTime = [];
-    const engagementOverTime = [];
-    let totalRevenue = 0;
-    
-    for (let i = days - 1; i >= 0; i--) {
-        const date = subDays(new Date(), i);
-        const dateString = format(date, 'yyyy-MM-dd');
-        const dailyRevenue = Math.random() * 300;
-        totalRevenue += dailyRevenue;
-        revenueOverTime.push({ date: dateString, revenue: parseFloat(dailyRevenue.toFixed(2)) });
-        engagementOverTime.push({ date: dateString, views: Math.floor(Math.random() * 150) + 20, followers: Math.floor(Math.random() * 5), likes: Math.floor(Math.random() * 30) });
-    }
-
+    // Return empty/zeroed data as requested by the user to remove mock data from analytics.
+    await new Promise(res => setTimeout(res, 200)); // Keep a small delay to simulate loading
     return {
         kpis: {
-            totalRevenue: parseFloat(totalRevenue.toFixed(2)),
-            profileViews: Math.floor(Math.random() * 2000) + 500,
-            newFollowers: Math.floor(Math.random() * 50) + 10,
-            bookings: Math.floor(Math.random() * 20) + 5,
+            totalRevenue: 0,
+            profileViews: 0,
+            newFollowers: 0,
+            bookings: 0,
         },
-        revenueOverTime,
-        engagementOverTime,
-        revenueSources: [
-            { name: 'Studio Bookings', revenue: totalRevenue * 0.6 },
-            { name: 'Beat Sales', revenue: totalRevenue * 0.3 },
-            { name: 'Tips', revenue: totalRevenue * 0.1 },
-        ]
+        revenueOverTime: [],
+        engagementOverTime: [],
+        revenueSources: [],
     };
 };

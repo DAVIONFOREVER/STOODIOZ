@@ -1,54 +1,6 @@
 
 [
   {
-    "id": "artist-luna-vance",
-    "name": "Luna Vance",
-    "email": "artist@stoodioz.com",
-    "password": "password",
-    "isAdmin": false,
-    "bio": "Indie-pop artist from Atlanta. Looking for vibey studios and talented engineers to collaborate on my next EP.",
-    "imageUrl": "https://images.unsplash.com/photo-1516280440614-3793959696b9?q=80&w=800&auto=format&fit=crop",
-    "coverImageUrl": "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1200&auto=format&fit=crop",
-    "isSeekingSession": true,
-    "followers": 1250,
-    "following": {
-      "artists": [],
-      "engineers": ["eng-alex-chen"],
-      "stoodioz": ["studio-echo-chamber"],
-      "producers": ["prod-kaizen"]
-    },
-    "followerIds": ["studio-echo-chamber", "eng-alex-chen", "prod-kaizen", "artist-aria-cantata"],
-    "walletBalance": 250.00,
-    "walletTransactions": [],
-    "coordinates": { "lat": 33.75, "lon": -84.39 },
-    "showOnMap": true,
-    "isOnline": true,
-    "rating_overall": 4.8,
-    "sessions_completed": 12,
-    "ranking_tier": "Silver",
-    "is_on_streak": false,
-    "on_time_rate": 92,
-    "completion_rate": 100,
-    "repeat_hire_rate": 45,
-    "strength_tags": ["Songwriting", "Vocal Performance"],
-    "local_rank_text": "Top 50 in Atlanta",
-    "links": [
-        { "title": "Spotify", "url": "https://spotify.com" },
-        { "title": "SoundCloud", "url": "https://soundcloud.com" }
-    ],
-    "posts": [
-        {
-            "id": "post-luna-1",
-            "authorId": "artist-luna-vance",
-            "authorType": "ARTIST",
-            "text": "Had an amazing session at Echo Chamber Studios with Alex Chen! We cooked up something special. 🔥 Can't wait for you all to hear it.",
-            "timestamp": "2024-07-12T18:00:00Z",
-            "likes": ["studio-echo-chamber", "eng-alex-chen"],
-            "comments": []
-        }
-    ]
-  },
-  {
     "id": "artist-aria-cantata",
     "name": "Aria Cantata",
     "email": "aria@stoodioz.com",
@@ -58,14 +10,14 @@
     "imageUrl": "data:image/svg+xml,%3csvg width='200' height='200' viewBox='0 0 200 200' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='200' height='200' fill='black'/%3e%3cdefs%3e%3cradialGradient id='grad1' cx='50%25' cy='50%25' r='50%25' fx='50%25' fy='50%25'%3e%3cstop offset='0%25' style='stop-color:rgb(251,146,60);stop-opacity:0.8' /%3e%3cstop offset='70%25' style='stop-color:rgb(249,115,22);stop-opacity:0.4' /%3e%3cstop offset='100%25' style='stop-color:rgba(249,115,22,0);stop-opacity:0' /%3e%3c/radialGradient%3e%3cfilter id='glow'%3e%3cfeGaussianBlur stdDeviation='3.5' result='coloredBlur'/%3e%3cfeMerge%3e%3cfeMergeNode in='coloredBlur'/%3e%3cfeMergeNode in='SourceGraphic'/%3e%3c/feMerge%3e%3c/filter%3e%3c/defs%3e%3ccircle cx='100' cy='100' r='80' fill='url(%23grad1)' filter='url(%23glow)'/%3e%3cpath d='M 100,25 A 75,75 0 1 1 99,25 M 100,25 C 141.42,25 175,58.58 175,100 M 100,175 C 58.58,175 25,141.42 25,100' stroke='rgba(251, 191, 36, 0.5)' stroke-width='2' stroke-linecap='round' fill='none'%3e%3canimateTransform attributeName='transform' type='rotate' from='0 100 100' to='360 100 100' dur='15s' repeatCount='indefinite'/%3e%3c/path%3e%3cpath d='M 100,50 A 50,50 0 1 0 101,50 M 100,50 C 127.61,50 150,72.39 150,100 M 100,150 C 72.39,150 50,127.61 50,100' stroke='rgba(251, 191, 36, 0.3)' stroke-width='1.5' stroke-linecap='round' fill='none'%3e%3canimateTransform attributeName='transform' type='rotate' from='360 100 100' to='0 100 100' dur='20s' repeatCount='indefinite'/%3e%3c/path%3e%3c/svg%3e",
     "coverImageUrl": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1200&auto=format&fit=crop",
     "isSeekingSession": false,
-    "followers": 5,
+    "followers": 4,
     "following": {
-      "artists": ["artist-luna-vance"],
+      "artists": [],
       "engineers": ["eng-alex-chen"],
       "stoodioz": ["studio-echo-chamber", "studio-sound-sanctuary"],
       "producers": ["prod-kaizen"]
     },
-    "followerIds": ["artist-luna-vance", "eng-alex-chen", "prod-kaizen", "studio-echo-chamber", "studio-sound-sanctuary"],
+    "followerIds": ["eng-alex-chen", "prod-kaizen", "studio-echo-chamber", "studio-sound-sanctuary"],
     "walletBalance": 999999,
     "walletTransactions": [],
     "coordinates": { "lat": 34.0522, "lon": -118.2437 },
@@ -89,24 +41,15 @@
             "text": "A friendly reminder, superstars: a timeless track is 10% inspiration and 90% showing up to the session on time. Don't be the artist who makes their engineer wait. Your reputation is part of your sound.",
             "timestamp": "2024-07-14T10:00:00Z",
             "likes": ["eng-alex-chen", "studio-echo-chamber"],
-            "comments": [
-                {
-                    "id": "comment-aria-1-1",
-                    "authorId": "artist-luna-vance",
-                    "authorName": "Luna Vance",
-                    "authorImageUrl": "https://images.unsplash.com/photo-1516280440614-3793959696b9?q=80&w=800&auto=format&fit=crop",
-                    "text": "So true! Punctuality is key.",
-                    "timestamp": "2024-07-14T11:30:00Z"
-                }
-            ]
+            "comments": []
         },
         {
             "id": "post-aria-2",
             "authorId": "artist-aria-cantata",
             "authorType": "ARTIST",
-            "text": "Listening to the latest drop from @LunaVance. That hook on 'City Lights' is pure magic. That's how you write a hit, darlings. Take notes.",
+            "text": "Listening to the latest drop from one of our own. That hook on 'City Lights' is pure magic. That's how you write a hit, darlings. Take notes.",
             "timestamp": "2024-07-13T15:00:00Z",
-            "likes": ["artist-luna-vance", "prod-kaizen"],
+            "likes": ["prod-kaizen"],
             "comments": []
         },
         {
