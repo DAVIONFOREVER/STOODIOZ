@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -17,8 +17,9 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
-const Documents = lazy(() => import('./Documents.tsx'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const Documents = lazy(() => import('./Documents'));
+const AmenitiesManager = lazy(() => import('./AmenitiesManager'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -200,7 +201,7 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
 };
 
 
-type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following' | 'documents';
+type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following' | 'documents' | 'amenities';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
@@ -294,6 +295,12 @@ const StoodioDashboard: React.FC = () => {
                 return <StoodioJobManagement stoodio={stoodio} bookings={bookings} onPostJob={onPostJob} />;
             case 'availability':
                 return <AvailabilityManager user={stoodio} onUpdateUser={updateProfile} />;
+            case 'amenities':
+                return (
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <AmenitiesManager stoodio={stoodio} onUpdateStoodio={updateProfile} />
+                    </Suspense>
+                );
             case 'rooms':
                 return <RoomManager stoodio={stoodio} onUpdateStoodio={updateProfile} />;
             case 'engineers':
@@ -314,7 +321,12 @@ const StoodioDashboard: React.FC = () => {
                         <h3 className="text-xl font-bold mb-4">Photo Management</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             {stoodio.photos.map((photo, index) => (
-                                <img key={index} src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
+                                <div key={index} className="relative group">
+                                    <img src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
+                                    <button className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Delete photo">
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
                             ))}
                         </div>
                         <div className="border-2 border-dashed border-zinc-600 rounded-lg p-8 text-center">
@@ -397,6 +409,7 @@ const StoodioDashboard: React.FC = () => {
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                    <TabButton label="Amenities" isActive={activeTab === 'amenities'} onClick={() => setActiveTab('amenities')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
                     <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
