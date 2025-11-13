@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
-import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon } from './icons.tsx';
+import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon, DollarSignIcon } from './icons.tsx';
 import NotificationPanel from './NotificationPanel.tsx';
 import UniversalSearch from './UniversalSearch.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
@@ -289,7 +289,8 @@ const Header: React.FC<HeaderProps> = (props) => {
                                         <MobileNavLink icon={<HouseIcon className="w-5 h-5"/>} label="Find Stoodioz" onClick={() => handleMobileNav(AppView.STOODIO_LIST)} />
                                         <MobileNavLink icon={<SoundWaveIcon className="w-5 h-5"/>} label="Find Engineers" onClick={() => handleMobileNav(AppView.ENGINEER_LIST)} />
                                         <MobileNavLink icon={<MusicNoteIcon className="w-5 h-5"/>} label="Find Producers" onClick={() => handleMobileNav(AppView.PRODUCER_LIST)} />
-                                        <MobileNavLink icon={<MicrophoneIcon className="w-5 h-5"/>} label="Find Artists" onClick={() => handleMobileNav(AppView.ARTIST_LIST)} />
+                                        <MobileNavLink icon={<UsersIcon className="w-5 h-5"/>} label="Find Artists" onClick={() => handleMobileNav(AppView.ARTIST_LIST)} />
+                                        <MobileNavLink icon={<DollarSignIcon className="w-5 h-5"/>} label="Pricing" onClick={() => handleMobileNav(AppView.SUBSCRIPTION_PLANS)} />
                                     </div>
                                      <div className="border-t border-zinc-700 pt-4 mt-auto space-y-2">
                                         <button onClick={() => handleMobileNav(AppView.LOGIN)} className="w-full text-center text-slate-300 hover:text-orange-400 px-4 py-3 rounded-md text-base font-semibold transition-colors">

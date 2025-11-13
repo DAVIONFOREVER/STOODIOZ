@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon, PaperclipIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import Following from './Following.tsx';
@@ -13,8 +13,9 @@ import { useSocial } from '../hooks/useSocial.ts';
 import { useProfile } from '../hooks/useProfile.ts';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
+const Documents = lazy(() => import('./Documents.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following' | 'documents';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -132,7 +133,12 @@ const ArtistDashboard: React.FC = () => {
                  return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile}/>;
             case 'following':
                 return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={toggleFollow} onSelectStudio={viewStoodioDetails} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile}/>;
-
+            case 'documents':
+                return (
+                    <Suspense fallback={<div>Loading Documents...</div>}>
+                        <Documents conversations={conversations} />
+                    </Suspense>
+                );
             case 'dashboard':
             default:
                  return (
@@ -222,6 +228,7 @@ const ArtistDashboard: React.FC = () => {
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
                 </div>
                 <div className="p-6">
                     {renderContent()}

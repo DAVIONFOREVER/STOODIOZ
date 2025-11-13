@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import type { Engineer, Artist, Stoodio, Producer } from '../types';
+import type { Engineer, Artist, Stoodio, Producer, Conversation } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
 import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
@@ -17,8 +17,9 @@ import Following from './Following.tsx';
 import FollowersList from './FollowersList.tsx';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
+const Documents = lazy(() => import('./Documents.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following' | 'documents';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -54,7 +55,7 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 );
 
 const EngineerDashboard: React.FC = () => {
-    const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers } = useAppState();
+    const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers, conversations } = useAppState();
     const dispatch = useAppDispatch();
     
     const { navigate, viewBooking, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
@@ -143,6 +144,12 @@ const EngineerDashboard: React.FC = () => {
              case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.ENGINEER} />;
              case 'followers': return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
              case 'following': return <Following artists={followedArtists} engineers={followedEngineers} studios={followedStoodioz} producers={followedProducers} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStudio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
+             case 'documents':
+                return (
+                    <Suspense fallback={<div>Loading Documents...</div>}>
+                        <Documents conversations={conversations} />
+                    </Suspense>
+                );
              default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
@@ -240,6 +247,7 @@ const EngineerDashboard: React.FC = () => {
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
                 </div>
                  <div className="p-6">
                     {renderContent()}

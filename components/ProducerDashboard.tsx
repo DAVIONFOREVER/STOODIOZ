@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post } from '../types';
+import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, MagicWandIcon, EditIcon, PhotoIcon } from './icons';
 import CreatePost from './CreatePost';
@@ -16,8 +16,9 @@ import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const Documents = lazy(() => import('./Documents'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following' | 'documents';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
@@ -54,7 +55,7 @@ const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onN
 
 
 const ProducerDashboard: React.FC = () => {
-    const { currentUser, artists, engineers, stoodioz, producers, dashboardInitialTab } = useAppState();
+    const { currentUser, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations } = useAppState();
     const dispatch = useAppDispatch();
 
     if (!currentUser) {
@@ -141,6 +142,12 @@ const ProducerDashboard: React.FC = () => {
             case 'wallet': return <Wallet user={producer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.PRODUCER} />;
             case 'followers': return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
             case 'following': return <Following artists={followedArtists} engineers={followedEngineers} studios={followedStoodioz} producers={followedProducers} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStudio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
+            case 'documents':
+                return (
+                    <Suspense fallback={<div>Loading Documents...</div>}>
+                        <Documents conversations={conversations} />
+                    </Suspense>
+                );
             default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
@@ -236,6 +243,7 @@ const ProducerDashboard: React.FC = () => {
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
                 </div>
                 <div className="p-6">
                     {renderContent()}
