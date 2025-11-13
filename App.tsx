@@ -1,4 +1,6 @@
 
+
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
@@ -111,11 +113,12 @@ const App: React.FC = () => {
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
-    const { startConversation } = useMessaging(navigate);
     const { updateProfile } = useProfile();
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
     const { handleSubscribe } = useSubscription(navigate);
+    // FIX: The `useMessaging` hook was imported but not called, causing `startConversation` to be undefined. This call initializes the hook and makes the function available.
+    const { startConversation } = useMessaging(navigate);
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
         startConversation,
         navigate,

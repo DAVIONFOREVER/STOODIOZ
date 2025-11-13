@@ -1,14 +1,12 @@
-
-
 import React from 'react';
-import { AppView, UserRole } from '../types';
+import { AppView, UserRole, SubscriptionPlan } from '../types';
 import { CheckCircleIcon, SoundWaveIcon, HouseIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 
 interface SubscriptionPlansProps {
     onSelect: (role: UserRole) => void;
-    onSubscribe: (role: UserRole) => void;
+    onSubscribe: () => void;
 }
 
 const FeatureListItem: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -29,8 +27,9 @@ const PlanCard: React.FC<{
     isFeatured?: boolean;
     badge?: string;
     onClick: () => void;
-}> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick }) => (
-    <div className={`relative p-8 flex flex-col cardSurface ${isFeatured ? 'border-2 border-orange-500' : ''}`}>
+    disabled?: boolean;
+}> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick, disabled = false }) => (
+    <div className={`relative p-8 flex flex-col cardSurface ${isFeatured ? 'border-2 border-orange-500' : ''} ${disabled && title !== 'Artist' ? 'opacity-60' : ''}`}>
         {badge && (
             <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">{badge}</div>
         )}
@@ -55,7 +54,12 @@ const PlanCard: React.FC<{
             <p className="text-center text-zinc-400 italic text-sm mb-6 h-10 flex items-center justify-center">“{tagline}”</p>
             <button 
                 onClick={onClick}
-                className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${isFeatured ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' : 'bg-zinc-700 text-white hover:bg-zinc-600'}`}
+                disabled={disabled}
+                className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${
+                    isFeatured && !disabled ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' 
+                    : 'bg-zinc-700 text-white'} ${
+                    disabled ? 'cursor-not-allowed bg-zinc-600' : 'hover:bg-zinc-600'
+                }`}
             >
                 {buttonText}
             </button>
@@ -64,23 +68,21 @@ const PlanCard: React.FC<{
 );
 
 const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubscribe }) => {
-    const { currentUser } = useAppState();
+    const { currentUser, userRole } = useAppState();
     const { navigate } = useNavigation();
 
-    const handlePlanSelection = (role: UserRole, isPaid: boolean) => {
-        if (!isPaid) {
-            onSelect(role); // For free plan, go directly to setup
-            return;
-        }
-
+    const handlePlanSelection = (role: UserRole) => {
         if (currentUser) {
-            onSubscribe(role); // If logged in, start payment process
+            // Logged-in user is upgrading their current role
+            onSubscribe();
         } else {
-            // If not logged in, force login/signup first
-            // A message could be passed to the login screen to provide context
-            navigate(AppView.LOGIN);
+            // New user is selecting a role to sign up
+            onSelect(role);
         }
     };
+    
+    const isSubscribed = (plan: SubscriptionPlan) => 
+        currentUser?.subscription?.status === 'active' && currentUser?.subscription?.plan === plan;
 
     return (
         <div className="max-w-7xl mx-auto animate-fade-in">
@@ -105,11 +107,12 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     ]}
                     tagline="Start your journey — find your sound."
                     buttonText="Start Free"
-                    onClick={() => handlePlanSelection(UserRole.ARTIST, false)}
+                    onClick={() => handlePlanSelection(UserRole.ARTIST)}
+                    disabled={!!currentUser}
                 />
                 <PlanCard
                     icon={<MusicNoteIcon className="w-8 h-8 text-purple-400"/>}
-                    title="Producer Pro"
+                    title="Producer"
                     price="39"
                     badge="PRO"
                     features={[
@@ -119,15 +122,16 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                         "Appear in search results for hiring artists",
                     ]}
                     tagline="Get found. Get paid. Get busy."
-                    buttonText="Upgrade Now"
-                    onClick={() => handlePlanSelection(UserRole.PRODUCER, true)}
+                    buttonText={isSubscribed(SubscriptionPlan.PRODUCER_PRO) ? "Current Plan" : "Upgrade Now"}
+                    onClick={() => handlePlanSelection(UserRole.PRODUCER)}
+                    disabled={isSubscribed(SubscriptionPlan.PRODUCER_PRO) || (!!currentUser && userRole !== UserRole.PRODUCER)}
                 />
                  <PlanCard
                     icon={<SoundWaveIcon className="w-8 h-8 text-indigo-400"/>}
-                    title="Engineer Pro"
+                    title="Engineer"
                     price="69"
                     badge="PRO"
-                    isFeatured
+                    isFeatured={!currentUser || userRole === UserRole.ENGINEER}
                     features={[
                         "Verified engineer listing in marketplace",
                         "Job board access and repeat-client automation",
@@ -135,12 +139,13 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                         "Insights dashboard for income and session tracking",
                     ]}
                     tagline="More sessions. Less chasing."
-                    buttonText="Upgrade Now"
-                    onClick={() => handlePlanSelection(UserRole.ENGINEER, true)}
+                    buttonText={isSubscribed(SubscriptionPlan.ENGINEER_PLUS) ? "Current Plan" : "Upgrade Now"}
+                    onClick={() => handlePlanSelection(UserRole.ENGINEER)}
+                    disabled={isSubscribed(SubscriptionPlan.ENGINEER_PLUS) || (!!currentUser && userRole !== UserRole.ENGINEER)}
                 />
                  <PlanCard
                     icon={<HouseIcon className="w-8 h-8 text-red-400"/>}
-                    title="Stoodio Pro"
+                    title="Stoodio"
                     price="149"
                     badge="PRO"
                     features={[
@@ -150,8 +155,9 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                         "Google Maps integration for location-based bookings",
                     ]}
                     tagline="Run your studio like a business, not a hustle."
-                    buttonText="Upgrade Now"
-                    onClick={() => handlePlanSelection(UserRole.STOODIO, true)}
+                    buttonText={isSubscribed(SubscriptionPlan.STOODIO_PRO) ? "Current Plan" : "Upgrade Now"}
+                    onClick={() => handlePlanSelection(UserRole.STOODIO)}
+                    disabled={isSubscribed(SubscriptionPlan.STOODIO_PRO) || (!!currentUser && userRole !== UserRole.STOODIO)}
                 />
             </div>
         </div>
