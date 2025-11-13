@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
-import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon } from './icons.tsx';
+import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon } from './icons.tsx';
 import NotificationPanel from './NotificationPanel.tsx';
 import UniversalSearch from './UniversalSearch.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
@@ -158,6 +158,21 @@ const Header: React.FC<HeaderProps> = (props) => {
                                         <MicrophoneIcon className="w-5 h-5" />
                                         <span>The Stage</span>
                                     </button>
+                                    <div className="relative group">
+                                        <button className={`${navLinkClasses} flex items-center gap-1.5`}>
+                                            <UsersIcon className="w-5 h-5" />
+                                            <span>Discover</span>
+                                            <ChevronDownIcon className="w-4 h-4 transition-transform group-hover:rotate-180" />
+                                        </button>
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-10">
+                                            <div className="py-1">
+                                                <a onClick={() => onNavigate(AppView.STOODIO_LIST)} className="block px-4 py-2 text-sm text-slate-300 hover:bg-zinc-700 hover:text-orange-400 cursor-pointer">Find Stoodioz</a>
+                                                <a onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="block px-4 py-2 text-sm text-slate-300 hover:bg-zinc-700 hover:text-orange-400 cursor-pointer">Find Engineers</a>
+                                                <a onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="block px-4 py-2 text-sm text-slate-300 hover:bg-zinc-700 hover:text-orange-400 cursor-pointer">Find Producers</a>
+                                                <a onClick={() => onNavigate(AppView.ARTIST_LIST)} className="block px-4 py-2 text-sm text-slate-300 hover:bg-zinc-700 hover:text-orange-400 cursor-pointer">Find Artists</a>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <button onClick={handleDashboardNavigate} className={`${navLinkClasses} flex items-center gap-1.5`}>
                                         <UserCircleIcon className="w-5 h-5" />
                                         <span>My Dashboard</span>
@@ -248,7 +263,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                                 />
                             </div>
                         )}
-                        <nav className={`flex flex-col flex-grow ${userRole ? 'space-y-2' : ''}`}>
+                        <nav className={`flex flex-col flex-grow ${userRole ? 'space-y-1' : ''}`}>
                             {userRole ? (
                                 <>
                                     <MobileNavLink icon={<MicrophoneIcon className="w-5 h-5"/>} label="The Stage" onClick={() => handleMobileNav(AppView.THE_STAGE)} />
@@ -256,8 +271,17 @@ const Header: React.FC<HeaderProps> = (props) => {
                                     <MobileNavLink icon={<ChartBarIcon className="w-5 h-5"/>} label="Top Talent" onClick={() => handleMobileNav(AppView.LEADERBOARD)} />
                                     <MobileNavLink icon={<MapIcon className="w-5 h-5"/>} label="Map View" onClick={() => handleMobileNav(AppView.MAP_VIEW)} />
                                     <MobileNavLink icon={<InboxIcon className="w-5 h-5"/>} label="Inbox" onClick={() => handleMobileNav(AppView.INBOX)} />
+                                    
                                     <div className="border-t border-zinc-700 my-2"></div>
-                                    <MobileNavLink icon={<LogoutIcon className="w-5 h-5"/>} label="Logout" onClick={handleMobileLogout} />
+                                    <p className="px-3 pt-2 text-xs font-semibold text-zinc-500 uppercase">Discover</p>
+                                    <MobileNavLink icon={<HouseIcon className="w-5 h-5"/>} label="Find Stoodioz" onClick={() => handleMobileNav(AppView.STOODIO_LIST)} />
+                                    <MobileNavLink icon={<SoundWaveIcon className="w-5 h-5"/>} label="Find Engineers" onClick={() => handleMobileNav(AppView.ENGINEER_LIST)} />
+                                    <MobileNavLink icon={<MusicNoteIcon className="w-5 h-5"/>} label="Find Producers" onClick={() => handleMobileNav(AppView.PRODUCER_LIST)} />
+                                    <MobileNavLink icon={<UsersIcon className="w-5 h-5"/>} label="Find Artists" onClick={() => handleMobileNav(AppView.ARTIST_LIST)} />
+                                    
+                                    <div className="border-t border-zinc-700 mt-auto pt-2">
+                                        <MobileNavLink icon={<LogoutIcon className="w-5 h-5"/>} label="Logout" onClick={handleMobileLogout} />
+                                    </div>
                                 </>
                             ) : (
                                  <>

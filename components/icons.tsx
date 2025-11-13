@@ -47,6 +47,12 @@ export const ChevronRightIcon: React.FC<IconProps> = (props) => (
     </svg>
 );
 
+export const ChevronDownIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+    </svg>
+);
+
 export const MicrophoneIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 013-3a3 3 0 013 3v8.25a3 3 0 01-3 3z" />
@@ -389,5 +395,5 @@ export default {
     ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, FlagIcon, PlayIcon, PauseIcon,
     ArrowUpCircleIcon, ArrowDownCircleIcon, BanknotesIcon, PlusCircleIcon, EditIcon,
     ChatBubbleLeftRightIcon, NavigationArrowIcon, DollarSignIcon, ChartBarIcon,
-    EyeIcon, FireIcon, ShieldCheckIcon, ChevronUpDownIcon, DiamondIcon
+    EyeIcon, FireIcon, ShieldCheckIcon, ChevronUpDownIcon, DiamondIcon, ChevronDownIcon
 };
