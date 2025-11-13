@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { AppView } from '../types';
@@ -51,9 +52,15 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
         let feedPosts: Post[] = [];
         let suggestions: (Artist | Engineer | Stoodio | Producer)[] = [];
+
+        const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
+        const ariaPosts = ariaProfile?.posts || [];
+
+        let otherPosts: Post[] = [];
+        let followedIds: Set<string> | null = null;
         
         if (currentUser && 'following' in currentUser) {
-            const followedIds = new Set([
+            followedIds = new Set([
                 ...currentUser.following.artists,
                 ...currentUser.following.engineers,
                 ...currentUser.following.stoodioz,
@@ -61,16 +68,21 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 currentUser.id
             ]);
             
-            feedPosts = allPosts
-                .filter(post => followedIds.has(post.authorId))
-                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            otherPosts = allPosts.filter(post => followedIds!.has(post.authorId));
                 
-            suggestions = allUsers.filter(u => !followedIds.has(u.id) && u.id !== currentUser.id).slice(0, 4);
+            suggestions = allUsers.filter(u => !followedIds!.has(u.id) && u.id !== currentUser.id && u.id !== 'artist-aria-cantata').slice(0, 4);
         } else {
             // Guest view: show all posts
-            feedPosts = allPosts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            otherPosts = allPosts;
             suggestions = allUsers.filter(u => u.id !== 'artist-aria-cantata').slice(0, 4);
         }
+        
+        // Combine Aria's posts with others, ensuring no duplicates if user follows Aria
+        const combinedPosts = [...ariaPosts, ...otherPosts];
+        const postMap = new Map<string, Post>();
+        combinedPosts.forEach(post => postMap.set(post.id, post));
+        
+        feedPosts = Array.from(postMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
         const trendingPost = [...allPosts]
             .sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0] || null;
