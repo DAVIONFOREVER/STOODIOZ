@@ -404,6 +404,7 @@ export interface VibeMatchResult {
 export interface AriaCantataMessage {
     role: 'user' | 'model';
     parts: { text: string }[];
+    files?: FileAttachment[];
 }
 
 export interface AriaActionResponse {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole, AriaActionResponse } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole, AriaActionResponse, FileAttachment } from '../types';
 import { askAriaCantata } from '../services/geminiService';
-import { CloseIcon, PaperAirplaneIcon, MagicWandIcon } from './icons';
+import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 
@@ -20,6 +20,19 @@ const TypingIndicator: React.FC = () => (
         <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
         <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
         <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"></div>
+    </div>
+);
+
+const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => (
+    <div className="mt-2 bg-black/20 p-3 rounded-lg flex items-center gap-3">
+        <PaperclipIcon className="w-6 h-6 text-zinc-400 flex-shrink-0" />
+        <div className="flex-grow overflow-hidden">
+            <p className="text-sm font-semibold truncate">{file.name}</p>
+            <p className="text-xs text-zinc-300">{file.size}</p>
+        </div>
+        <a href={file.url} download={file.name} className="bg-zinc-600 hover:bg-zinc-500 p-2 rounded-full transition-colors" aria-label={`Download ${file.name}`}>
+            <DownloadIcon className="w-5 h-5" />
+        </a>
     </div>
 );
 
@@ -97,17 +110,20 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
             const responseText = command.text || (command.type === 'error' ? command.value : "Done.");
             const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: responseText }] };
             
-            setHistory([...historyBeforeSend, ariaResponse]);
+            // The executeCommand for documents will add its own message, so we only add the text response for other commands.
+            if (command.type !== 'sendDocumentMessage') {
+                setHistory([...historyBeforeSend, ariaResponse]);
+            }
 
             if (command.type !== 'speak' && command.type !== 'error') {
                  setTimeout(() => {
                     onExecuteCommand(command, onClose);
-                }, 1000); // Small delay to let user read the response
+                }, command.type === 'sendDocumentMessage' ? 0 : 1000); // Execute document command immediately
             }
 
         } catch (error) {
             console.error("Aria parsing error:", error);
-            const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I had a moment. Please try that again." }] };
+            const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I'm having trouble responding right now. Please try again in a moment." }] };
             setHistory([...historyBeforeSend, errorResponse]);
         } finally {
             setIsLoading(false);
@@ -162,7 +178,10 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
                                 </div>
                             )}
                             <div className={`max-w-[80%] p-3 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-zinc-200 rounded-bl-lg'}`}>
-                                <p className="text-sm">{msg.parts[0].text}</p>
+                                <p className="text-sm whitespace-pre-wrap">{msg.parts[0].text}</p>
+                                {msg.files && msg.files.map((file, fileIndex) => (
+                                    <FileAttachmentDisplay key={fileIndex} file={file} />
+                                ))}
                             </div>
                         </div>
                     );

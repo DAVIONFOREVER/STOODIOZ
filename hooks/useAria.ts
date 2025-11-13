@@ -1,12 +1,7 @@
-
-
-
-
-
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaActionResponse, AriaCantataMessage, Location } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaActionResponse, AriaCantataMessage, Location, FileAttachment } from '../types';
 
 interface AriaHookDependencies {
     startConversation: (participant: Artist | Engineer | Stoodio | Producer) => void;
@@ -78,51 +73,45 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 break;
             }
              case 'sendDocumentMessage': {
-                if (!command.value || !command.value.recipient || !command.value.documentContent || !command.value.fileName || !currentUser || !userRole) break;
-                const { recipient, documentContent, fileName } = command.value;
-                
-                if(recipient.id !== currentUser.id) break;
-
+                if (!command.value || !command.value.documentContent || !command.value.fileName || !currentUser) break;
+        
+                const { documentContent, fileName } = command.value;
                 const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
                 if (!ariaProfile) break;
-
+                
                 const fileUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(documentContent);
                 const fileSize = new Blob([documentContent]).size;
+                const fileAttachment: FileAttachment = { name: fileName, url: fileUri, size: `${(fileSize / 1024).toFixed(1)} KB` };
 
-                const newMessage: Message = {
+                // 1. Add message to Aria's visual chat history
+                const ariaMessage: AriaCantataMessage = {
+                    role: 'model',
+                    parts: [{ text: command.text || `As requested, I've prepared this document for you: ${fileName}` }],
+                    files: [fileAttachment]
+                };
+                dispatch({ type: ActionTypes.ADD_ARIA_MESSAGE, payload: { message: ariaMessage } });
+
+                // 2. Add message to the main conversations state for the Documents tab
+                const regularMessage: Message = {
                     id: `msg-doc-${Date.now()}`,
                     senderId: ariaProfile.id,
                     timestamp: new Date().toISOString(),
                     type: 'files',
                     text: command.text || `As requested, I've prepared this document for you: ${fileName}`,
-                    files: [{ name: fileName, url: fileUri, size: `${(fileSize / 1024).toFixed(1)} KB` }],
+                    files: [fileAttachment],
                 };
-                
+
                 let convo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [currentUser.id, ariaProfile.id].includes(p.id)));
                 let updatedConversations;
 
                 if (convo) {
-                    updatedConversations = conversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, newMessage] } : c);
+                    updatedConversations = conversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, regularMessage] } : c);
                 } else {
-                    convo = { id: `convo-${currentUser.id}-${ariaProfile.id}`, participants: [currentUser, ariaProfile], messages: [newMessage], unreadCount: 0 };
+                    convo = { id: `convo-${currentUser.id}-${ariaProfile.id}`, participants: [currentUser, ariaProfile], messages: [regularMessage], unreadCount: 0, title: 'Aria Cantata', imageUrl: ariaProfile.imageUrl };
                     updatedConversations = [convo, ...conversations];
                 }
-
                 dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
-                
-                let dashboardView: AppView;
-                switch(userRole){
-                    case UserRole.ARTIST: dashboardView = AppView.ARTIST_DASHBOARD; break;
-                    case UserRole.ENGINEER: dashboardView = AppView.ENGINEER_DASHBOARD; break;
-                    case UserRole.PRODUCER: dashboardView = AppView.PRODUCER_DASHBOARD; break;
-                    case UserRole.STOODIO: dashboardView = AppView.STOODIO_DASHBOARD; break;
-                    default: dashboardView = AppView.THE_STAGE;
-                }
 
-                dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
-                dependencies.navigate(dashboardView);
-
-                onClose();
                 break;
             }
             case 'speak':

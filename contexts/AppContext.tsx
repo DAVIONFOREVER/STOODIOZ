@@ -1,5 +1,5 @@
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
-import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review } from '../types';
+import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment } from '../types';
 import { AppView, UserRole } from '../types';
 
 // --- STATE AND ACTION TYPES ---
@@ -101,6 +101,7 @@ export enum ActionTypes {
     SET_MIXING_MODAL_OPEN = 'SET_MIXING_MODAL_OPEN',
     SET_ARIA_CANTATA_OPEN = 'SET_ARIA_CANTATA_OPEN',
     SET_ARIA_HISTORY = 'SET_ARIA_HISTORY',
+    ADD_ARIA_MESSAGE = 'ADD_ARIA_MESSAGE',
     SET_INITIAL_ARIA_PROMPT = 'SET_INITIAL_ARIA_PROMPT',
     SET_ARIA_NUDGE = 'SET_ARIA_NUDGE',
     SET_IS_NUDGE_VISIBLE = 'SET_IS_NUDGE_VISIBLE',
@@ -151,6 +152,7 @@ type Payload = {
     [ActionTypes.SET_MIXING_MODAL_OPEN]: { isOpen: boolean };
     [ActionTypes.SET_ARIA_CANTATA_OPEN]: { isOpen: boolean };
     [ActionTypes.SET_ARIA_HISTORY]: { history: AriaCantataMessage[] };
+    [ActionTypes.ADD_ARIA_MESSAGE]: { message: AriaCantataMessage };
     [ActionTypes.SET_INITIAL_ARIA_PROMPT]: { prompt: string | null };
     [ActionTypes.SET_ARIA_NUDGE]: { nudge: string | null };
     [ActionTypes.SET_IS_NUDGE_VISIBLE]: { isVisible: boolean };
@@ -419,6 +421,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, isAriaCantataOpen: action.payload.isOpen };
         case ActionTypes.SET_ARIA_HISTORY:
             return { ...state, ariaHistory: action.payload.history };
+        case ActionTypes.ADD_ARIA_MESSAGE:
+            return { ...state, ariaHistory: [...state.ariaHistory, action.payload.message] };
         case ActionTypes.SET_INITIAL_ARIA_PROMPT:
             return { ...state, initialAriaCantataPrompt: action.payload.prompt };
         case ActionTypes.SET_ARIA_NUDGE:
