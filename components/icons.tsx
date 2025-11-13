@@ -383,17 +383,3 @@ export const DiamondIcon: React.FC<IconProps> = (props) => (
 );
 
 export const DollarSignIcon: React.FC<IconProps> = PriceIcon;
-
-export default {
-    MagicWandIcon, StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon,
-    ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon,
-    HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, SearchIcon, LocationIcon,
-    StarIcon, VerifiedIcon, CalendarIcon, ClockIcon, DurationIcon, PriceIcon,
-    UserGroupIcon, CheckCircleIcon, CogIcon, DownloadIcon, RoadIcon, TrashIcon,
-    UserPlusIcon, UserCheckIcon, PhotoIcon, MessageIcon, SmokingIcon, NoSmokingIcon,
-    LinkIcon, PaperclipIcon, BriefcaseIcon, VideoCameraIcon, CloseCircleIcon, HeartIcon,
-    ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, FlagIcon, PlayIcon, PauseIcon,
-    ArrowUpCircleIcon, ArrowDownCircleIcon, BanknotesIcon, PlusCircleIcon, EditIcon,
-    ChatBubbleLeftRightIcon, NavigationArrowIcon, DollarSignIcon, ChartBarIcon,
-    EyeIcon, FireIcon, ShieldCheckIcon, ChevronUpDownIcon, DiamondIcon, ChevronDownIcon
-};

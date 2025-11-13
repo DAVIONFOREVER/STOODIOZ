@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
-import { PhotoIcon, VideoCameraIcon, CloseCircleIcon } from './icons';
+import { PhotoIcon, VideoCameraIcon, CloseCircleIcon, PlayIcon } from './icons';
 
 interface CreatePostProps {
     currentUser: Artist | Engineer | Stoodio | Producer;
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
 }
+
+// A generic video icon as a data URL to replace the picsum placeholder
+const GENERIC_VIDEO_THUMBNAIL = 'data:image/svg+xml,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-16 h-16 text-white/80"%3e%3cpath fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.647c1.295.742 1.295 2.545 0 3.286L7.279 20.99c-1.25.717-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" /%3e%3c/svg%3e';
 
 const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     const [text, setText] = useState('');
@@ -13,11 +16,15 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
     const [isPosting, setIsPosting] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const clearAttachments = () => {
         setImageUrl(null);
         setVideoUrl(null);
         setVideoThumbnailUrl(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ""; // Reset file input
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -36,17 +43,36 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
         }
     };
 
-    const handleAddPhoto = () => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
         clearAttachments();
-        // Simulate adding a photo with a placeholder
-        setImageUrl(`https://picsum.photos/seed/postphoto${Date.now()}/800/600`);
+
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setImageUrl(event.target?.result as string);
+            };
+            reader.readAsDataURL(file);
+        } else if (file.type.startsWith('video/')) {
+            setVideoUrl(URL.createObjectURL(file));
+            setVideoThumbnailUrl(GENERIC_VIDEO_THUMBNAIL);
+        }
+    };
+
+    const handleAddPhoto = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.accept = "image/*";
+            fileInputRef.current.click();
+        }
     };
 
     const handleAddVideo = () => {
-        clearAttachments();
-        // Simulate adding a video with a placeholder
-        setVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ'); // Placeholder video URL
-        setVideoThumbnailUrl(`https://picsum.photos/seed/postvideo${Date.now()}/800/600`);
+        if (fileInputRef.current) {
+            fileInputRef.current.accept = "video/*";
+            fileInputRef.current.click();
+        }
     };
 
 
@@ -56,6 +82,12 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                 <img src={currentUser.imageUrl} alt={currentUser.name} className="w-12 h-12 rounded-xl object-cover" />
                 <div className="w-full">
                     <form onSubmit={handleSubmit}>
+                         <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                        />
                         <textarea
                             value={text}
                             onChange={(e) => setText(e.target.value)}
@@ -66,12 +98,14 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
 
                         {(imageUrl || videoThumbnailUrl) && (
                              <div className="relative mt-2">
-                                <img src={imageUrl || videoThumbnailUrl!} alt="Post preview" className="rounded-lg w-full max-h-80 object-cover" />
+                                <img 
+                                    src={imageUrl || videoThumbnailUrl!} 
+                                    alt="Post preview" 
+                                    className={`rounded-lg w-full max-h-80 object-cover ${videoThumbnailUrl === GENERIC_VIDEO_THUMBNAIL ? 'object-contain bg-black p-4' : ''}`} 
+                                />
                                 {videoUrl && (
                                     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                                        <svg className="w-16 h-16 text-white/80" viewBox="0 0 24 24" fill="currentColor">
-                                            <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.647c1.295.742 1.295 2.545 0 3.286L7.279 20.99c-1.25.717-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                                        </svg>
+                                        <PlayIcon className="w-16 h-16 text-white/80" />
                                     </div>
                                 )}
                                 <button type="button" onClick={clearAttachments} className="absolute top-2 right-2 bg-black/50 rounded-full text-white hover:bg-black/70">
