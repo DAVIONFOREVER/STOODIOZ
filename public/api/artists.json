@@ -58,7 +58,7 @@
     "imageUrl": "data:image/svg+xml,%3csvg width='200' height='200' viewBox='0 0 200 200' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='200' height='200' fill='black'/%3e%3cdefs%3e%3cradialGradient id='grad1' cx='50%25' cy='50%25' r='50%25' fx='50%25' fy='50%25'%3e%3cstop offset='0%25' style='stop-color:rgb(251,146,60);stop-opacity:0.8' /%3e%3cstop offset='70%25' style='stop-color:rgb(249,115,22);stop-opacity:0.4' /%3e%3cstop offset='100%25' style='stop-color:rgba(249,115,22,0);stop-opacity:0' /%3e%3c/radialGradient%3e%3cfilter id='glow'%3e%3cfeGaussianBlur stdDeviation='3.5' result='coloredBlur'/%3e%3cfeMerge%3e%3cfeMergeNode in='coloredBlur'/%3e%3cfeMergeNode in='SourceGraphic'/%3e%3c/feMerge%3e%3c/filter%3e%3c/defs%3e%3ccircle cx='100' cy='100' r='80' fill='url(%23grad1)' filter='url(%23glow)'/%3e%3cpath d='M 100,25 A 75,75 0 1 1 99,25 M 100,25 C 141.42,25 175,58.58 175,100 M 100,175 C 58.58,175 25,141.42 25,100' stroke='rgba(251, 191, 36, 0.5)' stroke-width='2' stroke-linecap='round' fill='none'%3e%3canimateTransform attributeName='transform' type='rotate' from='0 100 100' to='360 100 100' dur='15s' repeatCount='indefinite'/%3e%3c/path%3e%3cpath d='M 100,50 A 50,50 0 1 0 101,50 M 100,50 C 127.61,50 150,72.39 150,100 M 100,150 C 72.39,150 50,127.61 50,100' stroke='rgba(251, 191, 36, 0.3)' stroke-width='1.5' stroke-linecap='round' fill='none'%3e%3canimateTransform attributeName='transform' type='rotate' from='360 100 100' to='0 100 100' dur='20s' repeatCount='indefinite'/%3e%3c/path%3e%3c/svg%3e",
     "coverImageUrl": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1200&auto=format&fit=crop",
     "isSeekingSession": false,
-    "followers": 4,
+    "followers": 5,
     "following": {
       "artists": ["artist-luna-vance"],
       "engineers": ["eng-alex-chen"],
@@ -81,6 +81,45 @@
     "strength_tags": ["A&R", "Vibe Curation", "Mentorship"],
     "local_rank_text": "The Heartbeat of Stoodioz",
     "links": [],
-    "posts": []
+    "posts": [
+        {
+            "id": "post-aria-1",
+            "authorId": "artist-aria-cantata",
+            "authorType": "ARTIST",
+            "text": "A friendly reminder, superstars: a timeless track is 10% inspiration and 90% showing up to the session on time. Don't be the artist who makes their engineer wait. Your reputation is part of your sound.",
+            "timestamp": "2024-07-14T10:00:00Z",
+            "likes": ["eng-alex-chen", "studio-echo-chamber"],
+            "comments": [
+                {
+                    "id": "comment-aria-1-1",
+                    "authorId": "artist-luna-vance",
+                    "authorName": "Luna Vance",
+                    "authorImageUrl": "https://images.unsplash.com/photo-1516280440614-3793959696b9?q=80&w=800&auto=format&fit=crop",
+                    "text": "So true! Punctuality is key.",
+                    "timestamp": "2024-07-14T11:30:00Z"
+                }
+            ]
+        },
+        {
+            "id": "post-aria-2",
+            "authorId": "artist-aria-cantata",
+            "authorType": "ARTIST",
+            "text": "Listening to the latest drop from @LunaVance. That hook on 'City Lights' is pure magic. That's how you write a hit, darlings. Take notes.",
+            "timestamp": "2024-07-13T15:00:00Z",
+            "likes": ["artist-luna-vance", "prod-kaizen"],
+            "comments": []
+        },
+        {
+            "id": "post-aria-3",
+            "authorId": "artist-aria-cantata",
+            "authorType": "ARTIST",
+            "text": "Heard a fascinating sound today—the hum of a vintage transformer under fluorescent light. What's the most unexpected sound that's inspired you recently?",
+            "timestamp": "2024-07-11T09:00:00Z",
+            "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "videoThumbnailUrl": "https://images.unsplash.com/photo-1581329384332-a244474b3a28?q=80&w=800&auto=format&fit=crop",
+            "likes": [],
+            "comments": []
+        }
+    ]
   }
 ]
