@@ -31,7 +31,8 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSelectArtist, onToggl
                 {isLoggedIn && !isSelf && (
                     <button
                         onClick={handleFollowClick}
-                        className={`w-full py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${isFollowing ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30' : 'bg-zinc-700 hover:bg-zinc-600 text-slate-200'}`}
+                        disabled={artist.id === 'artist-aria-cantata'}
+                        className={`w-full py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${isFollowing ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30' : 'bg-zinc-700 hover:bg-zinc-600 text-slate-200'} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                         {isFollowing ? <UserCheckIcon className="w-4 h-4"/> : <UserPlusIcon className="w-4 h-4"/>}
                         {isFollowing ? 'Following' : 'Follow'}
