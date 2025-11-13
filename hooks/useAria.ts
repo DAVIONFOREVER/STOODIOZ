@@ -1,5 +1,7 @@
 
 
+
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
@@ -20,15 +22,15 @@ interface AriaHookDependencies {
 
 export const useAria = (dependencies: AriaHookDependencies) => {
     const dispatch = useAppDispatch();
-    const { artists, engineers, producers, stoodioz, conversations, ariaNudge, currentUser } = useAppState();
+    const { artists, engineers, producers, stoodioz, conversations, ariaNudge, currentUser, userRole } = useAppState();
     const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
 
     const executeCommand = useCallback((command: AriaActionResponse, onClose: () => void) => {
         switch (command.type) {
             case 'navigate': {
                 const targetView = command.target as AppView;
-                const entityName = command.value as string;
-                const tab = command.value?.tab; // Check for tab in value object
+                const entityName = typeof command.value === 'string' ? command.value : null;
+                const tab = typeof command.value === 'object' && command.value !== null ? command.value.tab : null;
 
                 if (tab) {
                     dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab } });
@@ -74,14 +76,16 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 onClose();
                 break;
             }
-            case 'sendDocumentMessage': {
-                if (!command.value || !command.value.recipient || !command.value.documentContent) break;
+             case 'sendDocumentMessage': {
+                if (!command.value || !command.value.recipient || !command.value.documentContent || !command.value.fileName || !currentUser || !userRole) break;
                 const { recipient, documentContent, fileName } = command.value;
                 
+                if(recipient.id !== currentUser.id) break;
+
                 const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
                 if (!ariaProfile) break;
 
-                const fileUri = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(documentContent);
+                const fileUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(documentContent);
                 const fileSize = new Blob([documentContent]).size;
 
                 const newMessage: Message = {
@@ -89,23 +93,34 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                     senderId: ariaProfile.id,
                     timestamp: new Date().toISOString(),
                     type: 'files',
-                    text: `Here is the document we discussed: ${fileName}`,
+                    text: command.text || `As requested, I've prepared this document for you: ${fileName}`,
                     files: [{ name: fileName, url: fileUri, size: `${(fileSize / 1024).toFixed(1)} KB` }],
                 };
                 
-                let convo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [recipient.id, ariaProfile.id].includes(p.id)));
-                let updatedConversations = [...conversations];
+                let convo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [currentUser.id, ariaProfile.id].includes(p.id)));
+                let updatedConversations;
 
                 if (convo) {
-                    updatedConversations = updatedConversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, newMessage] } : c);
+                    updatedConversations = conversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, newMessage] } : c);
                 } else {
-                    convo = { id: `convo-${recipient.id}-${ariaProfile.id}`, participants: [recipient, ariaProfile], messages: [newMessage], unreadCount: 1 };
-                    updatedConversations = [convo, ...updatedConversations];
+                    convo = { id: `convo-${currentUser.id}-${ariaProfile.id}`, participants: [currentUser, ariaProfile], messages: [newMessage], unreadCount: 0 };
+                    updatedConversations = [convo, ...conversations];
                 }
 
                 dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
-                dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: convo.id } });
-                dependencies.navigate(AppView.INBOX);
+                
+                let dashboardView: AppView;
+                switch(userRole){
+                    case UserRole.ARTIST: dashboardView = AppView.ARTIST_DASHBOARD; break;
+                    case UserRole.ENGINEER: dashboardView = AppView.ENGINEER_DASHBOARD; break;
+                    case UserRole.PRODUCER: dashboardView = AppView.PRODUCER_DASHBOARD; break;
+                    case UserRole.STOODIO: dashboardView = AppView.STOODIO_DASHBOARD; break;
+                    default: dashboardView = AppView.THE_STAGE;
+                }
+
+                dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
+                dependencies.navigate(dashboardView);
+
                 onClose();
                 break;
             }
@@ -116,7 +131,7 @@ export const useAria = (dependencies: AriaHookDependencies) => {
             default:
                 console.warn("Unknown Aria command received:", command.type);
         }
-    }, [dispatch, allUsers, conversations, currentUser, dependencies]);
+    }, [dispatch, allUsers, conversations, currentUser, userRole, dependencies]);
 
     const handleAriaNudgeClick = useCallback(() => {
         if (ariaNudge) {

@@ -2,21 +2,21 @@ import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, MagicWandIcon, EditIcon, PhotoIcon } from './icons';
-import CreatePost from './CreatePost';
-import PostFeed from './PostFeed';
-import Following from './Following';
-import FollowersList from './FollowersList';
-import AvailabilityManager from './AvailabilityManager';
-import Wallet from './Wallet';
-import BeatManager from './BeatManager';
-import ProducerSettings from './ProducerSettings';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
-import { useSocial } from '../hooks/useSocial';
-import { useProfile } from '../hooks/useProfile';
+import CreatePost from './CreatePost.tsx';
+import PostFeed from './PostFeed.tsx';
+import Following from './Following.tsx';
+import FollowersList from './FollowersList.tsx';
+import AvailabilityManager from './AvailabilityManager.tsx';
+import Wallet from './Wallet.tsx';
+import BeatManager from './BeatManager.tsx';
+import ProducerSettings from './ProducerSettings.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import { useNavigation } from '../hooks/useNavigation.ts';
+import { useSocial } from '../hooks/useSocial.ts';
+import { useProfile } from '../hooks/useProfile.ts';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
-const Documents = lazy(() => import('./Documents'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
+const Documents = lazy(() => import('./Documents.tsx'));
 
 type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following' | 'documents';
 

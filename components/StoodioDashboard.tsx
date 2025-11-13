@@ -17,8 +17,8 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
-const Documents = lazy(() => import('./Documents'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
+const Documents = lazy(() => import('./Documents.tsx'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
