@@ -1,6 +1,4 @@
 
-
-
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
@@ -33,6 +31,7 @@ import MixingRequestModal from './components/MixingRequestModal.tsx';
 import { MagicWandIcon } from './components/icons.tsx';
 import AriaNudge from './components/AriaNudge.tsx';
 import DevNotificationButton from './components/DevNotificationButton.tsx';
+import AriaFAB from './components/AriaFAB.tsx';
 
 // --- Lazy Loaded Components ---
 const StoodioList = lazy(() => import('./components/StudioList.tsx'));
@@ -131,12 +130,24 @@ const App: React.FC = () => {
     });
 
     useEffect(() => {
+        let timerId: number;
+        // This effect runs when the user's ID or role changes. It prevents re-fetching a nudge on every minor profile update.
         if (currentUser && userRole) {
             getAriaNudge(currentUser, userRole).then(nudge => {
-                dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
-                setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
+                // This check prevents the nudge from disappearing if the Gemini API returns an empty string, which would cause the render condition to fail.
+                if (nudge && nudge.trim()) {
+                    dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
+                    timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
+                }
             });
         }
+        
+        // Cleanup function to clear the timeout if the component unmounts or dependencies change
+        return () => {
+            if (timerId) {
+                clearTimeout(timerId);
+            }
+        };
     }, [currentUser, userRole, dispatch]);
 
     const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
@@ -148,6 +159,11 @@ const App: React.FC = () => {
     const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
     const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
     const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
+
+    const handleOpenAriaFromFAB = () => {
+        dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
+        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+    };
 
     const renderView = () => {
         switch (currentView) {
@@ -284,6 +300,11 @@ return (
                     />
                 </Suspense>
             )}
+
+            {currentUser && !isAriaCantataOpen && (
+                <AriaFAB onClick={handleOpenAriaFromFAB} />
+            )}
+
             {isNudgeVisible && ariaNudge && <AriaNudge message={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />}
             
             {/* Dev tool for testing notifications */}
