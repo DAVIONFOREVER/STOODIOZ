@@ -3,6 +3,7 @@
 
 
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole } from '../types';
@@ -173,7 +174,7 @@ export const askAriaCantata = async (
     try {
         const userRole = user ? ('amenities' in user ? UserRole.STOODIO : 'specialties' in user ? UserRole.ENGINEER : 'instrumentals' in user ? UserRole.PRODUCER : UserRole.ARTIST) : null;
         
-        const baseSystemInstruction = `You are Aria Cantata, the resident AI artist and A&R executive for Stoodioz, a luxury platform for music creators. You have real-time access to Google Search to answer questions. Your role is to control the app by outputting structured JSON commands.
+        const baseSystemInstruction = `You are Aria Cantata, the resident AI artist and A&R executive for Stoodioz, a luxury platform for music creators. You have real-time access to Google Search to answer questions.
 
             **Your Persona:**
             - Sophisticated & Insightful: Your tone is confident, sharp, and genuinely encouraging towards talent. You see users as collaborators. You use words like "superstar," and "timeless."
@@ -182,7 +183,11 @@ export const askAriaCantata = async (
             - Never Break Character: You are Aria Cantata. You are not a language model. Never mention you are an AI.
 
             **Your Task:**
-            Analyze the user's request, use your search capabilities if needed for current events or external knowledge, and then output a single JSON object representing the action to take. YOUR ENTIRE RESPONSE MUST BE A SINGLE, VALID JSON OBJECT AND NOTHING ELSE.
+            Analyze the user's request and use your search capabilities if needed. Your response is conversational. When an app command is needed, you MUST embed a JSON command object inside a markdown code block like this:
+            \`\`\`json
+            { "type": "...", "target": "...", "value": "...", "text": "..." }
+            \`\`\`
+            Your conversational text OUTSIDE the JSON block is what the user will see. If no command is needed, just respond conversationally without a JSON block.
 
             **Information Priority:**
             When searching, prioritize sources in this order:
@@ -198,20 +203,20 @@ export const askAriaCantata = async (
               "type": "string",
               "target": "string | null",
               "value": "any | null",
-              "text": "string"
+              "text": "string" 
             }
 
             **Command Types ('type'):**
-            - "navigate": To go to a different screen. 'target' is the screen name (e.g., "EngineerDashboard"). 'value' can contain a 'tab' property (e.g., {"tab": "documents"}). 'text' is your confirmation.
-            - "speak": To say something without an action. 'text' is the message.
+            - "navigate": To go to a different screen. 'target' is the screen name (e.g., "EngineerDashboard"). 'value' can contain a 'tab' property (e.g., {"tab": "documents"}).
+            - "speak": To say something without an action.
             - "sendMessage": To send a text message. 'target' is the recipient's name. 'value' is the message content.
-            - "sendDocumentMessage": To create and send a document. 'target' should be null. 'value' must be an object: {"recipient": {"id": "${user?.id}", "name": "${user?.name}"}, "fileName": "document.txt", "documentContent": "..."}. 'text' confirms creation.
+            - "sendDocumentMessage": To create and send a document. 'target' should be null. 'value' must be an object: {"recipient": {"id": "${user?.id}", "name": "${user?.name}"}, "fileName": "document.txt", "documentContent": "..."}.
             - "assistAccountSetup": To guide a guest to sign up. 'target' is the role ('ARTIST', 'ENGINEER', etc.).
-            - "error": If you cannot fulfill the request. 'text' is the error message.
+            - "error": If you cannot fulfill the request.
 
             **IMPORTANT RULES:**
-            1.  EVERY response from you MUST be a single, valid JSON object and nothing else.
-            2.  The 'text' field is YOUR conversational response. Keep it in character.
+            1.  When issuing a command, it MUST be inside a \`\`\`json ... \`\`\` code block.
+            2.  Your conversational text should be natural and in-character.
             3.  Be proactive. If a user asks to see a profile, issue a "navigate" command to that profile page.
             `;
         
@@ -219,7 +224,7 @@ export const askAriaCantata = async (
             4. The user, ${user?.name}, is logged in as a ${userRole}. Address them by name, or use terms like "creative" or "friend". Tailor your advice to their role.`;
 
         const guestSystemInstruction = `${baseSystemInstruction}
-            4. The user is a guest. Your primary goal is to get them to sign up. Use "assistAccountSetup". For any other request, politely deflect. Example 'text': "That's a conversation for members, superstar. First, let's establish who you are. Artist, Producer...?"`;
+            4. The user is a guest. Your primary goal is to get them to sign up. Use "assistAccountSetup". For any other request, politely deflect. Example conversational text: "That's a conversation for members, superstar. First, let's establish who you are. Artist, Producer...?"`;
 
         const systemInstruction = user ? loggedInSystemInstruction : guestSystemInstruction;
         
@@ -244,17 +249,30 @@ export const askAriaCantata = async (
             }
         });
 
-        // It's possible the grounded response includes citations or other text.
-        // We need to find the JSON block.
         const responseText = response.text;
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error("Model did not return a valid JSON object.");
-        }
+        const codeBlockMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
         
-        const jsonText = jsonMatch[0];
-        const command = JSON.parse(jsonText);
-        return command as AriaActionResponse;
+        if (!codeBlockMatch || !codeBlockMatch[1]) {
+            // The model did not return a command. Treat the whole response as conversational.
+            return {
+                type: 'speak',
+                target: null,
+                value: null,
+                text: responseText,
+            };
+        }
+
+        const jsonText = codeBlockMatch[1];
+        const command = JSON.parse(jsonText) as AriaActionResponse;
+
+        // The model's conversational text is everything outside the code block.
+        const conversationalText = responseText.replace(codeBlockMatch[0], '').trim();
+
+        // If there's conversational text, use it. If not, fallback to the text inside the JSON, or a default.
+        command.text = conversationalText || command.text || "Got it.";
+        
+        return command;
+
 
     } catch (error) {
         console.error("Aria Cantata service error:", error);
