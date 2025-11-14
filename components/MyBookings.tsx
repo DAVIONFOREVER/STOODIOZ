@@ -1,3 +1,5 @@
+
+
 import React, { useMemo } from 'react';
 import type { Booking, Location } from '../types';
 import { BookingStatus, BookingRequestType, UserRole } from '../types';
@@ -90,7 +92,7 @@ const MyBookings: React.FC = () => {
                         const isUpcoming = new Date(`${booking.date}T${booking.startTime || '00:00'}`) >= new Date();
                         const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;
                         return (
-                        <div key={booking.id} className={`p-6 flex flex-col md:flex-row gap-6 cardSurface ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
+                        <div key={booking.id} className={`p-6 flex flex-col md:flex-row gap-6 cardSurface overflow-hidden ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
                             <div className="flex-shrink-0">
                                 <img src={getBookingImage(booking)} alt={booking.stoodio?.name || booking.engineer?.name} className="w-full md:w-48 h-32 object-cover rounded-xl" />
                             </div>

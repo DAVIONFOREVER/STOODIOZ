@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -52,7 +54,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     };
 
     return (
-        <div className="rounded-2xl cardSurface">
+        <div className="rounded-2xl cardSurface overflow-hidden">
             <div className="p-6">
                 {/* Post Header */}
                 <div className="flex items-start justify-between gap-4 mb-4">

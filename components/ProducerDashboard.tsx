@@ -1,7 +1,5 @@
 
 
-
-
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
@@ -22,8 +20,9 @@ import { useProfile } from '../hooks/useProfile.ts';
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
 const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
+const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass';
+type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass' | 'myCourses';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
@@ -154,6 +153,12 @@ const ProducerDashboard: React.FC = () => {
                         <Documents conversations={conversations} />
                     </Suspense>
                 );
+            case 'myCourses':
+                return (
+                    <Suspense fallback={<div>Loading Courses...</div>}>
+                        <MyCourses />
+                    </Suspense>
+                );
             default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
@@ -243,6 +248,7 @@ const ProducerDashboard: React.FC = () => {
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
                     <TabButton label="Beat Store" isActive={activeTab === 'beatStore'} onClick={() => setActiveTab('beatStore')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />

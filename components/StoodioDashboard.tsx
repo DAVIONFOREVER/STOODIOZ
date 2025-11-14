@@ -3,7 +3,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -22,6 +22,7 @@ import { useProfile } from '../hooks/useProfile';
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
 const AmenitiesManager = lazy(() => import('./AmenitiesManager'));
+const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -203,7 +204,7 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
 };
 
 
-type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following' | 'documents' | 'amenities';
+type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following' | 'documents' | 'amenities' | 'myCourses';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
@@ -348,6 +349,12 @@ const StoodioDashboard: React.FC = () => {
                         <Documents conversations={conversations} />
                     </Suspense>
                 );
+            case 'myCourses':
+                return (
+                    <Suspense fallback={<div>Loading Courses...</div>}>
+                        <MyCourses />
+                    </Suspense>
+                );
             case 'dashboard':
             default:
                  return (
@@ -410,6 +417,7 @@ const StoodioDashboard: React.FC = () => {
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                     <TabButton label="Amenities" isActive={activeTab === 'amenities'} onClick={() => setActiveTab('amenities')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />

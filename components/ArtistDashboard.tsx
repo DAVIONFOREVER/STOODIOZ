@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon, PaperclipIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon, PaperclipIcon, MusicNoteIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import Following from './Following.tsx';
@@ -16,8 +16,9 @@ import { useProfile } from '../hooks/useProfile.ts';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
+const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following' | 'documents';
+type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following' | 'documents' | 'myCourses';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -141,6 +142,12 @@ const ArtistDashboard: React.FC = () => {
                         <Documents conversations={conversations} />
                     </Suspense>
                 );
+            case 'myCourses':
+                return (
+                    <Suspense fallback={<div>Loading Courses...</div>}>
+                        <MyCourses />
+                    </Suspense>
+                );
             case 'dashboard':
             default:
                  return (
@@ -227,6 +234,7 @@ const ArtistDashboard: React.FC = () => {
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="My Activity" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
