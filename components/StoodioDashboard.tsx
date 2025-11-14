@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
@@ -425,7 +419,7 @@ const StoodioDashboard: React.FC = () => {
             </div>
 
             <div className="cardSurface">
-                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
+                <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
