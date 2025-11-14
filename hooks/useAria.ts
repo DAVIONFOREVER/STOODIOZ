@@ -26,6 +26,7 @@ export const useAria = (dependencies: AriaHookDependencies) => {
     const executeCommand = useCallback((command: AriaActionResponse, onClose: () => void) => {
         switch (command.type) {
             case 'navigate': {
+                onClose(); // Close modal before navigating to prevent race conditions.
                 const targetView = command.target as AppView;
                 const entityName = typeof command.value === 'string' ? command.value : null;
                 const tab = typeof command.value === 'object' && command.value !== null ? command.value.tab : null;
@@ -47,17 +48,19 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 } else {
                     dependencies.navigate(targetView);
                 }
-                onClose();
                 break;
             }
             case 'assistAccountSetup': {
+                onClose(); // Close modal before navigating.
                 const role = command.target as UserRole;
                 dependencies.selectRoleToSetup(role);
-                onClose();
                 break;
             }
             case 'sendMessage': {
                 if (!currentUser || !command.target || !command.value) break;
+                
+                onClose(); // Close modal before navigating to inbox.
+                
                 const recipient = allUsers.find(u => u.name.toLowerCase() === command.target!.toLowerCase());
                 if (!recipient) break;
 
@@ -71,7 +74,6 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                     );
                     dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
                 }, 100);
-                onClose();
                 break;
             }
              case 'sendDocumentMessage': {
