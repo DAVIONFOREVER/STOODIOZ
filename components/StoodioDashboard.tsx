@@ -253,7 +253,10 @@ const StoodioDashboard: React.FC = () => {
     }, [dashboardInitialTab, dispatch]);
 
      const onPostJob = async (jobData: JobPostData) => {
-        if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) return;
+        if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) {
+            alert('Please add a room to your studio before posting a job.');
+            return;
+        }
 
         const bookingRequest: BookingRequest = {
             ...jobData,

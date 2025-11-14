@@ -104,10 +104,10 @@ const StoodioDetail: React.FC = () => {
 
     const getButtonText = (mobile: boolean = false) => {
         if (!currentUser) return 'Login to Book';
-        if (userRole === UserRole.STOODIO) return 'Cannot Book a Stoodio';
+        if (userRole === UserRole.STOODIO && currentUser.id === stoodio.id) return 'Cannot Book Your Own Stoodio';
         if (!selectedRoom) return 'Select a Room';
         if (!selectedTimeSlot) return 'Select a Time Slot';
-        return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom.name}: ${selectedTimeSlot.time}`;
+        return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom?.name}: ${selectedTimeSlot.time}`;
     };
     
     return (
@@ -124,7 +124,7 @@ const StoodioDetail: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
                         <div>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
+                                <h1 className="text-4xl md:text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
                                 {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
                                     // FIX: The `title` attribute is not a valid prop for the `VerifiedIcon` component. The fix is to use an SVG `<title>` element for accessibility.
                                     <VerifiedIcon className="w-10 h-10 text-blue-500"><title>Verified Stoodio</title></VerifiedIcon>

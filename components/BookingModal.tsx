@@ -14,8 +14,14 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     const { onClose, onConfirm } = props;
     const { stoodioz, engineers, producers, currentUser, isLoading, bookingTime, bookingIntent, selectedStoodio } = useAppState();
 
-    const stoodio = selectedStoodio!;
-    const initialRoom = bookingTime!.room;
+    const stoodio = selectedStoodio;
+
+    if (!stoodio || !bookingTime) {
+        // This is a safeguard against rendering the modal in an invalid state, preventing a crash.
+        return null;
+    }
+
+    const initialRoom = bookingTime.room;
 
     const today = new Date().toISOString().split('T')[0];
     const [date, setDate] = useState<string>(bookingTime?.date || bookingIntent?.date || today);

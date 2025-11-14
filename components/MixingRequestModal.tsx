@@ -17,6 +17,11 @@ const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClo
     const [notes, setNotes] = useState('');
     const [mixType, setMixType] = useState<'REMOTE' | 'IN_STUDIO'>('REMOTE');
 
+    if (!engineer) {
+        // This is a safeguard to prevent crashes if the modal is rendered without an engineer.
+        return null;
+    }
+
     const services = engineer.mixingServices;
     const totalCost = useMemo(() => {
         return services ? services.pricePerTrack * trackCount : 0;
@@ -123,4 +128,3 @@ const RadioOption: React.FC<{id: string, value: 'REMOTE' | 'IN_STUDIO', label: s
 );
 
 export default MixingRequestModal;
-      
