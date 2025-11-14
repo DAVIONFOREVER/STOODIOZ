@@ -1,13 +1,7 @@
-
-
-
-
-
-
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Engineer, Artist, Stoodio, Producer, Conversation } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
-import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon, MusicNoteIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon, MusicNoteIcon, BriefcaseIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import AvailabilityManager from './AvailabilityManager.tsx';
@@ -26,6 +20,7 @@ const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
 const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
+const JobBoard = lazy(() => import('./JobBoard.tsx'));
 
 type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass' | 'myCourses';
 
@@ -145,6 +140,12 @@ const EngineerDashboard: React.FC = () => {
                         <AnalyticsDashboard user={engineer} userRole={UserRole.ENGINEER} />
                     </Suspense>
                 );
+             case 'jobBoard':
+                return (
+                    <Suspense fallback={<div>Loading Jobs...</div>}>
+                        <JobBoard />
+                    </Suspense>
+                );
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
              case 'mixingSamples': return <MixingSampleManager engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
@@ -254,8 +255,8 @@ const EngineerDashboard: React.FC = () => {
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
-                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
                     <TabButton label="Job Board" isActive={activeTab === 'jobBoard'} onClick={() => setActiveTab('jobBoard')} />
+                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Mixing Samples" isActive={activeTab === 'mixingSamples'} onClick={() => setActiveTab('mixingSamples')} />
                     <TabButton label="Mixing Services" isActive={activeTab === 'mixingServices'} onClick={() => setActiveTab('mixingServices')} />

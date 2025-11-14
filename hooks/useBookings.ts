@@ -83,6 +83,25 @@ export const useBookings = (navigate: (view: AppView) => void) => {
             dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === booking.id ? updatedBooking : b) } });
         } catch (error) { console.error(error); }
     }, [bookings, currentUser, userRole, dispatch]);
+
+    const acceptJob = useCallback(async (booking: Booking) => {
+        if (!currentUser || userRole !== UserRole.ENGINEER) {
+            alert("Only engineers can accept jobs.");
+            return;
+        }
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+        try {
+            const { updatedBooking } = await apiService.acceptJob(booking, currentUser as Engineer);
+            const updatedBookings = bookings.map(b => b.id === booking.id ? updatedBooking : b);
+            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: updatedBookings } });
+            // Optionally navigate to My Bookings to show the newly accepted job
+            navigate(AppView.MY_BOOKINGS);
+        } catch (error) {
+            console.error("Failed to accept job:", error);
+        } finally {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        }
+    }, [bookings, currentUser, userRole, dispatch, navigate]);
     
     return { 
         openBookingModal, 
@@ -91,6 +110,7 @@ export const useBookings = (navigate: (view: AppView) => void) => {
         confirmBooking, 
         confirmCancellation, 
         acceptBooking, 
-        denyBooking 
+        denyBooking,
+        acceptJob
     };
 };

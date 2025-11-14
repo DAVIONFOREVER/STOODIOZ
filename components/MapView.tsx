@@ -4,6 +4,7 @@ import type { Stoodio, Artist, Engineer, Producer, Booking, Location } from '../
 import { UserRole, BookingStatus } from '../types';
 import { useAppState } from '../contexts/AppContext.tsx';
 import { HouseIcon, MicrophoneIcon, SoundWaveIcon, DiamondIcon, StarIcon } from './icons.tsx';
+import MapJobPopup from './MapJobPopup.tsx';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio;
@@ -96,13 +97,13 @@ const MapMarker: React.FC<{ item: MapItem, onSelect: (item: MapItem) => void, in
                 classes = `w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center marker-glow ${inTransit ? 'marker-pulse' : ''}`;
                 break;
             case UserRole.PRODUCER:
-                icon = <DiamondIcon className={`w-5 h-5 text-orange-400 marker-glow ${inTransit ? 'marker-pulse' : ''}`} />;
+                icon = <DiamondIcon className={`w-5 h-5 text-purple-400 marker-glow ${inTransit ? 'marker-pulse' : ''}`} />;
                 break;
             case UserRole.ENGINEER:
-                icon = <SoundWaveIcon className={`w-5 h-5 text-orange-400 marker-glow ${inTransit ? 'marker-pulse' : ''}`} />;
+                icon = <SoundWaveIcon className={`w-5 h-5 text-amber-400 marker-glow ${inTransit ? 'marker-pulse' : ''}`} />;
                 break;
             case UserRole.STOODIO:
-                icon = <HouseIcon className="w-5 h-5 text-orange-400 marker-glow" />;
+                icon = <HouseIcon className="w-5 h-5 text-red-400 marker-glow" />;
                 break;
         }
     }
@@ -116,7 +117,7 @@ const MapMarker: React.FC<{ item: MapItem, onSelect: (item: MapItem) => void, in
             style={{ transform: 'translate(-50%, -50%)' }} // Center the marker
         >
             <div className={classes}>{icon}</div>
-            {isHovered && <MapHoverCard item={item} />}
+            {isHovered && !inTransit && <MapHoverCard item={item} />}
         </div>
     );
 }
@@ -148,10 +149,11 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
 
     const { stoodioz, artists, engineers, producers, bookings } = useAppState();
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-    const [activeFilters, setActiveFilters] = useState<Set<RoleFilter>>(new Set(Object.values(UserRole)));
+    const [activeFilters, setActiveFilters] = useState<Set<RoleFilter>>(new Set([...Object.values(UserRole), 'JOBS']));
     const [showAvailableOnly, setShowAvailableOnly] = useState(false);
     const [animatedPositions, setAnimatedPositions] = useState<Record<string, { lat: number, lon: number }>>({});
-    // FIX: The `useRef` hook requires an initial value. Provide `null` as the initial value for the ref.
+    const [selectedJob, setSelectedJob] = useState<Booking | null>(null);
+
     const animationFrameRef = useRef<number | null>(null);
     const animationStartRef = useRef<number | null>(null);
     const SIMULATION_DURATION = 30000; // 30 seconds for a full journey simulation
@@ -173,30 +175,30 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             .map(b => ({ ...b, itemType: 'JOB' }));
     }, [bookings]);
 
-    // Identify users who are "in transit" to a session
     const inTransitUsers = useMemo(() => {
         const now = new Date();
         return bookings
             .filter(b => {
+                if (!b.startTime || b.startTime === 'N/A') return false;
                 const startTime = new Date(`${b.date}T${b.startTime}`);
                 const timeDiff = startTime.getTime() - now.getTime();
-                // Consider "in transit" if session is confirmed and starts within the next hour
                 return b.status === BookingStatus.CONFIRMED && timeDiff > 0 && timeDiff <= 60 * 60 * 1000;
             })
             .map(b => ({
                 user: b.artist || b.engineer || b.producer,
                 destination: b.stoodio
             }))
-            .filter(item => item.user && item.user.coordinates && item.destination && item.destination.coordinates)
+            .filter((item): item is { user: NonNullable<typeof item.user>, destination: NonNullable<typeof item.destination> } => 
+                !!(item.user && item.user.coordinates && item.destination && item.destination.coordinates)
+            )
             .map(item => ({
                 user: item.user!,
                 start: item.user!.coordinates,
                 end: item.destination!.coordinates
             }));
-    }, [bookings, artists, engineers, producers]);
+    }, [bookings]);
 
 
-    // Animation loop for moving users
     useEffect(() => {
         const animate = (timestamp: number) => {
             if (animationStartRef.current === null) {
@@ -238,10 +240,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
         const userItems: MapItem[] = allUsers
             .filter(u => u.showOnMap && u.coordinates)
             .filter(u => !showAvailableOnly || ('isAvailable' in u && u.isAvailable))
-            .filter(u => activeFilters.size === 0 || activeFilters.has(getRole(u)))
+            .filter(u => activeFilters.has(getRole(u)))
             .map(u => ({ ...u, itemType: 'USER' }));
 
-        const jobItems: MapItem[] = (activeFilters.size === 0 || activeFilters.has('JOBS')) ? openJobs : [];
+        const jobItems: MapItem[] = activeFilters.has('JOBS') ? openJobs : [];
 
         return [...userItems, ...jobItems];
     }, [stoodioz, artists, engineers, producers, openJobs, activeFilters, showAvailableOnly]);
@@ -254,12 +256,12 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             } else {
                 newFilters.add(filter);
             }
-            if (newFilters.size === 5) return new Set<RoleFilter>([]);
             return newFilters;
         });
     };
 
     const handleSelect = useCallback((item: MapItem) => {
+        setSelectedJob(null);
         if (item.itemType === 'USER') {
             const user = item as MapUser;
             if ('amenities' in user) onSelectStoodio(user as Stoodio);
@@ -267,8 +269,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             else if ('instrumentals' in user) onSelectProducer(user as Producer);
             else onSelectArtist(user as Artist);
         } else {
-            const job = item as MapJob;
-            if (job.stoodio) onSelectStoodio(job.stoodio);
+            setSelectedJob(item as MapJob);
         }
     }, [onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer]);
 
@@ -281,7 +282,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
 
     return (
         <div className="flex gap-6" style={{ height: 'calc(100vh - 144px)' }}>
-            {/* UI Sidebar */}
             <div className="hidden lg:block w-72 flex-shrink-0 h-full overflow-y-auto p-4 cardSurface space-y-4">
                 <h3 className="font-bold text-zinc-100 text-lg px-1">Filter Marketplace</h3>
                 <div className="flex flex-col gap-2">
@@ -301,10 +301,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                 </label>
             </div>
             
-            {/* Map Container */}
             <div className="flex-grow relative h-full rounded-lg overflow-hidden cardSurface">
                  <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={userLocation ? 11 : 4} options={mapOptions}>
-                    {/* Render static markers */}
                     {staticItems.map(item => (
                         <OverlayViewF
                             key={item.id}
@@ -314,7 +312,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                             <MapMarker item={item} onSelect={handleSelect} />
                         </OverlayViewF>
                     ))}
-                     {/* Render animated markers */}
                     {animatedItems.map(item => (
                         <OverlayViewF
                             key={`${item.id}-animated`}
@@ -324,16 +321,23 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                             <MapMarker item={item} onSelect={handleSelect} inTransit={true} />
                         </OverlayViewF>
                     ))}
+                    {selectedJob && selectedJob.stoodio?.coordinates && (
+                        <OverlayViewF 
+                            position={{ lat: selectedJob.stoodio.coordinates.lat, lng: selectedJob.stoodio.coordinates.lon }}
+                            mapPaneName={'floatPane'}
+                        >
+                           <MapJobPopup job={selectedJob} onClose={() => setSelectedJob(null)} />
+                        </OverlayViewF>
+                    )}
                 </GoogleMap>
                 
-                {/* Legend Overlay */}
                 <div className="absolute bottom-4 left-4 p-3 cardSurface space-y-2">
                     <h3 className="font-bold text-zinc-100 px-1 text-sm">Legend</h3>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-zinc-400">
                         <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-orange-500 marker-glow"></div> Artist</span>
-                        <span className="flex items-center gap-1.5"><DiamondIcon className="w-3 h-3 text-orange-400 marker-glow"/> Producer</span>
-                        <span className="flex items-center gap-1.5"><SoundWaveIcon className="w-3 h-3 text-orange-400 marker-glow"/> Engineer</span>
-                        <span className="flex items-center gap-1.5"><HouseIcon className="w-3 h-3 text-orange-400 marker-glow"/> Stoodio</span>
+                        <span className="flex items-center gap-1.5"><DiamondIcon className="w-3 h-3 text-purple-400 marker-glow"/> Producer</span>
+                        <span className="flex items-center gap-1.5"><SoundWaveIcon className="w-3 h-3 text-amber-400 marker-glow"/> Engineer</span>
+                        <span className="flex items-center gap-1.5"><HouseIcon className="w-3 h-3 text-red-400 marker-glow"/> Stoodio</span>
                         <span className="flex items-center gap-1.5"><StarIcon className="w-3 h-3 text-orange-400 marker-glow"/> Job</span>
                     </div>
                 </div>

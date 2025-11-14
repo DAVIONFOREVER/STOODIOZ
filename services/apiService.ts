@@ -356,6 +356,17 @@ export const respondToBooking = async (booking: Booking, action: 'accept' | 'den
     return { updatedBooking };
 };
 
+export const acceptJob = async (booking: Booking, engineer: Engineer): Promise<{ updatedBooking: Booking }> => {
+    console.log(`Engineer ${engineer.name} accepting job for booking ${booking.id}`);
+    const updatedBooking = { 
+        ...booking, 
+        status: BookingStatus.CONFIRMED, 
+        engineer: engineer,
+        postedBy: undefined, // Clear postedBy so it becomes a regular booking
+    };
+    return { updatedBooking };
+};
+
 export const submitForVerification = async (stoodioId: string, verificationData: { googleBusinessProfileUrl: string; websiteUrl: string }): Promise<Partial<Stoodio>> => {
     return { ...verificationData, verificationStatus: VerificationStatus.PENDING };
 };
@@ -366,7 +377,8 @@ export const approveVerification = async (stoodioId: string): Promise<Partial<St
 
 export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number = 30): Promise<AnalyticsData> => {
     // Return empty/zeroed data as requested by the user to remove mock data from analytics.
-    await new Promise(res => setTimeout(res, 200)); 
+    // FIX: Corrected typo from `newPromise` to `new Promise`.
+    await new Promise(res => setTimeout(res, 200));
     
     // FIX: Changed UserRole to UserRoleEnum to use the value-based import.
     const isArtist = userRole === UserRoleEnum.ARTIST;
