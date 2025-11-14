@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole, AriaActionResponse, FileAttachment } from '../types';
 import { askAriaCantata } from '../services/geminiService';
@@ -24,18 +25,38 @@ const TypingIndicator: React.FC = () => (
     </div>
 );
 
-const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => (
-    <div className="mt-2 bg-black/20 p-3 rounded-lg flex items-center gap-3">
-        <PaperclipIcon className="w-6 h-6 text-zinc-400 flex-shrink-0" />
-        <div className="flex-grow overflow-hidden">
-            <p className="text-sm font-semibold truncate">{file.name}</p>
-            <p className="text-xs text-zinc-300">{file.size}</p>
+const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => {
+    const handleDownload = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (!file.rawContent) {
+            // If there's no raw content (e.g., a normal link), let the default href behavior happen.
+            if (file.url === '#') e.preventDefault();
+            return;
+        }
+        e.preventDefault();
+        const blob = new Blob([file.rawContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div className="mt-2 bg-black/20 p-3 rounded-lg flex items-center gap-3">
+            <PaperclipIcon className="w-6 h-6 text-zinc-400 flex-shrink-0" />
+            <div className="flex-grow overflow-hidden">
+                <p className="text-sm font-semibold truncate">{file.name}</p>
+                <p className="text-xs text-zinc-300">{file.size}</p>
+            </div>
+            <a href={file.url} onClick={handleDownload} download={file.name} className="bg-zinc-600 hover:bg-zinc-500 p-2 rounded-full transition-colors" aria-label={`Download ${file.name}`}>
+                <DownloadIcon className="w-5 h-5" />
+            </a>
         </div>
-        <a href={file.url} download={file.name} className="bg-zinc-600 hover:bg-zinc-500 p-2 rounded-full transition-colors" aria-label={`Download ${file.name}`}>
-            <DownloadIcon className="w-5 h-5" />
-        </a>
-    </div>
-);
+    );
+};
 
 const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     const { 

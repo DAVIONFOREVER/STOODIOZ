@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { Conversation, FileAttachment } from '../types';
 import { PaperclipIcon, DownloadIcon } from './icons';
@@ -40,6 +41,23 @@ const Documents: React.FC<DocumentsProps> = ({ conversations }) => {
         return documents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     }, [conversations, currentUser]);
 
+    const handleDownload = (e: React.MouseEvent<HTMLAnchorElement>, file: FileAttachment) => {
+        if (!file.rawContent) {
+            if (file.url === '#') e.preventDefault();
+            return;
+        }
+        e.preventDefault();
+        const blob = new Blob([file.rawContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="p-6 cardSurface">
             <h1 className="text-2xl font-bold mb-6 text-zinc-100 flex items-center gap-2">
@@ -51,12 +69,12 @@ const Documents: React.FC<DocumentsProps> = ({ conversations }) => {
                         <div key={`${doc.conversationId}-${index}`} className="bg-zinc-800 p-3 rounded-lg flex items-center gap-4 border border-zinc-700">
                             <PaperclipIcon className="w-6 h-6 text-zinc-400 flex-shrink-0" />
                             <div className="flex-grow overflow-hidden">
-                                <a href={doc.file.url} download={doc.file.name} className="text-sm font-semibold text-orange-400 hover:underline truncate block">{doc.file.name}</a>
+                                <a href={doc.file.url} onClick={(e) => handleDownload(e, doc.file)} download={doc.file.name} className="text-sm font-semibold text-orange-400 hover:underline truncate block">{doc.file.name}</a>
                                 <p className="text-xs text-zinc-500">
                                     {doc.file.size} - from {doc.conversationName} - {formatDistanceToNow(new Date(doc.timestamp), { addSuffix: true })}
                                 </p>
                             </div>
-                            <a href={doc.file.url} download={doc.file.name} className="bg-zinc-600 hover:bg-zinc-500 p-2 rounded-full transition-colors" aria-label={`Download ${doc.file.name}`}>
+                            <a href={doc.file.url} onClick={(e) => handleDownload(e, doc.file)} download={doc.file.name} className="bg-zinc-600 hover:bg-zinc-500 p-2 rounded-full transition-colors" aria-label={`Download ${doc.file.name}`}>
                                 <DownloadIcon className="w-5 h-5 text-zinc-200" />
                             </a>
                         </div>

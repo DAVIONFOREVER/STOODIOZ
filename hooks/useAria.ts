@@ -1,4 +1,5 @@
 
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
@@ -80,9 +81,13 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
                 if (!ariaProfile) break;
                 
-                const fileUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(documentContent);
                 const fileSize = new Blob([documentContent]).size;
-                const fileAttachment: FileAttachment = { name: fileName, url: fileUri, size: `${(fileSize / 1024).toFixed(1)} KB` };
+                const fileAttachment: FileAttachment = { 
+                    name: fileName, 
+                    url: '#', // Placeholder URL, download will be handled by onClick
+                    size: `${(fileSize / 1024).toFixed(1)} KB`,
+                    rawContent: documentContent,
+                };
 
                 // 1. Add message to Aria's visual chat history
                 const ariaMessage: AriaCantataMessage = {

@@ -61,18 +61,37 @@ const ConversationList: React.FC<{
     )
 }
 
-const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => (
-    <div className="bg-black/40 p-3 rounded-lg flex items-center gap-3">
-        <PaperclipIcon className="w-6 h-6 text-zinc-400 flex-shrink-0" />
-        <div className="flex-grow overflow-hidden">
-            <p className="text-sm font-semibold truncate">{file.name}</p>
-            <p className="text-xs text-zinc-400">{file.size}</p>
+const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => {
+    const handleDownload = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (!file.rawContent) {
+            if (file.url === '#') e.preventDefault();
+            return;
+        }
+        e.preventDefault();
+        const blob = new Blob([file.rawContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div className="bg-black/40 p-3 rounded-lg flex items-center gap-3">
+            <PaperclipIcon className="w-6 h-6 text-zinc-400 flex-shrink-0" />
+            <div className="flex-grow overflow-hidden">
+                <p className="text-sm font-semibold truncate">{file.name}</p>
+                <p className="text-xs text-zinc-400">{file.size}</p>
+            </div>
+            <a href={file.url} onClick={handleDownload} download={file.name} className="bg-zinc-600 hover:bg-zinc-500 p-2 rounded-full transition-colors" aria-label={`Download ${file.name}`}>
+                <DownloadIcon className="w-5 h-5" />
+            </a>
         </div>
-        <a href={file.url} download={file.name} className="bg-zinc-600 hover:bg-zinc-500 p-2 rounded-full transition-colors" aria-label={`Download ${file.name}`}>
-            <DownloadIcon className="w-5 h-5" />
-        </a>
-    </div>
-);
+    );
+};
 
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; count: number; }> = ({ label, isActive, onClick, count }) => (
     <button

@@ -366,6 +366,7 @@ export interface FileAttachment {
     name: string;
     url: string;
     size: string;
+    rawContent?: string;
 }
 
 export interface Message {
