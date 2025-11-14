@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
@@ -20,6 +21,7 @@ import { useProfile } from './hooks/useProfile.ts';
 import { useVibeMatcher } from './hooks/useVibeMatcher.ts';
 import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
+import { useMasterclass } from './hooks/useMasterclass.ts';
 
 import Header from './components/Header.tsx';
 import BookingModal from './components/BookingModal.tsx';
@@ -67,8 +69,10 @@ const SubscriptionPlans = lazy(() => import('./components/SubscriptionPlans.tsx'
 const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant.tsx'));
 const AdminRankings = lazy(() => import('./components/AdminRankings.tsx'));
 const StudioInsights = lazy(() => import('./components/StudioInsights.tsx'));
-// FIX: Added lazy import for the new Leaderboard component.
 const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
+const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
+const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
+const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
 
 const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
     // If the current user is a studio and has a custom animated logo, display it.
@@ -99,7 +103,8 @@ const App: React.FC = () => {
         history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
         latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
-        ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent
+        ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
+        masterclassToPurchase, masterclassToWatch, masterclassToReview
     } = state;
 
     // --- Derived State ---
@@ -119,6 +124,7 @@ const App: React.FC = () => {
     const { handleSubscribe } = useSubscription(navigate);
     // FIX: The `useMessaging` hook was imported but not called, causing `startConversation` to be undefined. This call initializes the hook and makes the function available.
     const { startConversation } = useMessaging(navigate);
+    const { confirmMasterclassPurchase, submitMasterclassReview } = useMasterclass();
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
         startConversation,
         navigate,
@@ -162,6 +168,11 @@ const App: React.FC = () => {
     const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
     const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
     const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
+
+    const closePurchaseMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL });
+    const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
+    const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
+
 
     const handleOpenAriaFromFAB = () => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
@@ -287,6 +298,32 @@ return (
                     isLoading={isLoading} 
                 />
             }
+            {masterclassToPurchase && (
+                <Suspense fallback={<div />}>
+                    <PurchaseMasterclassModal 
+                        masterclassInfo={masterclassToPurchase}
+                        onClose={closePurchaseMasterclassModal}
+                        onConfirm={confirmMasterclassPurchase}
+                    />
+                </Suspense>
+            )}
+             {masterclassToWatch && (
+                <Suspense fallback={<div />}>
+                    <WatchMasterclassModal 
+                        masterclassInfo={masterclassToWatch}
+                        onClose={closeWatchMasterclassModal}
+                    />
+                </Suspense>
+            )}
+            {masterclassToReview && (
+                <Suspense fallback={<div />}>
+                    <MasterclassReviewModal 
+                        masterclassInfo={masterclassToReview}
+                        onClose={closeReviewMasterclassModal}
+                        onSubmit={submitMasterclassReview}
+                    />
+                </Suspense>
+            )}
 
             {/* Global UI Elements */}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />

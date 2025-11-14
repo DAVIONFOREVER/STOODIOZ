@@ -61,6 +61,8 @@ export enum TransactionCategory {
     TIP_PAYOUT = 'TIP_PAYOUT',
     REFUND = 'REFUND',
     WITHDRAWAL = 'WITHDRAWAL',
+    MASTERCLASS_PURCHASE = 'MASTERCLASS_PURCHASE',
+    MASTERCLASS_PAYOUT = 'MASTERCLASS_PAYOUT',
 }
 
 export enum TransactionStatus {
@@ -173,6 +175,15 @@ export interface Subscription {
     endDate: string | null;
 }
 
+export interface Masterclass {
+    id: string;
+    isEnabled: boolean;
+    title: string;
+    description: string;
+    videoUrl: string;
+    price: number;
+}
+
 export interface BaseUser {
     id: string;
     name: string;
@@ -203,6 +214,7 @@ export interface BaseUser {
     repeat_hire_rate: number;
     strength_tags: string[];
     local_rank_text: string;
+    purchasedMasterclassIds?: string[];
 }
 
 export interface Artist extends BaseUser {
@@ -236,6 +248,7 @@ export interface Engineer extends BaseUser {
     };
     minimumPayRate?: number;
     mixingServices?: MixingServices;
+    masterclass?: Masterclass;
     // FIX: Add optional availability property to match Stoodio and Producer types.
     availability?: { date: string, times: string[] }[];
 }
@@ -258,6 +271,7 @@ export interface Producer extends BaseUser {
     instrumentals: Instrumental[];
     pullUpPrice?: number;
     isAvailable: boolean;
+    masterclass?: Masterclass;
     // FIX: Add optional availability property to match Stoodio and Engineer types.
     availability?: { date: string, times: string[] }[];
 }
@@ -339,6 +353,8 @@ export interface Review {
     stoodioId?: string;
     engineerId?: string;
     artistId?: string;
+    producerId?: string;
+    masterclassId?: string;
     reviewerName: string;
     rating: number;
     comment: string;

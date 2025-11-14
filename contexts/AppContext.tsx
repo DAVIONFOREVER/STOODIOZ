@@ -1,5 +1,5 @@
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
-import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment } from '../types';
+import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass } from '../types';
 import { AppView, UserRole } from '../types';
 
 // --- STATE AND ACTION TYPES ---
@@ -45,6 +45,9 @@ export interface AppState {
     isNudgeVisible: boolean;
     dashboardInitialTab: string | null;
     isSaved: boolean;
+    masterclassToPurchase: { masterclass: Masterclass, owner: Engineer | Producer } | null;
+    masterclassToWatch: { masterclass: Masterclass, owner: Engineer | Producer } | null;
+    masterclassToReview: { masterclass: Masterclass, owner: Engineer | Producer } | null;
 }
 
 type ActionMap<M extends { [index: string]: any }> = {
@@ -107,6 +110,13 @@ export enum ActionTypes {
     SET_IS_NUDGE_VISIBLE = 'SET_IS_NUDGE_VISIBLE',
     RESET_PROFILE_SELECTIONS = 'RESET_PROFILE_SELECTIONS',
     SET_DASHBOARD_TAB = 'SET_DASHBOARD_TAB',
+    OPEN_PURCHASE_MASTERCLASS_MODAL = 'OPEN_PURCHASE_MASTERCLASS_MODAL',
+    CLOSE_PURCHASE_MASTERCLASS_MODAL = 'CLOSE_PURCHASE_MASTERCLASS_MODAL',
+    OPEN_WATCH_MASTERCLASS_MODAL = 'OPEN_WATCH_MASTERCLASS_MODAL',
+    CLOSE_WATCH_MASTERCLASS_MODAL = 'CLOSE_WATCH_MASTERCLASS_MODAL',
+    OPEN_REVIEW_MASTERCLASS_MODAL = 'OPEN_REVIEW_MASTERCLASS_MODAL',
+    CLOSE_REVIEW_MASTERCLASS_MODAL = 'CLOSE_REVIEW_MASTERCLASS_MODAL',
+    SET_REVIEWS = 'SET_REVIEWS',
 }
 
 type Payload = {
@@ -158,6 +168,13 @@ type Payload = {
     [ActionTypes.SET_IS_NUDGE_VISIBLE]: { isVisible: boolean };
     [ActionTypes.RESET_PROFILE_SELECTIONS]: undefined;
     [ActionTypes.SET_DASHBOARD_TAB]: { tab: string | null };
+    [ActionTypes.OPEN_PURCHASE_MASTERCLASS_MODAL]: { masterclass: Masterclass, owner: Engineer | Producer };
+    [ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL]: undefined;
+    [ActionTypes.OPEN_WATCH_MASTERCLASS_MODAL]: { masterclass: Masterclass, owner: Engineer | Producer };
+    [ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL]: undefined;
+    [ActionTypes.OPEN_REVIEW_MASTERCLASS_MODAL]: { masterclass: Masterclass, owner: Engineer | Producer };
+    [ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL]: undefined;
+    [ActionTypes.SET_REVIEWS]: { reviews: Review[] };
 };
 
 export type AppAction = ActionMap<Payload>[keyof ActionMap<Payload>];
@@ -205,6 +222,9 @@ const initialState: AppState = {
     isNudgeVisible: false,
     dashboardInitialTab: null,
     isSaved: false,
+    masterclassToPurchase: null,
+    masterclassToWatch: null,
+    masterclassToReview: null,
 };
 
 // --- REDUCER ---
@@ -276,36 +296,15 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, loginError: action.payload.error };
         case ActionTypes.LOGOUT:
             return {
-                ...state,
+                ...initialState,
                 history: [AppView.LANDING_PAGE],
                 historyIndex: 0,
-                currentUser: null,
-                userRole: null,
-                loginError: null,
-                selectedStoodio: null,
-                selectedArtist: null,
-                selectedEngineer: null,
-                selectedProducer: null,
-                latestBooking: null,
-                activeSession: null,
-                tipModalBooking: null,
-                bookingToCancel: null,
-                selectedConversationId: null,
-                isVibeMatcherOpen: false,
-                vibeMatchResults: null,
-                isVibeMatcherLoading: false,
-                bookingIntent: null,
-                smartReplies: [],
-                isSmartRepliesLoading: false,
-                isAddFundsOpen: false,
-                isPayoutOpen: false,
-                isMixingModalOpen: false,
-                isAriaCantataOpen: false,
-                ariaHistory: [],
-                initialAriaCantataPrompt: null,
-                ariaNudge: null,
-                isNudgeVisible: false,
-                dashboardInitialTab: null,
+                isLoading: false,
+                artists: state.artists,
+                engineers: state.engineers,
+                producers: state.producers,
+                stoodioz: state.stoodioz,
+                reviews: state.reviews,
             };
         
         case ActionTypes.COMPLETE_SETUP: {
@@ -431,6 +430,20 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, isNudgeVisible: action.payload.isVisible };
         case ActionTypes.SET_DASHBOARD_TAB:
             return { ...state, dashboardInitialTab: action.payload.tab };
+        case ActionTypes.OPEN_PURCHASE_MASTERCLASS_MODAL:
+            return { ...state, masterclassToPurchase: action.payload };
+        case ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL:
+            return { ...state, masterclassToPurchase: null };
+        case ActionTypes.OPEN_WATCH_MASTERCLASS_MODAL:
+            return { ...state, masterclassToWatch: action.payload };
+        case ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL:
+            return { ...state, masterclassToWatch: null };
+        case ActionTypes.OPEN_REVIEW_MASTERCLASS_MODAL:
+            return { ...state, masterclassToReview: action.payload };
+        case ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL:
+            return { ...state, masterclassToReview: null };
+        case ActionTypes.SET_REVIEWS:
+            return { ...state, reviews: action.payload.reviews };
         default:
             return state;
     }
