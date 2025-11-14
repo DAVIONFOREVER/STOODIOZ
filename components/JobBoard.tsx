@@ -18,12 +18,12 @@ const JobBoard: React.FC = () => {
     }, [bookings]);
 
     const tierMessage = {
-        [RankingTier.Elite]: "You see jobs instantly as an Elite engineer.",
-        [RankingTier.Platinum]: "You see jobs instantly as a Platinum engineer.",
-        [RankingTier.Gold]: "You see jobs 1 hour after they are posted.",
-        [RankingTier.Silver]: "You see jobs 3 hours after they are posted.",
-        [RankingTier.Bronze]: "You see jobs 6 hours after they are posted.",
-        [RankingTier.Provisional]: "You see jobs 12 hours after they are posted. Complete more sessions to rank up!",
+        [RankingTier.Elite]: "As an Elite engineer, you get instant push notifications for new jobs.",
+        [RankingTier.Platinum]: "As a Platinum engineer, you get instant push notifications for new jobs.",
+        [RankingTier.Gold]: "As a Gold engineer, you get instant push notifications for new jobs.",
+        [RankingTier.Silver]: "All jobs are visible instantly. Rank up to Gold for priority notifications!",
+        [RankingTier.Bronze]: "All jobs are visible instantly. Rank up to Gold for priority notifications!",
+        [RankingTier.Provisional]: "All jobs are visible instantly. Complete more sessions to rank up and get priority notifications!",
     };
     
     const userTier = currentUser?.ranking_tier || RankingTier.Provisional;
