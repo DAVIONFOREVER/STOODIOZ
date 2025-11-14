@@ -3,8 +3,10 @@ import { GoogleMap, useJsApiLoader, OverlayViewF } from '@react-google-maps/api'
 import type { Stoodio, Artist, Engineer, Producer, Booking, Location } from '../types';
 import { UserRole, BookingStatus } from '../types';
 import { useAppState } from '../contexts/AppContext.tsx';
+import { useNavigation } from '../hooks/useNavigation.ts';
 import { HouseIcon, MicrophoneIcon, SoundWaveIcon, DiamondIcon, StarIcon } from './icons.tsx';
 import MapJobPopup from './MapJobPopup.tsx';
+import MapInfoPopup from './MapInfoPopup.tsx';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio;
@@ -152,8 +154,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
     const [activeFilters, setActiveFilters] = useState<Set<RoleFilter>>(new Set([...Object.values(UserRole), 'JOBS']));
     const [showAvailableOnly, setShowAvailableOnly] = useState(false);
     const [animatedPositions, setAnimatedPositions] = useState<Record<string, { lat: number, lon: number }>>({});
+    const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
     const [selectedJob, setSelectedJob] = useState<Booking | null>(null);
 
+    const { navigateToStudio } = useNavigation();
     const animationFrameRef = useRef<number | null>(null);
     const animationStartRef = useRef<number | null>(null);
     const SIMULATION_DURATION = 30000; // 30 seconds for a full journey simulation
@@ -260,7 +264,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
         });
     };
 
-    const handleSelect = useCallback((item: MapItem) => {
+    const handleNavigateToProfile = useCallback((item: MapItem) => {
+        setSelectedItem(null);
         setSelectedJob(null);
         if (item.itemType === 'USER') {
             const user = item as MapUser;
@@ -268,10 +273,18 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
             else if ('specialties' in user) onSelectEngineer(user as Engineer);
             else if ('instrumentals' in user) onSelectProducer(user as Producer);
             else onSelectArtist(user as Artist);
-        } else {
-            setSelectedJob(item as MapJob);
         }
     }, [onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer]);
+
+    const handleMarkerClick = useCallback((item: MapItem) => {
+        if (item.itemType === 'USER') {
+            setSelectedItem(item);
+            setSelectedJob(null);
+        } else {
+            setSelectedJob(item as MapJob);
+            setSelectedItem(null);
+        }
+    }, []);
 
     if (loadError) return <div className="p-4 text-red-400">Error loading maps.</div>;
     if (!isLoaded) return <div className="flex justify-center items-center h-full"><div className="w-10 h-10 border-4 border-t-orange-500 border-zinc-700 rounded-full animate-spin"></div></div>;
@@ -309,7 +322,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                             position={{ lat: item.coordinates!.lat, lng: item.coordinates!.lon }}
                             mapPaneName={'overlayMouseTarget'}
                         >
-                            <MapMarker item={item} onSelect={handleSelect} />
+                            <MapMarker item={item} onSelect={handleMarkerClick} />
                         </OverlayViewF>
                     ))}
                     {animatedItems.map(item => (
@@ -318,9 +331,24 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, on
                             position={{ lat: animatedPositions[item.id].lat, lng: animatedPositions[item.id].lon }}
                             mapPaneName={'overlayMouseTarget'}
                         >
-                            <MapMarker item={item} onSelect={handleSelect} inTransit={true} />
+                            <MapMarker item={item} onSelect={handleMarkerClick} inTransit={true} />
                         </OverlayViewF>
                     ))}
+
+                    {selectedItem && selectedItem.itemType === 'USER' && selectedItem.coordinates && (
+                        <OverlayViewF
+                            position={{ lat: selectedItem.coordinates.lat, lng: selectedItem.coordinates.lon }}
+                            mapPaneName={'floatPane'}
+                        >
+                        <MapInfoPopup 
+                                user={selectedItem as MapUser} 
+                                onClose={() => setSelectedItem(null)} 
+                                onSelect={() => handleNavigateToProfile(selectedItem)} 
+                                onNavigate={navigateToStudio}
+                        />
+                        </OverlayViewF>
+                    )}
+
                     {selectedJob && selectedJob.stoodio?.coordinates && (
                         <OverlayViewF 
                             position={{ lat: selectedJob.stoodio.coordinates.lat, lng: selectedJob.stoodio.coordinates.lon }}
