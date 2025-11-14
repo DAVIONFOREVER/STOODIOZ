@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
@@ -19,8 +21,9 @@ import { useProfile } from '../hooks/useProfile.ts';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
+const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following' | 'documents';
+type DashboardTab = 'dashboard' | 'analytics' | 'beatStore' | 'availability' | 'settings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
@@ -135,12 +138,13 @@ const ProducerDashboard: React.FC = () => {
             case 'analytics':
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <AnalyticsDashboard user={producer} />
+                        <AnalyticsDashboard user={producer} userRole={UserRole.PRODUCER} />
                     </Suspense>
                 );
             case 'beatStore': return <BeatManager producer={producer} onUpdateProducer={updateProfile} />;
             case 'availability': return <AvailabilityManager user={producer} onUpdateUser={updateProfile} />;
             case 'settings': return <ProducerSettings producer={producer} onUpdateProducer={updateProfile} />;
+            case 'masterclass': return <Suspense fallback={<div/>}><MasterclassManager user={producer} onUpdateUser={updateProfile} /></Suspense>;
             case 'wallet': return <Wallet user={producer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.PRODUCER} />;
             case 'followers': return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
             case 'following': return <Following artists={followedArtists} engineers={followedEngineers} studios={followedStoodioz} producers={followedProducers} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStudio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
@@ -242,6 +246,7 @@ const ProducerDashboard: React.FC = () => {
                     <TabButton label="Beat Store" isActive={activeTab === 'beatStore'} onClick={() => setActiveTab('beatStore')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                    <TabButton label="Masterclass" isActive={activeTab === 'masterclass'} onClick={() => setActiveTab('masterclass')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />

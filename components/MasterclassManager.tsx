@@ -83,6 +83,9 @@ const MasterclassManager: React.FC<MasterclassManagerProps> = ({ user, onUpdateU
                         <div>
                             <label htmlFor="mc-video" className={labelClasses}>Video URL</label>
                             <input type="url" id="mc-video" value={masterclass.videoUrl} onChange={e => handleChange('videoUrl', e.target.value)} className={inputClasses} placeholder="e.g., YouTube or Vimeo link" />
+                            <p className="text-xs text-zinc-500 mt-1 px-1">
+                                Pro Tip: Use an "Unlisted" video link from YouTube or Vimeo for the best experience. This keeps it private while allowing it to be embedded here.
+                            </p>
                         </div>
                         <div>
                             <label htmlFor="mc-price" className={labelClasses}>Price ($)</label>

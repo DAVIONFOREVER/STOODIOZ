@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Engineer, Artist, Stoodio, Producer, Conversation } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
@@ -20,8 +22,9 @@ import FollowersList from './FollowersList.tsx';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
+const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following' | 'documents';
+type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -136,12 +139,13 @@ const EngineerDashboard: React.FC = () => {
              case 'analytics':
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <AnalyticsDashboard user={engineer} />
+                        <AnalyticsDashboard user={engineer} userRole={UserRole.ENGINEER} />
                     </Suspense>
                 );
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
              case 'mixingSamples': return <MixingSampleManager engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
+             case 'masterclass': return <Suspense fallback={<div/>}><MasterclassManager user={engineer} onUpdateUser={updateProfile} /></Suspense>;
              case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.ENGINEER} />;
              case 'followers': return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
@@ -245,6 +249,7 @@ const EngineerDashboard: React.FC = () => {
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Mixing Samples" isActive={activeTab === 'mixingSamples'} onClick={() => setActiveTab('mixingSamples')} />
                     <TabButton label="Mixing Services" isActive={activeTab === 'mixingServices'} onClick={() => setActiveTab('mixingServices')} />
+                    <TabButton label="Masterclass" isActive={activeTab === 'masterclass'} onClick={() => setActiveTab('masterclass')} />
                     <TabButton label="Notifications" isActive={activeTab === 'notificationSettings'} onClick={() => setActiveTab('notificationSettings')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />

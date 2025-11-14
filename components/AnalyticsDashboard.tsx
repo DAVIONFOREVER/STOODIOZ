@@ -1,7 +1,7 @@
 
+
 import React, { useState, useEffect } from 'react';
-// FIX: Import Artist type to include it in the component's props.
-import type { AnalyticsData, Stoodio, Engineer, Producer, Artist } from '../types';
+import type { AnalyticsData, Stoodio, Engineer, Producer, Artist, UserRole } from '../types';
 import { fetchAnalyticsData } from '../services/apiService';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
@@ -10,8 +10,8 @@ import { DollarSignIcon, UsersIcon, EyeIcon, CalendarIcon } from './icons';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
 interface AnalyticsDashboardProps {
-    // FIX: Add Artist to the user prop type to allow this component to be used in ArtistDashboard.
     user: Stoodio | Engineer | Producer | Artist;
+    userRole: UserRole;
 }
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -43,7 +43,7 @@ const LoadingSkeleton: React.FC = () => (
     </div>
 );
 
-const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user }) => {
+const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user, userRole }) => {
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [timeframe, setTimeframe] = useState<30 | 60 | 90>(30);
     const [loading, setLoading] = useState(true);
@@ -51,18 +51,19 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user }) => {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const data = await fetchAnalyticsData(user.id, timeframe);
+            const data = await fetchAnalyticsData(user.id, userRole, timeframe);
             setAnalyticsData(data);
             setLoading(false);
         };
         loadData();
-    }, [user.id, timeframe]);
+    }, [user.id, userRole, timeframe]);
 
     if (loading || !analyticsData) {
         return <LoadingSkeleton />;
     }
 
     const { kpis, revenueOverTime, engagementOverTime, revenueSources } = analyticsData;
+    const isArtist = userRole === 'ARTIST';
 
     const chartOptions = {
         responsive: true,
@@ -77,10 +78,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user }) => {
     const revenueChartData = {
         labels: revenueOverTime.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
         datasets: [{
-            label: 'Revenue',
-            data: revenueOverTime.map(d => d.revenue),
-            borderColor: '#f97316',
-            backgroundColor: 'rgba(249, 115, 22, 0.2)',
+            label: isArtist ? 'Spending' : 'Revenue',
+            data: revenueOverTime.map(d => Math.abs(d.revenue)),
+            borderColor: isArtist ? '#ef4444' : '#f97316',
+            backgroundColor: isArtist ? 'rgba(239, 68, 68, 0.2)' : 'rgba(249, 115, 22, 0.2)',
             fill: true,
             tension: 0.4,
         }],
@@ -99,7 +100,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user }) => {
         labels: revenueSources.map(s => s.name),
         datasets: [{
             data: revenueSources.map(s => s.revenue),
-            backgroundColor: ['#f97316', '#8b5cf6', '#ec4899'],
+            backgroundColor: isArtist ? ['#ef4444', '#a855f7', '#ec4899'] : ['#f97316', '#8b5cf6', '#ec4899'],
             borderColor: '#27272a',
             borderWidth: 2,
         }],
@@ -135,13 +136,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user }) => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label="Total Revenue" value={`$${kpis.totalRevenue.toLocaleString()}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400"/>} />
+                <StatCard label={isArtist ? "Total Spent" : "Total Revenue"} value={`$${Math.abs(kpis.totalRevenue).toLocaleString()}`} icon={<DollarSignIcon className={`w-6 h-6 ${isArtist ? 'text-red-400' : 'text-green-400'}`}/>} />
                 <StatCard label="Profile Views" value={kpis.profileViews.toLocaleString()} icon={<EyeIcon className="w-6 h-6 text-blue-400"/>} />
                 <StatCard label="New Followers" value={kpis.newFollowers.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-purple-400"/>} />
-                <StatCard label="Bookings / Sales" value={kpis.bookings.toLocaleString()} icon={<CalendarIcon className="w-6 h-6 text-orange-400"/>} />
+                <StatCard label={isArtist ? "Sessions Booked" : "Bookings / Sales"} value={kpis.bookings.toLocaleString()} icon={<CalendarIcon className="w-6 h-6 text-orange-400"/>} />
             </div>
 
-            <ChartContainer title="Revenue Over Time">
+            <ChartContainer title={isArtist ? "Spending Over Time" : "Revenue Over Time"}>
                 <div className="h-72"><Line options={chartOptions as any} data={revenueChartData} /></div>
             </ChartContainer>
 
@@ -152,7 +153,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user }) => {
                     </ChartContainer>
                 </div>
                 <div className="lg:col-span-2">
-                     <ChartContainer title="Revenue Sources">
+                     <ChartContainer title={isArtist ? "Spending Breakdown" : "Revenue Sources"}>
                         <div className="h-80"><Doughnut data={doughnutChartData} options={doughnutOptions as any} /></div>
                     </ChartContainer>
                 </div>

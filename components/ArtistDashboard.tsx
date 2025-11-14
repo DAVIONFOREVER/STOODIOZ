@@ -119,7 +119,7 @@ const ArtistDashboard: React.FC = () => {
             case 'analytics':
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <AnalyticsDashboard user={artist} />
+                        <AnalyticsDashboard user={artist} userRole={UserRole.ARTIST} />
                     </Suspense>
                 );
             case 'wallet':
@@ -226,7 +226,7 @@ const ArtistDashboard: React.FC = () => {
              <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+                    <TabButton label="My Activity" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />

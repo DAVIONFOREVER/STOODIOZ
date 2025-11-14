@@ -364,9 +364,13 @@ export const approveVerification = async (stoodioId: string): Promise<Partial<St
     return { verificationStatus: VerificationStatus.VERIFIED };
 };
 
-export const fetchAnalyticsData = async (userId: string, days: number = 30): Promise<AnalyticsData> => {
+export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number = 30): Promise<AnalyticsData> => {
     // Return empty/zeroed data as requested by the user to remove mock data from analytics.
-    await new Promise(res => setTimeout(res, 200)); // Keep a small delay to simulate loading
+    await new Promise(res => setTimeout(res, 200)); 
+    
+    // FIX: Changed UserRole to UserRoleEnum to use the value-based import.
+    const isArtist = userRole === UserRoleEnum.ARTIST;
+
     return {
         kpis: {
             totalRevenue: 0,
@@ -376,6 +380,14 @@ export const fetchAnalyticsData = async (userId: string, days: number = 30): Pro
         },
         revenueOverTime: [],
         engagementOverTime: [],
-        revenueSources: [],
+        revenueSources: isArtist ? [
+            { name: 'Studio Sessions', revenue: 0 },
+            { name: 'Masterclasses', revenue: 0 },
+            { name: 'Tips Given', revenue: 0 },
+        ] : [
+            { name: 'Session Payouts', revenue: 0 },
+            { name: 'Masterclass Sales', revenue: 0 },
+            { name: 'Tips Received', revenue: 0 },
+        ],
     };
 };
