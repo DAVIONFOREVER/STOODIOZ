@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
@@ -34,7 +36,6 @@ import RequestPayoutModal from './components/RequestPayoutModal.tsx';
 import MixingRequestModal from './components/MixingRequestModal.tsx';
 import { MagicWandIcon } from './components/icons.tsx';
 import AriaNudge from './components/AriaNudge.tsx';
-import DevNotificationButton from './components/DevNotificationButton.tsx';
 import AriaFAB from './components/AriaFAB.tsx';
 
 // --- Lazy Loaded Components ---
@@ -347,8 +348,6 @@ return (
 
             {isNudgeVisible && ariaNudge && <AriaNudge message={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />}
             
-            {/* Dev tool for testing notifications */}
-            <DevNotificationButton />
         </div>
     );
 };

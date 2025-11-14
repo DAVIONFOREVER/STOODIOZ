@@ -1,5 +1,9 @@
 
 
+
+
+
+
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
@@ -21,7 +25,7 @@ import { useProfile } from '../hooks/useProfile';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
-const AmenitiesManager = lazy(() => import('./AmenitiesManager'));
+const AmenitiesManager = lazy(() => import('./AmenitiesManager.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
@@ -235,6 +239,13 @@ const StoodioDashboard: React.FC = () => {
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
+    if (!currentUser) {
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p className="text-zinc-400">Loading user data...</p>
+            </div>
+        );
+    }
     const stoodio = currentUser as Stoodio;
     
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
