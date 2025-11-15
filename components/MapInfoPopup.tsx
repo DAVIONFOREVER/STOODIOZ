@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Artist, Engineer, Producer, Stoodio } from '../types';
 import { CloseIcon, StarIcon, RoadIcon } from './icons';
@@ -13,7 +12,6 @@ interface MapInfoPopupProps {
 }
 
 const MapInfoPopup: React.FC<MapInfoPopupProps> = ({ user, onClose, onSelect, onNavigate }) => {
-    // FIX: Changed property from `rating` to `rating_overall`.
     const hasRating = 'rating_overall' in user;
 
     return (
@@ -27,7 +25,6 @@ const MapInfoPopup: React.FC<MapInfoPopupProps> = ({ user, onClose, onSelect, on
                             {hasRating && (
                                 <div className="flex items-center text-yellow-400 text-sm">
                                     <StarIcon className="w-4 h-4" />
-                                    {/* FIX: Changed property from `rating` to `rating_overall` and removed type cast. */}
                                     <span className="font-bold ml-1">{user.rating_overall.toFixed(1)}</span>
                                 </div>
                             )}
