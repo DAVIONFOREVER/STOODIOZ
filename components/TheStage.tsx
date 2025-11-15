@@ -1,5 +1,6 @@
 
 
+
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { AppView, UserRole } from '../types';
@@ -29,121 +30,6 @@ const QuickLink: React.FC<{ icon: React.ReactNode; label: string; onClick: () =>
         <span className="font-semibold text-sm">{label}</span>
     </button>
 );
-
-// --- NEW ENGINEER-SPECIFIC PROFILE CARD ---
-interface EngineerFaderCardProps {
-    user: Engineer;
-    onNavigate: (view: AppView) => void;
-}
-
-const EngineerFaderCard: React.FC<EngineerFaderCardProps> = ({ user, onNavigate }) => {
-    const faderTrackRef = useRef<HTMLDivElement>(null);
-    const [faderPosition, setFaderPosition] = useState(0); // 0 (bottom) to 100 (top)
-    const [isDragging, setIsDragging] = useState(false);
-
-    const handleNavigate = useCallback(() => {
-        onNavigate(AppView.ENGINEER_DASHBOARD);
-    }, [onNavigate]);
-
-    const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleInteractionEnd = useCallback(() => {
-        if (isDragging) {
-            if (faderPosition > 80) { // Trigger navigation if dragged > 80%
-                handleNavigate();
-            }
-            setIsDragging(false);
-            setFaderPosition(0); // Snap back
-        }
-    }, [isDragging, faderPosition, handleNavigate]);
-
-    const handleInteractionMove = useCallback((e: MouseEvent | TouchEvent) => {
-        if (!isDragging || !faderTrackRef.current) return;
-        
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-        const rect = faderTrackRef.current.getBoundingClientRect();
-        
-        // Calculate position from the bottom up
-        const newPos = ((rect.bottom - clientY) / rect.height) * 100;
-        
-        setFaderPosition(Math.max(0, Math.min(100, newPos)));
-    }, [isDragging]);
-
-    useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleInteractionMove);
-            window.addEventListener('mouseup', handleInteractionEnd);
-            window.addEventListener('touchmove', handleInteractionMove);
-            window.addEventListener('touchend', handleInteractionEnd);
-        }
-        
-        return () => {
-            window.removeEventListener('mousemove', handleInteractionMove);
-            window.removeEventListener('mouseup', handleInteractionEnd);
-            window.removeEventListener('touchmove', handleInteractionMove);
-            window.removeEventListener('touchend', handleInteractionEnd);
-        };
-    }, [isDragging, handleInteractionMove, handleInteractionEnd]);
-    
-    const transitionStyle = isDragging ? 'none' : 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
-
-    return (
-        <div className="p-4 rounded-lg cardSurface select-none flex flex-col items-center">
-            {/* User Info */}
-            <img 
-                src={user.imageUrl} 
-                alt={user.name}
-                className="w-16 h-16 rounded-full object-cover border-4 border-zinc-800"
-            />
-            <h2 className="text-lg font-bold text-slate-100 mt-2">{user.name}</h2>
-            <p className="text-sm text-zinc-400">Audio Engineer</p>
-
-            {/* Fader Assembly */}
-            <div className="relative flex items-center justify-center h-40 w-20 mt-4">
-                 {/* Text that fades in */}
-                <div 
-                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 text-orange-400 font-bold whitespace-nowrap transition-opacity"
-                    style={{ opacity: faderPosition / 100, pointerEvents: 'none' }}
-                >
-                    My Dashboard
-                </div>
-
-                {/* Fader Track */}
-                <div 
-                    ref={faderTrackRef} 
-                    className="relative w-2 h-full bg-black rounded-full"
-                >
-                    <div 
-                        className="absolute bottom-0 left-0 w-full bg-orange-500 rounded-full"
-                        style={{ 
-                            height: `${faderPosition}%`, 
-                            boxShadow: `0 0 ${faderPosition / 10}px #f97316`,
-                            transition: isDragging ? 'none' : 'height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s'
-                        }}
-                    />
-                </div>
-
-                {/* Fader Cap */}
-                <div
-                    className="absolute w-12 h-6 bg-gradient-to-r from-orange-400 to-orange-500 rounded-md shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center"
-                    style={{
-                        bottom: `calc(${faderPosition}% - 0.75rem)`, // Center the handle (h-6 -> 1.5rem / 2 = 0.75rem)
-                        transition: transitionStyle,
-                        touchAction: 'none',
-                    }}
-                    onMouseDown={handleInteractionStart}
-                    onTouchStart={handleInteractionStart}
-                >
-                    <div className="w-8 h-0.5 bg-white/80 rounded-full"></div>
-                </div>
-            </div>
-        </div>
-    );
-};
-// --- END NEW COMPONENT ---
 
 const TheStage: React.FC<TheStageProps> = (props) => {
     const { 
@@ -224,11 +110,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Left Sidebar */}
                 <aside className="hidden lg:block lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
-                       {userRole === UserRole.ENGINEER ? (
-                           <EngineerFaderCard user={currentUser as Engineer} onNavigate={onNavigate} />
-                       ) : (
-                           <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
-                       )}
+                       <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
                        <div className="cardSurface p-4">
                            <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
                            <nav className="space-y-1">
