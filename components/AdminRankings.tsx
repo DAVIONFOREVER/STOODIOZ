@@ -46,7 +46,7 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                     <div className="p-4 cardSurface">
                         <h4 className="font-bold text-zinc-100 mb-3">Performance Breakdown</h4>
                         <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="flex flex-col"><span className="text-zinc-400">Overall Rating</span><span className="font-bold text-xl text-zinc-100">{user.rating_overall.toFixed(1)} / 5.0</span></div>
+                            <div className="flex flex-col"><span className="text-zinc-400">Overall Rating</span><span className="font-bold text-xl text-zinc-100">{(user.rating_overall ?? 0).toFixed(1)} / 5.0</span></div>
                             <div className="flex flex-col"><span className="text-zinc-400">Sessions</span><span className="font-bold text-xl text-zinc-100">{user.sessions_completed}</span></div>
                             <div className="flex flex-col"><span className="text-zinc-400">On-Time Rate</span><span className="font-bold text-xl text-zinc-100">{user.on_time_rate}%</span></div>
                             <div className="flex flex-col"><span className="text-zinc-400">Completion Rate</span><span className="font-bold text-xl text-zinc-100">{user.completion_rate}%</span></div>
@@ -160,73 +160,101 @@ const AdminRankings: React.FC = () => {
         if ('specialties' in user) return 'Engineer';
         if ('instrumentals' in user) return 'Producer';
         return 'Artist';
-    }
+    };
 
-
+    // FIX: Add missing return statement to render the component's UI.
     return (
-        <div className="space-y-8">
-            <h1 className="text-5xl font-extrabold tracking-tight text-orange-400">Admin Rankings</h1>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label="Total Sessions Completed" value={totalSessions.toLocaleString()} icon={<CalendarIcon className="w-8 h-8 text-orange-400" />} />
-                <StatCard label="Global Avg Rating" value={avgRating} icon={<StarIcon className="w-8 h-8 text-yellow-400" />} />
-                <StatCard label="Global On-Time Rate" value={avgOnTimeRate} icon={<CheckCircleIcon className="w-8 h-8 text-green-400" />} />
-                <StatCard label="Total Talent Profiles" value={allUsers.length.toLocaleString()} icon={<UserGroupIcon className="w-8 h-8 text-blue-400" />} />
+        <div className="space-y-8 animate-fade-in">
+            <div className="text-center">
+                <h1 className="text-5xl font-extrabold tracking-tight text-zinc-100">
+                    Talent Rankings & Performance
+                </h1>
+                <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-400">
+                    Monitor and manage user performance metrics across the platform.
+                </p>
             </div>
 
-            <div className="cardSurface">
-                <div className="p-4 flex flex-col md:flex-row gap-4 justify-between items-center border-b border-zinc-700/50">
-                    <div className="relative w-full md:w-1/3">
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-                        <input 
-                            type="text" 
-                            placeholder="Search by name..."
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard label="Total Sessions Completed" value={totalSessions.toLocaleString()} icon={<CalendarIcon className="w-8 h-8 text-orange-400" />} />
+                <StatCard label="Platform Avg. Rating" value={avgRating} icon={<StarIcon className="w-8 h-8 text-yellow-400" />} />
+                <StatCard label="Avg. On-Time Rate" value={avgOnTimeRate} icon={<CheckCircleIcon className="w-8 h-8 text-green-400" />} />
+                <StatCard label="Total Talent" value={allUsers.length.toLocaleString()} icon={<UserGroupIcon className="w-8 h-8 text-blue-400" />} />
+            </div>
+
+            <div className="cardSurface p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-zinc-100">All Talent</h2>
+                    <div className="relative w-full max-w-xs">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <SearchIcon className="h-5 w-5 text-zinc-400" />
+                        </div>
+                        <input
+                            type="text"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-zinc-200 focus:ring-orange-500 focus:border-orange-500"
+                            className="w-full pl-10 pr-4 py-2 bg-zinc-800 border border-zinc-700 rounded-full text-sm focus:ring-orange-500"
+                            placeholder="Search by name..."
                         />
                     </div>
-                    {/* Placeholder for role filter */}
-                    <select className="w-full md:w-auto bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-zinc-200 focus:ring-orange-500 focus:border-orange-500">
-                        <option>All Roles</option>
-                        <option>Artist</option>
-                        <option>Engineer</option>
-                        <option>Producer</option>
-                        <option>Stoodio</option>
-                    </select>
                 </div>
+
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-zinc-800/50">
+                    <table className="w-full text-sm text-left text-zinc-400">
+                        <thead className="text-xs text-zinc-400 uppercase bg-zinc-800/50">
                             <tr>
-                                {[{label: 'Name', key: 'name'}, {label: 'Role'}, {label: 'Location', key: 'location'}, {label: 'Tier', key: 'tier'}, {label: 'Sessions', key: 'sessions_completed'}, {label: 'Rating', key: 'rating_overall'}, {label: 'On-Time', key: 'on_time_rate'}, {label: 'Re-Hire', key: 'repeat_hire_rate'}, {label: 'Streak'}].map(h => (
-                                    <th key={h.label} className="px-4 py-3 font-semibold text-zinc-400 uppercase tracking-wider">
-                                        {h.key ? <button onClick={() => handleSort(h.key as SortKey)} className="flex items-center gap-1.5 hover:text-white">{h.label} <ChevronUpDownIcon className="w-4 h-4" /></button> : h.label}
-                                    </th>
-                                ))}
+                                <th scope="col" className="px-6 py-3">Talent</th>
+                                <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('tier')}>
+                                    <div className="flex items-center">Tier <ChevronUpDownIcon className="w-4 h-4 ml-1" /></div>
+                                </th>
+                                <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('sessions_completed')}>
+                                    <div className="flex items-center">Sessions <ChevronUpDownIcon className="w-4 h-4 ml-1" /></div>
+                                </th>
+                                <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('rating_overall')}>
+                                    <div className="flex items-center">Rating <ChevronUpDownIcon className="w-4 h-4 ml-1" /></div>
+                                </th>
+                                <th scope="col" className="px-6 py-3 cursor-pointer" onClick={() => handleSort('on_time_rate')}>
+                                    <div className="flex items-center">On-Time <ChevronUpDownIcon className="w-4 h-4 ml-1" /></div>
+                                </th>
+                                <th scope="col" className="px-6 py-3">Location</th>
+                                <th scope="col" className="px-6 py-3"></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-800">
-                            {filteredAndSortedUsers.map(user => (
-                                <tr key={user.id} onClick={() => setSelectedUser(user)} className="hover:bg-zinc-800/70 cursor-pointer">
-                                    <td className="px-4 py-3 font-medium text-zinc-200">{user.name}</td>
-                                    <td className="px-4 py-3 text-zinc-400">{getRole(user)}</td>
-                                    <td className="px-4 py-3 text-zinc-400">{'location' in user ? user.location : 'N/A'}</td>
-                                    <td className="px-4 py-3"><RankingBadge tier={user.ranking_tier} short /></td>
-                                    <td className="px-4 py-3 text-zinc-200 font-semibold">{user.sessions_completed}</td>
-                                    <td className="px-4 py-3 text-zinc-200">{user.rating_overall.toFixed(1)}</td>
-                                    <td className="px-4 py-3 text-zinc-200">{user.on_time_rate}%</td>
-                                    <td className="px-4 py-3 text-zinc-200">{user.repeat_hire_rate}%</td>
-                                    <td className="px-4 py-3 text-orange-400 font-semibold">{user.is_on_streak ? 'Active' : ''}</td>
-                                </tr>
-                            ))}
+                        <tbody>
+                            {filteredAndSortedUsers.map(user => {
+                                const role = getRole(user);
+                                return (
+                                    <tr key={user.id} className="border-b border-zinc-700/50 hover:bg-zinc-800/30">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <img src={user.imageUrl} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
+                                                <div>
+                                                    <div className="font-semibold text-zinc-100">{user.name}</div>
+                                                    <div className="text-xs text-zinc-500">{role}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4"><RankingBadge tier={user.ranking_tier} isOnStreak={user.is_on_streak} /></td>
+                                        <td className="px-6 py-4 font-semibold text-zinc-200">{user.sessions_completed}</td>
+                                        <td className="px-6 py-4 font-semibold text-zinc-200">{user.rating_overall.toFixed(1)}</td>
+                                        <td className="px-6 py-4 font-semibold text-zinc-200">{user.on_time_rate}%</td>
+                                        <td className="px-6 py-4">{'location' in user ? user.location : 'N/A'}</td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button onClick={() => setSelectedUser(user)} className="font-medium text-orange-400 hover:underline">Details</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
             </div>
-            {selectedUser && <UserDetailDrawer user={selectedUser} feedback={session_feedback} onClose={() => setSelectedUser(null)} />}
+
+            {selectedUser && (
+                <UserDetailDrawer user={selectedUser} feedback={session_feedback} onClose={() => setSelectedUser(null)} />
+            )}
         </div>
     );
 };
 
+// FIX: Add missing default export.
 export default AdminRankings;

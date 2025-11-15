@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
 import { UserRole } from '../types';
@@ -8,7 +10,9 @@ import { useNavigation } from '../hooks/useNavigation.ts';
 import { useSocial } from '../hooks/useSocial.ts';
 import { useMessaging } from '../hooks/useMessaging.ts';
 import { useBookings } from '../hooks/useBookings.ts';
+import { useMasterclass } from '../hooks/useMasterclass.ts';
 import MixingSamplePlayer from './MixingSamplePlayer.tsx';
+import MasterclassCard from './MasterclassCard.tsx';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -50,6 +54,7 @@ const EngineerProfile: React.FC = () => {
     const { toggleFollow, likePost, commentOnPost } = useSocial();
     const { startConversation } = useMessaging(useNavigation().navigate);
     const { initiateBookingWithEngineer } = useBookings(useNavigation().navigate);
+    const { openPurchaseMasterclassModal, openWatchMasterclassModal } = useMasterclass();
 
     const engineer = selectedEngineer;
 
@@ -103,8 +108,7 @@ const EngineerProfile: React.FC = () => {
                             <h1 className="text-4xl font-extrabold text-orange-500">{engineer.name}</h1>
                             <div className="flex items-center justify-center sm:justify-start gap-1 text-yellow-400 mt-2">
                                 <StarIcon className="w-5 h-5" />
-                                {/* FIX: Changed `engineer.rating` to `engineer.rating_overall` to match the property name in the `BaseUser` type. */}
-                                <span className="font-bold text-lg text-slate-200">{engineer.rating_overall.toFixed(1)}</span>
+                                <span className="font-bold text-lg text-slate-200">{(engineer.rating_overall ?? 0).toFixed(1)}</span>
                                 <span className="text-slate-400 text-sm">({engineerReviews.length} reviews)</span>
                             </div>
                             <p className="text-slate-300 leading-relaxed mt-4">{engineer.bio}</p>
@@ -143,6 +147,15 @@ const EngineerProfile: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {engineer.masterclass?.isEnabled && (
+                    <MasterclassCard 
+                        masterclass={engineer.masterclass}
+                        owner={engineer}
+                        onPurchase={openPurchaseMasterclassModal}
+                        onWatch={openWatchMasterclassModal}
+                    />
+                )}
                 
                 <div>
                     <MixingSamplePlayer mixingSamples={engineer.mixingSamples || []} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer } from '../types';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -18,6 +18,9 @@ import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const Documents = lazy(() => import('./Documents.tsx'));
+const AmenitiesManager = lazy(() => import('./AmenitiesManager.tsx'));
+const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
 type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
 
@@ -199,7 +202,7 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
 };
 
 
-type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following' | 'documents' | 'amenities' | 'myCourses';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
@@ -221,7 +224,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const StoodioDashboard: React.FC = () => {
-    const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab } = useAppState();
+    const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations } = useAppState();
     const dispatch = useAppDispatch();
     
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
@@ -230,6 +233,13 @@ const StoodioDashboard: React.FC = () => {
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
+    if (!currentUser) {
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p className="text-zinc-400">Loading user data...</p>
+            </div>
+        );
+    }
     const stoodio = currentUser as Stoodio;
     
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
@@ -243,17 +253,20 @@ const StoodioDashboard: React.FC = () => {
     }, [dashboardInitialTab, dispatch]);
 
      const onPostJob = async (jobData: JobPostData) => {
-        if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) return;
+        if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) {
+            alert('Please add a room to your studio before posting a job.');
+            return;
+        }
 
         const bookingRequest: BookingRequest = {
             ...jobData,
             room: stoodio.rooms[0],
             totalCost: 0,
             requestType: BookingRequestType.FIND_AVAILABLE,
+            engineerPayRate: jobData.engineerPayRate,
         };
         
         try {
-            // FIX: The createBooking function expects 4 arguments, but 6 were provided. The extra 'engineers' and 'producers' arguments have been removed.
             const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO);
             dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, postedBy: UserRole.STOODIO } } });
         } catch(error) {
@@ -265,11 +278,11 @@ const StoodioDashboard: React.FC = () => {
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => stoodio.followerIds.includes(u.id));
-    const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => stoodio.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => stoodio.following.producers.includes(p.id));
+    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.followerIds || []).includes(u.id));
+    const followedArtists = artists.filter(a => (stoodio.following?.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (stoodio.following?.producers || []).includes(p.id));
 
     const handleBookSession = () => {
         viewStoodioDetails(stoodio);
@@ -282,7 +295,8 @@ const StoodioDashboard: React.FC = () => {
             case 'analytics':
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <AnalyticsDashboard user={stoodio} />
+                        {/* FIX: Add missing 'userRole' prop. */}
+                        <AnalyticsDashboard user={stoodio} userRole={UserRole.STOODIO} />
                     </Suspense>
                 );
             case 'settings':
@@ -293,6 +307,12 @@ const StoodioDashboard: React.FC = () => {
                 return <StoodioJobManagement stoodio={stoodio} bookings={bookings} onPostJob={onPostJob} />;
             case 'availability':
                 return <AvailabilityManager user={stoodio} onUpdateUser={updateProfile} />;
+            case 'amenities':
+                return (
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <AmenitiesManager stoodio={stoodio} onUpdateStoodio={updateProfile} />
+                    </Suspense>
+                );
             case 'rooms':
                 return <RoomManager stoodio={stoodio} onUpdateStoodio={updateProfile} />;
             case 'engineers':
@@ -313,7 +333,12 @@ const StoodioDashboard: React.FC = () => {
                         <h3 className="text-xl font-bold mb-4">Photo Management</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             {stoodio.photos.map((photo, index) => (
-                                <img key={index} src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
+                                <div key={index} className="relative group">
+                                    <img src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
+                                    <button className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Delete photo">
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
                             ))}
                         </div>
                         <div className="border-2 border-dashed border-zinc-600 rounded-lg p-8 text-center">
@@ -327,13 +352,24 @@ const StoodioDashboard: React.FC = () => {
                  return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
             case 'following':
                 return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={toggleFollow} onSelectStudio={viewStoodioDetails} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} />;
+            case 'documents':
+                return (
+                    <Suspense fallback={<div>Loading Documents...</div>}>
+                        <Documents conversations={conversations} />
+                    </Suspense>
+                );
+            case 'myCourses':
+                return (
+                    <Suspense fallback={<div>Loading Courses...</div>}>
+                        <MyCourses />
+                    </Suspense>
+                );
             case 'dashboard':
             default:
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             <CreatePost currentUser={currentUser!} onPost={createPost} />
-                            {/* FIX: Removed invalid `currentUser` prop. */}
                             <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
@@ -387,10 +423,12 @@ const StoodioDashboard: React.FC = () => {
             </div>
 
             <div className="cardSurface">
-                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
+                <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                    <TabButton label="Amenities" isActive={activeTab === 'amenities'} onClick={() => setActiveTab('amenities')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
                     <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
@@ -400,6 +438,7 @@ const StoodioDashboard: React.FC = () => {
                     <TabButton label="Photos" isActive={activeTab === 'photos'} onClick={() => setActiveTab('photos')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
                 </div>
                 <div className="p-6">
                     {renderContent()}
