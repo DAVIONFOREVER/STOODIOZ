@@ -8,6 +8,13 @@ const ALL_AMENITIES = [
     "Soundproof", "Wheelchair Accessible"
 ];
 
+// A simple checkmark SVG for our custom checkbox
+const CheckmarkIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+);
+
 interface AmenitiesManagerProps {
     stoodio: Stoodio;
     onUpdateStoodio: (updatedProfile: Partial<Stoodio>) => void;
@@ -17,10 +24,11 @@ const AmenitiesManager: React.FC<AmenitiesManagerProps> = ({ stoodio, onUpdateSt
     const [selectedAmenities, setSelectedAmenities] = useState<string[]>(stoodio.amenities || []);
     const [customAmenity, setCustomAmenity] = useState('');
 
+    // This useMemo ensures that newly added custom amenities appear in the list instantly for selection.
     const availableAmenities = useMemo(() => {
-        const amenitySet = new Set([...ALL_AMENITIES, ...(stoodio.amenities || [])]);
+        const amenitySet = new Set([...ALL_AMENITIES, ...(stoodio.amenities || []), ...selectedAmenities]);
         return Array.from(amenitySet).sort();
-    }, [stoodio.amenities]);
+    }, [stoodio.amenities, selectedAmenities]);
 
     useEffect(() => {
         setSelectedAmenities(stoodio.amenities || []);
@@ -42,10 +50,15 @@ const AmenitiesManager: React.FC<AmenitiesManagerProps> = ({ stoodio, onUpdateSt
     };
 
     const handleSave = () => {
-        onUpdateStoodio({ amenities: selectedAmenities });
+        // Sort amenities for consistent data structure
+        onUpdateStoodio({ amenities: selectedAmenities.sort() });
     };
 
-    const hasChanges = JSON.stringify([...selectedAmenities].sort()) !== JSON.stringify([...(stoodio.amenities || [])].sort());
+    const hasChanges = useMemo(() => {
+        const sortedSelected = [...selectedAmenities].sort();
+        const sortedCurrent = [...(stoodio.amenities || [])].sort();
+        return JSON.stringify(sortedSelected) !== JSON.stringify(sortedCurrent);
+    }, [selectedAmenities, stoodio.amenities]);
 
     return (
         <div className="p-6 cardSurface">
@@ -56,17 +69,32 @@ const AmenitiesManager: React.FC<AmenitiesManagerProps> = ({ stoodio, onUpdateSt
             <p className="text-zinc-400 mb-6">Select the amenities your studio offers to attract the right artists.</p>
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {availableAmenities.map(amenity => (
-                    <label key={amenity} className="flex items-center gap-3 p-3 bg-zinc-800/60 rounded-lg border border-zinc-700/50 cursor-pointer hover:bg-zinc-700/50 transition-colors">
-                        <input
-                            type="checkbox"
-                            checked={selectedAmenities.includes(amenity)}
-                            onChange={() => handleToggleAmenity(amenity)}
-                            className="h-5 w-5 rounded border-zinc-500 bg-zinc-800 text-orange-500 focus:ring-orange-500"
-                        />
-                        <span className="font-semibold text-zinc-200">{amenity}</span>
-                    </label>
-                ))}
+                {availableAmenities.map(amenity => {
+                    const isSelected = selectedAmenities.includes(amenity);
+                    return (
+                        <label key={amenity} className={`
+                            flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 group
+                            ${isSelected 
+                                ? 'bg-orange-500/10 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]' 
+                                : 'bg-zinc-800/60 border-zinc-700/50 hover:border-orange-500/50'
+                            }
+                        `}>
+                            <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleAmenity(amenity)}
+                                className="sr-only"
+                            />
+                            <div className={`
+                                w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-all duration-200
+                                ${isSelected ? 'bg-orange-500 border-orange-400' : 'bg-zinc-700 border-zinc-600 group-hover:border-orange-500/50'}
+                            `}>
+                                {isSelected && <CheckmarkIcon className="w-3 h-3 text-white" />}
+                            </div>
+                            <span className="font-semibold text-zinc-200">{amenity}</span>
+                        </label>
+                    );
+                })}
             </div>
 
             <form onSubmit={handleAddCustomAmenity} className="mt-6 pt-6 border-t border-zinc-700/50">
@@ -78,7 +106,7 @@ const AmenitiesManager: React.FC<AmenitiesManagerProps> = ({ stoodio, onUpdateSt
                         value={customAmenity}
                         onChange={(e) => setCustomAmenity(e.target.value)}
                         placeholder="e.g., Dolby Atmos Setup"
-                        className="flex-grow p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="flex-grow px-4 py-2 bg-zinc-800/70 border border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     />
                     <button
                         type="submit"
