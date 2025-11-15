@@ -500,7 +500,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return () => {
             subscription.unsubscribe();
         };
-    }, [dispatch, state.currentUser]);
+    }, [dispatch]);
 
 
     return (
