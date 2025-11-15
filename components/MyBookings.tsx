@@ -1,10 +1,8 @@
 
-
-
 import React, { useMemo } from 'react';
 import type { Booking, Location } from '../types';
 import { BookingStatus, BookingRequestType, UserRole } from '../types';
-import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon, SoundWaveIcon } from './icons';
+import { CalendarIcon, ClockIcon, LocationIcon, RoadIcon, TrashIcon, DownloadIcon, MusicNoteIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 import { useNavigation } from '../hooks/useNavigation.ts';
 import { useSession } from '../hooks/useSession.ts';
@@ -148,19 +146,29 @@ const MyBookings: React.FC = () => {
                                      {booking.tip && <p className="text-sm text-green-400 font-semibold">+ ${booking.tip.toFixed(2)} Tip</p>}
                                  </div>
                                  {booking.stoodio && booking.status === BookingStatus.CONFIRMED && isUpcoming && (
-                                     <button 
-                                        onClick={() => {
-                                            if (userRole === UserRole.ARTIST) {
-                                                startSession(booking);
-                                            } else {
-                                                navigation.navigateToStudio(booking.stoodio!.coordinates);
-                                            }
-                                        }}
-                                        className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
-                                     >
-                                        <RoadIcon className="w-4 h-4"/>
-                                        Navigate
-                                     </button>
+                                     <>
+                                        {userRole === UserRole.ENGINEER ? (
+                                             <button 
+                                                onClick={() => startSession(booking)}
+                                                className="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md flex items-center gap-1.5"
+                                             >
+                                                <ClockIcon className="w-4 h-4"/>
+                                                Start Session
+                                             </button>
+                                        ) : userRole !== UserRole.STOODIO && (
+                                             <button 
+                                                onClick={() => {
+                                                    if (booking.stoodio?.coordinates) {
+                                                        navigation.navigateToStudio(booking.stoodio.coordinates);
+                                                    }
+                                                }}
+                                                className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
+                                             >
+                                                <RoadIcon className="w-4 h-4"/>
+                                                Navigate
+                                             </button>
+                                        )}
+                                     </>
                                  )}
                                  {booking.status === BookingStatus.COMPLETED && booking.requestType !== BookingRequestType.BRING_YOUR_OWN && !booking.tip && (
                                      <button onClick={() => onOpenTipModal(booking)} className="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md">
