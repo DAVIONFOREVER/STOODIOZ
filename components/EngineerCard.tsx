@@ -30,7 +30,7 @@ const EngineerCard: React.FC<EngineerCardProps> = ({ engineer, onSelectEngineer,
                     <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400 text-glow">{engineer.name}</h3>
                     <div className="flex items-center justify-center gap-1 text-yellow-400 mt-1">
                         <StarIcon className="w-4 h-4" />
-                        <span className="font-bold text-sm text-slate-200">{engineer.rating_overall.toFixed(1)}</span>
+                        <span className="font-bold text-sm text-slate-200">{(engineer.rating_overall ?? 0).toFixed(1)}</span>
                     </div>
                 </button>
                 <p className="text-slate-400 text-xs text-center mt-2 h-9 overflow-hidden">{engineer.specialties?.join(' • ')}</p>
