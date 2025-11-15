@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode, useEffect } from 'react';
+import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode, useEffect, useRef } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass } from '../types';
 import { AppView, UserRole } from '../types';
 import { getSupabase } from '../lib/supabase';
@@ -467,6 +467,11 @@ const AppDispatchContext = createContext<Dispatch<AppAction> | undefined>(undefi
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [state, dispatch] = useReducer(appReducer, initialState);
+    const currentUserRef = useRef(state.currentUser);
+
+    useEffect(() => {
+        currentUserRef.current = state.currentUser;
+    }, [state.currentUser]);
 
     useEffect(() => {
         const supabase = getSupabase();
@@ -477,23 +482,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
-                // A session exists. Fetch the user profile if it's not already in the state.
-                if (state.currentUser?.id !== session.user.id) {
+                if (currentUserRef.current?.id !== session.user.id) {
                      const userProfile = await apiService.findUserProfileById(session.user.id);
                      if (userProfile) {
                         dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
                      } else {
-                        // Could not find profile, something is wrong. Log them out.
                         await supabase.auth.signOut();
                      }
                 }
             } else {
-                // No session. Ensure user is logged out in the app state.
-                if (state.currentUser) {
+                if (currentUserRef.current) {
                     dispatch({ type: ActionTypes.LOGOUT });
                 }
             }
-            // The initial state is loaded on the first event, so we can turn off loading.
             dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
         });
     
