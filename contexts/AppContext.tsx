@@ -1,6 +1,9 @@
-import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
+import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode, useEffect } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass } from '../types';
 import { AppView, UserRole } from '../types';
+import { getSupabase } from '../lib/supabase';
+import * as apiService from '../services/apiService';
+
 
 // --- STATE AND ACTION TYPES ---
 
@@ -17,6 +20,7 @@ export interface AppState {
     notifications: AppNotification[];
     currentUser: Artist | Engineer | Stoodio | Producer | null;
     userRole: UserRole | null;
+    isAuthLoading: boolean;
     loginError: string | null;
     selectedStoodio: Stoodio | null;
     selectedArtist: Artist | null;
@@ -67,6 +71,7 @@ export enum ActionTypes {
     GO_FORWARD = 'GO_FORWARD',
     SET_INITIAL_DATA = 'SET_INITIAL_DATA',
     SET_LOADING = 'SET_LOADING',
+    SET_AUTH_LOADING = 'SET_AUTH_LOADING',
     LOGIN_SUCCESS = 'LOGIN_SUCCESS',
     LOGIN_FAILURE = 'LOGIN_FAILURE',
     LOGOUT = 'LOGOUT',
@@ -125,6 +130,7 @@ type Payload = {
     [ActionTypes.GO_FORWARD]: undefined;
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
+    [ActionTypes.SET_AUTH_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer };
     [ActionTypes.LOGIN_FAILURE]: { error: string };
     [ActionTypes.LOGOUT]: undefined;
@@ -194,6 +200,7 @@ const initialState: AppState = {
     notifications: [],
     currentUser: null,
     userRole: null,
+    isAuthLoading: true,
     loginError: null,
     selectedStoodio: null,
     selectedArtist: null,
@@ -267,6 +274,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
+        case ActionTypes.SET_AUTH_LOADING:
+            return { ...state, isAuthLoading: action.payload.isLoading };
 
         case ActionTypes.LOGIN_SUCCESS: {
             const user = action.payload.user;
@@ -299,6 +308,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 ...initialState,
                 history: [AppView.LANDING_PAGE],
                 historyIndex: 0,
+                isAuthLoading: false,
                 isLoading: false,
                 artists: state.artists,
                 engineers: state.engineers,
@@ -457,6 +467,41 @@ const AppDispatchContext = createContext<Dispatch<AppAction> | undefined>(undefi
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [state, dispatch] = useReducer(appReducer, initialState);
+
+    useEffect(() => {
+        const supabase = getSupabase();
+        if (!supabase) {
+            dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
+            return;
+        }
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session) {
+                // A session exists. Fetch the user profile if it's not already in the state.
+                if (state.currentUser?.id !== session.user.id) {
+                     const userProfile = await apiService.findUserProfileById(session.user.id);
+                     if (userProfile) {
+                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
+                     } else {
+                        // Could not find profile, something is wrong. Log them out.
+                        await supabase.auth.signOut();
+                     }
+                }
+            } else {
+                // No session. Ensure user is logged out in the app state.
+                if (state.currentUser) {
+                    dispatch({ type: ActionTypes.LOGOUT });
+                }
+            }
+            // The initial state is loaded on the first event, so we can turn off loading.
+            dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
+        });
+    
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, [dispatch, state.currentUser]);
+
 
     return (
         <AppStateContext.Provider value={state}>

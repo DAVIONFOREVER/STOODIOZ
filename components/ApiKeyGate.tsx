@@ -1,10 +1,10 @@
 import React from 'react';
 
 const DebugInfo: React.FC = () => {
-    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-    const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
-    const mapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
+    const supabaseUrl = (process as any).env?.VITE_SUPABASE_URL;
+    const supabaseAnonKey = (process as any).env?.VITE_SUPABASE_ANON_KEY;
+    const geminiApiKey = (process as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+    const mapsApiKey = (process as any).env?.VITE_GOOGLE_MAPS_API_KEY;
     
     const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
@@ -38,10 +38,10 @@ const DebugInfo: React.FC = () => {
 
 const ApiKeyGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // Check for all required environment variables for both Supabase and Gemini.
-    const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-    const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-    const geminiApiKey = (import.meta as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
-    const mapsApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
+    const supabaseUrl = (process as any).env?.VITE_SUPABASE_URL;
+    const supabaseAnonKey = (process as any).env?.VITE_SUPABASE_ANON_KEY;
+    const geminiApiKey = (process as any).env?.VITE_API_KEY || (process as any).env?.API_KEY;
+    const mapsApiKey = (process as any).env?.VITE_GOOGLE_MAPS_API_KEY;
 
     const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 

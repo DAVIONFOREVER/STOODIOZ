@@ -145,7 +145,7 @@ interface MapViewProps {
 const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectEngineer, onSelectArtist, onSelectProducer }) => {
     const { isLoaded, loadError } = useJsApiLoader({
         id: 'google-map-script',
-        googleMapsApiKey: (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY,
+        googleMapsApiKey: (process as any).env.VITE_GOOGLE_MAPS_API_KEY,
         libraries,
     });
 

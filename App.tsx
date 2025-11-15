@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
@@ -105,7 +99,7 @@ const App: React.FC = () => {
         latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
-        masterclassToPurchase, masterclassToWatch, masterclassToReview
+        masterclassToPurchase, masterclassToWatch, masterclassToReview, isAuthLoading
     } = state;
 
     // --- Derived State ---
@@ -179,6 +173,14 @@ const App: React.FC = () => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
     };
+
+    if (isAuthLoading) {
+        return (
+            <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex items-center justify-center">
+                <LoadingSpinner currentUser={null} />
+            </div>
+        );
+    }
 
     const renderView = () => {
         switch (currentView) {

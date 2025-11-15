@@ -69,6 +69,26 @@ export const uploadBeatFile = async (file: File, producerId: string): Promise<st
     return data.publicUrl;
 };
 
+/**
+ * Finds a user profile from one of the public profile tables by their Supabase auth user ID.
+ * @param userId The user's UUID from Supabase auth.
+ * @returns The user's full profile object or null if not found.
+ */
+export const findUserProfileById = async (userId: string): Promise<Artist | Engineer | Stoodio | Producer | null> => {
+    const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
+    for (const table of tables) {
+        const supabase = getSupabase();
+        if (!supabase) return null;
+        // The user ID from auth.users() should match the 'id' in our public profile tables.
+        const { data, error } = await supabase.from(table).select('*').eq('id', userId).single();
+        if (data && !error) {
+            return data as Artist | Engineer | Stoodio | Producer;
+        }
+    }
+    console.warn(`No profile found for user ID: ${userId}`);
+    return null;
+};
+
 
 export const findUserByCredentials = async (email: string, password: string): Promise<Artist | Engineer | Stoodio | Producer | null> => {
     const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
