@@ -17,7 +17,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 const Documents = lazy(() => import('./Documents.tsx'));
 const AmenitiesManager = lazy(() => import('./AmenitiesManager.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
@@ -283,10 +283,6 @@ const StoodioDashboard: React.FC = () => {
     const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));
     const followedProducers = producers.filter(p => (stoodio.following?.producers || []).includes(p.id));
-
-    const handleBookSession = () => {
-        viewStoodioDetails(stoodio);
-    };
     
     const isProPlan = stoodio.subscription?.plan === SubscriptionPlan.STOODIO_PRO;
 
@@ -392,13 +388,6 @@ const StoodioDashboard: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex-shrink-0 flex flex-col gap-y-4">
-                        <button
-                            onClick={handleBookSession}
-                            className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
-                        >
-                            <CalendarIcon className="w-5 h-5"/>
-                            Book a New Session
-                        </button>
                         <label className="flex items-center cursor-pointer self-center sm:self-auto">
                             <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
                             <div className="relative">

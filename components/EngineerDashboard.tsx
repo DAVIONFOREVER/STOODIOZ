@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Engineer, Artist, Stoodio, Producer, Conversation } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
@@ -229,19 +228,28 @@ const EngineerDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Engineer Dashboard</p>
                             </div>
                         </div>
-                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
-                            <div className="relative">
-                                <input 
-                                    type="checkbox" 
-                                    className="sr-only" 
-                                    checked={engineer.showOnMap ?? false} 
-                                    onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
-                                />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.showOnMap ? 'translate-x-6' : ''}`}></div>
-                            </div>
-                        </label>
+                        <div className="flex-shrink-0 flex flex-col gap-y-4">
+                            <button
+                                onClick={() => navigate(AppView.STOODIO_LIST)}
+                                className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                            >
+                                <CalendarIcon className="w-5 h-5"/>
+                                Book a New Session
+                            </button>
+                            <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                                <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+                                <div className="relative">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only" 
+                                        checked={engineer.showOnMap ?? false} 
+                                        onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
+                                    />
+                                    <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.showOnMap ? 'translate-x-6' : ''}`}></div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>

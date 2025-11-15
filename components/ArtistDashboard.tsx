@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
@@ -213,13 +211,22 @@ const ArtistDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Artist Dashboard</p>
                             </div>
                         </div>
-                        <button
-                            onClick={onOpenVibeMatcher}
-                            className="bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
-                        >
-                            <MagicWandIcon className="w-5 h-5"/>
-                            AI Vibe Matcher
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <button
+                                onClick={() => navigate(AppView.STOODIO_LIST)}
+                                className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                            >
+                                <CalendarIcon className="w-5 h-5"/>
+                                Book a Session
+                            </button>
+                            <button
+                                onClick={onOpenVibeMatcher}
+                                className="bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                            >
+                                <MagicWandIcon className="w-5 h-5"/>
+                                AI Vibe Matcher
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
