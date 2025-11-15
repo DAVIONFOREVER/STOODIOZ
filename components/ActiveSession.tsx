@@ -1,3 +1,4 @@
+/// <reference types="@types/google.maps" />
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
 import type { Artist, Location } from '../types';

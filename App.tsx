@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
@@ -24,6 +18,7 @@ import { useVibeMatcher } from './hooks/useVibeMatcher.ts';
 import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
+import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 
 import Header from './components/Header.tsx';
 import BookingModal from './components/BookingModal.tsx';
@@ -138,6 +133,9 @@ const App: React.FC = () => {
         updateProfile,
         selectRoleToSetup,
     });
+
+    // Start broadcasting location if user is logged in and has opted in.
+    useRealtimeLocation({ currentUser });
 
     useEffect(() => {
         let timerId: number;

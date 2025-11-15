@@ -89,7 +89,7 @@ const MyBookings: React.FC = () => {
                         const { statusText, statusColor, participantName } = getStatusAndParticipant(booking);
                         const isUpcoming = new Date(`${booking.date}T${booking.startTime || '00:00'}`) >= new Date();
                         const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;
-                        const buttonText = userRole === UserRole.ARTIST ? 'Start Session' : 'Navigate to Session';
+                        const canNavigate = booking.stoodio && booking.status === BookingStatus.CONFIRMED && isUpcoming;
                         
                         return (
                         <div key={booking.id} className={`p-6 flex flex-col md:flex-row gap-6 cardSurface overflow-hidden ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
@@ -146,19 +146,13 @@ const MyBookings: React.FC = () => {
                                     <p className="text-xl font-bold text-slate-100">${booking.totalCost.toFixed(2)}</p>
                                      {booking.tip && <p className="text-sm text-green-400 font-semibold">+ ${booking.tip.toFixed(2)} Tip</p>}
                                  </div>
-                                 {booking.stoodio && booking.status === BookingStatus.CONFIRMED && isUpcoming && (
+                                 {canNavigate && (
                                      <button 
-                                        onClick={() => {
-                                            if (userRole === UserRole.ARTIST) {
-                                                startSession(booking);
-                                            } else {
-                                                navigation.startNavigationForBooking(booking);
-                                            }
-                                        }}
+                                        onClick={() => navigation.startNavigationForBooking(booking)}
                                         className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
                                      >
                                         <RoadIcon className="w-4 h-4"/>
-                                        {buttonText}
+                                        Navigate to Session
                                      </button>
                                  )}
                                  {booking.status === BookingStatus.COMPLETED && booking.requestType !== BookingRequestType.BRING_YOUR_OWN && !booking.tip && (

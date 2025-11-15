@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+/// <reference types="@types/google.maps" />
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, OverlayViewF, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
 import type { Stoodio, Artist, Engineer, Producer, Booking, Location } from '../types';
 import { UserRole, BookingStatus } from '../types';
@@ -7,30 +8,21 @@ import { useNavigation } from '../hooks/useNavigation.ts';
 import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon, UsersIcon } from './icons.tsx';
 import MapJobPopup from './MapJobPopup.tsx';
 import MapInfoPopup from './MapInfoPopup.tsx';
-
-declare global {
-  namespace google {
-    namespace maps {
-      class Map {
-        constructor(mapDiv: Element | null, opts?: any);
-        panTo(latLng: { lat: number; lng: number }): void;
-      }
-      enum TravelMode { DRIVING = 'DRIVING' }
-      type DirectionsResult = any;
-      type DirectionsStatus = any;
-      class SymbolPath {
-        static CIRCLE: any;
-      }
-    }
-  }
-}
+import { getSupabase } from '../lib/supabase.ts';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio;
 type MapJob = Booking & { itemType: 'JOB' };
 type MapItem = MapUser | MapJob;
 type FilterType = 'ALL' | 'STOODIO' | 'ENGINEER' | 'PRODUCER' | 'ARTIST' | 'JOB';
-
+type RealtimeLocationPayload = {
+    event: 'location_update',
+    payload: {
+        userId: string,
+        coordinates: Location
+    }
+}
 
 // --- MAP CONFIGURATION ---
 const mapContainerStyle = {
@@ -108,7 +100,10 @@ const MapMarker: React.FC<{
     return (
         <button
             onClick={() => onClick(item)}
-            className={`w-10 h-10 rounded-full flex items-center justify-center border-2 marker-glow ${bgColor} ${borderColor}`}
+            className={`w-10 h-10 rounded-full flex items-center justify-center border-2 marker-glow ${bgColor} ${borderColor} transition-transform duration-500 ease-in-out`}
+            style={{
+                transform: `translate(${(item.coordinates?.lon || 0)}px, ${(item.coordinates?.lat || 0)}px)`
+            }}
         >
             {icon}
         </button>
@@ -136,12 +131,15 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const [directionsOrigin, setDirectionsOrigin] = useState<Location | null>(null);
     const [directionsDestination, setDirectionsDestination] = useState<Location | null>(null);
     const [navigatingUserPosition, setNavigatingUserPosition] = useState<Location | null>(null);
+    const [realtimeLocations, setRealtimeLocations] = useState<Map<string, Location>>(new Map());
+    const channelRef = useRef<RealtimeChannel | null>(null);
 
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY,
     });
     
+    // Effect for user's own location
     useEffect(() => {
         navigator.geolocation.getCurrentPosition(
             (position) => {
@@ -158,6 +156,30 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }, [map, directionsIntent]);
+
+    // Effect for Supabase real-time channel
+    useEffect(() => {
+        const supabase = getSupabase();
+        if (!supabase) return;
+
+        const channel = supabase.channel('public:locations');
+        channelRef.current = channel;
+
+        channel
+            .on('broadcast', { event: 'location_update' }, (message) => {
+                const { userId, coordinates } = message.payload;
+                if (userId !== currentUser?.id) {
+                    setRealtimeLocations(prev => new Map(prev).set(userId, coordinates));
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+            channelRef.current = null;
+        };
+    }, [currentUser?.id]);
+
 
      useEffect(() => {
         if (directionsIntent && userLocation) {
@@ -199,16 +221,27 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             .filter(b => b.postedBy === UserRole.STOODIO && b.status === BookingStatus.PENDING)
             .map(b => ({ ...b, itemType: 'JOB' as const }));
 
-        let items: MapItem[] = [];
+        let items: MapUser[] = [];
 
-        if (activeFilter === 'ALL' || activeFilter === 'STOODIO') items.push(...stoodioz.filter(s => s.showOnMap && s.coordinates));
-        if (activeFilter === 'ALL' || activeFilter === 'ARTIST') items.push(...artists.filter(a => a.showOnMap && a.coordinates));
-        if (activeFilter === 'ALL' || activeFilter === 'ENGINEER') items.push(...engineers.filter(e => e.showOnMap && e.displayExactLocation && e.coordinates));
-        if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') items.push(...producers.filter(p => p.showOnMap && p.coordinates));
-        if (activeFilter === 'ALL' || activeFilter === 'JOB') items.push(...jobs.filter(j => j.coordinates));
+        if (activeFilter === 'ALL' || activeFilter === 'STOODIO') items.push(...stoodioz);
+        if (activeFilter === 'ALL' || activeFilter === 'ARTIST') items.push(...artists);
+        if (activeFilter === 'ALL' || activeFilter === 'ENGINEER') items.push(...engineers);
+        if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') items.push(...producers);
+
+        const visibleUsers = items.filter(u => u.showOnMap && u.coordinates);
+
+        const liveUpdatedUsers = visibleUsers.map(user => {
+            if (realtimeLocations.has(user.id)) {
+                return { ...user, coordinates: realtimeLocations.get(user.id)! };
+            }
+            return user;
+        });
         
-        return items as MapItem[];
-    }, [stoodioz, artists, engineers, producers, bookings, activeFilter]);
+        let allItems: MapItem[] = liveUpdatedUsers;
+        if (activeFilter === 'ALL' || activeFilter === 'JOB') allItems.push(...jobs.filter(j => j.coordinates));
+        
+        return allItems;
+    }, [stoodioz, artists, engineers, producers, bookings, activeFilter, realtimeLocations]);
     
     const handleMarkerClick = useCallback((item: MapItem) => {
         setSelectedItem(item);
@@ -227,8 +260,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const onLoad = useCallback(mapInstance => setMap(mapInstance), []);
     const onUnmount = useCallback(mapInstance => setMap(null), []);
     
-    const directionsCallback = (res, status) => {
-        if (status === 'OK') setDirections(res);
+    const directionsCallback = (res: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
+        if (status === 'OK' && res) setDirections(res);
     }
 
     if (!isLoaded) return <div className="flex items-center justify-center" style={{ height: mapContainerStyle.height }}>Loading Map...</div>;
@@ -249,7 +282,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                         options={{
                             destination: { lat: directionsDestination.lat, lng: directionsDestination.lon },
                             origin: { lat: directionsOrigin.lat, lng: directionsOrigin.lon },
-                            travelMode: google.maps.TravelMode.DRIVING
+                            travelMode: 'DRIVING' as google.maps.TravelMode
                         }}
                         callback={directionsCallback}
                     />
@@ -271,7 +304,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                         }}
                     />
                 ) : userLocation && (
-                    <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => getPixelPositionOffset(24, 24)}>
+                    <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={getPixelPositionOffset}>
                         <UserMarker />
                     </OverlayViewF>
                 )}
@@ -279,7 +312,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
                 {mapItems.map(item => (
                     item.coordinates && (
-                         <OverlayViewF key={item.id} position={{ lat: item.coordinates.lat, lng: item.coordinates.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => getPixelPositionOffset(40, 40)}>
+                         <OverlayViewF key={item.id} position={{ lat: item.coordinates.lat, lng: item.coordinates.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => getPixelPositionOffset(40,40)}>
                             <MapMarker item={item} onClick={handleMarkerClick} />
                         </OverlayViewF>
                     )
