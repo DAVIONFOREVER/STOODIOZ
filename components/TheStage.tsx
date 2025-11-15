@@ -1,4 +1,5 @@
 
+
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { AppView, UserRole } from '../types';
@@ -30,14 +31,14 @@ const QuickLink: React.FC<{ icon: React.ReactNode; label: string; onClick: () =>
 );
 
 // --- NEW ENGINEER-SPECIFIC PROFILE CARD ---
-interface EngineerDAWCardProps {
+interface EngineerFaderCardProps {
     user: Engineer;
     onNavigate: (view: AppView) => void;
 }
 
-const EngineerDAWCard: React.FC<EngineerDAWCardProps> = ({ user, onNavigate }) => {
-    const dragContainerRef = useRef<HTMLDivElement>(null);
-    const [dragProgress, setDragProgress] = useState(0); // 0 to 100
+const EngineerFaderCard: React.FC<EngineerFaderCardProps> = ({ user, onNavigate }) => {
+    const faderTrackRef = useRef<HTMLDivElement>(null);
+    const [faderPosition, setFaderPosition] = useState(0); // 0 (bottom) to 100 (top)
     const [isDragging, setIsDragging] = useState(false);
 
     const handleNavigate = useCallback(() => {
@@ -45,27 +46,30 @@ const EngineerDAWCard: React.FC<EngineerDAWCardProps> = ({ user, onNavigate }) =
     }, [onNavigate]);
 
     const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+        e.preventDefault();
         setIsDragging(true);
     };
 
     const handleInteractionEnd = useCallback(() => {
         if (isDragging) {
-            if (dragProgress > 60) { // Trigger threshold
+            if (faderPosition > 80) { // Trigger navigation if dragged > 80%
                 handleNavigate();
             }
             setIsDragging(false);
-            setDragProgress(0); // Snap back
+            setFaderPosition(0); // Snap back
         }
-    }, [isDragging, dragProgress, handleNavigate]);
+    }, [isDragging, faderPosition, handleNavigate]);
 
     const handleInteractionMove = useCallback((e: MouseEvent | TouchEvent) => {
-        if (!isDragging || !dragContainerRef.current) return;
+        if (!isDragging || !faderTrackRef.current) return;
         
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        const rect = dragContainerRef.current.getBoundingClientRect();
-        const progress = ((clientX - rect.left) / rect.width) * 100;
+        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        const rect = faderTrackRef.current.getBoundingClientRect();
         
-        setDragProgress(Math.max(0, Math.min(100, progress)));
+        // Calculate position from the bottom up
+        const newPos = ((rect.bottom - clientY) / rect.height) * 100;
+        
+        setFaderPosition(Math.max(0, Math.min(100, newPos)));
     }, [isDragging]);
 
     useEffect(() => {
@@ -85,67 +89,55 @@ const EngineerDAWCard: React.FC<EngineerDAWCardProps> = ({ user, onNavigate }) =
     }, [isDragging, handleInteractionMove, handleInteractionEnd]);
     
     const transitionStyle = isDragging ? 'none' : 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
-    const circumference = 2 * Math.PI * 45; // a bit smaller than radius 50
-    const strokeDashoffset = circumference - (dragProgress / 100) * circumference;
 
     return (
-        <div className="p-4 rounded-lg cardSurface select-none">
-            <style>{`
-                @keyframes pulse-glow {
-                    0%, 100% { filter: drop-shadow(0 0 4px #fb923c); }
-                    50% { filter: drop-shadow(0 0 8px #f97316); }
-                }
-                .jog-dial-ring {
-                    animation: pulse-glow 3s ease-in-out infinite;
-                }
-            `}</style>
-            
-            <div className="text-center mb-4">
-                 <h2 className="text-xl font-bold text-slate-100">{user.name}</h2>
-                 <p className="text-sm text-zinc-400">Audio Engineer</p>
-            </div>
-            
-            <div 
-                ref={dragContainerRef}
-                className="relative h-28 flex items-center justify-center cursor-grab active:cursor-grabbing"
-                onMouseDown={handleInteractionStart}
-                onTouchStart={handleInteractionStart}
-            >
-                {/* Track */}
-                <div className="w-full h-1 bg-zinc-700 rounded-full"></div>
-                
-                {/* Animated Text */}
+        <div className="p-4 rounded-lg cardSurface select-none flex flex-col items-center">
+            {/* User Info */}
+            <img 
+                src={user.imageUrl} 
+                alt={user.name}
+                className="w-16 h-16 rounded-full object-cover border-4 border-zinc-800"
+            />
+            <h2 className="text-lg font-bold text-slate-100 mt-2">{user.name}</h2>
+            <p className="text-sm text-zinc-400">Audio Engineer</p>
+
+            {/* Fader Assembly */}
+            <div className="relative flex items-center justify-center h-40 w-20 mt-4">
+                 {/* Text that fades in */}
                 <div 
-                    className="absolute inset-0 flex items-center justify-end pr-8 pointer-events-none transition-opacity"
-                    style={{ opacity: isDragging ? 1 : 0, transition: transitionStyle }}
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 text-orange-400 font-bold whitespace-nowrap transition-opacity"
+                    style={{ opacity: faderPosition / 100, pointerEvents: 'none' }}
                 >
-                    <span className="font-bold text-orange-400">My Dashboard</span>
+                    My Dashboard
                 </div>
-                
-                {/* Jog Dial */}
+
+                {/* Fader Track */}
                 <div 
-                    className="absolute top-1/2 -translate-y-1/2 w-24 h-24 flex items-center justify-center pointer-events-none"
-                    style={{ left: `${dragProgress}%`, transform: `translate(-${dragProgress}%, -50%)`, transition: transitionStyle }}
+                    ref={faderTrackRef} 
+                    className="relative w-2 h-full bg-black rounded-full"
                 >
-                    <svg className="absolute w-full h-full" viewBox="0 0 100 100">
-                        {/* Ring background */}
-                        <circle cx="50" cy="50" r="45" stroke="#3f3f46" strokeWidth="4" fill="none" />
-                        {/* Progress Ring */}
-                        <circle 
-                            cx="50" cy="50" r="45" 
-                            stroke="#f97316" strokeWidth="4" fill="none"
-                            strokeDasharray={circumference}
-                            strokeDashoffset={strokeDashoffset}
-                            transform="rotate(-90 50 50)"
-                            className="jog-dial-ring"
-                            style={{ transition: 'stroke-dashoffset 0.1s linear' }}
-                        />
-                    </svg>
-                    <img 
-                        src={user.imageUrl} 
-                        alt={user.name}
-                        className="w-20 h-20 rounded-full object-cover border-4 border-zinc-800"
+                    <div 
+                        className="absolute bottom-0 left-0 w-full bg-orange-500 rounded-full"
+                        style={{ 
+                            height: `${faderPosition}%`, 
+                            boxShadow: `0 0 ${faderPosition / 10}px #f97316`,
+                            transition: isDragging ? 'none' : 'height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s'
+                        }}
                     />
+                </div>
+
+                {/* Fader Cap */}
+                <div
+                    className="absolute w-12 h-6 bg-gradient-to-r from-orange-400 to-orange-500 rounded-md shadow-lg cursor-grab active:cursor-grabbing flex items-center justify-center"
+                    style={{
+                        bottom: `calc(${faderPosition}% - 0.75rem)`, // Center the handle (h-6 -> 1.5rem / 2 = 0.75rem)
+                        transition: transitionStyle,
+                        touchAction: 'none',
+                    }}
+                    onMouseDown={handleInteractionStart}
+                    onTouchStart={handleInteractionStart}
+                >
+                    <div className="w-8 h-0.5 bg-white/80 rounded-full"></div>
                 </div>
             </div>
         </div>
@@ -233,7 +225,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 <aside className="hidden lg:block lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
                        {userRole === UserRole.ENGINEER ? (
-                           <EngineerDAWCard user={currentUser as Engineer} onNavigate={onNavigate} />
+                           <EngineerFaderCard user={currentUser as Engineer} onNavigate={onNavigate} />
                        ) : (
                            <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
                        )}
