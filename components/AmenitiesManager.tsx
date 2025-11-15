@@ -45,7 +45,7 @@ const AmenitiesManager: React.FC<AmenitiesManagerProps> = ({ stoodio, onUpdateSt
         onUpdateStoodio({ amenities: selectedAmenities });
     };
 
-    const hasChanges = JSON.stringify(selectedAmenities.sort()) !== JSON.stringify((stoodio.amenities || []).sort());
+    const hasChanges = JSON.stringify([...selectedAmenities].sort()) !== JSON.stringify([...(stoodio.amenities || [])].sort());
 
     return (
         <div className="p-6 cardSurface">
