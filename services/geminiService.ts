@@ -12,7 +12,7 @@ let ai: GoogleGenAI | null = null;
  */
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
-        const apiKey = (process as any).env.API_KEY || (process as any).env.VITE_API_KEY;
+        const apiKey = (process as any).env.API_KEY || (import.meta as any).env.VITE_API_KEY;
         if (!apiKey || apiKey.startsWith('{{')) {
             return null;
         }

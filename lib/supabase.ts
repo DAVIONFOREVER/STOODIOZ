@@ -12,23 +12,17 @@ export const getSupabase = (): SupabaseClient | null => {
     return supabaseInstance;
   }
 
-  const supabaseUrl = (process as any).env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = (process as any).env.VITE_SUPABASE_ANON_KEY;
+  // Hardcode the keys as requested by the user.
+  const supabaseUrl = "https://ijcxeispefnbfwiviyux.supabase.co";
+  const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqY3hlaXNwZWZuYmZ3aXZpeXV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3OTgyNDcsImV4cCI6MjA3NjM3NDI0N30.2ILPIMF6rqsLZimqWHm5txhB3q_3fbXIlQUMKEhV37g";
 
   const areKeysValid = (key: string | undefined) => key && key.trim() !== '' && !key.startsWith('{{');
 
   if (!areKeysValid(supabaseUrl) || !areKeysValid(supabaseAnonKey)) {
-    console.warn("Supabase environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are not set correctly.");
+    // This check will now always pass, but is kept as a safeguard.
     return null;
   }
 
-  // Initialize the client with session persistence enabled.
-  supabaseInstance = createClient(supabaseUrl!, supabaseAnonKey!, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-    },
-  });
-  
+  supabaseInstance = createClient(supabaseUrl!, supabaseAnonKey!);
   return supabaseInstance;
 };
