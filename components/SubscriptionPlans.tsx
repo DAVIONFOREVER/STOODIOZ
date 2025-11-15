@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { AppView, UserRole, SubscriptionPlan } from '../types';
 import { CheckCircleIcon, SoundWaveIcon, HouseIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
@@ -101,11 +102,12 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     title="Artist"
                     price="0"
                     features={[
-                        "Create a profile and get verified",
-                        "Search and book studios, producers, and engineers",
-                        "Message and manage your sessions",
+                        "Build your artist profile and post on The Stage.",
+                        "Use the AI Vibe Matcher to discover your perfect collaborators.",
+                        "Search, book, and manage sessions with top-tier talent.",
+                        "Access and purchase exclusive masterclasses from industry pros."
                     ]}
-                    tagline="Start your journey — find your sound."
+                    tagline="Your sound is waiting. We'll help you find it."
                     buttonText="Start Free"
                     onClick={() => handlePlanSelection(UserRole.ARTIST)}
                     disabled={!!currentUser}
@@ -116,12 +118,12 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     price="39"
                     badge="PRO"
                     features={[
-                        "Verified producer profile",
-                        "Booking calendar and payment integration",
-                        "Analytics and client management",
-                        "Appear in search results for hiring artists",
+                        "Launch your own Beat Store to sell and lease instrumentals.",
+                        "Monetize your expertise by creating and selling a Masterclass.",
+                        "Get hired for 'Pull Up' sessions with a custom appearance fee.",
+                        "Track your sales and profile growth with an advanced Analytics Dashboard."
                     ]}
-                    tagline="Get found. Get paid. Get busy."
+                    tagline="Turn your beats into a business."
                     buttonText={isSubscribed(SubscriptionPlan.PRODUCER_PRO) ? "Current Plan" : "Upgrade Now"}
                     onClick={() => handlePlanSelection(UserRole.PRODUCER)}
                     disabled={isSubscribed(SubscriptionPlan.PRODUCER_PRO) || (!!currentUser && userRole !== UserRole.PRODUCER)}
@@ -133,12 +135,12 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     badge="PRO"
                     isFeatured={!currentUser || userRole === UserRole.ENGINEER}
                     features={[
-                        "Verified engineer listing in marketplace",
-                        "Job board access and repeat-client automation",
-                        "Session calendar + automated reminders",
-                        "Insights dashboard for income and session tracking",
+                        "Get hired instantly via the exclusive Job Board with custom alerts.",
+                        "Offer remote Mixing & Mastering services to a global client base.",
+                        "Create and sell your own Masterclass to share your knowledge.",
+                        "Showcase your skills with a dedicated Mixing Samples portfolio."
                     ]}
-                    tagline="More sessions. Less chasing."
+                    tagline="Your talent, your terms. We bring the work to you."
                     buttonText={isSubscribed(SubscriptionPlan.ENGINEER_PLUS) ? "Current Plan" : "Upgrade Now"}
                     onClick={() => handlePlanSelection(UserRole.ENGINEER)}
                     disabled={isSubscribed(SubscriptionPlan.ENGINEER_PLUS) || (!!currentUser && userRole !== UserRole.ENGINEER)}
@@ -149,12 +151,12 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     price="149"
                     badge="PRO"
                     features={[
-                        "Full studio management suite",
-                        "Multi-room scheduling and staff coordination",
-                        "Instant payments, financial dashboard, and reviews",
-                        "Google Maps integration for location-based bookings",
+                        "Manage multi-room availability, amenities, and pricing in one place.",
+                        "Build and manage your roster of in-house engineers with custom pay rates.",
+                        "Post openings directly to the Job Board to find available talent for sessions.",
+                        "Get verified to build trust and boost your visibility in search and on the Map."
                     ]}
-                    tagline="Run your studio like a business, not a hustle."
+                    tagline="Your space, fully booked. Your business, on autopilot."
                     buttonText={isSubscribed(SubscriptionPlan.STOODIO_PRO) ? "Current Plan" : "Upgrade Now"}
                     onClick={() => handlePlanSelection(UserRole.STOODIO)}
                     disabled={isSubscribed(SubscriptionPlan.STOODIO_PRO) || (!!currentUser && userRole !== UserRole.STOODIO)}
