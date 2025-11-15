@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole } from '../types';
@@ -197,6 +198,13 @@ The JSON object must have this structure:
     *   target: The AppView enum name (e.g., 'STOODIO_LIST', 'MY_BOOKINGS', 'ENGINEER_DASHBOARD'). If a user mentions a specific person, navigate to their profile view (e.g. 'ARTIST_PROFILE'). If they mention a tab in a dashboard, use the dashboard view and put the tab name in the value, like \`{"tab": "wallet"}\`.
     *   value: The name of the entity if navigating to a specific profile (e.g., "Luna Vance").
     *   text: "Navigating to [View Name]..."
+*   'openModal': Open a modal dialog.
+    *   target: The modal name ('VIBE_MATCHER', 'ADD_FUNDS', 'PAYOUT').
+    *   text: "Opening the [Modal Name] for you."
+*   'showVibeMatchResults': Analyze a vibe description and present the results.
+    *   target: null
+    *   value: A JSON object with this structure: \`{"vibeDescription": "...", "tags": ["..."], "recommendations": [{"type": "stoodio" | "engineer" | "producer", "name": "...", "reason": "..."}]}\`
+    *   text: "I've analyzed that vibe. Here are some recommendations."
 *   'assistAccountSetup': Help a user start the sign-up process for a specific role.
     *   target: The UserRole enum name ('ARTIST', 'ENGINEER', 'PRODUCER', 'STOODIO').
     *   text: "Of course. Let's get your [Role] profile started."
@@ -224,17 +232,13 @@ Example Command 1 (Navigation):
 User: "Show me some studios"
 Aria: \`{"type": "navigate", "target": "STOODIO_LIST", "value": null, "text": "Pulling up a list of available stoodioz for you now."}\`
 
-Example Command 2 (Send Message):
-User: "Tell Alex Chen I'm running 15 minutes late for our session."
-Aria: \`{"type": "sendMessage", "target": "Alex Chen", "value": "Hey, running about 15 minutes late for our session, my apologies!", "text": "No problem. I've sent a message to Alex Chen for you."}\`
+Example Command 2 (Open Modal):
+User: "Open the vibe matcher"
+Aria: \`{"type": "openModal", "target": "VIBE_MATCHER", "value": null, "text": "Opening the AI Vibe Matcher now."}\`
 
-Example Command 3 (Generate Document):
-User: "Can you draft a simple producer agreement for me and Kaizen?"
-Aria: \`{"type": "sendDocumentMessage", "target": null, "value": {"fileName": "Producer_Agreement_Kaizen.pdf", "documentContent": "This agreement outlines points, royalties, and deliverables..."}, "text": "I've drafted a standard producer agreement for you and Kaizen. You can find it in our chat."}\`
-
-Example 4 (Conversation):
-User: "What's the best way to get my song on a Spotify playlist?"
-Aria: \`{"type": "speak", "target": null, "value": null, "text": "That's a great goal. It's a mix of networking and strategy. Start by identifying independent curators who feature music like yours..."}\`
+Example Command 3 (Vibe Match):
+User: "Find me something with a dreamy, lo-fi vibe like Clairo"
+Aria: \`{"type": "showVibeMatchResults", "value": {"vibeDescription": "A dreamy, lo-fi vibe like Clairo", "tags": ["dreamy", "lo-fi", "indie pop"], "recommendations": [{"type": "stoodio", "name": "Sound Sanctuary", "reason": "Known for its cozy and vibey atmosphere, perfect for singer-songwriters."}, {"type": "engineer", "name": "Alex Chen", "reason": "Alex specializes in Indie Pop and has a great touch with vocal production."}]}, "text": "I've found some great matches for that dreamy, lo-fi vibe. Check them out."}\`
 `;
     
     const fullPrompt = `

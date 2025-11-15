@@ -1,6 +1,7 @@
 
 
 
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
@@ -49,6 +50,49 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 } else {
                     dependencies.navigate(targetView);
                 }
+                break;
+            }
+            case 'openModal': {
+                onClose();
+                const modalTarget = command.target;
+                switch (modalTarget) {
+                    case 'VIBE_MATCHER':
+                        dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: true } });
+                        break;
+                    case 'ADD_FUNDS':
+                        dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+                        break;
+                    case 'PAYOUT':
+                        if (currentUser && userRole !== UserRole.ARTIST) {
+                            dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
+                        }
+                        break;
+                }
+                break;
+            }
+            case 'showVibeMatchResults': {
+                onClose();
+                const resultData = command.value;
+                if (!resultData || !resultData.recommendations) break;
+
+                const fullRecommendations = resultData.recommendations.map((rec: { type: 'stoodio' | 'engineer' | 'producer'; name: string; reason: string }) => {
+                    const entity = allUsers.find(u => u.name.toLowerCase() === rec.name.toLowerCase());
+                    if (!entity) return null;
+                    return {
+                        type: rec.type,
+                        entity: entity,
+                        reason: rec.reason
+                    };
+                }).filter((r): r is NonNullable<typeof r> => r !== null);
+
+                const vibeMatchResult: VibeMatchResult = {
+                    vibeDescription: resultData.vibeDescription,
+                    tags: resultData.tags,
+                    recommendations: fullRecommendations,
+                };
+
+                dispatch({ type: ActionTypes.SET_VIBE_RESULTS, payload: { results: vibeMatchResult } });
+                dependencies.navigate(AppView.VIBE_MATCHER_RESULTS);
                 break;
             }
             case 'assistAccountSetup': {
