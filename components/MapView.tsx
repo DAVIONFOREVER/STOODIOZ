@@ -4,7 +4,7 @@ import type { Stoodio, Artist, Engineer, Producer, Booking, Location } from '../
 import { UserRole, BookingStatus } from '../types';
 import { useAppState } from '../contexts/AppContext.tsx';
 import { useNavigation } from '../hooks/useNavigation.ts';
-import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon } from './icons.tsx';
+import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon, UsersIcon } from './icons.tsx';
 import MapJobPopup from './MapJobPopup.tsx';
 import MapInfoPopup from './MapInfoPopup.tsx';
 
@@ -26,6 +26,8 @@ declare global {
 type MapUser = Artist | Engineer | Producer | Stoodio;
 type MapJob = Booking & { itemType: 'JOB' };
 type MapItem = MapUser | MapJob;
+type FilterType = 'ALL' | 'STOODIO' | 'ENGINEER' | 'PRODUCER' | 'ARTIST' | 'JOB';
+
 
 // --- MAP CONFIGURATION ---
 const mapContainerStyle = {
@@ -56,7 +58,20 @@ const mapOptions = {
   zoomControl: true,
 };
 
-// --- MARKER COMPONENTS ---
+// --- MARKER & UI COMPONENTS ---
+
+const TabButton: React.FC<{ label: string; active: boolean; onClick: () => void; icon: React.ReactNode }> = ({ label, active, onClick, icon }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors duration-200 whitespace-nowrap ${
+            active ? 'bg-orange-500 text-white shadow-lg' : 'bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700'
+        }`}
+    >
+        {icon}
+        <span className="hidden sm:inline">{label}</span>
+    </button>
+);
+
 
 const getPixelPositionOffset = (width: number, height: number) => ({
   x: -(width / 2),
@@ -113,7 +128,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const [center, setCenter] = useState(defaultCenter);
     const [userLocation, setUserLocation] = useState<Location | null>(null);
     const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
-    
+    const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
+
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY,
@@ -149,18 +165,33 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             .filter(b => b.postedBy === UserRole.STOODIO && b.status === BookingStatus.PENDING)
             .map(b => ({ ...b, itemType: 'JOB' as const }));
 
-        return [
-            ...stoodioz.filter(s => s.showOnMap && s.coordinates),
-            ...artists.filter(a => a.showOnMap && a.coordinates),
-            ...engineers.filter(e => e.showOnMap && e.displayExactLocation && e.coordinates),
-            ...producers.filter(p => p.showOnMap && p.coordinates),
-            ...jobs.filter(j => j.coordinates),
-        ] as MapItem[];
-    }, [stoodioz, artists, engineers, producers, bookings]);
+        let items: MapItem[] = [];
+
+        if (activeFilter === 'ALL' || activeFilter === 'STOODIO') {
+            items.push(...stoodioz.filter(s => s.showOnMap && s.coordinates));
+        }
+        if (activeFilter === 'ALL' || activeFilter === 'ARTIST') {
+            items.push(...artists.filter(a => a.showOnMap && a.coordinates));
+        }
+        if (activeFilter === 'ALL' || activeFilter === 'ENGINEER') {
+            items.push(...engineers.filter(e => e.showOnMap && e.displayExactLocation && e.coordinates));
+        }
+        if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') {
+            items.push(...producers.filter(p => p.showOnMap && p.coordinates));
+        }
+        if (activeFilter === 'ALL' || activeFilter === 'JOB') {
+            items.push(...jobs.filter(j => j.coordinates));
+        }
+        
+        return items as MapItem[];
+    }, [stoodioz, artists, engineers, producers, bookings, activeFilter]);
     
     const handleMarkerClick = useCallback((item: MapItem) => {
         setSelectedItem(item);
-    }, []);
+        if (item.coordinates && map) {
+            map.panTo({ lat: item.coordinates.lat, lng: item.coordinates.lon });
+        }
+    }, [map]);
 
     const handleSelectProfile = (user: MapUser) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
@@ -232,6 +263,14 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                     </OverlayViewF>
                 )}
             </GoogleMap>
+             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 p-1 bg-zinc-900/80 backdrop-blur-sm rounded-full shadow-lg flex items-center gap-1">
+                <TabButton label="All" active={activeFilter === 'ALL'} onClick={() => setActiveFilter('ALL')} icon={<UsersIcon className="w-4 h-4" />} />
+                <TabButton label="Studios" active={activeFilter === 'STOODIO'} onClick={() => setActiveFilter('STOODIO')} icon={<HouseIcon className="w-4 h-4" />} />
+                <TabButton label="Engineers" active={activeFilter === 'ENGINEER'} onClick={() => setActiveFilter('ENGINEER')} icon={<SoundWaveIcon className="w-4 h-4" />} />
+                <TabButton label="Producers" active={activeFilter === 'PRODUCER'} onClick={() => setActiveFilter('PRODUCER')} icon={<MusicNoteIcon className="w-4 h-4" />} />
+                <TabButton label="Artists" active={activeFilter === 'ARTIST'} onClick={() => setActiveFilter('ARTIST')} icon={<MicrophoneIcon className="w-4 h-4" />} />
+                <TabButton label="Jobs" active={activeFilter === 'JOB'} onClick={() => setActiveFilter('JOB')} icon={<DollarSignIcon className="w-4 h-4" />} />
+            </div>
         </div>
     );
 };
