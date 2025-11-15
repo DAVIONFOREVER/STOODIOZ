@@ -132,15 +132,24 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
             const responseText = command.text || (command.type === 'error' ? command.value : "Done.");
             const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: responseText }] };
             
-            // The executeCommand for documents will add its own message, so we only add the text response for other commands.
-            if (command.type !== 'sendDocumentMessage') {
-                setHistory([...historyBeforeSend, ariaResponse]);
+            if (command.type === 'sendDocumentMessage' && command.value?.documentContent && command.value?.fileName) {
+                const { documentContent, fileName } = command.value;
+                const fileSize = new Blob([documentContent]).size;
+                const fileAttachment: FileAttachment = { 
+                    name: fileName, 
+                    url: '#',
+                    size: `${(fileSize / 1024).toFixed(1)} KB`,
+                    rawContent: documentContent,
+                };
+                ariaResponse.files = [fileAttachment];
             }
+
+            setHistory([...historyBeforeSend, ariaResponse]);
 
             if (command.type !== 'speak' && command.type !== 'error') {
                  setTimeout(() => {
                     onExecuteCommand(command, onClose);
-                }, command.type === 'sendDocumentMessage' ? 0 : 1000); // Execute document command immediately
+                }, 500); // Give a small delay for user to see the response before action
             }
 
         } catch (error) {

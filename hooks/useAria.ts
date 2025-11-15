@@ -79,6 +79,8 @@ export const useAria = (dependencies: AriaHookDependencies) => {
              case 'sendDocumentMessage': {
                 if (!command.value || !command.value.documentContent || !command.value.fileName || !currentUser) break;
         
+                // This command's only side-effect is adding the document to the main conversation history
+                // for the "Documents" tab. The visual message in the Aria pop-up is handled by AriaAssistant.tsx.
                 const { documentContent, fileName } = command.value;
                 const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
                 if (!ariaProfile) break;
@@ -91,15 +93,6 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                     rawContent: documentContent,
                 };
 
-                // 1. Add message to Aria's visual chat history
-                const ariaMessage: AriaCantataMessage = {
-                    role: 'model',
-                    parts: [{ text: command.text || `As requested, I've prepared this document for you: ${fileName}` }],
-                    files: [fileAttachment]
-                };
-                dispatch({ type: ActionTypes.ADD_ARIA_MESSAGE, payload: { message: ariaMessage } });
-
-                // 2. Add message to the main conversations state for the Documents tab
                 const regularMessage: Message = {
                     id: `msg-doc-${Date.now()}`,
                     senderId: ariaProfile.id,
