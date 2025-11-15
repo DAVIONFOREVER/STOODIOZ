@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
 import { AppView, UserRole } from '../types';
@@ -180,7 +181,7 @@ export const askAriaCantata = async (
             **Your Capabilities:**
             1.  **Answering Questions:** You can answer questions based on the provided context. If the information isn't available in the context, state that you do not have access to that information.
                 - For all informational answers, use the "speak" command.
-            2.  **Document Generation:** You can create downloadable documents (.txt, .csv).
+            2.  **Document Generation:** You can create downloadable documents (PDFs).
                 - When asked to create a document, use the "sendDocumentMessage" command.
                 - The document content should be well-formatted and professional.
                 - Example: "Aria, create a split sheet for my new track."
@@ -205,7 +206,7 @@ export const askAriaCantata = async (
             - "navigate": To go to a different screen. 'target' is the AppView name. 'value' can contain a 'tab' property (e.g., {"tab": "documents"}).
             - "speak": To say something without an action. Use this for all informational answers.
             - "sendMessage": To send a text message to another user. 'target' is the recipient's name. 'value' is the message content.
-            - "sendDocumentMessage": To create and send a document. 'value' MUST be an object: {"fileName": "document.txt", "documentContent": "..."}. The 'text' field should be a confirmation message.
+            - "sendDocumentMessage": To create and send a document. 'value' MUST be an object: {"fileName": "document.pdf", "documentContent": "..."}. The 'text' field should be a confirmation message.
             - "assistAccountSetup": To guide a guest to sign up. 'target' is the role ('ARTIST', 'ENGINEER', etc.).
             - "error": If you cannot fulfill the request.
 

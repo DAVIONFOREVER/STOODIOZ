@@ -68,7 +68,8 @@ const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => 
             return;
         }
         e.preventDefault();
-        const blob = new Blob([file.rawContent], { type: 'text/plain;charset=utf-8' });
+        const blobType = file.name.endsWith('.pdf') ? 'application/pdf' : 'text/plain;charset=utf-8';
+        const blob = new Blob([file.rawContent], { type: blobType });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;

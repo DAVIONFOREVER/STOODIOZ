@@ -382,7 +382,7 @@ export interface FileAttachment {
     name: string;
     url: string;
     size: string;
-    rawContent?: string;
+    rawContent?: string | Uint8Array;
 }
 
 export interface Message {

@@ -1,5 +1,6 @@
 
 
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
@@ -23,7 +24,7 @@ export const useAria = (dependencies: AriaHookDependencies) => {
     const { artists, engineers, producers, stoodioz, conversations, ariaNudge, currentUser, userRole } = useAppState();
     const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
 
-    const executeCommand = useCallback((command: AriaActionResponse, onClose: () => void) => {
+    const executeCommand = useCallback(async (command: AriaActionResponse, onClose: () => void) => {
         switch (command.type) {
             case 'navigate': {
                 onClose(); // Close modal before navigating to prevent race conditions.
@@ -77,20 +78,17 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 break;
             }
              case 'sendDocumentMessage': {
-                if (!command.value || !command.value.documentContent || !command.value.fileName || !currentUser) break;
+                if (!command.value?.fileName || !command.value?.pdfBytes || !currentUser) break;
         
-                // This command's only side-effect is adding the document to the main conversation history
-                // for the "Documents" tab. The visual message in the Aria pop-up is handled by AriaAssistant.tsx.
-                const { documentContent, fileName } = command.value;
+                const { fileName, pdfBytes } = command.value;
                 const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
                 if (!ariaProfile) break;
                 
-                const fileSize = new Blob([documentContent]).size;
                 const fileAttachment: FileAttachment = { 
                     name: fileName, 
-                    url: '#', // Placeholder URL, download will be handled by onClick
-                    size: `${(fileSize / 1024).toFixed(1)} KB`,
-                    rawContent: documentContent,
+                    url: '#',
+                    size: `${(pdfBytes.length / 1024).toFixed(1)} KB`,
+                    rawContent: pdfBytes,
                 };
 
                 const regularMessage: Message = {

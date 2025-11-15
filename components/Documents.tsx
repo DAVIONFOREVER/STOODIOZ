@@ -1,5 +1,6 @@
 
 
+
 import React from 'react';
 import type { Conversation, FileAttachment } from '../types';
 import { PaperclipIcon, DownloadIcon } from './icons';
@@ -47,7 +48,8 @@ const Documents: React.FC<DocumentsProps> = ({ conversations }) => {
             return;
         }
         e.preventDefault();
-        const blob = new Blob([file.rawContent], { type: 'text/plain;charset=utf-8' });
+        const blobType = file.name.endsWith('.pdf') ? 'application/pdf' : 'text/plain;charset=utf-8';
+        const blob = new Blob([file.rawContent], { type: blobType });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
