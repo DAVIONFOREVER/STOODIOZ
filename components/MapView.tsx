@@ -1,5 +1,3 @@
-
-
 // FIX: Removed reference to @types/google.maps as it is not available in the environment.
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, OverlayViewF, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
@@ -174,9 +172,9 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         channel
             .on('broadcast', { event: 'location_update' }, (message) => {
                 const { userId, coordinates } = message.payload;
-                if (userId !== currentUser?.id) {
-                    setRealtimeLocations(prev => new Map(prev).set(userId, coordinates));
-                }
+                // FIX: Removed the check that ignored the current user's updates.
+                // This allows the user to see their own public marker move in real-time.
+                setRealtimeLocations(prev => new Map(prev).set(userId, coordinates));
             })
             .subscribe();
 
@@ -184,7 +182,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             supabase.removeChannel(channel);
             channelRef.current = null;
         };
-    }, [currentUser?.id]);
+    }, []);
 
 
      useEffect(() => {
@@ -310,7 +308,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                             strokeWeight: 2,
                         }}
                     />
-                ) : userLocation && (
+                // FIX: Only show the private "blue dot" marker if the user is NOT showing their public profile on the map.
+                ) : userLocation && (!currentUser || !currentUser.showOnMap) && (
                     <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={getPixelPositionOffset}>
                         <UserMarker />
                     </OverlayViewF>
