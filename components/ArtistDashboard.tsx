@@ -217,7 +217,7 @@ const ArtistDashboard: React.FC = () => {
                                 className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
                             >
                                 <CalendarIcon className="w-5 h-5"/>
-                                Book a Session
+                                Book a New Session
                             </button>
                             <button
                                 onClick={onOpenVibeMatcher}

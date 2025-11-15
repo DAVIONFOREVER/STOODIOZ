@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon } from './icons';
@@ -233,6 +233,24 @@ const StoodioDashboard: React.FC = () => {
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageUrl = e.target?.result as string;
+                updateProfile({ imageUrl });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     if (!currentUser) {
         return (
             <div className="flex justify-center items-center py-20">
@@ -381,7 +399,23 @@ const StoodioDashboard: React.FC = () => {
             <div className="p-6 md:p-8 cardSurface">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                      <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                        <div className="relative group/pfp flex-shrink-0">
+                            <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
+                            <button 
+                                onClick={handleImageUploadClick} 
+                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
+                                aria-label="Change profile photo"
+                            >
+                                <EditIcon className="w-8 h-8 text-white" />
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept="image/*"
+                            />
+                        </div>
                         <div className="text-center sm:text-left">
                             <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
                             <p className="text-zinc-400 mt-2">Stoodio Dashboard</p>
