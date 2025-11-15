@@ -1,4 +1,5 @@
 
+
 // FIX: Removed reference to @types/google.maps as it is not available in the environment.
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, OverlayViewF, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
@@ -272,7 +273,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     if (!isLoaded) return <div className="flex items-center justify-center" style={{ height: mapContainerStyle.height }}>Loading Map...</div>;
     
     return (
-        <div className="relative rounded-2xl overflow-hidden" style={{ height: mapContainerStyle.height }}>
+        <div className="relative rounded-2xl overflow-hidden border border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.3)]" style={{ height: mapContainerStyle.height }}>
             <GoogleMap
                 mapContainerStyle={{ width: '100%', height: '100%' }}
                 center={userLocation ? { lat: userLocation.lat, lng: userLocation.lon } : defaultCenter}
