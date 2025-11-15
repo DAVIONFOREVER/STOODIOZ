@@ -35,8 +35,10 @@ export const useAuth = (navigate: (view: any) => void) => {
                 console.error("Error logging out:", error.message);
             }
         }
-        // The onAuthStateChange listener will dispatch the LOGOUT action automatically.
-    }, []);
+        // Directly dispatch the LOGOUT action to immediately clear the app state.
+        // Do not rely on the onAuthStateChange listener for a direct user action.
+        dispatch({ type: ActionTypes.LOGOUT });
+    }, [dispatch]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
