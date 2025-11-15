@@ -1,4 +1,5 @@
-/// <reference types="@types/google.maps" />
+
+// FIX: Removed reference to @types/google.maps as it is not available in the environment.
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
 import type { Artist, Location } from '../types';
@@ -39,7 +40,8 @@ const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession'
         googleMapsApiKey: (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY,
     });
 
-    const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+    // FIX: Replaced google.maps.DirectionsResult with any.
+    const [directions, setDirections] = useState<any | null>(null);
     const [engineerPosition, setEngineerPosition] = useState<Location | null>(null);
     const [progress, setProgress] = useState<'EN_ROUTE' | 'IN_SESSION'>('EN_ROUTE');
 
@@ -51,8 +53,10 @@ const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession'
     const engineerStartLocation = studioLocation ? { lat: studioLocation.lat - 0.1, lon: studioLocation.lon - 0.1 } : null;
 
     const directionsCallback = (
-        response: google.maps.DirectionsResult | null,
-        status: google.maps.DirectionsStatus
+        // FIX: Replaced google.maps.DirectionsResult with any.
+        response: any | null,
+        // FIX: Replaced google.maps.DirectionsStatus with any.
+        status: any
     ) => {
         if (status === 'OK' && response) {
             setDirections(response);
@@ -98,7 +102,8 @@ const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession'
                     options={{
                         destination: { lat: studioLocation.lat, lng: studioLocation.lon },
                         origin: { lat: engineerStartLocation.lat, lng: engineerStartLocation.lon },
-                        travelMode: google.maps.TravelMode.DRIVING
+                        // FIX: Replaced google.maps.TravelMode.DRIVING with string 'DRIVING' and cast to any.
+                        travelMode: 'DRIVING' as any
                     }}
                     callback={directionsCallback}
                 />
@@ -115,7 +120,8 @@ const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession'
                     position={{ lat: engineerPosition.lat, lng: engineerPosition.lon }}
                     title={engineer.name}
                     icon={{
-                        path: window.google.maps.SymbolPath.CIRCLE,
+                        // FIX: Cast window to any to access google.maps properties.
+                        path: (window as any).google.maps.SymbolPath.CIRCLE,
                         scale: 8,
                         fillColor: '#fb923c',
                         fillOpacity: 1,

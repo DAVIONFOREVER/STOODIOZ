@@ -1,4 +1,5 @@
-/// <reference types="@types/google.maps" />
+
+// FIX: Removed reference to @types/google.maps as it is not available in the environment.
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, OverlayViewF, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
 import type { Stoodio, Artist, Engineer, Producer, Booking, Location } from '../types';
@@ -58,8 +59,10 @@ const mapOptions = {
 const TabButton: React.FC<{ label: string; active: boolean; onClick: () => void; icon: React.ReactNode }> = ({ label, active, onClick, icon }) => (
     <button
         onClick={onClick}
-        className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-full transition-colors duration-200 whitespace-nowrap ${
-            active ? 'bg-orange-500 text-white shadow-lg' : 'bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700'
+        className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-full transition-all duration-200 whitespace-nowrap ${
+            active 
+            ? 'bg-orange-500 text-white shadow-lg ring-2 ring-orange-500' 
+            : 'bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:ring-2 hover:ring-orange-500/50'
         }`}
     >
         {icon}
@@ -123,11 +126,13 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const dispatch = useAppDispatch();
     const { navigateToStudio } = useNavigation();
 
-    const [map, setMap] = useState<google.maps.Map | null>(null);
+    // FIX: Replaced google.maps.Map with any.
+    const [map, setMap] = useState<any | null>(null);
     const [userLocation, setUserLocation] = useState<Location | null>(null);
     const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
-    const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+    // FIX: Replaced google.maps.DirectionsResult with any.
+    const [directions, setDirections] = useState<any | null>(null);
     const [directionsOrigin, setDirectionsOrigin] = useState<Location | null>(null);
     const [directionsDestination, setDirectionsDestination] = useState<Location | null>(null);
     const [navigatingUserPosition, setNavigatingUserPosition] = useState<Location | null>(null);
@@ -257,10 +262,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         else onSelectArtist(user as Artist);
     };
     
-    const onLoad = useCallback(mapInstance => setMap(mapInstance), []);
-    const onUnmount = useCallback(mapInstance => setMap(null), []);
+    const onLoad = useCallback((mapInstance: any) => setMap(mapInstance), []);
+    const onUnmount = useCallback((mapInstance: any) => setMap(null), []);
     
-    const directionsCallback = (res: google.maps.DirectionsResult | null, status: google.maps.DirectionsStatus) => {
+    const directionsCallback = (res: any | null, status: any) => {
         if (status === 'OK' && res) setDirections(res);
     }
 
@@ -282,7 +287,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                         options={{
                             destination: { lat: directionsDestination.lat, lng: directionsDestination.lon },
                             origin: { lat: directionsOrigin.lat, lng: directionsOrigin.lon },
-                            travelMode: 'DRIVING' as google.maps.TravelMode
+                            travelMode: 'DRIVING' as any
                         }}
                         callback={directionsCallback}
                     />
@@ -295,7 +300,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                         position={{ lat: navigatingUserPosition.lat, lng: navigatingUserPosition.lon }}
                         title="Your Location"
                         icon={{
-                            path: window.google.maps.SymbolPath.CIRCLE,
+                            // FIX: Cast window to any to access google.maps properties.
+                            path: (window as any).google.maps.SymbolPath.CIRCLE,
                             scale: 8,
                             fillColor: '#3b82f6',
                             fillOpacity: 1,
@@ -335,6 +341,31 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                 <TabButton label="Producers" active={activeFilter === 'PRODUCER'} onClick={() => setActiveFilter('PRODUCER')} icon={<MusicNoteIcon className="w-4 h-4" />} />
                 <TabButton label="Artists" active={activeFilter === 'ARTIST'} onClick={() => setActiveFilter('ARTIST')} icon={<MicrophoneIcon className="w-4 h-4" />} />
                 <TabButton label="Jobs" active={activeFilter === 'JOB'} onClick={() => setActiveFilter('JOB')} icon={<DollarSignIcon className="w-4 h-4" />} />
+            </div>
+             <div className="absolute bottom-4 left-4 z-10 bg-zinc-900/80 backdrop-blur-sm p-4 rounded-xl border border-zinc-700/50 shadow-lg">
+                <h4 className="font-bold text-sm text-zinc-100 mb-2">Legend</h4>
+                <ul className="space-y-1.5">
+                    <li className="flex items-center gap-2">
+                        <HouseIcon className="w-5 h-5 text-red-400" />
+                        <span className="text-xs text-zinc-300">Stoodio</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <SoundWaveIcon className="w-5 h-5 text-orange-400" />
+                        <span className="text-xs text-zinc-300">Engineer</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <MusicNoteIcon className="w-5 h-5 text-purple-400" />
+                        <span className="text-xs text-zinc-300">Producer</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <MicrophoneIcon className="w-5 h-5 text-blue-400" />
+                        <span className="text-xs text-zinc-300">Artist</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <DollarSignIcon className="w-5 h-5 text-green-400" />
+                        <span className="text-xs text-zinc-300">Open Job</span>
+                    </li>
+                </ul>
             </div>
         </div>
     );
