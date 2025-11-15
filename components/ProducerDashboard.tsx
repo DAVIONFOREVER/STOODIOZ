@@ -222,16 +222,16 @@ const ProducerDashboard: React.FC = () => {
                             </div>
                         </div>
                         <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
+                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
                             <div className="relative">
                                 <input 
                                     type="checkbox" 
                                     className="sr-only" 
-                                    checked={producer.isAvailable} 
-                                    onChange={(e) => updateProfile({ isAvailable: e.target.checked })} 
+                                    checked={producer.showOnMap ?? false} 
+                                    onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
                                 />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${producer.isAvailable ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.isAvailable ? 'translate-x-6' : ''}`}></div>
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${producer.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.showOnMap ? 'translate-x-6' : ''}`}></div>
                             </div>
                         </label>
                     </div>
@@ -245,7 +245,7 @@ const ProducerDashboard: React.FC = () => {
             </div>
 
             <div className="cardSurface">
-                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
+                <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
