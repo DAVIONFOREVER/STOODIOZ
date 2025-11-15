@@ -1,22 +1,25 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, OverlayViewF } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, OverlayViewF, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
 import type { Stoodio, Artist, Engineer, Producer, Booking, Location } from '../types';
 import { UserRole, BookingStatus } from '../types';
-import { useAppState } from '../contexts/AppContext.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 import { useNavigation } from '../hooks/useNavigation.ts';
 import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon, UsersIcon } from './icons.tsx';
 import MapJobPopup from './MapJobPopup.tsx';
 import MapInfoPopup from './MapInfoPopup.tsx';
 
-// FIX: Add minimal google.maps type declarations to resolve TypeScript errors
-// when @types/google.maps is not installed. This avoids using 'any' and provides
-// type safety for the methods being used.
 declare global {
   namespace google {
     namespace maps {
       class Map {
         constructor(mapDiv: Element | null, opts?: any);
         panTo(latLng: { lat: number; lng: number }): void;
+      }
+      enum TravelMode { DRIVING = 'DRIVING' }
+      type DirectionsResult = any;
+      type DirectionsStatus = any;
+      class SymbolPath {
+        static CIRCLE: any;
       }
     }
   }
@@ -121,14 +124,18 @@ interface MapViewProps {
 }
 
 const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSelectEngineer, onSelectProducer }) => {
-    const { stoodioz, artists, engineers, producers, bookings } = useAppState();
+    const { stoodioz, artists, engineers, producers, bookings, directionsIntent, currentUser } = useAppState();
+    const dispatch = useAppDispatch();
     const { navigateToStudio } = useNavigation();
 
     const [map, setMap] = useState<google.maps.Map | null>(null);
-    const [center, setCenter] = useState(defaultCenter);
     const [userLocation, setUserLocation] = useState<Location | null>(null);
     const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
+    const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+    const [directionsOrigin, setDirectionsOrigin] = useState<Location | null>(null);
+    const [directionsDestination, setDirectionsDestination] = useState<Location | null>(null);
+    const [navigatingUserPosition, setNavigatingUserPosition] = useState<Location | null>(null);
 
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
@@ -143,22 +150,49 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                     lon: position.coords.longitude,
                 };
                 setUserLocation(newLocation);
-                if (map) {
+                if (map && !directionsIntent) {
                     map.panTo({ lat: newLocation.lat, lng: newLocation.lon });
-                } else {
-                    setCenter({ lat: newLocation.lat, lng: newLocation.lon });
                 }
             },
-            () => {
-                console.log("Could not get user's location. Using default.");
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0,
-            }
+            () => console.log("Could not get user's location."),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [map]);
+    }, [map, directionsIntent]);
+
+     useEffect(() => {
+        if (directionsIntent && userLocation) {
+            const booking = bookings.find(b => b.id === directionsIntent.bookingId);
+            if (booking?.stoodio?.coordinates) {
+                setDirectionsOrigin(userLocation);
+                setDirectionsDestination(booking.stoodio.coordinates);
+                setNavigatingUserPosition(userLocation); // Start navigation from current position
+            }
+        }
+        
+        // Cleanup function to clear the intent when leaving the map view
+        return () => {
+            if (directionsIntent) {
+                dispatch({ type: ActionTypes.SET_DIRECTIONS_INTENT, payload: { bookingId: null } });
+            }
+        }
+    }, [directionsIntent, userLocation, bookings, dispatch]);
+
+    useEffect(() => {
+        if (!directions) return;
+
+        const route = directions.routes[0].overview_path;
+        let step = 0;
+        const interval = setInterval(() => {
+            if (step < route.length) {
+                setNavigatingUserPosition({ lat: route[step].lat(), lon: route[step].lng() });
+                step++;
+            } else {
+                clearInterval(interval);
+            }
+        }, 1000); // Simulate movement every second
+
+        return () => clearInterval(interval);
+    }, [directions]);
 
     const mapItems = useMemo((): MapItem[] => {
         const jobs = bookings
@@ -167,21 +201,11 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
         let items: MapItem[] = [];
 
-        if (activeFilter === 'ALL' || activeFilter === 'STOODIO') {
-            items.push(...stoodioz.filter(s => s.showOnMap && s.coordinates));
-        }
-        if (activeFilter === 'ALL' || activeFilter === 'ARTIST') {
-            items.push(...artists.filter(a => a.showOnMap && a.coordinates));
-        }
-        if (activeFilter === 'ALL' || activeFilter === 'ENGINEER') {
-            items.push(...engineers.filter(e => e.showOnMap && e.displayExactLocation && e.coordinates));
-        }
-        if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') {
-            items.push(...producers.filter(p => p.showOnMap && p.coordinates));
-        }
-        if (activeFilter === 'ALL' || activeFilter === 'JOB') {
-            items.push(...jobs.filter(j => j.coordinates));
-        }
+        if (activeFilter === 'ALL' || activeFilter === 'STOODIO') items.push(...stoodioz.filter(s => s.showOnMap && s.coordinates));
+        if (activeFilter === 'ALL' || activeFilter === 'ARTIST') items.push(...artists.filter(a => a.showOnMap && a.coordinates));
+        if (activeFilter === 'ALL' || activeFilter === 'ENGINEER') items.push(...engineers.filter(e => e.showOnMap && e.displayExactLocation && e.coordinates));
+        if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') items.push(...producers.filter(p => p.showOnMap && p.coordinates));
+        if (activeFilter === 'ALL' || activeFilter === 'JOB') items.push(...jobs.filter(j => j.coordinates));
         
         return items as MapItem[];
     }, [stoodioz, artists, engineers, producers, bookings, activeFilter]);
@@ -200,13 +224,12 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         else onSelectArtist(user as Artist);
     };
     
-    const onLoad = useCallback(function callback(mapInstance: google.maps.Map) {
-        setMap(mapInstance);
-    }, []);
-
-    const onUnmount = useCallback(function callback(mapInstance: google.maps.Map) {
-        setMap(null);
-    }, []);
+    const onLoad = useCallback(mapInstance => setMap(mapInstance), []);
+    const onUnmount = useCallback(mapInstance => setMap(null), []);
+    
+    const directionsCallback = (res, status) => {
+        if (status === 'OK') setDirections(res);
+    }
 
     if (!isLoaded) return <div className="flex items-center justify-center" style={{ height: mapContainerStyle.height }}>Loading Map...</div>;
     
@@ -214,51 +237,60 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         <div className="relative rounded-2xl overflow-hidden" style={{ height: mapContainerStyle.height }}>
             <GoogleMap
                 mapContainerStyle={{ width: '100%', height: '100%' }}
-                center={{ lat: center.lat, lng: center.lng }}
+                center={userLocation ? { lat: userLocation.lat, lng: userLocation.lon } : defaultCenter}
                 zoom={userLocation ? 12 : 4}
                 options={mapOptions}
                 onLoad={onLoad}
                 onUnmount={onUnmount}
                 onClick={() => setSelectedItem(null)}
             >
-                {userLocation && (
-                    <OverlayViewF
-                        position={{ lat: userLocation.lat, lng: userLocation.lon }}
-                        mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
-                        getPixelPositionOffset={() => getPixelPositionOffset(24, 24)}
-                    >
+                {directionsOrigin && directionsDestination && (
+                    <DirectionsService
+                        options={{
+                            destination: { lat: directionsDestination.lat, lng: directionsDestination.lon },
+                            origin: { lat: directionsOrigin.lat, lng: directionsOrigin.lon },
+                            travelMode: google.maps.TravelMode.DRIVING
+                        }}
+                        callback={directionsCallback}
+                    />
+                )}
+
+                {directions && <DirectionsRenderer options={{ directions, suppressMarkers: true, polylineOptions: { strokeColor: '#f97316', strokeWeight: 6 } }} />}
+
+                {navigatingUserPosition ? (
+                    <MarkerF 
+                        position={{ lat: navigatingUserPosition.lat, lng: navigatingUserPosition.lon }}
+                        title="Your Location"
+                        icon={{
+                            path: window.google.maps.SymbolPath.CIRCLE,
+                            scale: 8,
+                            fillColor: '#3b82f6',
+                            fillOpacity: 1,
+                            strokeColor: 'white',
+                            strokeWeight: 2,
+                        }}
+                    />
+                ) : userLocation && (
+                    <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => getPixelPositionOffset(24, 24)}>
                         <UserMarker />
                     </OverlayViewF>
                 )}
 
+
                 {mapItems.map(item => (
                     item.coordinates && (
-                         <OverlayViewF
-                            key={item.id}
-                            position={{ lat: item.coordinates.lat, lng: item.coordinates.lon }}
-                            mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET}
-                            getPixelPositionOffset={() => getPixelPositionOffset(40, 40)}
-                        >
+                         <OverlayViewF key={item.id} position={{ lat: item.coordinates.lat, lng: item.coordinates.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => getPixelPositionOffset(40, 40)}>
                             <MapMarker item={item} onClick={handleMarkerClick} />
                         </OverlayViewF>
                     )
                 ))}
                 
                 {selectedItem && selectedItem.coordinates && (
-                    <OverlayViewF
-                        position={{ lat: selectedItem.coordinates.lat, lng: selectedItem.coordinates.lon }}
-                        mapPaneName={OverlayViewF.FLOAT_PANE}
-                        getPixelPositionOffset={() => ({ x: 0, y: 0 })}
-                    >
+                    <OverlayViewF position={{ lat: selectedItem.coordinates.lat, lng: selectedItem.coordinates.lon }} mapPaneName={OverlayViewF.FLOAT_PANE} getPixelPositionOffset={() => ({ x: 0, y: 0 })}>
                         {'itemType' in selectedItem && selectedItem.itemType === 'JOB' ? (
                              <MapJobPopup job={selectedItem as Booking & { itemType: 'JOB' }} onClose={() => setSelectedItem(null)} />
                         ) : (
-                             <MapInfoPopup 
-                                user={selectedItem as MapUser} 
-                                onClose={() => setSelectedItem(null)} 
-                                onSelect={handleSelectProfile} 
-                                onNavigate={navigateToStudio}
-                            />
+                             <MapInfoPopup user={selectedItem as MapUser} onClose={() => setSelectedItem(null)} onSelect={handleSelectProfile} onNavigate={navigateToStudio}/>
                         )}
                     </OverlayViewF>
                 )}

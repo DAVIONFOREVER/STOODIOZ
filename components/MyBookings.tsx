@@ -1,6 +1,3 @@
-
-
-
 import React, { useMemo } from 'react';
 import type { Booking, Location } from '../types';
 import { BookingStatus, BookingRequestType, UserRole } from '../types';
@@ -92,6 +89,8 @@ const MyBookings: React.FC = () => {
                         const { statusText, statusColor, participantName } = getStatusAndParticipant(booking);
                         const isUpcoming = new Date(`${booking.date}T${booking.startTime || '00:00'}`) >= new Date();
                         const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;
+                        const buttonText = userRole === UserRole.ARTIST ? 'Start Session' : 'Navigate to Session';
+                        
                         return (
                         <div key={booking.id} className={`p-6 flex flex-col md:flex-row gap-6 cardSurface overflow-hidden ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
                             <div className="flex-shrink-0">
@@ -153,13 +152,13 @@ const MyBookings: React.FC = () => {
                                             if (userRole === UserRole.ARTIST) {
                                                 startSession(booking);
                                             } else {
-                                                navigation.navigateToStudio(booking.stoodio!.coordinates);
+                                                navigation.startNavigationForBooking(booking);
                                             }
                                         }}
                                         className="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-all text-sm shadow-md flex items-center gap-1.5"
                                      >
                                         <RoadIcon className="w-4 h-4"/>
-                                        Navigate
+                                        {buttonText}
                                      </button>
                                  )}
                                  {booking.status === BookingStatus.COMPLETED && booking.requestType !== BookingRequestType.BRING_YOUR_OWN && !booking.tip && (

@@ -1,7 +1,132 @@
-import React, { useState } from 'react';
-import type { Artist } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
+import type { Artist, Location } from '../types';
 import { LocationIcon, NavigationArrowIcon, ClockIcon, DollarSignIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
+// FIX: Import AppState type from AppContext to resolve a type error.
+import type { AppState } from '../contexts/AppContext.tsx';
+
+const mapContainerStyle = {
+    width: '100%',
+    height: '100%',
+};
+
+const mapOptions = {
+  styles: [
+    { elementType: 'geometry', stylers: [{ color: '#18181b' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#18181b' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#737373' }] },
+    { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#f97316' }] },
+    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#27272a' }] },
+    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#18181b' }] },
+    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#f97316' }] },
+    { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#444444' }] },
+    { featureType: 'road.highway', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#09090b' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
+  ],
+  disableDefaultUI: true,
+  zoomControl: true,
+};
+
+const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession']> }> = ({ session }) => {
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script-session',
+        googleMapsApiKey: (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY,
+    });
+
+    const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+    const [engineerPosition, setEngineerPosition] = useState<Location | null>(null);
+    const [progress, setProgress] = useState<'EN_ROUTE' | 'IN_SESSION'>('EN_ROUTE');
+
+    const studioLocation = session.stoodio?.coordinates;
+    const engineer = session.engineer;
+    const artist = session.artist;
+    
+    // Simulate engineer starting from a nearby location
+    const engineerStartLocation = studioLocation ? { lat: studioLocation.lat - 0.1, lon: studioLocation.lon - 0.1 } : null;
+
+    const directionsCallback = (
+        response: google.maps.DirectionsResult | null,
+        status: google.maps.DirectionsStatus
+    ) => {
+        if (status === 'OK' && response) {
+            setDirections(response);
+            if (engineerStartLocation) {
+                setEngineerPosition(engineerStartLocation);
+            }
+        } else {
+            console.error(`Directions request failed due to ${status}`);
+        }
+    };
+
+    useEffect(() => {
+        if (!directions || progress !== 'EN_ROUTE' || !engineer) return;
+
+        const route = directions.routes[0].overview_path;
+        let step = 0;
+
+        const interval = setInterval(() => {
+            if (step < route.length) {
+                const newPos = { lat: route[step].lat(), lon: route[step].lng() };
+                setEngineerPosition(newPos);
+                step++;
+            } else {
+                clearInterval(interval);
+                // Snap to final destination
+                if (studioLocation) setEngineerPosition(studioLocation);
+                // Optionally auto-start session
+                setTimeout(() => setProgress('IN_SESSION'), 1000);
+            }
+        }, 1000); // Update position every second for simulation
+
+        return () => clearInterval(interval);
+    }, [directions, progress, engineer, studioLocation]);
+
+    if (!isLoaded || !studioLocation) {
+        return <div className="w-full h-64 md:h-80 bg-zinc-900 flex items-center justify-center text-zinc-400">Loading Map...</div>;
+    }
+
+    return (
+        <GoogleMap mapContainerStyle={mapContainerStyle} center={{ lat: studioLocation.lat, lng: studioLocation.lon }} zoom={12} options={mapOptions}>
+            {engineerStartLocation && (
+                <DirectionsService
+                    options={{
+                        destination: { lat: studioLocation.lat, lng: studioLocation.lon },
+                        origin: { lat: engineerStartLocation.lat, lng: engineerStartLocation.lon },
+                        travelMode: google.maps.TravelMode.DRIVING
+                    }}
+                    callback={directionsCallback}
+                />
+            )}
+            
+            {directions && <DirectionsRenderer options={{ directions, suppressMarkers: true, polylineOptions: { strokeColor: '#f97316', strokeWeight: 6 } }} />}
+            
+            <MarkerF position={{ lat: studioLocation.lat, lng: studioLocation.lon }} title={session.stoodio?.name} />
+
+            {artist?.coordinates && <MarkerF position={{ lat: artist.coordinates.lat, lng: artist.coordinates.lon }} title={artist.name} />}
+            
+            {engineer && engineerPosition && (
+                <MarkerF 
+                    position={{ lat: engineerPosition.lat, lng: engineerPosition.lon }}
+                    title={engineer.name}
+                    icon={{
+                        path: window.google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#fb923c',
+                        fillOpacity: 1,
+                        strokeColor: 'white',
+                        strokeWeight: 2
+                    }}
+                />
+            )}
+        </GoogleMap>
+    );
+};
+
 
 interface ActiveSessionProps {
     onEndSession: (bookingId: string) => void;
@@ -55,9 +180,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArt
             
             <div className="overflow-hidden cardSurface">
                 {/* Map/Navigation View */}
-                <div className="relative">
-                    <img src="https://source.unsplash.com/seeded/map-route/1200x500" alt="Map route to stoodio" className="w-full h-64 md:h-80 object-cover" />
-                    <div className="absolute top-0 left-0 w-full h-full bg-black/30"></div>
+                <div className="relative w-full h-64 md:h-80">
+                    <ActiveSessionMap session={session} />
                     <div className="absolute top-4 left-4 bg-zinc-800/80 backdrop-blur-sm p-4 rounded-lg shadow-lg">
                         <h2 className="text-2xl font-bold text-slate-100">{session.stoodio?.name}</h2>
                         <p className="text-slate-300 flex items-center gap-2 mt-1"><LocationIcon className="w-5 h-5" /> {session.stoodio?.location}</p>

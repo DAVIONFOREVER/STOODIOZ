@@ -48,6 +48,7 @@ export interface AppState {
     masterclassToPurchase: { masterclass: Masterclass, owner: Engineer | Producer } | null;
     masterclassToWatch: { masterclass: Masterclass, owner: Engineer | Producer } | null;
     masterclassToReview: { masterclass: Masterclass, owner: Engineer | Producer } | null;
+    directionsIntent: { bookingId: string } | null;
 }
 
 type ActionMap<M extends { [index: string]: any }> = {
@@ -117,6 +118,7 @@ export enum ActionTypes {
     OPEN_REVIEW_MASTERCLASS_MODAL = 'OPEN_REVIEW_MASTERCLASS_MODAL',
     CLOSE_REVIEW_MASTERCLASS_MODAL = 'CLOSE_REVIEW_MASTERCLASS_MODAL',
     SET_REVIEWS = 'SET_REVIEWS',
+    SET_DIRECTIONS_INTENT = 'SET_DIRECTIONS_INTENT',
 }
 
 type Payload = {
@@ -175,6 +177,7 @@ type Payload = {
     [ActionTypes.OPEN_REVIEW_MASTERCLASS_MODAL]: { masterclass: Masterclass, owner: Engineer | Producer };
     [ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL]: undefined;
     [ActionTypes.SET_REVIEWS]: { reviews: Review[] };
+    [ActionTypes.SET_DIRECTIONS_INTENT]: { bookingId: string | null };
 };
 
 export type AppAction = ActionMap<Payload>[keyof ActionMap<Payload>];
@@ -225,6 +228,7 @@ const initialState: AppState = {
     masterclassToPurchase: null,
     masterclassToWatch: null,
     masterclassToReview: null,
+    directionsIntent: null,
 };
 
 // --- REDUCER ---
@@ -444,6 +448,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, masterclassToReview: null };
         case ActionTypes.SET_REVIEWS:
             return { ...state, reviews: action.payload.reviews };
+        case ActionTypes.SET_DIRECTIONS_INTENT:
+             return { ...state, directionsIntent: action.payload.bookingId ? { bookingId: action.payload.bookingId } : null };
         default:
             return state;
     }

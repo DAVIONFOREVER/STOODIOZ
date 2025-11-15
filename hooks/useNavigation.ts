@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import type { Stoodio, Artist, Engineer, Producer, Location } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Location, Booking } from '../types';
 import { AppView } from '../types';
 
 export const useNavigation = () => {
@@ -42,6 +42,11 @@ export const useNavigation = () => {
         window.open(url, '_blank', 'noopener,noreferrer');
     }, []);
 
+    const startNavigationForBooking = useCallback((booking: Booking) => {
+        dispatch({ type: ActionTypes.SET_DIRECTIONS_INTENT, payload: { bookingId: booking.id } });
+        navigate(AppView.MAP_VIEW);
+    }, [dispatch, navigate]);
+
     const viewBooking = (bookingId: string) => navigate(AppView.MY_BOOKINGS);
     
     return { 
@@ -53,6 +58,7 @@ export const useNavigation = () => {
         viewEngineerProfile, 
         viewProducerProfile, 
         navigateToStudio,
+        startNavigationForBooking,
         viewBooking
     };
 };
