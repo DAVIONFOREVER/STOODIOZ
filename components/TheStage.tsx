@@ -30,14 +30,14 @@ const QuickLink: React.FC<{ icon: React.ReactNode; label: string; onClick: () =>
 );
 
 // --- NEW ENGINEER-SPECIFIC PROFILE CARD ---
-interface EngineerConsoleCardProps {
+interface EngineerDAWCardProps {
     user: Engineer;
     onNavigate: (view: AppView) => void;
 }
 
-const EngineerConsoleCard: React.FC<EngineerConsoleCardProps> = ({ user, onNavigate }) => {
-    const faderTrackRef = useRef<HTMLDivElement>(null);
-    const [faderPosition, setFaderPosition] = useState(0); // 0 = bottom, 100 = top
+const EngineerDAWCard: React.FC<EngineerDAWCardProps> = ({ user, onNavigate }) => {
+    const dragContainerRef = useRef<HTMLDivElement>(null);
+    const [dragProgress, setDragProgress] = useState(0); // 0 to 100
     const [isDragging, setIsDragging] = useState(false);
 
     const handleNavigate = useCallback(() => {
@@ -45,33 +45,27 @@ const EngineerConsoleCard: React.FC<EngineerConsoleCardProps> = ({ user, onNavig
     }, [onNavigate]);
 
     const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
-        e.preventDefault();
         setIsDragging(true);
     };
 
     const handleInteractionEnd = useCallback(() => {
         if (isDragging) {
-            setIsDragging(false);
-            if (faderPosition > 50) { // If dragged more than halfway
+            if (dragProgress > 60) { // Trigger threshold
                 handleNavigate();
             }
-            // Animate back down
-            setFaderPosition(0);
+            setIsDragging(false);
+            setDragProgress(0); // Snap back
         }
-    }, [isDragging, faderPosition, handleNavigate]);
-    
+    }, [isDragging, dragProgress, handleNavigate]);
+
     const handleInteractionMove = useCallback((e: MouseEvent | TouchEvent) => {
-        if (!isDragging || !faderTrackRef.current) return;
+        if (!isDragging || !dragContainerRef.current) return;
         
-        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-        const trackRect = faderTrackRef.current.getBoundingClientRect();
-        const trackHeight = trackRect.height;
-        // Clamp newY to be within the track bounds
-        const newY = Math.max(0, Math.min(trackHeight, clientY - trackRect.top));
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const rect = dragContainerRef.current.getBoundingClientRect();
+        const progress = ((clientX - rect.left) / rect.width) * 100;
         
-        let newPosition = 100 - (newY / trackHeight) * 100;
-        
-        setFaderPosition(newPosition);
+        setDragProgress(Math.max(0, Math.min(100, progress)));
     }, [isDragging]);
 
     useEffect(() => {
@@ -89,77 +83,69 @@ const EngineerConsoleCard: React.FC<EngineerConsoleCardProps> = ({ user, onNavig
             window.removeEventListener('touchend', handleInteractionEnd);
         };
     }, [isDragging, handleInteractionMove, handleInteractionEnd]);
-
-    const faderStyle = {
-        bottom: `calc(${faderPosition}% - 12px)`, // Adjust for half fader height (24px / 2)
-        transition: isDragging ? 'none' : 'bottom 0.3s ease-out',
-    };
+    
+    const transitionStyle = isDragging ? 'none' : 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    const circumference = 2 * Math.PI * 45; // a bit smaller than radius 50
+    const strokeDashoffset = circumference - (dragProgress / 100) * circumference;
 
     return (
-        <div 
-            className="p-4 rounded-lg bg-zinc-800 border border-zinc-700 shadow-xl select-none"
-        >
+        <div className="p-4 rounded-lg cardSurface select-none">
             <style>{`
-                @keyframes flicker {
-                    0%, 100% { transform: rotate(-5deg); }
-                    25% { transform: rotate(2deg); }
-                    50% { transform: rotate(8deg); }
-                    75% { transform: rotate(-2deg); }
+                @keyframes pulse-glow {
+                    0%, 100% { filter: drop-shadow(0 0 4px #fb923c); }
+                    50% { filter: drop-shadow(0 0 8px #f97316); }
                 }
-                .vu-needle {
-                    animation: flicker 1.5s ease-in-out infinite;
-                    transform-origin: bottom center;
-                    transition: transform 0.2s;
+                .jog-dial-ring {
+                    animation: pulse-glow 3s ease-in-out infinite;
                 }
             `}</style>
             
-            {/* VU Meter */}
-            <div className="relative w-24 h-24 mx-auto mb-4 bg-black/50 rounded-full border-4 border-zinc-600 flex items-center justify-center overflow-hidden">
-                <img src={user.imageUrl} alt={user.name} className="absolute inset-0 w-full h-full object-cover rounded-full opacity-30" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                
-                {/* Meter background */}
-                <div className="w-full h-1/2 absolute bottom-0 bg-gradient-to-t from-yellow-700/50 via-red-600/50 to-transparent"></div>
-                {/* Needle */}
-                <div className="absolute w-0.5 h-10 bg-orange-400 bottom-1/2 left-1/2 -translate-x-1/2 vu-needle"></div>
-                <div className="absolute w-2 h-2 bg-zinc-900 rounded-full bottom-[45%]"></div>
+            <div className="text-center mb-4">
+                 <h2 className="text-xl font-bold text-slate-100">{user.name}</h2>
+                 <p className="text-sm text-zinc-400">Audio Engineer</p>
             </div>
-
-            {/* Scribble Strip */}
-            <div className="bg-teal-900/50 border border-teal-700/50 rounded p-2 mb-6 text-center">
-                <p className="font-mono text-lg font-bold text-teal-300" style={{ textShadow: '0 0 5px #2dd4bf' }}>{user.name}</p>
-            </div>
-
-            {/* Fader Track */}
+            
             <div 
-                ref={faderTrackRef} 
-                className="relative h-48 w-16 mx-auto bg-zinc-900 rounded-full border-2 border-zinc-700 p-2 cursor-pointer"
+                ref={dragContainerRef}
+                className="relative h-28 flex items-center justify-center cursor-grab active:cursor-grabbing"
                 onMouseDown={handleInteractionStart}
                 onTouchStart={handleInteractionStart}
             >
-                {/* Fader Knob */}
-                <div
-                    style={faderStyle}
-                    className="absolute left-1/2 -translate-x-1/2 w-12 h-6 bg-zinc-600 rounded-md border-t-2 border-zinc-500 group pointer-events-none"
+                {/* Track */}
+                <div className="w-full h-1 bg-zinc-700 rounded-full"></div>
+                
+                {/* Animated Text */}
+                <div 
+                    className="absolute inset-0 flex items-center justify-end pr-8 pointer-events-none transition-opacity"
+                    style={{ opacity: isDragging ? 1 : 0, transition: transitionStyle }}
                 >
-                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-orange-400 group-hover:bg-orange-300 transition-colors"></div>
-                    <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-zinc-300 group-hover:text-white tracking-wider">DASHBOARD</div>
+                    <span className="font-bold text-orange-400">My Dashboard</span>
                 </div>
-            </div>
-            
-            {/* Aesthetic Knobs */}
-            <div className="flex justify-around mt-6">
-                <div className="flex flex-col items-center gap-1">
-                    <div className="w-8 h-8 rounded-full bg-zinc-700 border-2 border-zinc-600 flex items-center justify-center cursor-pointer hover:border-orange-500 transition-colors">
-                        <div className="w-1 h-3 bg-zinc-400 rounded-full"></div>
-                    </div>
-                    <p className="text-xs font-mono text-zinc-500">PAN</p>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                     <div className="w-8 h-8 rounded-full bg-zinc-700 border-2 border-zinc-600 flex items-center justify-center cursor-pointer hover:border-orange-500 transition-colors">
-                        <div className="w-1 h-3 bg-zinc-400 rounded-full"></div>
-                    </div>
-                    <p className="text-xs font-mono text-zinc-500">GAIN</p>
+                
+                {/* Jog Dial */}
+                <div 
+                    className="absolute top-1/2 -translate-y-1/2 w-24 h-24 flex items-center justify-center pointer-events-none"
+                    style={{ left: `${dragProgress}%`, transform: `translate(-${dragProgress}%, -50%)`, transition: transitionStyle }}
+                >
+                    <svg className="absolute w-full h-full" viewBox="0 0 100 100">
+                        {/* Ring background */}
+                        <circle cx="50" cy="50" r="45" stroke="#3f3f46" strokeWidth="4" fill="none" />
+                        {/* Progress Ring */}
+                        <circle 
+                            cx="50" cy="50" r="45" 
+                            stroke="#f97316" strokeWidth="4" fill="none"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={strokeDashoffset}
+                            transform="rotate(-90 50 50)"
+                            className="jog-dial-ring"
+                            style={{ transition: 'stroke-dashoffset 0.1s linear' }}
+                        />
+                    </svg>
+                    <img 
+                        src={user.imageUrl} 
+                        alt={user.name}
+                        className="w-20 h-20 rounded-full object-cover border-4 border-zinc-800"
+                    />
                 </div>
             </div>
         </div>
@@ -247,7 +233,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 <aside className="hidden lg:block lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
                        {userRole === UserRole.ENGINEER ? (
-                           <EngineerConsoleCard user={currentUser as Engineer} onNavigate={onNavigate} />
+                           <EngineerDAWCard user={currentUser as Engineer} onNavigate={onNavigate} />
                        ) : (
                            <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
                        )}
