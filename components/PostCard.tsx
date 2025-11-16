@@ -19,6 +19,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     const [showComments, setShowComments] = useState(false);
     const [commentText, setCommentText] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -89,14 +90,28 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     </div>
                 )}
                 {post.videoUrl && post.videoThumbnailUrl && (
-                    <a href={post.videoUrl} target="_blank" rel="noopener noreferrer" className="block relative my-4 rounded-lg overflow-hidden group border border-zinc-700">
-                        <img src={post.videoThumbnailUrl} alt="Video thumbnail" className="w-full h-auto object-cover"/>
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity opacity-70 group-hover:opacity-100">
-                             <div className="bg-black/50 rounded-full p-4 transition-transform group-hover:scale-110">
-                                <PlayIcon className="w-10 h-10 text-white"/>
-                            </div>
-                        </div>
-                    </a>
+                    <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
+                        {isPlaying ? (
+                            <video
+                                src={post.videoUrl}
+                                controls
+                                autoPlay
+                                playsInline
+                                className="w-full h-full object-contain"
+                                poster={post.videoThumbnailUrl}
+                                onEnded={() => setIsPlaying(false)}
+                            />
+                        ) : (
+                            <button onClick={() => setIsPlaying(true)} className="w-full h-full block relative group" aria-label="Play video">
+                                <img src={post.videoThumbnailUrl} alt="Video thumbnail" className="w-full h-full object-cover"/>
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity opacity-70 group-hover:opacity-100">
+                                     <div className="bg-black/50 rounded-full p-4 transition-transform group-hover:scale-110">
+                                        <PlayIcon className="w-10 h-10 text-white"/>
+                                    </div>
+                                </div>
+                            </button>
+                        )}
+                    </div>
                 )}
             </div>
 
