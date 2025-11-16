@@ -1,5 +1,6 @@
 
 
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
@@ -142,58 +143,57 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     useEffect(() => {
-        const fetchAndSetUserProfile = async (userId: string): Promise<boolean> => {
-            const tables = {
-                artists: '*',
-                engineers: '*, mixing_samples(*)',
-                producers: '*, instrumentals(*)',
-                stoodioz: '*, rooms(*), in_house_engineers(*)',
-            };
-
-            // Query all profile tables in parallel to find which one the user belongs to.
-            const profilePromises = Object.entries(tables).map(([tableName, selectQuery]) => 
-                supabase.from(tableName).select(selectQuery).eq('id', userId).single()
-            );
-
-            try {
-                const results = await Promise.all(profilePromises);
-
-                for (const result of results) {
-                    // If we find data, a profile exists.
-                    if (result.data) {
-                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: result.data as any } });
-                        return true;
-                    }
-                    // 'PGRST116' is the code for "0 rows found," which is expected. We only log other, actual errors.
-                    if (result.error && result.error.code !== 'PGRST116') {
-                        console.error('Error fetching user profile:', result.error);
-                    }
-                }
-            } catch (error) {
-                console.error("A network error occurred while fetching user profiles:", error);
-            }
-
-            console.warn(`Auth session found, but no profile in DB for user ID ${userId}.`);
-            return false;
-        };
-
-        // onAuthStateChange is called upon page load and whenever the auth state changes (login/logout).
+        // This subscription handles all auth changes: initial load, login, and logout.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user) {
-                const profileFound = await fetchAndSetUserProfile(session.user.id);
-                if (!profileFound) {
-                    // If user is authenticated but has no profile (e.g., incomplete signup),
-                    // guide them to the profile creation flow.
-                    navigate(AppView.CHOOSE_PROFILE);
+                const userId = session.user.id;
+                const tableMap = {
+                    artists: '*',
+                    engineers: '*, mixing_samples(*)',
+                    producers: '*, instrumentals(*)',
+                    stoodioz: '*, rooms(*), in_house_engineers(*)',
+                };
+
+                const profilePromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
+                    supabase.from(tableName).select(selectQuery).eq('id', userId).single()
+                );
+                
+                try {
+                    const results = await Promise.all(profilePromises);
+                    let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
+
+                    for (const result of results) {
+                        if (result.data) {
+                            userProfile = result.data as any;
+                            break;
+                        }
+                        if (result.error && result.error.code !== 'PGRST116') { // PGRST116 is "No rows found", which is expected.
+                            console.error('Error fetching profile part:', result.error);
+                        }
+                    }
+
+                    if (userProfile) {
+                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
+                    } else {
+                        // User is authenticated but has no profile (e.g., incomplete signup).
+                        // Guide them to the profile creation flow.
+                        console.warn(`Auth session for user ${userId} found, but no profile. Navigating to setup.`);
+                        navigate(AppView.CHOOSE_PROFILE);
+                    }
+                } catch (error) {
+                    console.error("A network error occurred while fetching user profiles:", error);
+                    // If the database is unreachable, it's safest to log the user out.
+                    dispatch({ type: ActionTypes.LOGOUT });
                 }
             } else {
-                // This handles both SIGNED_OUT and the initial state of no session.
+                // No session, user is logged out or this is the initial unauthenticated state.
                 dispatch({ type: ActionTypes.LOGOUT });
             }
             // Always set loading to false after the initial auth check is complete.
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         });
 
+        // Cleanup subscription on component unmount
         return () => {
             subscription?.unsubscribe();
         };
