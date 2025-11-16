@@ -143,54 +143,55 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const fetchAndSetUserProfile = async (userId: string): Promise<boolean> => {
-            const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
-            let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
-    
-            for (const table of tables) {
-                let selectQuery = '*';
-                if (table === 'stoodioz') selectQuery = '*, rooms(*), in_house_engineers(*)';
-                if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
-                if (table === 'producers') selectQuery = '*, instrumentals(*)';
+            const tables = {
+                artists: '*',
+                engineers: '*, mixing_samples(*)',
+                producers: '*, instrumentals(*)',
+                stoodioz: '*, rooms(*), in_house_engineers(*)',
+            };
 
-                const { data: profileData, error: profileError } = await supabase
-                    .from(table)
-                    .select(selectQuery)
-                    .eq('id', userId)
-                    .single();
+            // Query all profile tables in parallel to find which one the user belongs to.
+            const profilePromises = Object.entries(tables).map(([tableName, selectQuery]) => 
+                supabase.from(tableName).select(selectQuery).eq('id', userId).single()
+            );
 
-                // 'PGRST116' is the code for "0 rows found" which is not an actual error in this loop
-                if (profileError && profileError.code !== 'PGRST116') { 
-                    console.error(`Error finding user profile in ${table}:`, profileError);
-                    continue;
+            try {
+                const results = await Promise.all(profilePromises);
+
+                for (const result of results) {
+                    // If we find data, a profile exists.
+                    if (result.data) {
+                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: result.data as any } });
+                        return true;
+                    }
+                    // 'PGRST116' is the code for "0 rows found," which is expected. We only log other, actual errors.
+                    if (result.error && result.error.code !== 'PGRST116') {
+                        console.error('Error fetching user profile:', result.error);
+                    }
                 }
+            } catch (error) {
+                console.error("A network error occurred while fetching user profiles:", error);
+            }
 
-                if (profileData) {
-                    userProfile = profileData as unknown as Artist | Engineer | Stoodio | Producer;
-                    break;
-                }
-            }
-    
-            if (userProfile) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
-                return true;
-            } else {
-                console.warn(`Auth session found, but no profile in DB for user ID ${userId}.`);
-                return false;
-            }
+            console.warn(`Auth session found, but no profile in DB for user ID ${userId}.`);
+            return false;
         };
 
-        // onAuthStateChange is called upon page load and whenever the auth state changes.
+        // onAuthStateChange is called upon page load and whenever the auth state changes (login/logout).
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user) {
                 const profileFound = await fetchAndSetUserProfile(session.user.id);
                 if (!profileFound) {
+                    // If user is authenticated but has no profile (e.g., incomplete signup),
+                    // guide them to the profile creation flow.
                     navigate(AppView.CHOOSE_PROFILE);
                 }
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             } else {
-                // This handles both SIGNED_OUT and initial load without a session.
+                // This handles both SIGNED_OUT and the initial state of no session.
                 dispatch({ type: ActionTypes.LOGOUT });
             }
+            // Always set loading to false after the initial auth check is complete.
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         });
 
         return () => {
