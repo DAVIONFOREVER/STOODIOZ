@@ -4,7 +4,7 @@ import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, Ari
 import { AppView, UserRole, RankingTier } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 
 // Import Custom Hooks
 import { useNavigation } from './hooks/useNavigation.ts';
@@ -143,15 +143,16 @@ const App: React.FC = () => {
         }
         
         const baseData = {
-            id: user.id, // Supabase schema uses 'id' which maps to auth.uid()
+            id: user.id, // This correctly maps to profile_id = auth.uid()
             email: user.email,
             name: userData.name,
             imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
-            completion_rate: 0, // As per user request
-            coordinates: { lat: 0, lon: 0 }, // As per user request (lon, not lng)
+            completion_rate: 0, // Default to 0 as required.
+            // Default coordinates for JSONB column. Note: 'lon' is used to match 'types.ts' Location interface.
+            coordinates: { lat: 0, lon: 0 },
             followers: 0,
             following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
-            followerIds: [],
+            followerIds: [], // Default to an empty array for the JSON followerIds column as required.
             walletBalance: 0,
             walletTransactions: [],
             posts: [],
@@ -228,7 +229,11 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        // This handler is called on initial load and whenever the user logs in or out.
+        // It's the central point for session restoration and profile checking.
+        const handleAuthStateChange = async (_event: string, session: Session | null) => {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            
             if (session?.user) {
                 const userId = session.user.id;
                 const tableMap = {
@@ -238,39 +243,38 @@ const App: React.FC = () => {
                     stoodioz: '*, rooms(*), in_house_engineers(*)',
                 };
 
+                // Query all profile tables in parallel to find which one (if any) the user belongs to.
                 const profilePromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
                     supabase.from(tableName).select(selectQuery).eq('id', userId).single()
                 );
                 
                 try {
                     const results = await Promise.all(profilePromises);
-                    let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
+                    // Find the first successful query result.
+                    const userProfileResult = results.find(result => result.data);
 
-                    for (const result of results) {
-                        if (result.data) {
-                            userProfile = result.data as any;
-                            break;
-                        }
-                        if (result.error && result.error.code !== 'PGRST116') {
-                            console.error('Error fetching profile part:', result.error);
-                        }
-                    }
-
-                    if (userProfile) {
-                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
+                    if (userProfileResult) {
+                        // Profile found, log the user in successfully.
+                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfileResult.data as any } });
                     } else {
+                        // User is authenticated with Supabase Auth but has no profile in our database.
+                        // This can happen if they abandon the signup process. Guide them to the profile creation flow.
                         console.warn(`Auth session for user ${userId} found, but no profile. Navigating to setup.`);
                         navigate(AppView.CHOOSE_PROFILE);
                     }
                 } catch (error) {
                     console.error("A network error occurred while fetching user profiles:", error);
-                    dispatch({ type: ActionTypes.LOGOUT });
+                    dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to fetch your profile. Please try again." } });
                 }
             } else {
+                // No session found, ensure the user is logged out in the app state.
                 dispatch({ type: ActionTypes.LOGOUT });
             }
+            
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        });
+        };
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
 
         return () => {
             subscription?.unsubscribe();
