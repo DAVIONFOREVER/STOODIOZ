@@ -124,13 +124,34 @@ export const findUserByCredentials = async (email: string, password: string): Pr
 };
 
 export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | null> => {
+    const supabase = getSupabase();
+    if (!supabase) {
+        console.error("Supabase not initialized");
+        throw new Error("Supabase not initialized");
+    }
+
+    // 1. Sign up the user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+    });
+
+    if (authError) {
+        console.error("Supabase sign up error:", authError.message);
+        throw authError; // Throw the error to be caught by useAuth
+    }
+
+    if (!authData.user) {
+        throw new Error("User not created in Supabase Auth.");
+    }
+    
+    // 2. Prepare the profile data for the public table
     let tableName = '';
     let newUserScaffold: any = {};
     const baseData = {
-        id: `${role.toLowerCase()}-${Date.now()}`,
+        id: authData.user.id, // Use the ID from Supabase Auth
         name: userData.name,
-        email: userData.email,
-        password: userData.password,
+        email: authData.user.email, // Use the email from Supabase Auth
         imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
@@ -141,7 +162,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         posts: [],
         links: [],
         isOnline: true,
-        // FIX: Add missing properties from BaseUser to ensure the mock object is type-compliant.
         rating_overall: 0,
         sessions_completed: 0,
         ranking_tier: RankingTier.Provisional,
@@ -155,29 +175,40 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     };
     
     switch (role) {
-        case 'ARTIST':
+        case UserRoleEnum.ARTIST:
             tableName = 'artists';
             newUserScaffold = { ...baseData, bio: userData.bio, isSeekingSession: false, showOnMap: false };
             break;
-        case 'ENGINEER':
+        case UserRoleEnum.ENGINEER:
             tableName = 'engineers';
-            // FIX: Remove redundant properties that are now in baseData.
             newUserScaffold = { ...baseData, bio: userData.bio, specialties: [], mixingSamples: [], isAvailable: true, showOnMap: true, displayExactLocation: false };
             break;
-        case 'PRODUCER':
+        case UserRoleEnum.PRODUCER:
             tableName = 'producers';
-            // FIX: Remove redundant properties that are now in baseData.
             newUserScaffold = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], isAvailable: true, showOnMap: true };
             break;
-        case 'STOODIO':
+        case UserRoleEnum.STOODIO:
             tableName = 'stoodioz';
-            // FIX: Remove redundant properties that are now in baseData.
-            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.imageUrl || USER_SILHOUETTE_URL], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
+            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, businessAddress: userData.businessAddress, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.imageUrl || USER_SILHOUETTE_URL], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
             break;
+        default:
+            throw new Error(`Invalid role: ${role}`);
     }
-    
-    // This is a mock implementation
-    return newUserScaffold;
+
+    // 3. Insert the profile into the corresponding public table
+    const { data: profileData, error: profileError } = await supabase
+        .from(tableName)
+        .insert([newUserScaffold])
+        .select()
+        .single();
+
+    if (profileError) {
+        console.error(`Error inserting profile into ${tableName}:`, profileError.message);
+        // Potentially delete the auth user here for cleanup, but for now, just throw.
+        throw profileError;
+    }
+
+    return profileData as Artist | Engineer | Stoodio | Producer;
 };
 
 export const updateUser = async (userId: string, updates: Partial<Artist | Engineer | Stoodio | Producer>): Promise<any> => {

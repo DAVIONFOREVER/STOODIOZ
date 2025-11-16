@@ -1,5 +1,4 @@
 
-
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -67,7 +66,10 @@ export const useAuth = (navigate: (view: any) => void) => {
         }
     }, [dispatch, navigate]);
 
-    const logout = useCallback(() => dispatch({ type: ActionTypes.LOGOUT }), [dispatch]);
+    const logout = useCallback(async () => {
+        await supabase.auth.signOut();
+        dispatch({ type: ActionTypes.LOGOUT });
+    }, [dispatch]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
@@ -78,16 +80,17 @@ export const useAuth = (navigate: (view: any) => void) => {
     
     const completeSetup = async (userData: any, role: UserRole) => {
         try {
-            // FIX: Removing explicit type annotation to allow TypeScript's inference to work correctly, which resolves the complex conversion error.
             const newUser = await apiService.createUser(userData, role);
             if (newUser) {
+                // Supabase automatically signs the user in after signUp,
+                // so we just need to update the application state.
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
             } else {
-                // Handle user creation failure
-                console.error("User creation failed");
+                alert("An unknown error occurred during signup.");
             }
-        } catch(error) {
+        } catch(error: any) {
             console.error("Setup completion error:", error);
+            alert(`Signup failed: ${error.message}`);
         }
     };
 
