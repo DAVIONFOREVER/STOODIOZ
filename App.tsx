@@ -1,6 +1,6 @@
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
-import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse } from './types';
+import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
 import { AppView, UserRole } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
@@ -143,7 +143,7 @@ const App: React.FC = () => {
         if (currentUser && userRole) {
             getAriaNudge(currentUser, userRole).then(nudge => {
                 // This check prevents the nudge from disappearing if the Gemini API returns an empty string, which would cause the render condition to fail.
-                if (nudge && nudge.trim()) {
+                if (nudge) {
                     dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
                     timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
                 }
@@ -344,7 +344,7 @@ return (
                 <AriaFAB onClick={handleOpenAriaFromFAB} />
             )}
 
-            {isNudgeVisible && ariaNudge && <AriaNudge message={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />}
+            {isNudgeVisible && ariaNudge && <AriaNudge nudge={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />}
             
         </div>
     );

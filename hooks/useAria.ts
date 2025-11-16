@@ -2,6 +2,8 @@
 
 
 
+
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
@@ -167,13 +169,30 @@ export const useAria = (dependencies: AriaHookDependencies) => {
     }, [dispatch, allUsers, conversations, currentUser, userRole, dependencies]);
 
     const handleAriaNudgeClick = useCallback(() => {
-        if (ariaNudge) {
-            dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: ariaNudge } });
-            dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
-            dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge: null } });
-            dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
+        if (!ariaNudge) return;
+
+        dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
+
+        const { action } = ariaNudge;
+        switch (action.type) {
+            case 'OPEN_MODAL':
+                if (action.payload === 'VIBE_MATCHER') {
+                    dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: true } });
+                }
+                break;
+            case 'NAVIGATE_DASHBOARD_TAB':
+                dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: action.payload } });
+                if (userRole === UserRole.ENGINEER) dependencies.navigate(AppView.ENGINEER_DASHBOARD);
+                else if (userRole === UserRole.PRODUCER) dependencies.navigate(AppView.PRODUCER_DASHBOARD);
+                else if (userRole === UserRole.STOODIO) dependencies.navigate(AppView.STOODIO_DASHBOARD);
+                else if (userRole === UserRole.ARTIST) dependencies.navigate(AppView.ARTIST_DASHBOARD);
+                break;
         }
-    }, [ariaNudge, dispatch]);
+
+        // Clear the nudge from state after handling it
+        setTimeout(() => dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge: null } }), 300);
+
+    }, [ariaNudge, dispatch, userRole, dependencies.navigate]);
 
     const handleDismissAriaNudge = useCallback(() => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });

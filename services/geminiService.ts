@@ -1,7 +1,8 @@
 
 
+
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample } from '../types';
+import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
 
 let ai: GoogleGenAI | null = null;
@@ -113,21 +114,33 @@ export const generateSmartReplies = async (messages: Message[], currentUserId: s
     return ["Sounds good!", "Got it, thanks!", "Perfect!"];
 };
 
-export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Producer, userRole: UserRole): Promise<string> => {
+export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Producer, userRole: UserRole): Promise<AriaNudgeData | null> => {
      // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     switch(userRole) {
         case UserRole.ARTIST:
-            return "Feeling creative? Try using the AI Vibe Matcher to find your next collaborator.";
+            return {
+                text: "Feeling creative? Try using the AI Vibe Matcher to find your next collaborator.",
+                action: { type: 'OPEN_MODAL', payload: 'VIBE_MATCHER' }
+            };
         case UserRole.ENGINEER:
-            return "Your profile looks great! Have you considered adding a Masterclass to share your skills?";
+            return {
+                text: "Your profile looks great! Have you considered adding a Masterclass to share your skills?",
+                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'masterclass' }
+            };
         case UserRole.PRODUCER:
-            return "It's a great day to upload some new beats to your store! 🎵";
+            return {
+                text: "It's a great day to upload some new beats to your store! 🎵",
+                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'beatStore' }
+            };
         case UserRole.STOODIO:
-            return "Your calendar has some open slots this week. Maybe post on The Stage to attract some artists?";
+             return {
+                text: "Your calendar has some open slots this week. Maybe post on The Stage to attract some artists?",
+                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'dashboard' }
+            };
         default:
-            return "Ready to create something amazing today?";
+            return null;
     }
 }
 

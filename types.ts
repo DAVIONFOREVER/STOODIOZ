@@ -431,6 +431,16 @@ export interface AriaActionResponse {
     text?: string;
 }
 
+export interface AriaNudgeAction {
+    type: 'OPEN_MODAL' | 'NAVIGATE_DASHBOARD_TAB';
+    payload: string;
+}
+
+export interface AriaNudgeData {
+    text: string;
+    action: AriaNudgeAction;
+}
+
 export interface AnalyticsData {
     kpis: {
         totalRevenue: number;

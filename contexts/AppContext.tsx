@@ -1,5 +1,5 @@
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
-import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass } from '../types';
+import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
 
 // --- STATE AND ACTION TYPES ---
@@ -41,7 +41,7 @@ export interface AppState {
     isAriaCantataOpen: boolean;
     ariaHistory: AriaCantataMessage[];
     initialAriaCantataPrompt: string | null;
-    ariaNudge: string | null;
+    ariaNudge: AriaNudgeData | null;
     isNudgeVisible: boolean;
     dashboardInitialTab: string | null;
     isSaved: boolean;
@@ -166,7 +166,7 @@ type Payload = {
     [ActionTypes.SET_ARIA_HISTORY]: { history: AriaCantataMessage[] };
     [ActionTypes.ADD_ARIA_MESSAGE]: { message: AriaCantataMessage };
     [ActionTypes.SET_INITIAL_ARIA_PROMPT]: { prompt: string | null };
-    [ActionTypes.SET_ARIA_NUDGE]: { nudge: string | null };
+    [ActionTypes.SET_ARIA_NUDGE]: { nudge: AriaNudgeData | null };
     [ActionTypes.SET_IS_NUDGE_VISIBLE]: { isVisible: boolean };
     [ActionTypes.RESET_PROFILE_SELECTIONS]: undefined;
     [ActionTypes.SET_DASHBOARD_TAB]: { tab: string | null };
