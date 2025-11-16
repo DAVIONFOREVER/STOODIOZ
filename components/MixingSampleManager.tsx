@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Engineer, MixingSample } from '../types';
-import { MusicNoteIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
+import { MusicNoteIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon } from './icons';
+import { uploadMixingSampleFile } from '../services/apiService';
 
 interface MixingSampleManagerProps {
     engineer: Engineer;
@@ -9,22 +10,29 @@ interface MixingSampleManagerProps {
 
 const MixingSampleFormModal: React.FC<{
     sample: Partial<MixingSample> | null;
-    onSave: (sample: MixingSample) => void;
+    onSave: (sample: Omit<MixingSample, 'id' | 'audioUrl'>, audioFile: File | null) => void;
     onClose: () => void;
-}> = ({ sample, onSave, onClose }) => {
+    isUploading: boolean;
+}> = ({ sample, onSave, onClose, isUploading }) => {
     const [title, setTitle] = useState(sample?.title || '');
     const [description, setDescription] = useState(sample?.description || '');
-    const [audioUrl, setAudioUrl] = useState(sample?.audioUrl || '');
+    const [audioFile, setAudioFile] = useState<File | null>(null);
+    const audioFileInputRef = React.useRef<HTMLInputElement>(null);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const finalSample: MixingSample = {
-            id: sample?.id || `mix-${Date.now()}`,
-            title,
-            description,
-            audioUrl: audioUrl || 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-2-short.mp3', // Placeholder
-        };
-        onSave(finalSample);
+        if (!audioFile && !sample?.id) {
+            alert('Please select an audio file for a new sample.');
+            return;
+        }
+        onSave({ title, description }, audioFile);
+    };
+    
+    const handleAudioFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setAudioFile(file);
+        }
     };
     
     const inputClasses = "w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
@@ -34,7 +42,7 @@ const MixingSampleFormModal: React.FC<{
             <div className="w-full max-w-lg cardSurface">
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-zinc-100">{sample?.id ? 'Edit Mixing Sample' : 'Add New Sample'}</h2>
-                    <button onClick={onClose}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
+                    <button onClick={onClose} disabled={isUploading}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -46,20 +54,22 @@ const MixingSampleFormModal: React.FC<{
                             <label className="block text-sm font-medium text-zinc-300 mb-1">Description</label>
                             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} className={inputClasses}></textarea>
                         </div>
-                         <div>
+                         <div className="cursor-pointer" onClick={() => !isUploading && audioFileInputRef.current?.click()}>
                             <label className="block text-sm font-medium text-zinc-300 mb-1">Audio File</label>
-                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md">
+                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md hover:border-orange-500 transition-colors">
                                 <div className="space-y-1 text-center">
                                     <MusicNoteIcon className="mx-auto h-12 w-12 text-zinc-500" />
-                                    <p className="text-xs text-zinc-400">MP3 or WAV</p>
-                                    <p className="text-xs text-zinc-500">(Upload is simulated)</p>
+                                    <p className="text-xs text-zinc-400">{audioFile ? audioFile.name : (sample?.audioUrl ? 'Click to replace file' : 'Click to select MP3 or WAV')}</p>
                                 </div>
                             </div>
+                            <input type="file" ref={audioFileInputRef} onChange={handleAudioFileChange} accept=".mp3,.wav" className="hidden" />
                         </div>
                     </div>
                     <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-end gap-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600">Cancel</button>
-                        <button type="submit" className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600">Save Sample</button>
+                        <button type="button" onClick={onClose} disabled={isUploading} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600 disabled:opacity-50">Cancel</button>
+                        <button type="submit" disabled={isUploading} className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600 disabled:bg-zinc-600 w-32">
+                            {isUploading ? 'Uploading...' : 'Save Sample'}
+                        </button>
                     </div>
                 </form>
             </div>
@@ -70,25 +80,51 @@ const MixingSampleFormModal: React.FC<{
 const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onUpdateEngineer }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSample, setEditingSample] = useState<Partial<MixingSample> | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const handleOpenModal = (sample: Partial<MixingSample> | null = null) => {
         setEditingSample(sample);
         setIsModalOpen(true);
     };
 
-    const handleSaveSample = (sampleToSave: MixingSample) => {
-        const existingIndex = (engineer.mixingSamples || []).findIndex(i => i.id === sampleToSave.id);
-        let updatedSamples: MixingSample[];
+    const handleSaveSample = async (sampleData: Omit<MixingSample, 'id' | 'audioUrl'>, audioFile: File | null) => {
+        setIsUploading(true);
+        try {
+            let audioUrl = editingSample?.audioUrl || '';
+            if (audioFile) {
+                audioUrl = await uploadMixingSampleFile(audioFile, engineer.id);
+            }
 
-        if (existingIndex > -1) {
-            updatedSamples = (engineer.mixingSamples || []).map(i => i.id === sampleToSave.id ? sampleToSave : i);
-        } else {
-            updatedSamples = [...(engineer.mixingSamples || []), sampleToSave];
+            if (!audioUrl) {
+                alert("An audio file is required to save the sample.");
+                setIsUploading(false);
+                return;
+            }
+
+            const finalSample: MixingSample = {
+                id: editingSample?.id || `mix-${Date.now()}`,
+                ...sampleData,
+                audioUrl,
+            };
+
+            const existingIndex = (engineer.mixingSamples || []).findIndex(s => s.id === finalSample.id);
+            let updatedSamples: MixingSample[];
+
+            if (existingIndex > -1) {
+                updatedSamples = (engineer.mixingSamples || []).map(s => s.id === finalSample.id ? finalSample : s);
+            } else {
+                updatedSamples = [...(engineer.mixingSamples || []), finalSample];
+            }
+            
+            onUpdateEngineer({ mixingSamples: updatedSamples });
+            setIsModalOpen(false);
+            setEditingSample(null);
+        } catch (error) {
+            console.error("Failed to save mixing sample:", error);
+            alert("Error saving sample. Please try again.");
+        } finally {
+            setIsUploading(false);
         }
-        
-        onUpdateEngineer({ mixingSamples: updatedSamples });
-        setIsModalOpen(false);
-        setEditingSample(null);
     };
 
     const handleDeleteSample = (sampleId: string) => {
@@ -125,7 +161,7 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
                 )}
             </div>
             
-            {isModalOpen && <MixingSampleFormModal sample={editingSample} onSave={handleSaveSample} onClose={() => setIsModalOpen(false)} />}
+            {isModalOpen && <MixingSampleFormModal sample={editingSample} onSave={handleSaveSample} onClose={() => setIsModalOpen(false)} isUploading={isUploading} />}
         </div>
     );
 };

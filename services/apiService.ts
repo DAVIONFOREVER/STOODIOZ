@@ -69,6 +69,40 @@ export const uploadBeatFile = async (file: File, producerId: string): Promise<st
     return data.publicUrl;
 };
 
+/**
+ * Uploads a mixing sample file to Supabase Storage.
+ * @param file The audio file (MP3, WAV) to upload.
+ * @param engineerId The ID of the engineer uploading the file.
+ * @returns The public URL of the uploaded file.
+ */
+export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExtension}`;
+    const filePath = `public/${engineerId}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from('mixing-samples')
+        .upload(filePath, file);
+
+    if (uploadError) {
+        console.error('Error uploading mixing sample file:', uploadError);
+        throw uploadError;
+    }
+
+    const { data } = supabase.storage
+        .from('mixing-samples')
+        .getPublicUrl(filePath);
+
+    if (!data || !data.publicUrl) {
+        throw new Error("Could not get public URL for uploaded file.");
+    }
+
+    return data.publicUrl;
+};
+
 
 export const findUserByCredentials = async (email: string, password: string): Promise<Artist | Engineer | Stoodio | Producer | null> => {
     const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
