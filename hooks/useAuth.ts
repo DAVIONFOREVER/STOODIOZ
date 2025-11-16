@@ -1,4 +1,5 @@
 
+
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -58,13 +59,13 @@ export const useAuth = (navigate: (view: any) => void) => {
                     Notification.requestPermission();
                 }
             } else {
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Authentication successful, but no user profile was found. Please contact support." } });
-                await supabase.auth.signOut();
+                console.warn(`Login successful, but no profile found for ${email}. Routing to profile setup.`);
+                navigate(AppView.CHOOSE_PROFILE);
             }
         } else {
              dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "An unknown error occurred during login." } });
         }
-    }, [dispatch]);
+    }, [dispatch, navigate]);
 
     const logout = useCallback(() => dispatch({ type: ActionTypes.LOGOUT }), [dispatch]);
 

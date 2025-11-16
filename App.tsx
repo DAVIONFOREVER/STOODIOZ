@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
@@ -141,7 +142,7 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     useEffect(() => {
-        const fetchAndSetUser = async (email: string) => {
+        const fetchAndSetUser = async (email: string): Promise<boolean> => {
             const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
             let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
     
@@ -171,15 +172,19 @@ const App: React.FC = () => {
     
             if (userProfile) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
+                return true;
             } else {
-                console.warn(`Auth session found, but no profile in DB for ${email}. Signing out.`);
-                await supabase.auth.signOut();
+                console.warn(`Auth session found, but no profile in DB for ${email}. Routing to profile setup.`);
+                return false;
             }
         };
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user?.email) {
-                await fetchAndSetUser(session.user.email);
+                const profileFound = await fetchAndSetUser(session.user.email);
+                if (!profileFound) {
+                    navigate(AppView.CHOOSE_PROFILE);
+                }
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             } else {
                 // This handles both SIGNED_OUT and initial load without a session.
@@ -191,7 +196,7 @@ const App: React.FC = () => {
         return () => {
             subscription?.unsubscribe();
         };
-    }, [dispatch]);
+    }, [dispatch, navigate]);
 
     useEffect(() => {
         let timerId: number;
