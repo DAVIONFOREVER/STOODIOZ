@@ -232,7 +232,12 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if (activeFilter === 'ALL' || activeFilter === 'ENGINEER') items.push(...engineers);
         if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') items.push(...producers);
 
-        const visibleUsers = items.filter(u => u.showOnMap && u.coordinates);
+        let visibleUsers = items.filter(u => u.showOnMap && u.coordinates);
+
+        // FIX: Ensure the current user is always included in the visible list if their "Show on Map" is enabled, regardless of filters.
+        if (currentUser && currentUser.showOnMap && currentUser.coordinates && !visibleUsers.some(u => u.id === currentUser.id)) {
+            visibleUsers.push(currentUser);
+        }
 
         const liveUpdatedUsers = visibleUsers.map(user => {
             if (realtimeLocations.has(user.id)) {
@@ -245,7 +250,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if (activeFilter === 'ALL' || activeFilter === 'JOB') allItems.push(...jobs.filter(j => j.coordinates));
         
         return allItems;
-    }, [stoodioz, artists, engineers, producers, bookings, activeFilter, realtimeLocations]);
+    }, [stoodioz, artists, engineers, producers, bookings, activeFilter, realtimeLocations, currentUser]);
     
     const handleMarkerClick = useCallback((item: MapItem) => {
         setSelectedItem(item);
