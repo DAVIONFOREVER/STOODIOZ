@@ -21,7 +21,8 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
         const channel = supabase.channel(LOCATION_CHANNEL);
         channelRef.current = channel;
         
-        if (!channel.subscribed) {
+        // FIX: The `subscribed` property does not exist. Use `channel.state` to check connection status.
+        if (channel.state !== 'joined') {
             channel.subscribe();
         }
 

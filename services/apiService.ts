@@ -1,5 +1,7 @@
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan } from '../types';
-import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum } from '../types';
+
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
+// FIX: Import RankingTier to be used in the mock user creation.
+import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { subDays, format } from 'date-fns';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -139,6 +141,17 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         posts: [],
         links: [],
         isOnline: true,
+        // FIX: Add missing properties from BaseUser to ensure the mock object is type-compliant.
+        rating_overall: 0,
+        sessions_completed: 0,
+        ranking_tier: RankingTier.Provisional,
+        is_on_streak: false,
+        on_time_rate: 100,
+        completion_rate: 100,
+        repeat_hire_rate: 0,
+        strength_tags: [],
+        local_rank_text: 'Just getting started!',
+        purchasedMasterclassIds: [],
     };
     
     switch (role) {
@@ -148,15 +161,18 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             break;
         case 'ENGINEER':
             tableName = 'engineers';
-            newUserScaffold = { ...baseData, bio: userData.bio, specialties: [], rating: 5, sessionsCompleted: 0, mixingSamples: [], isAvailable: true, showOnMap: true, displayExactLocation: false };
+            // FIX: Remove redundant properties that are now in baseData.
+            newUserScaffold = { ...baseData, bio: userData.bio, specialties: [], mixingSamples: [], isAvailable: true, showOnMap: true, displayExactLocation: false };
             break;
         case 'PRODUCER':
             tableName = 'producers';
-            newUserScaffold = { ...baseData, bio: userData.bio, genres: [], rating: 5, instrumentals: [], isAvailable: true, showOnMap: true };
+            // FIX: Remove redundant properties that are now in baseData.
+            newUserScaffold = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], isAvailable: true, showOnMap: true };
             break;
         case 'STOODIO':
             tableName = 'stoodioz';
-            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, hourlyRate: 100, engineerPayRate: 50, rating: 5, amenities: [], availability: [], photos: [userData.imageUrl || USER_SILHOUETTE_URL], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
+            // FIX: Remove redundant properties that are now in baseData.
+            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.imageUrl || USER_SILHOUETTE_URL], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
             break;
     }
     
