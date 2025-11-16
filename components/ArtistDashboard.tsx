@@ -106,7 +106,7 @@ const ArtistDashboard: React.FC = () => {
     const upcomingBookingsCount = bookings.filter(b => new Date(b.date) >= new Date()).length;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => (artist.followerIds || []).includes(u.id));
+    const followers = allUsers.filter(u => (artist.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (artist.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (artist.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (artist.following?.stoodioz || []).includes(s.id));

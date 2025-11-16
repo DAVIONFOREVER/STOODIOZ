@@ -104,7 +104,7 @@ const MapMarker: React.FC<{
             onClick={() => onClick(item)}
             className={`w-10 h-10 rounded-full flex items-center justify-center border-2 marker-glow ${bgColor} ${borderColor} transition-transform duration-500 ease-in-out`}
             style={{
-                transform: `translate(${(item.coordinates?.lon || 0)}px, ${(item.coordinates?.lat || 0)}px)`
+                transform: `translate(${(item.coordinates?.lng || 0)}px, ${(item.coordinates?.lat || 0)}px)`
             }}
         >
             {icon}
@@ -149,11 +149,11 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             (position) => {
                 const newLocation = {
                     lat: position.coords.latitude,
-                    lon: position.coords.longitude,
+                    lng: position.coords.longitude,
                 };
                 setUserLocation(newLocation);
                 if (map && !directionsIntent) {
-                    map.panTo({ lat: newLocation.lat, lng: newLocation.lon });
+                    map.panTo({ lat: newLocation.lat, lng: newLocation.lng });
                 }
             },
             () => console.log("Could not get user's location."),
@@ -210,7 +210,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         let step = 0;
         const interval = setInterval(() => {
             if (step < route.length) {
-                setNavigatingUserPosition({ lat: route[step].lat(), lon: route[step].lng() });
+                setNavigatingUserPosition({ lat: route[step].lat(), lng: route[step].lng() });
                 step++;
             } else {
                 clearInterval(interval);
@@ -255,7 +255,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const handleMarkerClick = useCallback((item: MapItem) => {
         setSelectedItem(item);
         if (item.coordinates && map) {
-            map.panTo({ lat: item.coordinates.lat, lng: item.coordinates.lon });
+            map.panTo({ lat: item.coordinates.lat, lng: item.coordinates.lng });
         }
     }, [map]);
 
@@ -279,7 +279,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         <div className="relative rounded-2xl overflow-hidden border border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.3)]" style={{ height: mapContainerStyle.height }}>
             <GoogleMap
                 mapContainerStyle={{ width: '100%', height: '100%' }}
-                center={userLocation ? { lat: userLocation.lat, lng: userLocation.lon } : defaultCenter}
+                center={userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : defaultCenter}
                 zoom={userLocation ? 12 : 4}
                 options={mapOptions}
                 onLoad={onLoad}
@@ -289,8 +289,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                 {directionsOrigin && directionsDestination && (
                     <DirectionsService
                         options={{
-                            destination: { lat: directionsDestination.lat, lng: directionsDestination.lon },
-                            origin: { lat: directionsOrigin.lat, lng: directionsOrigin.lon },
+                            destination: { lat: directionsDestination.lat, lng: directionsDestination.lng },
+                            origin: { lat: directionsOrigin.lat, lng: directionsOrigin.lng },
                             travelMode: 'DRIVING' as any
                         }}
                         callback={directionsCallback}
@@ -301,7 +301,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
                 {navigatingUserPosition ? (
                     <MarkerF 
-                        position={{ lat: navigatingUserPosition.lat, lng: navigatingUserPosition.lon }}
+                        position={{ lat: navigatingUserPosition.lat, lng: navigatingUserPosition.lng }}
                         title="Your Location"
                         icon={{
                             // FIX: Cast window to any to access google.maps properties.
@@ -315,7 +315,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                     />
                 // FIX: Only show the private "blue dot" marker if the user is NOT showing their public profile on the map.
                 ) : userLocation && (!currentUser || !currentUser.showOnMap) && (
-                    <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={getPixelPositionOffset}>
+                    <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lng }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={getPixelPositionOffset}>
                         <UserMarker />
                     </OverlayViewF>
                 )}
@@ -323,14 +323,14 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
                 {mapItems.map(item => (
                     item.coordinates && (
-                         <OverlayViewF key={item.id} position={{ lat: item.coordinates.lat, lng: item.coordinates.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => getPixelPositionOffset(40,40)}>
+                         <OverlayViewF key={item.id} position={{ lat: item.coordinates.lat, lng: item.coordinates.lng }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => getPixelPositionOffset(40,40)}>
                             <MapMarker item={item} onClick={handleMarkerClick} />
                         </OverlayViewF>
                     )
                 ))}
                 
                 {selectedItem && selectedItem.coordinates && (
-                    <OverlayViewF position={{ lat: selectedItem.coordinates.lat, lng: selectedItem.coordinates.lon }} mapPaneName={OverlayViewF.FLOAT_PANE} getPixelPositionOffset={() => ({ x: 0, y: 0 })}>
+                    <OverlayViewF position={{ lat: selectedItem.coordinates.lat, lng: selectedItem.coordinates.lng }} mapPaneName={OverlayViewF.FLOAT_PANE} getPixelPositionOffset={() => ({ x: 0, y: 0 })}>
                         {'itemType' in selectedItem && selectedItem.itemType === 'JOB' ? (
                              <MapJobPopup job={selectedItem as Booking & { itemType: 'JOB' }} onClose={() => setSelectedItem(null)} />
                         ) : (

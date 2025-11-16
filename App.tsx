@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
 import { AppView, UserRole, RankingTier } from './types';
@@ -143,16 +144,15 @@ const App: React.FC = () => {
         }
         
         const baseData = {
-            id: user.id, // This correctly maps to profile_id = auth.uid()
+            profile_id: user.id,
             email: user.email,
             name: userData.name,
             imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
-            completion_rate: 0, // Default to 0 as required.
-            // Default coordinates for JSONB column. Note: 'lon' is used to match 'types.ts' Location interface.
-            coordinates: { lat: 0, lon: 0 },
+            completion_rate: 0,
+            coordinates: { lat: 0, lng: 0 },
             followers: 0,
             following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
-            followerIds: [], // Default to an empty array for the JSON followerIds column as required.
+            follower_ids: [],
             walletBalance: 0,
             walletTransactions: [],
             posts: [],
@@ -199,7 +199,8 @@ const App: React.FC = () => {
         }
 
         if (newProfile) {
-            dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newProfile as any, role } });
+            const profileWithId = { ...newProfile, id: newProfile.profile_id };
+            dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: profileWithId as any, role } });
         }
     }, [dispatch, originalCompleteSetup]);
 
@@ -245,7 +246,7 @@ const App: React.FC = () => {
 
                 // Query all profile tables in parallel to find which one (if any) the user belongs to.
                 const profilePromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
-                    supabase.from(tableName).select(selectQuery).eq('id', userId).single()
+                    supabase.from(tableName).select(selectQuery).eq('profile_id', userId).single()
                 );
                 
                 try {
@@ -254,8 +255,10 @@ const App: React.FC = () => {
                     const userProfileResult = results.find(result => result.data);
 
                     if (userProfileResult) {
+                        const dbProfile = userProfileResult.data as any;
+                        const profileWithId = { ...dbProfile, id: dbProfile.profile_id };
                         // Profile found, log the user in successfully.
-                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfileResult.data as any } });
+                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: profileWithId as any } });
                     } else {
                         // User is authenticated with Supabase Auth but has no profile in our database.
                         // This can happen if they abandon the signup process. Guide them to the profile creation flow.

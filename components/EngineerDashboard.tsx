@@ -126,7 +126,7 @@ const EngineerDashboard: React.FC = () => {
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => (engineer.followerIds || []).includes(u.id));
+    const followers = allUsers.filter(u => (engineer.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (engineer.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (engineer.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (engineer.following?.stoodioz || []).includes(s.id));

@@ -2,8 +2,8 @@ import type { Location } from '../types';
 
 /**
  * Calculates the distance between two geographical coordinates using the Haversine formula.
- * @param loc1 - The first location with lat/lon properties.
- * @param loc2 - The second location with lat/lon properties.
+ * @param loc1 - The first location with lat/lng properties.
+ * @param loc2 - The second location with lat/lng properties.
  * @returns The distance in miles.
  */
 export const calculateDistance = (loc1: Location, loc2: Location): number => {
@@ -12,7 +12,7 @@ export const calculateDistance = (loc1: Location, loc2: Location): number => {
     }
     const R = 3958.8; // Radius of the Earth in miles
     const dLat = (loc2.lat - loc1.lat) * (Math.PI / 180);
-    const dLon = (loc2.lon - loc1.lon) * (Math.PI / 180);
+    const dLon = (loc2.lng - loc1.lng) * (Math.PI / 180);
     const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(loc1.lat * (Math.PI / 180)) * Math.cos(loc2.lat * (Math.PI / 180)) *

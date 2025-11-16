@@ -33,9 +33,10 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
                 if (navigator.geolocation && watchIdRef.current === null) {
                     watchIdRef.current = navigator.geolocation.watchPosition(
                         (position) => {
+                            // FIX: Changed property `lon` to `lng` to match the `Location` type definition.
                             const newLocation: Location = {
                                 lat: position.coords.latitude,
-                                lon: position.coords.longitude,
+                                lng: position.coords.longitude,
                             };
                             
                             // Broadcast the update

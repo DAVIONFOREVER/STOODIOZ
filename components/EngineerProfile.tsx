@@ -75,7 +75,8 @@ const EngineerProfile: React.FC = () => {
     const engineerReviews = reviews.filter(r => r.engineerId === engineer.id);
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => engineer.followerIds.includes(u.id)), [allUsers, engineer.followerIds]);
+    // FIX: Changed `engineer.followerIds` to `engineer.follower_ids` to match the type definition.
+    const followers = useMemo(() => allUsers.filter(u => engineer.follower_ids.includes(u.id)), [allUsers, engineer.follower_ids]);
 
     const followedArtists = useMemo(() => artists.filter(a => engineer.following.artists.includes(a.id)), [artists, engineer.following.artists]);
     const followedEngineers = useMemo(() => engineers.filter(e => engineer.following.engineers.includes(e.id)), [engineers, engineer.following.engineers]);
