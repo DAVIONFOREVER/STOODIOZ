@@ -1,16 +1,10 @@
 
-
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
 
 let ai: GoogleGenAI | null = null;
-/**
- * Lazily initializes and returns the GoogleGenAI client instance.
- * This prevents build errors by not throwing an error if the key is missing.
- * The ApiKeyGate component handles showing the user instructions at runtime.
- */
+
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
         const apiKey = (process as any).env.API_KEY || (import.meta as any).env.VITE_API_KEY;
@@ -22,100 +16,116 @@ const getGenAIClient = (): GoogleGenAI | null => {
     return ai;
 };
 
-
-/**
- * Simulates fetching metadata (title, description, image) for a URL.
- * In a real app, this would be a backend service that scrapes Open Graph tags.
- */
 export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | null> => {
-    console.log(`Simulating metadata fetch for: ${url}`);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
+    const ai = getGenAIClient();
+    if (!ai) return null;
 
     try {
-        const lowerUrl = url.toLowerCase();
-        if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) {
-            return {
-                url,
-                title: 'Stoodioz Session Recap - Lofi Beats to Study To',
-                description: 'Check out the behind-the-scenes of our latest session. Full track available on Spotify!',
-                imageUrl: 'https://i.ytimg.com/vi/jfKfPfyJRdk/maxresdefault.jpg',
-            };
-        }
-        if (lowerUrl.includes('spotify.com')) {
-             return {
-                url,
-                title: 'Stoodioz Sessions Vol. 1',
-                description: 'A curated playlist of tracks made in Stoodioz. By Various Artists.',
-                imageUrl: `https://picsum.photos/seed/${encodeURIComponent(url)}/400/200`,
-            };
-        }
-        if (lowerUrl.includes('soundcloud.com')) {
-             return {
-                url,
-                title: 'UNRELEASED DEMO',
-                description: 'A sneak peek of a new track from a Stoodioz artist. Lmk what you think!',
-                imageUrl: `https://picsum.photos/seed/${encodeURIComponent(url)}/400/200`,
-            };
-        }
-         return {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Analyze the content of the URL provided and generate a suitable title, description, and image URL for a link preview. URL: "${url}"`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        title: { type: Type.STRING },
+                        description: { type: Type.STRING },
+                        imageUrl: { type: Type.STRING },
+                    }
+                }
+            }
+        });
+        
+        const jsonString = response.text.trim();
+        const metadata = JSON.parse(jsonString);
+
+        return {
             url,
-            title: 'Stoodioz - The Future of Music Collaboration',
-            description: 'The all-in-one platform for artists, producers, and engineers. Find top-tier studios, collaborate with talent, and bring your projects to life.',
-            imageUrl: `https://picsum.photos/seed/${encodeURIComponent(url)}/400/200`,
+            title: metadata.title || 'Link',
+            description: metadata.description || url,
+            imageUrl: metadata.imageUrl || undefined,
         };
+
     } catch (error) {
-        console.error("Error fetching link metadata:", error);
-        return null;
+        console.error("Error fetching link metadata with Gemini:", error);
+        // Fallback for failed API call
+        return {
+            url,
+            title: 'Link',
+            description: url,
+        };
     }
 };
 
-/**
- * Uses a GenAI model to moderate post content.
- */
 export const moderatePostContent = async (text: string): Promise<{ isSafe: boolean; reason: string }> => {
-    // This is a simplified example. A real implementation would use a dedicated moderation model
-    // or the safety settings of the Gemini API.
-    const lowerText = text.toLowerCase();
-    const forbiddenWords = ['spam', 'inappropriate', 'unsafe']; // Simplified list
-    for (const word of forbiddenWords) {
-        if (lowerText.includes(word)) {
-            return { isSafe: false, reason: `Post contains forbidden content ('${word}').` };
-        }
+    if (!text.trim()) return { isSafe: true, reason: '' };
+    const ai = getGenAIClient();
+    if (!ai) return { isSafe: true, reason: 'Moderation service offline' };
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Analyze the following text for harmful content (hate speech, spam, harassment, etc.). Text: "${text}"`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        isSafe: { type: Type.BOOLEAN },
+                        reason: { type: Type.STRING }
+                    }
+                }
+            }
+        });
+
+        const jsonString = response.text.trim();
+        return JSON.parse(jsonString);
+
+    } catch (error) {
+        console.error("Error with content moderation:", error);
+        return { isSafe: true, reason: 'Moderation check failed' }; // Fail open
     }
-    return { isSafe: true, reason: '' };
 };
 
-
-/**
- * Uses a GenAI model to generate smart replies for a conversation.
- */
 export const generateSmartReplies = async (messages: Message[], currentUserId: string): Promise<string[]> => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 600));
-
+    const ai = getGenAIClient();
     const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || lastMessage.senderId === currentUserId) {
+    if (!ai || !lastMessage || lastMessage.senderId === currentUserId) {
         return [];
     }
+    
+    const conversationHistory = messages.slice(-5).map(m => `${m.senderId === currentUserId ? 'You' : 'Them'}: ${m.text}`).join('\n');
 
-    const text = lastMessage.text?.toLowerCase() || '';
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `Based on this conversation history, suggest 3 short, relevant smart replies for "You":\n\n${conversationHistory}`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        replies: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING }
+                        }
+                    }
+                }
+            }
+        });
+        
+        const jsonString = response.text.trim();
+        const result = JSON.parse(jsonString);
+        return result.replies || [];
 
-    if (text.includes('available')) {
-        return ['Yes, I am available.', 'What time works for you?', 'Let me check my calendar.'];
+    } catch (error) {
+        console.error("Error generating smart replies:", error);
+        return [];
     }
-    if (text.includes('price') || text.includes('rate')) {
-        return ["What's your budget?", 'My rates are on my profile.', 'Let\'s discuss the details.'];
-    }
-    if (text.endsWith('?')) {
-        return ["Yes, sounds good!", "No, thank you.", "Let me get back to you."];
-    }
-
-    return ["Sounds good!", "Got it, thanks!", "Perfect!"];
 };
 
 export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Producer, userRole: UserRole): Promise<AriaNudgeData | null> => {
-     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     switch(userRole) {
@@ -143,7 +153,6 @@ export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Pr
             return null;
     }
 }
-
 
 export const askAriaCantata = async (
     history: AriaCantataMessage[],
@@ -283,7 +292,6 @@ Aria: \`{"type": "showVibeMatchResults", "value": {"vibeDescription": "A dreamy,
         
         let jsonString = response.text.trim();
         
-        // Sometimes the model might wrap the JSON in markdown backticks
         if (jsonString.startsWith('```json')) {
             jsonString = jsonString.slice(7, -3).trim();
         }

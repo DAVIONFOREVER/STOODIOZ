@@ -1,9 +1,9 @@
 
+
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
-// FIX: Import RankingTier to be used in the mock user creation.
+// FIX: Added RankingTier to imports to resolve a reference error.
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier } from '../types';
 import { getSupabase } from '../lib/supabase';
-import { subDays, format } from 'date-fns';
 import { USER_SILHOUETTE_URL } from '../constants';
 
 // --- DATA FETCHING (GET Requests) ---
@@ -35,7 +35,7 @@ export const fetchReviews = (): Promise<Review[]> => fetchData<Review>('reviews'
 export const fetchBookings = (): Promise<Booking[]> => fetchData<Booking>('bookings', '*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)');
 
 
-// --- DATA MUTATIONS (Simulated POST, PUT, DELETE Requests) ---
+// --- DATA MUTATIONS (POST, PUT, DELETE Requests) ---
 
 /**
  * Uploads an instrumental file to Supabase Storage.
@@ -105,24 +105,6 @@ export const uploadMixingSampleFile = async (file: File, engineerId: string): Pr
     return data.publicUrl;
 };
 
-
-export const findUserByCredentials = async (email: string, password: string): Promise<Artist | Engineer | Stoodio | Producer | null> => {
-    const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
-    for (const table of tables) {
-        const supabase = getSupabase();
-        if (!supabase) return null;
-        const { data, error } = await supabase.from(table).select('*').eq('email', email).eq('password', password).limit(1);
-        if (error) {
-            console.error(`Error finding user in ${table}:`, error);
-            continue;
-        }
-        if (data && data.length > 0) {
-            return data[0] as Artist | Engineer | Stoodio | Producer;
-        }
-    }
-    return null;
-};
-
 export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | null> => {
     const supabase = getSupabase();
     if (!supabase) {
@@ -130,7 +112,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         throw new Error("Supabase not initialized");
     }
 
-    // 1. Sign up the user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -138,25 +119,24 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (authError) {
         console.error("Supabase sign up error:", authError.message);
-        throw authError; // Throw the error to be caught by useAuth
+        throw authError;
     }
 
     if (!authData.user) {
         throw new Error("User not created in Supabase Auth.");
     }
     
-    // 2. Prepare the profile data for the public table
     let tableName = '';
     let newUserScaffold: any = {};
     const baseData = {
-        id: authData.user.id, // Use the ID from Supabase Auth
+        id: authData.user.id,
         name: userData.name,
-        email: authData.user.email, // Use the email from Supabase Auth
+        email: authData.user.email,
         imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
         followerIds: [],
-        coordinates: { lat: 34.0522, lon: -118.2437 }, // LA
+        coordinates: { lat: 34.0522, lon: -118.2437 },
         walletBalance: 0,
         walletTransactions: [],
         posts: [],
@@ -195,7 +175,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             throw new Error(`Invalid role: ${role}`);
     }
 
-    // 3. Insert the profile into the corresponding public table
     const { data: profileData, error: profileError } = await supabase
         .from(tableName)
         .insert([newUserScaffold])
@@ -204,22 +183,30 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (profileError) {
         console.error(`Error inserting profile into ${tableName}:`, profileError.message);
-        // Potentially delete the auth user here for cleanup, but for now, just throw.
         throw profileError;
     }
 
     return profileData as Artist | Engineer | Stoodio | Producer;
 };
 
-export const updateUser = async (userId: string, updates: Partial<Artist | Engineer | Stoodio | Producer>): Promise<any> => {
-    console.log(`Updating user ${userId} with`, updates);
-    return { id: userId, ...updates }; 
+export const updateUser = async (userId: string, tableName: string, updates: Partial<Artist | Engineer | Stoodio | Producer>): Promise<any> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const { data, error } = await supabase
+        .from(tableName)
+        .update(updates)
+        .eq('id', userId)
+        .select()
+        .single();
+    
+    if (error) {
+        console.error(`Error updating user ${userId} in ${tableName}:`, error);
+        throw error;
+    }
+    return data;
 };
 
-/**
- * Creates a new booking record in the database and then initiates a Stripe checkout session.
- * @returns { sessionId: string } The ID for the Stripe Checkout session.
- */
 export const createCheckoutSessionForBooking = async (
     bookingRequest: BookingRequest,
     stoodioId: string | undefined,
@@ -229,9 +216,6 @@ export const createCheckoutSessionForBooking = async (
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    // This function now calls a Supabase Edge Function.
-    // The Edge Function will handle creating the booking in the DB with a 'PENDING_PAYMENT' status,
-    // then creating a Stripe Checkout session, and returning the session ID.
     const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { bookingRequest, stoodioId, userId, userRole },
     });
@@ -240,16 +224,10 @@ export const createCheckoutSessionForBooking = async (
     return data;
 };
 
-/**
- * Creates a Stripe checkout session for a subscription plan.
- * @returns { sessionId: string } The ID for the Stripe Checkout session.
- */
 export const createCheckoutSessionForSubscription = async (planId: SubscriptionPlan, userId: string): Promise<{ sessionId: string }> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    // This Edge Function will create a Stripe Checkout session for the specified subscription plan
-    // and include metadata to identify the user for webhook processing.
     const { data, error } = await supabase.functions.invoke('create-subscription-session', {
         body: { planId, userId },
     });
@@ -258,16 +236,10 @@ export const createCheckoutSessionForSubscription = async (planId: SubscriptionP
     return data;
 };
 
-/**
- * Creates a Stripe checkout session for adding funds to a user's wallet.
- * @returns { sessionId: string } The ID for the Stripe Checkout session.
- */
 export const createCheckoutSessionForWallet = async (amount: number, userId: string): Promise<{ sessionId: string }> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    // This Edge Function will create a Stripe Checkout session for the specified amount
-    // and include metadata to identify the user, so the webhook can update the correct wallet.
     const { data, error } = await supabase.functions.invoke('create-add-funds-session', {
         body: { amount, userId },
     });
@@ -276,15 +248,10 @@ export const createCheckoutSessionForWallet = async (amount: number, userId: str
     return data;
 };
 
-/**
- * Initiates a payout request from a user's wallet to their bank account.
- */
 export const initiatePayout = async (amount: number, userId: string): Promise<{ success: boolean }> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
     
-    // This Edge Function verifies the user's balance, then calls the Stripe API
-    // to create a transfer to the user's connected bank account.
     const { data, error } = await supabase.functions.invoke('request-payout', {
         body: { amount, userId },
     });
@@ -293,7 +260,6 @@ export const initiatePayout = async (amount: number, userId: string): Promise<{ 
     return data;
 };
 
-// FIX: Added 'createBooking' function to handle non-payment booking creations like job postings.
 export const createBooking = async (
     bookingRequest: BookingRequest,
     stoodio: Stoodio | undefined,
@@ -337,23 +303,38 @@ export const createBooking = async (
     return data as Booking;
 };
 
-
 export const endSession = async (booking: Booking): Promise<{ updatedBooking: Booking }> => {
-    const updatedBooking = { ...booking, status: BookingStatus.COMPLETED };
-    return { updatedBooking };
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { data, error } = await supabase
+        .from('bookings')
+        .update({ status: BookingStatus.COMPLETED })
+        .eq('id', booking.id)
+        .select('*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)')
+        .single();
+    if (error) throw error;
+    return { updatedBooking: data as Booking };
 };
 
-export const cancelBooking = async (booking: Booking): Promise<{ updatedBookings: Booking[] }> => {
-    const updatedBooking = { ...booking, status: BookingStatus.CANCELLED };
-    return { updatedBookings: [updatedBooking] };
+export const cancelBooking = async (booking: Booking): Promise<{ updatedBooking: Booking }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const { data, error } = await supabase
+        .from('bookings')
+        .update({ status: BookingStatus.CANCELLED })
+        .eq('id', booking.id)
+        .select('*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)')
+        .single();
+    if (error) throw error;
+    return { updatedBooking: data as Booking };
 };
 
 export const addTip = async (booking: Booking, tipAmount: number): Promise<{ sessionId: string }> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
     
-    // Create a checkout session specifically for the tip.
-    // The webhook will handle associating the tip with the booking and updating balances.
     const { data, error } = await supabase.functions.invoke('create-tip-session', {
         body: { tipAmount, bookingId: booking.id, recipientId: booking.engineer?.id },
     });
@@ -362,33 +343,49 @@ export const addTip = async (booking: Booking, tipAmount: number): Promise<{ ses
     return data;
 };
 
-export const toggleFollow = async (currentUser: any, targetId: string, targetType: 'artist' | 'engineer' | 'stoodio' | 'producer', allUsers: any[]): Promise<{ updatedCurrentUser: any; updatedTargetUser: any; }> => {
-    const listKey = `${targetType}s`;
-    const isFollowing = (currentUser.following[listKey] || []).includes(targetId);
-    
-    let newFollowingList;
-    if (isFollowing) {
-        newFollowingList = (currentUser.following[listKey] || []).filter((id: string) => id !== targetId);
-    } else {
-        newFollowingList = [...(currentUser.following[listKey] || []), targetId];
+const getTableNameFromRole = (role: UserRole | 'stoodio' | 'engineer' | 'artist' | 'producer' | null): string => {
+    if (!role) throw new Error("Invalid role provided");
+    switch (role) {
+        case 'ARTIST': return 'artists';
+        case 'ENGINEER': return 'engineers';
+        case 'PRODUCER': return 'producers';
+        case 'STOODIO': return 'stoodioz';
+        case 'artist': return 'artists';
+        case 'engineer': return 'engineers';
+        case 'producer': return 'producers';
+        case 'stoodio': return 'stoodioz';
+        default: throw new Error(`Unknown role: ${role}`);
     }
-    const updatedCurrentUser = { ...currentUser, following: { ...currentUser.following, [listKey]: newFollowingList } };
-    
-    const targetUser = allUsers.find(u => u.id === targetId);
-    if (!targetUser) return { updatedCurrentUser, updatedTargetUser: null };
+};
 
-    let newFollowerIds;
+export const toggleFollow = async (currentUser: any, targetUser: any, targetType: 'artist' | 'engineer' | 'stoodio' | 'producer', isFollowing: boolean): Promise<{ updatedCurrentUser: any; updatedTargetUser: any; }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const listKey = `${targetType}s`;
+    
+    const newFollowing = { ...currentUser.following };
     if (isFollowing) {
-        newFollowerIds = (targetUser.followerIds || []).filter((id: string) => id !== currentUser.id);
+        newFollowing[listKey] = (currentUser.following[listKey] || []).filter((id: string) => id !== targetUser.id);
     } else {
-        newFollowerIds = [...(targetUser.followerIds || []), currentUser.id];
+        newFollowing[listKey] = [...(currentUser.following[listKey] || []), targetUser.id];
     }
-    const updatedTargetUser = { ...targetUser, followerIds: newFollowerIds, followers: newFollowerIds.length };
+    const { data: updatedCurrentUser, error: currentUserError } = await supabase.from(getTableNameFromRole(currentUser.isAdmin ? UserRoleEnum.STOODIO : (currentUser.specialties ? UserRoleEnum.ENGINEER : (currentUser.instrumentals ? UserRoleEnum.PRODUCER : UserRoleEnum.ARTIST)))).update({ following: newFollowing }).eq('id', currentUser.id).select().single();
+    if(currentUserError) throw currentUserError;
+
+    const newFollowerIds = isFollowing
+        ? (targetUser.followerIds || []).filter((id: string) => id !== currentUser.id)
+        : [...(targetUser.followerIds || []), currentUser.id];
+    const { data: updatedTargetUser, error: targetUserError } = await supabase.from(getTableNameFromRole(targetType)).update({ followerIds: newFollowerIds, followers: newFollowerIds.length }).eq('id', targetUser.id).select().single();
+    if(targetUserError) throw targetUserError;
 
     return { updatedCurrentUser, updatedTargetUser };
 };
 
 export const createPost = async (postData: { text: string; imageUrl?: string; link?: any }, author: any, authorType: UserRole): Promise<any> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
     const newPost: Post = { 
         id: `post-${Date.now()}`,
         authorId: author.id, 
@@ -400,10 +397,15 @@ export const createPost = async (postData: { text: string; imageUrl?: string; li
     };
 
     const newPosts = [newPost, ...(author.posts || [])];
-    return { ...author, posts: newPosts };
+    const { data, error } = await supabase.from(getTableNameFromRole(authorType)).update({ posts: newPosts }).eq('id', author.id).select().single();
+    if (error) throw error;
+    return data;
 };
 
 export const likePost = async (postId: string, userId: string, author: any): Promise<any> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
     const postToUpdate = (author.posts || []).find((p: Post) => p.id === postId);
     if (!postToUpdate) return author;
 
@@ -412,10 +414,16 @@ export const likePost = async (postId: string, userId: string, author: any): Pro
         : [...postToUpdate.likes, userId];
 
     const updatedPosts = author.posts.map((p: Post) => p.id === postId ? { ...p, likes: newLikes } : p);
-    return { ...author, posts: updatedPosts };
+    
+    const { data, error } = await supabase.from(getTableNameFromRole(author.authorType || getRoleFromUser(author))).update({ posts: updatedPosts }).eq('id', author.id).select().single();
+    if (error) throw error;
+    return data;
 };
 
 export const commentOnPost = async (postId: string, commentText: string, commentAuthor: any, postAuthor: any): Promise<any> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
     const newComment: Comment = { 
         id: `comment-${Date.now()}`, 
         authorId: commentAuthor.id, 
@@ -428,40 +436,55 @@ export const commentOnPost = async (postId: string, commentText: string, comment
     const updatedPosts = postAuthor.posts.map((p: Post) => 
         p.id === postId ? { ...p, comments: [...p.comments, newComment] } : p
     );
-    return { ...postAuthor, posts: updatedPosts };
+    
+    const { data, error } = await supabase.from(getTableNameFromRole(postAuthor.authorType || getRoleFromUser(postAuthor))).update({ posts: updatedPosts }).eq('id', postAuthor.id).select().single();
+    if(error) throw error;
+    return data;
 };
 
+const getRoleFromUser = (user: any): UserRole => {
+    if (user.amenities) return UserRoleEnum.STOODIO;
+    if (user.specialties) return UserRoleEnum.ENGINEER;
+    if (user.instrumentals) return UserRoleEnum.PRODUCER;
+    return UserRoleEnum.ARTIST;
+};
+
+
 export const respondToBooking = async (booking: Booking, action: 'accept' | 'deny', engineer: Engineer): Promise<{ updatedBooking: Booking }> => {
-    const status = action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.PENDING;
-    const updatedBooking = { ...booking, status, engineer: action === 'accept' ? engineer : null };
-    return { updatedBooking };
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // FIX: Replaced non-existent BookingStatus.DENIED with BookingStatus.CANCELLED.
+    const status = action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
+    const engineer_id = action === 'accept' ? engineer.id : null;
+
+    const { data, error } = await supabase.from('bookings').update({ status: status, engineer_id: engineer_id }).eq('id', booking.id).select('*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)').single();
+    if (error) throw error;
+    return { updatedBooking: data as Booking };
 };
 
 export const acceptJob = async (booking: Booking, engineer: Engineer): Promise<{ updatedBooking: Booking }> => {
-    console.log(`Engineer ${engineer.name} accepting job for booking ${booking.id}`);
-    const updatedBooking = { 
-        ...booking, 
-        status: BookingStatus.CONFIRMED, 
-        engineer: engineer,
-        postedBy: undefined, // Clear postedBy so it becomes a regular booking
-    };
-    return { updatedBooking };
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const { data, error } = await supabase.from('bookings').update({ status: BookingStatus.CONFIRMED, engineer_id: engineer.id, posted_by: null }).eq('id', booking.id).select('*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)').single();
+    if (error) throw error;
+    return { updatedBooking: data as Booking };
 };
 
 export const submitForVerification = async (stoodioId: string, verificationData: { googleBusinessProfileUrl: string; websiteUrl: string }): Promise<Partial<Stoodio>> => {
-    return { ...verificationData, verificationStatus: VerificationStatus.PENDING };
-};
-
-export const approveVerification = async (stoodioId: string): Promise<Partial<Stoodio>> => {
-    return { verificationStatus: VerificationStatus.VERIFIED };
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    
+    const updates = { ...verificationData, verificationStatus: VerificationStatus.PENDING };
+    const { data, error } = await supabase.from('stoodioz').update(updates).eq('id', stoodioId).select().single();
+    if (error) throw error;
+    return data;
 };
 
 export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number = 30): Promise<AnalyticsData> => {
-    // Return empty/zeroed data as requested by the user to remove mock data from analytics.
-    // FIX: Corrected typo from `newPromise` to `new Promise`.
     await new Promise(res => setTimeout(res, 200));
     
-    // FIX: Changed UserRole to UserRoleEnum to use the value-based import.
     const isArtist = userRole === UserRoleEnum.ARTIST;
 
     return {

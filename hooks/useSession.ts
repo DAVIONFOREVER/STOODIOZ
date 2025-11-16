@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -37,11 +38,8 @@ export const useSession = (navigate: (view: any) => void) => {
             const { sessionId } = await apiService.addTip(bookingToTip, tipAmount);
             await redirectToCheckout(sessionId);
             
-            // The UI will close automatically upon redirecting to Stripe.
-            // The actual state update will happen via webhook.
         } catch(error) {
             console.error("Failed to create tip session:", error);
-            // Handle error, maybe show a toast message
         }
     }, [bookings, currentUser, dispatch]);
     
@@ -64,12 +62,8 @@ export const useSession = (navigate: (view: any) => void) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
             await apiService.initiatePayout(amount, currentUser.id);
-            // On success, you'd show a confirmation toast.
-            // The wallet balance will update automatically when the DB is updated via the backend
-            // and the component re-fetches its data.
         } catch(error) {
             console.error("Failed to request payout:", error);
-            // Show an error toast message
         } finally {
              dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
              dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });

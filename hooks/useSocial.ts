@@ -1,6 +1,7 @@
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import { moderatePostContent } from '../services/geminiService';
+import { moderatePostContent, fetchLinkMetadata } from '../services/geminiService';
 import * as apiService from '../services/apiService';
 import type { LinkAttachment } from '../types';
 
@@ -13,16 +14,16 @@ export const useSocial = () => {
     const toggleFollow = useCallback(async (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => {
         if (!currentUser) return;
         try {
-            const { updatedCurrentUser, updatedTargetUser } = await apiService.toggleFollow(currentUser, id, type, allUsers);
-            if (!updatedTargetUser) {
-                const newAllUsers = allUsers.map(u => (u.id === updatedCurrentUser.id ? updatedCurrentUser : u));
-                dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: newAllUsers } });
-                return;
-            }
+            const targetUser = allUsers.find(u => u.id === id);
+            if (!targetUser) return;
+            
+            const isFollowing = (currentUser.following[`${type}s` as keyof typeof currentUser.following] || []).includes(id);
+
+            const { updatedCurrentUser, updatedTargetUser } = await apiService.toggleFollow(currentUser, targetUser, type, isFollowing);
 
             const newAllUsers = allUsers.map(u => {
-                if (u.id === updatedCurrentUser.id) return updatedCurrentUser;
-                if (u.id === updatedTargetUser.id) return updatedTargetUser;
+                if (u.id === updatedCurrentUser.id) return { ...u, ...updatedCurrentUser };
+                if (u.id === updatedTargetUser.id) return { ...u, ...updatedTargetUser };
                 return u;
             });
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: newAllUsers } });
@@ -31,7 +32,7 @@ export const useSocial = () => {
         }
     }, [currentUser, allUsers, dispatch]);
 
-    const createPost = useCallback(async (postData: { text: string; imageUrl?: string; link?: LinkAttachment }) => {
+    const createPost = useCallback(async (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => {
         if (!currentUser || !userRole) return;
         try {
             const moderationResult = await moderatePostContent(postData.text);
@@ -39,8 +40,19 @@ export const useSocial = () => {
                 alert(`Post cannot be created: ${moderationResult.reason}`);
                 return;
             }
-            const updatedAuthor = await apiService.createPost(postData, currentUser, userRole);
-            const updatedUsers = allUsers.map(u => u.id === updatedAuthor.id ? updatedAuthor : u);
+
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const urls = postData.text.match(urlRegex);
+            let finalPostData = { ...postData };
+            if (urls && urls[0] && !postData.imageUrl && !postData.videoUrl) {
+                const metadata = await fetchLinkMetadata(urls[0]);
+                if (metadata) {
+                    finalPostData.link = metadata;
+                }
+            }
+
+            const updatedAuthor = await apiService.createPost(finalPostData, currentUser, userRole);
+            const updatedUsers = allUsers.map(u => u.id === updatedAuthor.id ? { ...u, ...updatedAuthor } : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {
             console.error("Failed to create post:", error);
@@ -54,7 +66,7 @@ export const useSocial = () => {
 
         try {
             const updatedAuthor = await apiService.likePost(postId, currentUser.id, author);
-            const updatedUsers = allUsers.map(u => u.id === author.id ? updatedAuthor : u);
+            const updatedUsers = allUsers.map(u => u.id === author.id ? { ...u, ...updatedAuthor } : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {
             console.error("Failed to like post:", error);
@@ -68,7 +80,7 @@ export const useSocial = () => {
 
         try {
             const updatedAuthor = await apiService.commentOnPost(postId, text, currentUser, postAuthor);
-            const updatedUsers = allUsers.map(u => u.id === postAuthor.id ? updatedAuthor : u);
+            const updatedUsers = allUsers.map(u => u.id === postAuthor.id ? { ...u, ...updatedAuthor } : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {
             console.error("Failed to comment on post:", error);
