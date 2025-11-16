@@ -32,6 +32,7 @@ import MixingRequestModal from './components/MixingRequestModal.tsx';
 import { MagicWandIcon } from './components/icons.tsx';
 import AriaNudge from './components/AriaNudge.tsx';
 import AriaFAB from './components/AriaFAB.tsx';
+import Footer from './components/Footer.tsx';
 
 // --- Lazy Loaded Components ---
 const StoodioList = lazy(() => import('./components/StudioList.tsx'));
@@ -259,7 +260,7 @@ const App: React.FC = () => {
     
 // FIX: The App component was not returning any JSX, causing a type error. This adds the main component structure and return statement.
 return (
-        <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans">
+        <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header
                 onNavigate={navigate}
                 onGoBack={goBack}
@@ -275,7 +276,7 @@ return (
                 onSelectStoodio={viewStoodioDetails}
             />
 
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
                 <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
                     {renderView()}
                 </Suspense>
@@ -346,6 +347,7 @@ return (
 
             {isNudgeVisible && ariaNudge && <AriaNudge nudge={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />}
             
+            <Footer onNavigate={navigate} />
         </div>
     );
 };
