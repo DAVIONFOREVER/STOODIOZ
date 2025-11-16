@@ -10,6 +10,54 @@ interface CreatePostProps {
 // A generic video icon as a data URL to replace the picsum placeholder
 const GENERIC_VIDEO_THUMBNAIL = 'data:image/svg+xml,%3csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-16 h-16 text-white/80"%3e%3cpath fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.647c1.295.742 1.295 2.545 0 3.286L7.279 20.99c-1.25.717-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" /%3e%3c/svg%3e';
 
+const generateVideoThumbnail = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+            return reject(new Error('Canvas 2D context not available'));
+        }
+
+        video.preload = 'metadata';
+        video.src = URL.createObjectURL(file);
+        video.muted = true;
+        video.playsInline = true;
+
+        const cleanup = () => {
+            URL.revokeObjectURL(video.src);
+            video.removeEventListener('loadeddata', onLoadedData);
+            video.removeEventListener('seeked', onSeeked);
+            video.removeEventListener('error', onError);
+        };
+
+        const onSeeked = () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+            const thumbnailUrl = canvas.toDataURL('image/jpeg');
+            cleanup();
+            resolve(thumbnailUrl);
+        };
+
+        const onLoadedData = () => {
+            // Seek to a frame, e.g., 1 second in, or middle if shorter
+            video.currentTime = Math.min(1, video.duration / 2);
+        };
+
+        const onError = (e: Event) => {
+             cleanup();
+             reject(new Error('Error loading video file for thumbnail generation.'));
+        };
+        
+        video.addEventListener('loadeddata', onLoadedData);
+        video.addEventListener('seeked', onSeeked);
+        video.addEventListener('error', onError);
+    });
+};
+
+
 const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     const [text, setText] = useState('');
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -43,7 +91,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -57,7 +105,14 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
             reader.readAsDataURL(file);
         } else if (file.type.startsWith('video/')) {
             setVideoUrl(URL.createObjectURL(file));
-            setVideoThumbnailUrl(GENERIC_VIDEO_THUMBNAIL);
+            setVideoThumbnailUrl(GENERIC_VIDEO_THUMBNAIL); // Set a placeholder immediately
+            try {
+                const thumbnailUrl = await generateVideoThumbnail(file);
+                setVideoThumbnailUrl(thumbnailUrl);
+            } catch (error) {
+                console.error('Failed to generate video thumbnail:', error);
+                // Fallback to the generic icon if thumbnail generation fails, which is already set.
+            }
         }
     };
 

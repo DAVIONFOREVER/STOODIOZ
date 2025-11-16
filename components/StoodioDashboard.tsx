@@ -232,24 +232,11 @@ const StoodioDashboard: React.FC = () => {
     const { updateProfile, verificationSubmit } = useProfile();
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
+    const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleImageUploadClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const imageUrl = e.target?.result as string;
-                updateProfile({ imageUrl });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+    const coverImageInputRef = useRef<HTMLInputElement>(null);
+    const photosInputRef = useRef<HTMLInputElement>(null);
 
     if (!currentUser) {
         return (
@@ -269,6 +256,70 @@ const StoodioDashboard: React.FC = () => {
             dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } });
         }
     }, [dashboardInitialTab, dispatch]);
+
+    // --- Profile & Cover Photo Handlers ---
+    const handleImageUploadClick = () => fileInputRef.current?.click();
+    const handleCoverImageUploadClick = () => coverImageInputRef.current?.click();
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => updateProfile({ imageUrl: e.target?.result as string });
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCoverFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => updateProfile({ coverImageUrl: e.target?.result as string });
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    // --- Studio Gallery Photo Handlers ---
+    const handlePhotosUploadClick = () => photosInputRef.current?.click();
+
+    const processPhotoFiles = (files: FileList) => {
+        const newPhotoPromises = Array.from(files)
+            .filter(file => file.type.startsWith('image/'))
+            .map(file => new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target?.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            }));
+
+        Promise.all(newPhotoPromises)
+            .then(newPhotos => {
+                if (newPhotos.length > 0) {
+                    updateProfile({ photos: [...stoodio.photos, ...newPhotos] });
+                }
+            })
+            .catch(err => console.error("Error reading files:", err));
+    };
+    
+    const handlePhotosFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) processPhotoFiles(event.target.files);
+    };
+
+    const handlePhotoDelete = (photoIndex: number) => {
+        if (window.confirm('Are you sure you want to delete this photo?')) {
+            const updatedPhotos = stoodio.photos.filter((_, index) => index !== photoIndex);
+            updateProfile({ photos: updatedPhotos });
+        }
+    };
+
+    const handlePhotoDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDraggingPhotos(true); };
+    const handlePhotoDragLeave = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDraggingPhotos(false); };
+    const handlePhotoDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDraggingPhotos(false);
+        if (e.dataTransfer.files) processPhotoFiles(e.dataTransfer.files);
+    };
+
 
      const onPostJob = async (jobData: JobPostData) => {
         if (!currentUser || currentUser.id !== stoodio.id || !stoodio.rooms.length) {
@@ -344,20 +395,46 @@ const StoodioDashboard: React.FC = () => {
                 return (
                     <div className="p-6 cardSurface">
                         <h3 className="text-xl font-bold mb-4">Photo Management</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                         <input
+                            type="file"
+                            ref={photosInputRef}
+                            onChange={handlePhotosFileChange}
+                            className="hidden"
+                            accept="image/*"
+                            multiple
+                        />
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
                             {stoodio.photos.map((photo, index) => (
                                 <div key={index} className="relative group">
                                     <img src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
-                                    <button className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Delete photo">
+                                    <button 
+                                        onClick={() => handlePhotoDelete(index)}
+                                        className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" 
+                                        aria-label="Delete photo">
                                         <TrashIcon className="w-4 h-4" />
                                     </button>
                                 </div>
                             ))}
                         </div>
-                        <div className="border-2 border-dashed border-zinc-600 rounded-lg p-8 text-center">
+                        <div 
+                            onClick={handlePhotosUploadClick}
+                            onDragOver={handlePhotoDragOver}
+                            onDragLeave={handlePhotoDragLeave}
+                            onDrop={handlePhotoDrop}
+                            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                                isDraggingPhotos 
+                                ? 'border-orange-500 bg-orange-500/10' 
+                                : 'border-zinc-600 hover:border-orange-500 hover:bg-zinc-800/50'
+                            }`}
+                        >
                             <PhotoIcon className="mx-auto h-12 w-12 text-zinc-500" />
                             <p className="mt-2 text-sm text-zinc-400">Drag & drop photos here or click to upload</p>
-                            <button className="mt-4 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Upload Photos</button>
+                            <button 
+                                type="button"
+                                className="mt-4 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm"
+                            >
+                                Upload Photos
+                            </button>
                         </div>
                     </div>
                 );
@@ -396,52 +473,74 @@ const StoodioDashboard: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="p-6 md:p-8 cardSurface">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <div className="relative group/pfp flex-shrink-0">
-                            <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-700" />
-                            <button 
-                                onClick={handleImageUploadClick} 
-                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
-                                aria-label="Change profile photo"
-                            >
-                                <EditIcon className="w-8 h-8 text-white" />
-                            </button>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                                accept="image/*"
-                            />
-                        </div>
-                        <div className="text-center sm:text-left">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
-                            <p className="text-zinc-400 mt-2">Stoodio Dashboard</p>
-                        </div>
-                    </div>
-                    <div className="flex-shrink-0 flex flex-col gap-y-4">
-                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
-                            <div className="relative">
-                                <input 
-                                    type="checkbox" 
-                                    className="sr-only" 
-                                    checked={stoodio.showOnMap ?? false} 
-                                    onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
+            <div className="relative rounded-2xl overflow-hidden cardSurface group">
+                <img 
+                    src={stoodio.coverImageUrl || 'https://images.unsplash.com/photo-1516223725357-628a158b6692?q=80&w=1200&auto=format&fit=crop'} 
+                    alt={`${stoodio.name}'s cover photo`}
+                    className="w-full h-48 md:h-64 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                <button 
+                    onClick={handleCoverImageUploadClick}
+                    className="absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold py-1.5 px-3 rounded-full hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100 flex items-center gap-2"
+                >
+                    <PhotoIcon className="w-4 h-4" /> Edit Cover
+                </button>
+                <input
+                    type="file"
+                    ref={coverImageInputRef}
+                    onChange={handleCoverFileChange}
+                    className="hidden"
+                    accept="image/*"
+                />
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
+                        <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
+                            <div className="relative group/pfp flex-shrink-0">
+                                <img src={stoodio.imageUrl} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <button 
+                                    onClick={handleImageUploadClick} 
+                                    className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
+                                    aria-label="Change profile photo"
+                                >
+                                    <EditIcon className="w-8 h-8 text-white" />
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept="image/*"
                                 />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
                             </div>
-                        </label>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
+                                <p className="text-zinc-400 mt-1">Stoodio Dashboard</p>
+                            </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                            <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                                <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+                                <div className="relative">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only" 
+                                        checked={stoodio.showOnMap ?? false} 
+                                        onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
+                                    />
+                                    <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                     <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
-                    <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
-                </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                 <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
             </div>
 
             <div className="cardSurface">
