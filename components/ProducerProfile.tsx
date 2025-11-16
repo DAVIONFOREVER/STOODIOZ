@@ -1,5 +1,3 @@
-
-
 import React, { useMemo } from 'react';
 import type { Producer, Artist, Stoodio, Engineer } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons.tsx';
