@@ -142,7 +142,7 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     useEffect(() => {
-        const fetchAndSetUser = async (email: string): Promise<boolean> => {
+        const fetchAndSetUserProfile = async (userId: string): Promise<boolean> => {
             const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
             let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
     
@@ -155,17 +155,17 @@ const App: React.FC = () => {
                 const { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
-                    .eq('email', email)
-                    .limit(1);
+                    .eq('id', userId)
+                    .single();
 
-                if (profileError) {
+                // 'PGRST116' is the code for "0 rows found" which is not an actual error in this loop
+                if (profileError && profileError.code !== 'PGRST116') { 
                     console.error(`Error finding user profile in ${table}:`, profileError);
                     continue;
                 }
 
-                if (profileData && profileData.length > 0) {
-                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase, resolving the 'GenericStringError' conversion issue.
-                    userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer;
+                if (profileData) {
+                    userProfile = profileData as unknown as Artist | Engineer | Stoodio | Producer;
                     break;
                 }
             }
@@ -174,21 +174,21 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
                 return true;
             } else {
-                console.warn(`Auth session found, but no profile in DB for ${email}. Routing to profile setup.`);
+                console.warn(`Auth session found, but no profile in DB for user ID ${userId}.`);
                 return false;
             }
         };
 
+        // onAuthStateChange is called upon page load and whenever the auth state changes.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session?.user?.email) {
-                const profileFound = await fetchAndSetUser(session.user.email);
+            if (session?.user) {
+                const profileFound = await fetchAndSetUserProfile(session.user.id);
                 if (!profileFound) {
                     navigate(AppView.CHOOSE_PROFILE);
                 }
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             } else {
                 // This handles both SIGNED_OUT and initial load without a session.
-                // The LOGOUT action sets isLoading to false.
                 dispatch({ type: ActionTypes.LOGOUT });
             }
         });
