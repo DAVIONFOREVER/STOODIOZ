@@ -1,3 +1,4 @@
+
 import React, { useEffect, lazy, Suspense } from 'react';
 // FIX: All type imports are now correct due to the restored `types.ts` file.
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
@@ -19,6 +20,7 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
+import { supabase } from './src/supabaseClient.js';
 
 import Header from './components/Header.tsx';
 import BookingModal from './components/BookingModal.tsx';
@@ -137,6 +139,59 @@ const App: React.FC = () => {
 
     // Start broadcasting location if user is logged in and has opted in.
     useRealtimeLocation({ currentUser });
+
+    useEffect(() => {
+        const fetchAndSetUser = async (email: string) => {
+            const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
+            let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
+    
+            for (const table of tables) {
+                let selectQuery = '*';
+                if (table === 'stoodioz') selectQuery = '*, rooms(*), in_house_engineers(*)';
+                if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
+                if (table === 'producers') selectQuery = '*, instrumentals(*)';
+
+                const { data: profileData, error: profileError } = await supabase
+                    .from(table)
+                    .select(selectQuery)
+                    .eq('email', email)
+                    .limit(1);
+
+                if (profileError) {
+                    console.error(`Error finding user profile in ${table}:`, profileError);
+                    continue;
+                }
+
+                if (profileData && profileData.length > 0) {
+                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase, resolving the 'GenericStringError' conversion issue.
+                    userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer;
+                    break;
+                }
+            }
+    
+            if (userProfile) {
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
+            } else {
+                console.warn(`Auth session found, but no profile in DB for ${email}. Signing out.`);
+                await supabase.auth.signOut();
+            }
+        };
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user?.email) {
+                await fetchAndSetUser(session.user.email);
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            } else {
+                // This handles both SIGNED_OUT and initial load without a session.
+                // The LOGOUT action sets isLoading to false.
+                dispatch({ type: ActionTypes.LOGOUT });
+            }
+        });
+
+        return () => {
+            subscription?.unsubscribe();
+        };
+    }, [dispatch]);
 
     useEffect(() => {
         let timerId: number;

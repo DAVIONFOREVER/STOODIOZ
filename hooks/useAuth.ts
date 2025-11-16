@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -45,7 +46,8 @@ export const useAuth = (navigate: (view: any) => void) => {
                 }
 
                 if (profileData && profileData.length > 0) {
-                    userProfile = profileData[0] as Artist | Engineer | Stoodio | Producer;
+                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase, resolving the 'GenericStringError' conversion issue.
+                    userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer;
                     break;
                 }
             }
