@@ -1,12 +1,10 @@
 
-
-
-import React, { useEffect, lazy, Suspense } from 'react';
-// FIX: All type imports are now correct due to the restored `types.ts` file.
+import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
-import { AppView, UserRole } from './types';
+import { AppView, UserRole, RankingTier } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
+import type { User } from '@supabase/supabase-js';
 
 // Import Custom Hooks
 import { useNavigation } from './hooks/useNavigation.ts';
@@ -23,6 +21,7 @@ import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 import { supabase } from './src/supabaseClient.js';
+import { USER_SILHOUETTE_URL } from './constants.ts';
 
 import Header from './components/Header.tsx';
 import BookingModal from './components/BookingModal.tsx';
@@ -80,7 +79,6 @@ const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Prod
     if (currentUser && 'animatedLogoUrl' in currentUser && currentUser.animatedLogoUrl) {
         return (
             <div className="flex justify-center items-center py-20">
-                {/* FIX: Cast animatedLogoUrl to string to resolve type error, as its existence is confirmed by the 'in' operator. */}
                 <img src={currentUser.animatedLogoUrl as string} alt="Loading..." className="h-24 w-auto" />
             </div>
         );
@@ -115,7 +113,95 @@ const App: React.FC = () => {
     
     // --- Custom Hooks for Logic ---
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, viewBooking } = useNavigation();
-    const { login, logout, selectRoleToSetup, completeSetup } = useAuth(navigate);
+    const { login, logout, selectRoleToSetup, completeSetup: originalCompleteSetup } = useAuth(navigate);
+    
+    // Override completeSetup to handle existing auth users without profiles
+    const completeSetup = useCallback(async (userData: any, role: UserRole) => {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // If no user is logged in, this is a fresh signup. Use the original flow.
+        if (!user) {
+            await originalCompleteSetup(userData, role);
+            return;
+        }
+
+        // A user is already authenticated (logged in but profile was missing).
+        // We just need to create the profile row in the database.
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+
+        const tableMap = {
+            [UserRole.ARTIST]: 'artists',
+            [UserRole.STOODIO]: 'stoodioz',
+            [UserRole.ENGINEER]: 'engineers',
+            [UserRole.PRODUCER]: 'producers',
+        };
+        const tableName = tableMap[role];
+        if (!tableName) {
+            console.error("Invalid role for profile creation:", role);
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            return;
+        }
+        
+        const baseData = {
+            id: user.id, // Supabase schema uses 'id' which maps to auth.uid()
+            email: user.email,
+            name: userData.name,
+            imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
+            completion_rate: 0, // As per user request
+            coordinates: { lat: 0, lon: 0 }, // As per user request (lon, not lng)
+            followers: 0,
+            following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
+            followerIds: [],
+            walletBalance: 0,
+            walletTransactions: [],
+            posts: [],
+            links: [],
+            isOnline: true,
+            rating_overall: 0,
+            sessions_completed: 0,
+            ranking_tier: RankingTier.Provisional,
+            is_on_streak: false,
+            on_time_rate: 100,
+            repeat_hire_rate: 0,
+            strength_tags: [],
+            local_rank_text: 'Just getting started!',
+            purchasedMasterclassIds: [],
+        };
+
+        let profileData: any = {};
+        switch (role) {
+            case UserRole.ARTIST:
+                profileData = { ...baseData, bio: userData.bio, isSeekingSession: false, showOnMap: false };
+                break;
+            case UserRole.ENGINEER:
+                profileData = { ...baseData, bio: userData.bio, specialties: [], mixingSamples: [], isAvailable: true, showOnMap: true, displayExactLocation: false };
+                break;
+            case UserRole.PRODUCER:
+                profileData = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], isAvailable: true, showOnMap: true };
+                break;
+            case UserRole.STOODIO:
+                profileData = { ...baseData, description: userData.description, location: userData.location, businessAddress: userData.businessAddress, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.imageUrl || ''], rooms: [], verificationStatus: 'UNVERIFIED', showOnMap: true };
+                break;
+        }
+
+        const { data: newProfile, error } = await supabase
+            .from(tableName)
+            .insert(profileData)
+            .select()
+            .single();
+        
+        if (error) {
+            console.error("Error inserting profile:", error);
+            alert(`Error: ${error.message}`);
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            return;
+        }
+
+        if (newProfile) {
+            dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newProfile as any, role } });
+        }
+    }, [dispatch, originalCompleteSetup]);
+
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
@@ -123,7 +209,6 @@ const App: React.FC = () => {
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
     const { handleSubscribe } = useSubscription(navigate);
-    // FIX: The `useMessaging` hook was imported but not called, causing `startConversation` to be undefined. This call initializes the hook and makes the function available.
     const { startConversation } = useMessaging(navigate);
     const { confirmMasterclassPurchase, submitMasterclassReview } = useMasterclass();
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
@@ -143,7 +228,6 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     useEffect(() => {
-        // This subscription handles all auth changes: initial load, login, and logout.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user) {
                 const userId = session.user.id;
@@ -167,7 +251,7 @@ const App: React.FC = () => {
                             userProfile = result.data as any;
                             break;
                         }
-                        if (result.error && result.error.code !== 'PGRST116') { // PGRST116 is "No rows found", which is expected.
+                        if (result.error && result.error.code !== 'PGRST116') {
                             console.error('Error fetching profile part:', result.error);
                         }
                     }
@@ -175,25 +259,19 @@ const App: React.FC = () => {
                     if (userProfile) {
                         dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
                     } else {
-                        // User is authenticated but has no profile (e.g., incomplete signup).
-                        // Guide them to the profile creation flow.
                         console.warn(`Auth session for user ${userId} found, but no profile. Navigating to setup.`);
                         navigate(AppView.CHOOSE_PROFILE);
                     }
                 } catch (error) {
                     console.error("A network error occurred while fetching user profiles:", error);
-                    // If the database is unreachable, it's safest to log the user out.
                     dispatch({ type: ActionTypes.LOGOUT });
                 }
             } else {
-                // No session, user is logged out or this is the initial unauthenticated state.
                 dispatch({ type: ActionTypes.LOGOUT });
             }
-            // Always set loading to false after the initial auth check is complete.
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         });
 
-        // Cleanup subscription on component unmount
         return () => {
             subscription?.unsubscribe();
         };
@@ -201,10 +279,8 @@ const App: React.FC = () => {
 
     useEffect(() => {
         let timerId: number;
-        // This effect runs when the user's ID or role changes. It prevents re-fetching a nudge on every minor profile update.
         if (currentUser && userRole) {
             getAriaNudge(currentUser, userRole).then(nudge => {
-                // This check prevents the nudge from disappearing if the Gemini API returns an empty string, which would cause the render condition to fail.
                 if (nudge) {
                     dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
                     timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
@@ -212,7 +288,6 @@ const App: React.FC = () => {
             });
         }
         
-        // Cleanup function to clear the timeout if the component unmounts or dependencies change
         return () => {
             if (timerId) {
                 clearTimeout(timerId);
@@ -319,7 +394,6 @@ const App: React.FC = () => {
         }
     };
     
-// FIX: The App component was not returning any JSX, causing a type error. This adds the main component structure and return statement.
 return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header
@@ -413,5 +487,4 @@ return (
     );
 };
 
-// FIX: The App component was not exported, causing an error in index.tsx.
 export default App;
