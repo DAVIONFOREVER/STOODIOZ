@@ -20,9 +20,6 @@ const fetchData = async <T>(tableName: string, query: string = '*'): Promise<T[]
             console.error(`Error fetching from ${tableName}:`, error.message);
             throw error;
         }
-        // This is a generic fetcher, transformation to add `id` will happen in more specific functions if needed.
-        // For now, let's assume the callers that need `id` will handle it.
-        // Most generic fetches (like getting all artists) don't need the transform immediately.
         return data as T[];
     } catch (error: any) {
         console.error(`API service error for ${tableName}:`, error.message);
@@ -30,7 +27,6 @@ const fetchData = async <T>(tableName: string, query: string = '*'): Promise<T[]
     }
 };
 
-// These functions still work, but the data will have `profile_id`. The app logic will map it to `id`.
 export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz', '*, rooms(*), in_house_engineers(*)');
 export const fetchArtists = (): Promise<Artist[]> => fetchData<Artist>('artists', '*');
 export const fetchEngineers = (): Promise<Engineer[]> => fetchData<Engineer>('engineers', '*, mixing_samples(*)');
@@ -133,14 +129,14 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     let tableName = '';
     let newUserScaffold: any = {};
     const baseData = {
-        profile_id: authData.user.id,
+        id: authData.user.id,
         name: userData.name,
         email: authData.user.email,
         imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
-        follower_ids: [],
-        coordinates: { lat: 0, lng: 0 },
+        followerIds: [],
+        coordinates: { lat: 34.0522, lon: -118.2437 },
         walletBalance: 0,
         walletTransactions: [],
         posts: [],
@@ -190,8 +186,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         throw profileError;
     }
 
-    const profileWithId = { ...profileData, id: profileData.profile_id };
-    return profileWithId as Artist | Engineer | Stoodio | Producer;
+    return profileData as Artist | Engineer | Stoodio | Producer;
 };
 
 export const updateUser = async (userId: string, tableName: string, updates: Partial<Artist | Engineer | Stoodio | Producer>): Promise<any> => {
@@ -201,7 +196,7 @@ export const updateUser = async (userId: string, tableName: string, updates: Par
     const { data, error } = await supabase
         .from(tableName)
         .update(updates)
-        .eq('profile_id', userId)
+        .eq('id', userId)
         .select()
         .single();
     
@@ -209,7 +204,7 @@ export const updateUser = async (userId: string, tableName: string, updates: Par
         console.error(`Error updating user ${userId} in ${tableName}:`, error);
         throw error;
     }
-    return { ...data, id: data.profile_id };
+    return data;
 };
 
 export const createCheckoutSessionForBooking = async (
@@ -375,16 +370,14 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
     } else {
         newFollowing[listKey] = [...(currentUser.following[listKey] || []), targetUser.id];
     }
-    const { data: updatedCurrentUserData, error: currentUserError } = await supabase.from(getTableNameFromRole(currentUser.isAdmin ? UserRoleEnum.STOODIO : (currentUser.specialties ? UserRoleEnum.ENGINEER : (currentUser.instrumentals ? UserRoleEnum.PRODUCER : UserRoleEnum.ARTIST)))).update({ following: newFollowing }).eq('profile_id', currentUser.id).select().single();
+    const { data: updatedCurrentUser, error: currentUserError } = await supabase.from(getTableNameFromRole(currentUser.isAdmin ? UserRoleEnum.STOODIO : (currentUser.specialties ? UserRoleEnum.ENGINEER : (currentUser.instrumentals ? UserRoleEnum.PRODUCER : UserRoleEnum.ARTIST)))).update({ following: newFollowing }).eq('id', currentUser.id).select().single();
     if(currentUserError) throw currentUserError;
-    const updatedCurrentUser = { ...updatedCurrentUserData, id: updatedCurrentUserData.profile_id };
 
     const newFollowerIds = isFollowing
-        ? (targetUser.follower_ids || []).filter((id: string) => id !== currentUser.id)
-        : [...(targetUser.follower_ids || []), currentUser.id];
-    const { data: updatedTargetUserData, error: targetUserError } = await supabase.from(getTableNameFromRole(targetType)).update({ follower_ids: newFollowerIds, followers: newFollowerIds.length }).eq('profile_id', targetUser.id).select().single();
+        ? (targetUser.followerIds || []).filter((id: string) => id !== currentUser.id)
+        : [...(targetUser.followerIds || []), currentUser.id];
+    const { data: updatedTargetUser, error: targetUserError } = await supabase.from(getTableNameFromRole(targetType)).update({ followerIds: newFollowerIds, followers: newFollowerIds.length }).eq('id', targetUser.id).select().single();
     if(targetUserError) throw targetUserError;
-    const updatedTargetUser = { ...updatedTargetUserData, id: updatedTargetUserData.profile_id };
 
     return { updatedCurrentUser, updatedTargetUser };
 };
@@ -404,9 +397,9 @@ export const createPost = async (postData: { text: string; imageUrl?: string; li
     };
 
     const newPosts = [newPost, ...(author.posts || [])];
-    const { data, error } = await supabase.from(getTableNameFromRole(authorType)).update({ posts: newPosts }).eq('profile_id', author.id).select().single();
+    const { data, error } = await supabase.from(getTableNameFromRole(authorType)).update({ posts: newPosts }).eq('id', author.id).select().single();
     if (error) throw error;
-    return { ...data, id: data.profile_id };
+    return data;
 };
 
 export const likePost = async (postId: string, userId: string, author: any): Promise<any> => {
@@ -422,9 +415,9 @@ export const likePost = async (postId: string, userId: string, author: any): Pro
 
     const updatedPosts = author.posts.map((p: Post) => p.id === postId ? { ...p, likes: newLikes } : p);
     
-    const { data, error } = await supabase.from(getTableNameFromRole(author.authorType || getRoleFromUser(author))).update({ posts: updatedPosts }).eq('profile_id', author.id).select().single();
+    const { data, error } = await supabase.from(getTableNameFromRole(author.authorType || getRoleFromUser(author))).update({ posts: updatedPosts }).eq('id', author.id).select().single();
     if (error) throw error;
-    return { ...data, id: data.profile_id };
+    return data;
 };
 
 export const commentOnPost = async (postId: string, commentText: string, commentAuthor: any, postAuthor: any): Promise<any> => {
@@ -444,9 +437,9 @@ export const commentOnPost = async (postId: string, commentText: string, comment
         p.id === postId ? { ...p, comments: [...p.comments, newComment] } : p
     );
     
-    const { data, error } = await supabase.from(getTableNameFromRole(postAuthor.authorType || getRoleFromUser(postAuthor))).update({ posts: updatedPosts }).eq('profile_id', postAuthor.id).select().single();
+    const { data, error } = await supabase.from(getTableNameFromRole(postAuthor.authorType || getRoleFromUser(postAuthor))).update({ posts: updatedPosts }).eq('id', postAuthor.id).select().single();
     if(error) throw error;
-    return { ...data, id: data.profile_id };
+    return data;
 };
 
 const getRoleFromUser = (user: any): UserRole => {
@@ -484,9 +477,9 @@ export const submitForVerification = async (stoodioId: string, verificationData:
     if (!supabase) throw new Error("Supabase client not initialized.");
     
     const updates = { ...verificationData, verificationStatus: VerificationStatus.PENDING };
-    const { data, error } = await supabase.from('stoodioz').update(updates).eq('profile_id', stoodioId).select().single();
+    const { data, error } = await supabase.from('stoodioz').update(updates).eq('id', stoodioId).select().single();
     if (error) throw error;
-    return { ...data, id: data.profile_id };
+    return data;
 };
 
 export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number = 30): Promise<AnalyticsData> => {

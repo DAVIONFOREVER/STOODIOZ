@@ -278,8 +278,7 @@ const StoodioDashboard: React.FC = () => {
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    // FIX: Changed `stoodio.followerIds` to `stoodio.follower_ids` to match the type definition.
-    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.follower_ids || []).includes(u.id));
+    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.followerIds || []).includes(u.id));
     const followedArtists = artists.filter(a => (stoodio.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));

@@ -112,7 +112,7 @@ export enum RankingTier {
 
 export interface Location {
     lat: number;
-    lng: number;
+    lon: number;
 }
 
 export interface Following {
@@ -194,7 +194,7 @@ export interface BaseUser {
     // FIX: Add optional animatedLogoUrl property to BaseUser type to resolve type error in App.tsx
     animatedLogoUrl?: string;
     followers: number;
-    follower_ids: string[];
+    followerIds: string[];
     following: Following;
     posts?: Post[];
     walletBalance: number;

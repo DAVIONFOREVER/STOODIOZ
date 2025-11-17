@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
@@ -126,8 +124,7 @@ const ProducerDashboard: React.FC = () => {
     const isProPlan = producer.subscription?.plan === SubscriptionPlan.PRODUCER_PRO;
 
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    // FIX: Changed `producer.followerIds` to `producer.follower_ids` to match the type definition.
-    const followers = allUsers.filter(u => (producer.follower_ids || []).includes(u.id));
+    const followers = allUsers.filter(u => (producer.followerIds || []).includes(u.id));
     const followedArtists = artists.filter(a => (producer.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (producer.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (producer.following?.stoodioz || []).includes(s.id));

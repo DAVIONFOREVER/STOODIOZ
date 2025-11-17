@@ -76,8 +76,7 @@ const StoodioDetail: React.FC = () => {
         .slice(0, 5);
 
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    // FIX: Changed `stoodio.followerIds` to `stoodio.follower_ids` to match the type definition.
-    const followers = useMemo(() => allUsers.filter(u => stoodio.follower_ids.includes(u.id)), [allUsers, stoodio.follower_ids]);
+    const followers = useMemo(() => allUsers.filter(u => stoodio.followerIds.includes(u.id)), [allUsers, stoodio.followerIds]);
     const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
     const followedEngineers = engineers.filter(e => stoodio.following.engineers.includes(e.id));
     const followedStoodioz = stoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
@@ -108,7 +107,7 @@ const StoodioDetail: React.FC = () => {
         if (userRole === UserRole.STOODIO && currentUser.id === stoodio.id) return 'Cannot Book Your Own Stoodio';
         if (!selectedRoom) return 'Select a Room';
         if (!selectedTimeSlot) return 'Select a Time Slot';
-        return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom.name}: ${selectedTimeSlot.time}`;
+        return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom?.name}: ${selectedTimeSlot.time}`;
     };
     
     return (

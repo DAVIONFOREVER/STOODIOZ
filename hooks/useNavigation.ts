@@ -37,9 +37,8 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
     
     const navigateToStudio = useCallback((location: Location) => {
-        // FIX: Changed property `lon` to `lng` to match the `Location` type definition.
-        const { lat, lng } = location;
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        const { lat, lon } = location;
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
         window.open(url, '_blank', 'noopener,noreferrer');
     }, []);
 
