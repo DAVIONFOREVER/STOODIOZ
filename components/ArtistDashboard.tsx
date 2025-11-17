@@ -97,7 +97,7 @@ const ArtistDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const coverImageUrl = e.target?.result as string;
-                updateProfile({ coverImageUrl });
+                updateProfile({ cover_image_url: coverImageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -106,7 +106,7 @@ const ArtistDashboard: React.FC = () => {
     const upcomingBookingsCount = bookings.filter(b => new Date(b.date) >= new Date()).length;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => (artist.followerIds || []).includes(u.id));
+    const followers = allUsers.filter(u => (artist.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (artist.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (artist.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (artist.following?.stoodioz || []).includes(s.id));
@@ -165,7 +165,7 @@ const ArtistDashboard: React.FC = () => {
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
                 {/* Cover Image */}
                 <img 
-                    src={artist.coverImageUrl || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'} 
+                    src={artist.cover_image_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'} 
                     alt={`${artist.name}'s cover photo`}
                     className="w-full h-48 md:h-64 object-cover"
                 />
@@ -232,7 +232,7 @@ const ArtistDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <StatCard label="Wallet Balance" value={`$${artist.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <StatCard label="Wallet Balance" value={`$${artist.wallet_balance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                 <StatCard label="Followers" value={artist.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
             </div>

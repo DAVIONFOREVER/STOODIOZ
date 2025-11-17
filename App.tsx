@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
 import { AppView, UserRole, RankingTier } from './types';
@@ -76,10 +77,10 @@ const MasterclassReviewModal = lazy(() => import('./components/MasterclassReview
 
 const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
     // If the current user is a studio and has a custom animated logo, display it.
-    if (currentUser && 'animatedLogoUrl' in currentUser && currentUser.animatedLogoUrl) {
+    if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
         return (
             <div className="flex justify-center items-center py-20">
-                <img src={currentUser.animatedLogoUrl as string} alt="Loading..." className="h-24 w-auto" />
+                <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
             </div>
         );
     }
@@ -152,9 +153,9 @@ const App: React.FC = () => {
             coordinates: { lat: 0, lon: 0 },
             followers: 0,
             following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
-            followerIds: [], // Default to an empty array for the JSON followerIds column as required.
-            walletBalance: 0,
-            walletTransactions: [],
+            follower_ids: [], // Default to an empty array for the JSON followerIds column as required.
+            wallet_balance: 0,
+            wallet_transactions: [],
             posts: [],
             links: [],
             isOnline: true,
@@ -166,7 +167,7 @@ const App: React.FC = () => {
             repeat_hire_rate: 0,
             strength_tags: [],
             local_rank_text: 'Just getting started!',
-            purchasedMasterclassIds: [],
+            purchased_masterclass_ids: [],
         };
 
         let profileData: any = {};
@@ -427,7 +428,7 @@ return (
             {isVibeMatcherOpen && <VibeMatcherModal onClose={closeVibeMatcher} onAnalyze={vibeMatch} isLoading={isVibeMatcherLoading} />}
             {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
             {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
-            {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.walletBalance} />}
+            {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.wallet_balance} />}
             {isMixingModalOpen && (selectedEngineer || bookingIntent?.engineer) && 
                 <MixingRequestModal 
                     engineer={selectedEngineer || bookingIntent!.engineer!} 

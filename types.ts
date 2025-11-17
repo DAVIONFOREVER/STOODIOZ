@@ -190,15 +190,14 @@ export interface BaseUser {
     email: string;
     password?: string;
     imageUrl: string;
-    coverImageUrl?: string;
-    // FIX: Add optional animatedLogoUrl property to BaseUser type to resolve type error in App.tsx
-    animatedLogoUrl?: string;
+    cover_image_url?: string;
+    animated_logo_url?: string;
     followers: number;
-    followerIds: string[];
+    follower_ids: string[];
     following: Following;
     posts?: Post[];
-    walletBalance: number;
-    walletTransactions: Transaction[];
+    wallet_balance: number;
+    wallet_transactions: Transaction[];
     coordinates: Location;
     showOnMap: boolean;
     isOnline: boolean;
@@ -214,7 +213,7 @@ export interface BaseUser {
     repeat_hire_rate: number;
     strength_tags: string[];
     local_rank_text: string;
-    purchasedMasterclassIds?: string[];
+    purchased_masterclass_ids?: string[];
 }
 
 export interface Artist extends BaseUser {
@@ -249,7 +248,6 @@ export interface Engineer extends BaseUser {
     minimumPayRate?: number;
     mixingServices?: MixingServices;
     masterclass?: Masterclass;
-    // FIX: Add optional availability property to match Stoodio and Producer types.
     availability?: { date: string, times: string[] }[];
 }
 
@@ -272,7 +270,6 @@ export interface Producer extends BaseUser {
     pullUpPrice?: number;
     isAvailable: boolean;
     masterclass?: Masterclass;
-    // FIX: Add optional availability property to match Stoodio and Engineer types.
     availability?: { date: string, times: string[] }[];
 }
 

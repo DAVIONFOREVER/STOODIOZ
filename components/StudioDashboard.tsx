@@ -278,7 +278,8 @@ const StoodioDashboard: React.FC = () => {
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.followerIds || []).includes(u.id));
+    // FIX: Changed `followerIds` to `follower_ids` to match the property name in the `BaseUser` type.
+    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (stoodio.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));
@@ -416,7 +417,8 @@ const StoodioDashboard: React.FC = () => {
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-                     <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                     {/* FIX: Changed `walletBalance` to `wallet_balance` to match the property name in the `BaseUser` type. */}
+                     <StatCard label="Wallet Balance" value={`$${stoodio.wallet_balance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                     <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                     <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 </div>

@@ -40,11 +40,11 @@ const MyCourses: React.FC = () => {
     const { openWatchMasterclassModal } = useMasterclass();
 
     const myCourses = useMemo(() => {
-        if (!currentUser?.purchasedMasterclassIds) {
+        if (!currentUser?.purchased_masterclass_ids) {
             return [];
         }
         
-        const purchasedIds = new Set(currentUser.purchasedMasterclassIds);
+        const purchasedIds = new Set(currentUser.purchased_masterclass_ids);
         const allCreators = [...engineers, ...producers];
         
         const courses = allCreators

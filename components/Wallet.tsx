@@ -49,14 +49,16 @@ const StatusBadge: React.FC<{ status: TransactionStatus }> = ({ status }) => {
 
 const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onViewBooking, userRole }) => {
 
-    const sortedTransactions = [...user.walletTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // FIX: Changed `walletTransactions` to `wallet_transactions` to match the property name in the `BaseUser` type.
+    const sortedTransactions = [...user.wallet_transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return (
         <div className="p-6 cardSurface">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 pb-6 border-b border-zinc-700">
                 <div>
                     <h3 className="text-xl font-bold text-slate-100">Wallet</h3>
-                    <p className="text-4xl font-bold text-green-400 mt-1">${user.walletBalance.toFixed(2)}</p>
+                    {/* FIX: Changed `walletBalance` to `wallet_balance` to match the property name in the `BaseUser` type. */}
+                    <p className="text-4xl font-bold text-green-400 mt-1">${user.wallet_balance.toFixed(2)}</p>
                     <p className="text-sm text-slate-400">Available Balance</p>
                 </div>
                 <div className="flex gap-2">

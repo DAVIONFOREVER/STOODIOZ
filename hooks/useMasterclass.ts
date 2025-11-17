@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import type { Masterclass, Engineer, Producer, Review, Transaction } from '../types';
 import { TransactionCategory, TransactionStatus } from '../types';
@@ -43,15 +43,15 @@ export const useMasterclass = () => {
         // 2. Update users
         const updatedCurrentUser = {
             ...currentUser,
-            walletBalance: currentUser.walletBalance - masterclass.price,
-            walletTransactions: [...currentUser.walletTransactions, purchaseTransaction],
-            purchasedMasterclassIds: [...(currentUser.purchasedMasterclassIds || []), masterclass.id],
+            wallet_balance: currentUser.wallet_balance - masterclass.price,
+            wallet_transactions: [...currentUser.wallet_transactions, purchaseTransaction],
+            purchased_masterclass_ids: [...(currentUser.purchased_masterclass_ids || []), masterclass.id],
         };
 
         const updatedOwner = {
             ...owner,
-            walletBalance: owner.walletBalance + payoutTransaction.amount,
-            walletTransactions: [...owner.walletTransactions, payoutTransaction],
+            wallet_balance: owner.wallet_balance + payoutTransaction.amount,
+            wallet_transactions: [...owner.wallet_transactions, payoutTransaction],
             sessions_completed: owner.sessions_completed + 1, // Increment for ranking
         };
 

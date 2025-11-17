@@ -67,7 +67,7 @@ const ArtistProfile: React.FC = () => {
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.artists || []).includes(artist.id)) : false;
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => artist.followerIds.includes(u.id)), [allUsers, artist.followerIds]);
+    const followers = useMemo(() => allUsers.filter(u => artist.follower_ids.includes(u.id)), [allUsers, artist.follower_ids]);
 
     const followedArtists = useMemo(() => artists.filter(a => artist.following.artists.includes(a.id)), [artists, artist.following.artists]);
     const followedEngineers = useMemo(() => engineers.filter(e => artist.following.engineers.includes(e.id)), [engineers, artist.following.engineers]);

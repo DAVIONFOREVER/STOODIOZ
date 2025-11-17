@@ -1,4 +1,5 @@
 
+
 import React, { useMemo } from 'react';
 import type { Producer, Artist, Stoodio, Engineer } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons';
@@ -64,7 +65,8 @@ const ProducerProfile: React.FC = () => {
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.producers || []).includes(producer.id)) : false;
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => producer.followerIds.includes(u.id)), [allUsers, producer.followerIds]);
+    // FIX: Changed `followerIds` to `follower_ids` to match the property name in the `BaseUser` type.
+    const followers = useMemo(() => allUsers.filter(u => producer.follower_ids.includes(u.id)), [allUsers, producer.follower_ids]);
 
     const followedArtists = useMemo(() => artists.filter(a => producer.following.artists.includes(a.id)), [artists, producer.following.artists]);
     const followedEngineers = useMemo(() => engineers.filter(e => producer.following.engineers.includes(e.id)), [engineers, producer.following.engineers]);

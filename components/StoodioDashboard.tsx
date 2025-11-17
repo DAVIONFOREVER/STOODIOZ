@@ -274,7 +274,7 @@ const StoodioDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => updateProfile({ coverImageUrl: e.target?.result as string });
+            reader.onload = (e) => updateProfile({ cover_image_url: e.target?.result as string });
             reader.readAsDataURL(file);
         }
     };
@@ -347,7 +347,7 @@ const StoodioDashboard: React.FC = () => {
         .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
         .length;
     
-    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.followerIds || []).includes(u.id));
+    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (stoodio.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));
@@ -475,7 +475,7 @@ const StoodioDashboard: React.FC = () => {
             {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
                 <img 
-                    src={stoodio.coverImageUrl || 'https://images.unsplash.com/photo-1516223725357-628a158b6692?q=80&w=1200&auto=format&fit=crop'} 
+                    src={stoodio.cover_image_url || 'https://images.unsplash.com/photo-1516223725357-628a158b6692?q=80&w=1200&auto=format&fit=crop'} 
                     alt={`${stoodio.name}'s cover photo`}
                     className="w-full h-48 md:h-64 object-cover"
                 />
@@ -538,7 +538,7 @@ const StoodioDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                 <StatCard label="Wallet Balance" value={`$${stoodio.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                 <StatCard label="Wallet Balance" value={`$${stoodio.wallet_balance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                 <StatCard label="Followers" value={stoodio.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
             </div>

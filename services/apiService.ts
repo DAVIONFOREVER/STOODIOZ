@@ -135,10 +135,10 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
-        followerIds: [],
+        follower_ids: [],
         coordinates: { lat: 34.0522, lon: -118.2437 },
-        walletBalance: 0,
-        walletTransactions: [],
+        wallet_balance: 0,
+        wallet_transactions: [],
         posts: [],
         links: [],
         isOnline: true,
@@ -151,7 +151,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         repeat_hire_rate: 0,
         strength_tags: [],
         local_rank_text: 'Just getting started!',
-        purchasedMasterclassIds: [],
+        purchased_masterclass_ids: [],
     };
     
     switch (role) {
@@ -374,9 +374,9 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
     if(currentUserError) throw currentUserError;
 
     const newFollowerIds = isFollowing
-        ? (targetUser.followerIds || []).filter((id: string) => id !== currentUser.id)
-        : [...(targetUser.followerIds || []), currentUser.id];
-    const { data: updatedTargetUser, error: targetUserError } = await supabase.from(getTableNameFromRole(targetType)).update({ followerIds: newFollowerIds, followers: newFollowerIds.length }).eq('id', targetUser.id).select().single();
+        ? (targetUser.follower_ids || []).filter((id: string) => id !== currentUser.id)
+        : [...(targetUser.follower_ids || []), currentUser.id];
+    const { data: updatedTargetUser, error: targetUserError } = await supabase.from(getTableNameFromRole(targetType)).update({ follower_ids: newFollowerIds, followers: newFollowerIds.length }).eq('id', targetUser.id).select().single();
     if(targetUserError) throw targetUserError;
 
     return { updatedCurrentUser, updatedTargetUser };
