@@ -234,10 +234,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if (activeFilter === 'ALL' || activeFilter === 'ENGINEER') items.push(...engineers);
         if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') items.push(...producers);
 
-        let visibleUsers = items.filter(u => u.showOnMap && u.coordinates);
+        let visibleUsers = items.filter(u => u.show_on_map && u.coordinates);
 
         // FIX: Ensure the current user is always included in the visible list if their "Show on Map" is enabled, regardless of filters.
-        if (currentUser && currentUser.showOnMap && currentUser.coordinates && !visibleUsers.some(u => u.id === currentUser.id)) {
+        if (currentUser && currentUser.show_on_map && currentUser.coordinates && !visibleUsers.some(u => u.id === currentUser.id)) {
             visibleUsers.push(currentUser);
         }
 
@@ -316,7 +316,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                         }}
                     />
                 // FIX: Only show the private "blue dot" marker if the user is NOT showing their public profile on the map.
-                ) : userLocation && (!currentUser || !currentUser.showOnMap) && (
+                ) : userLocation && (!currentUser || !currentUser.show_on_map) && (
                     <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={getPixelPositionOffset}>
                         <UserMarker />
                     </OverlayViewF>

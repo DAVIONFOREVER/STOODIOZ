@@ -17,7 +17,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
 const AmenitiesManager = lazy(() => import('./AmenitiesManager.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
@@ -525,11 +525,11 @@ const StoodioDashboard: React.FC = () => {
                                     <input 
                                         type="checkbox" 
                                         className="sr-only" 
-                                        checked={stoodio.showOnMap ?? false} 
-                                        onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
+                                        checked={stoodio.show_on_map ?? false} 
+                                        onChange={(e) => updateProfile({ show_on_map: e.target.checked })} 
                                     />
-                                    <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.showOnMap ? 'translate-x-6' : ''}`}></div>
+                                    <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.show_on_map ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.show_on_map ? 'translate-x-6' : ''}`}></div>
                                 </div>
                             </label>
                         </div>

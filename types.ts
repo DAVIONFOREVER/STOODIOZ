@@ -200,7 +200,7 @@ export interface BaseUser {
     wallet_balance: number;
     wallet_transactions: Transaction[];
     coordinates: Location;
-    showOnMap: boolean;
+    show_on_map: boolean;
     is_online: boolean;
     links?: Link[];
     isAdmin?: boolean;

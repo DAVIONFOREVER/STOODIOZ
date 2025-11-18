@@ -1,3 +1,4 @@
+
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
 import { AppView, UserRole, RankingTier } from './types';
@@ -38,7 +39,7 @@ import Footer from './components/Footer.tsx';
 
 // --- Lazy Loaded Components ---
 const StoodioList = lazy(() => import('./components/StudioList.tsx'));
-const StoodioDetail = lazy(() => import('./components/StudioDetail.tsx'));
+const StoodioDetail = lazy(() => import('./components/StoodioDetail.tsx'));
 const BookingConfirmation = lazy(() => import('./components/BookingConfirmation.tsx'));
 const MyBookings = lazy(() => import('./components/MyBookings.tsx'));
 const StoodioDashboard = lazy(() => import('./components/StoodioDashboard.tsx'));
@@ -162,16 +163,16 @@ const App: React.FC = () => {
         let profileData: any = {};
         switch (role) {
             case UserRole.ARTIST:
-                profileData = { ...baseData, bio: userData.bio, is_seeking_session: false, showOnMap: false };
+                profileData = { ...baseData, bio: userData.bio, is_seeking_session: false, show_on_map: false };
                 break;
             case UserRole.ENGINEER:
-                profileData = { ...baseData, bio: userData.bio, specialties: [], mixing_samples: [], is_available: true, showOnMap: true, display_exact_location: false };
+                profileData = { ...baseData, bio: userData.bio, specialties: [], mixing_samples: [], is_available: true, show_on_map: true, display_exact_location: false };
                 break;
             case UserRole.PRODUCER:
-                profileData = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], is_available: true, showOnMap: true };
+                profileData = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], is_available: true, show_on_map: true };
                 break;
             case UserRole.STOODIO:
-                profileData = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [userData.image_url || ''], rooms: [], verification_status: 'UNVERIFIED', showOnMap: true };
+                profileData = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [userData.image_url || ''], rooms: [], verification_status: 'UNVERIFIED', show_on_map: true };
                 break;
         }
 

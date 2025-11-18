@@ -1,3 +1,4 @@
+
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier } from '../types';
 import { getSupabase } from '../lib/supabase';
@@ -154,19 +155,19 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     switch (role) {
         case UserRoleEnum.ARTIST:
             tableName = 'artists';
-            newUserScaffold = { ...baseData, bio: userData.bio, is_seeking_session: false, showOnMap: false };
+            newUserScaffold = { ...baseData, bio: userData.bio, is_seeking_session: false, show_on_map: false };
             break;
         case UserRoleEnum.ENGINEER:
             tableName = 'engineers';
-            newUserScaffold = { ...baseData, bio: userData.bio, specialties: [], mixing_samples: [], is_available: true, showOnMap: true, display_exact_location: false };
+            newUserScaffold = { ...baseData, bio: userData.bio, specialties: [], mixing_samples: [], is_available: true, show_on_map: true, display_exact_location: false };
             break;
         case UserRoleEnum.PRODUCER:
             tableName = 'producers';
-            newUserScaffold = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], is_available: true, showOnMap: true };
+            newUserScaffold = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], is_available: true, show_on_map: true };
             break;
         case UserRoleEnum.STOODIO:
             tableName = 'stoodioz';
-            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [userData.image_url || USER_SILHOUETTE_URL], rooms: [], verification_status: VerificationStatus.UNVERIFIED, showOnMap: true };
+            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [userData.image_url || USER_SILHOUETTE_URL], rooms: [], verification_status: VerificationStatus.UNVERIFIED, show_on_map: true };
             break;
         default:
             throw new Error(`Invalid role: ${role}`);

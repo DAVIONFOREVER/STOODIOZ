@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Location } from '../types';
 import { getSupabase } from '../lib/supabase';
@@ -26,7 +27,7 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
             channel.subscribe();
         }
 
-        const shouldBroadcast = currentUser && currentUser.showOnMap;
+        const shouldBroadcast = currentUser && currentUser.show_on_map;
 
         if (shouldBroadcast) {
             const startWatching = () => {
@@ -80,7 +81,7 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
             }
         };
 
-    }, [currentUser, currentUser?.showOnMap]); // Re-run effect if user or their map preference changes
+    }, [currentUser, currentUser?.show_on_map]); // Re-run effect if user or their map preference changes
 
     const stopWatching = () => {
         if (watchIdRef.current !== null) {
