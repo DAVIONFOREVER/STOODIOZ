@@ -4,7 +4,7 @@ import { AppView } from '../types';
 import { PhotoIcon } from './icons';
 
 interface EngineerSetupProps {
-    onCompleteSetup: (name: string, bio: string, email: string, password: string, imageUrl: string | null) => void;
+    onCompleteSetup: (name: string, bio: string, email: string, password: string, imageUrl: string | null, imageFile: File | null) => void;
     onNavigate: (view: AppView) => void;
 }
 
@@ -15,11 +15,13 @@ const EngineerSetup: React.FC<EngineerSetupProps> = ({ onCompleteSetup, onNaviga
     const [password, setPassword] = useState('');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            setImageFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImagePreview(reader.result as string);
@@ -35,7 +37,7 @@ const EngineerSetup: React.FC<EngineerSetupProps> = ({ onCompleteSetup, onNaviga
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isFormValid) {
-            onCompleteSetup(name, bio, email, password, imagePreview);
+            onCompleteSetup(name, bio, email, password, imagePreview, imageFile);
         } else {
             alert("Please fill in all required fields and agree to the terms and conditions to continue.");
         }

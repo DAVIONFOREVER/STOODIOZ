@@ -36,6 +36,40 @@ export const fetchBookings = (): Promise<Booking[]> => fetchData<Booking>('booki
 // --- DATA MUTATIONS (POST, PUT, DELETE Requests) ---
 
 /**
+ * Uploads a profile avatar to Supabase Storage.
+ * @param file The image file to upload.
+ * @param userId The ID of the user.
+ * @returns The public URL of the uploaded file.
+ */
+export const uploadAvatar = async (file: File, userId: string): Promise<string> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `avatar_${Date.now()}.${fileExtension}`;
+    const filePath = `${userId}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+        console.error('Error uploading avatar:', uploadError);
+        throw uploadError;
+    }
+
+    const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+    if (!data || !data.publicUrl) {
+        throw new Error("Could not get public URL for uploaded avatar.");
+    }
+
+    return data.publicUrl;
+};
+
+/**
  * Uploads an instrumental file to Supabase Storage.
  * @param file The audio file (MP3, WAV) to upload.
  * @param producerId The ID of the producer uploading the file.
@@ -123,6 +157,17 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     if (!authData.user) {
         throw new Error("User not created in Supabase Auth.");
     }
+
+    let avatarUrl = userData.image_url || USER_SILHOUETTE_URL;
+    
+    // If an actual file object was passed, upload it
+    if (userData.imageFile && userData.imageFile instanceof File) {
+        try {
+            avatarUrl = await uploadAvatar(userData.imageFile, authData.user.id);
+        } catch (uploadErr) {
+            console.error("Failed to upload avatar during signup, using default.", uploadErr);
+        }
+    }
     
     let tableName = '';
     let newUserScaffold: any = {};
@@ -130,7 +175,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         id: authData.user.id,
         name: userData.name,
         email: authData.user.email,
-        image_url: userData.image_url || USER_SILHOUETTE_URL,
+        image_url: avatarUrl,
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
         follower_ids: [],
@@ -167,7 +212,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             break;
         case UserRoleEnum.STOODIO:
             tableName = 'stoodioz';
-            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [userData.image_url || USER_SILHOUETTE_URL], rooms: [], verification_status: VerificationStatus.UNVERIFIED, show_on_map: true };
+            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [avatarUrl], rooms: [], verification_status: VerificationStatus.UNVERIFIED, show_on_map: true };
             break;
         default:
             throw new Error(`Invalid role: ${role}`);

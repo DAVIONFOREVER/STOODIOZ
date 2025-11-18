@@ -22,6 +22,7 @@ import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 import { supabase } from './src/supabaseClient.js';
 import { USER_SILHOUETTE_URL } from './constants.ts';
+import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
 import BookingModal from './components/BookingModal.tsx';
@@ -115,11 +116,24 @@ const App: React.FC = () => {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
+            // User isn't logged in yet, proceed with full signup flow via apiService
             await originalCompleteSetup(userData, role);
             return;
         }
 
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+
+        let avatarUrl = userData.image_url || USER_SILHOUETTE_URL;
+
+        // If a file object is present, upload it first
+        if (userData.imageFile && userData.imageFile instanceof File) {
+            try {
+                avatarUrl = await apiService.uploadAvatar(userData.imageFile, user.id);
+            } catch (error) {
+                console.error("Failed to upload avatar:", error);
+                alert("Failed to upload profile picture. Continuing with default.");
+            }
+        }
 
         const tableMap = {
             [UserRole.ARTIST]: 'artists',
@@ -138,7 +152,7 @@ const App: React.FC = () => {
             id: user.id,
             email: user.email,
             name: userData.name,
-            image_url: userData.image_url || USER_SILHOUETTE_URL,
+            image_url: avatarUrl,
             completion_rate: 0,
             coordinates: { lat: 0, lon: 0 },
             followers: 0,
@@ -172,7 +186,7 @@ const App: React.FC = () => {
                 profileData = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], is_available: true, show_on_map: true };
                 break;
             case UserRole.STOODIO:
-                profileData = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [userData.image_url || ''], rooms: [], verification_status: 'UNVERIFIED', show_on_map: true };
+                profileData = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [avatarUrl], rooms: [], verification_status: 'UNVERIFIED', show_on_map: true };
                 break;
         }
 
@@ -341,13 +355,13 @@ const App: React.FC = () => {
             case AppView.CHOOSE_PROFILE:
                 return <ChooseProfile onSelectRole={selectRoleToSetup} />;
             case AppView.ARTIST_SETUP:
-                return <ArtistSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, image_url: imageUrl }, UserRole.ARTIST)} onNavigate={navigate} />;
+                return <ArtistSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ARTIST)} onNavigate={navigate} />;
             case AppView.ENGINEER_SETUP:
-                return <EngineerSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, image_url: imageUrl }, UserRole.ENGINEER)} onNavigate={navigate} />;
+                return <EngineerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ENGINEER)} onNavigate={navigate} />;
             case AppView.PRODUCER_SETUP:
-                return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, image_url: imageUrl }, UserRole.PRODUCER)} onNavigate={navigate} />;
+                return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.PRODUCER)} onNavigate={navigate} />;
             case AppView.STOODIO_SETUP:
-                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl }, UserRole.STOODIO)} onNavigate={navigate} />;
+                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:

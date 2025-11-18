@@ -4,7 +4,7 @@ import { AppView, SmokingPolicy } from '../types';
 import { PhotoIcon } from './icons';
 
 interface StoodioSetupProps {
-    onCompleteSetup: (name: string, description: string, location: string, businessAddress: string, email: string, password: string, imageUrl: string | null) => void;
+    onCompleteSetup: (name: string, description: string, location: string, businessAddress: string, email: string, password: string, imageUrl: string | null, imageFile: File | null) => void;
     onNavigate: (view: AppView) => void;
 }
 
@@ -17,11 +17,13 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
     const [password, setPassword] = useState('');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            setImageFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImagePreview(reader.result as string);
@@ -37,7 +39,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isFormValid) {
-            onCompleteSetup(name, description, location, businessAddress, email, password, imagePreview);
+            onCompleteSetup(name, description, location, businessAddress, email, password, imagePreview, imageFile);
         } else {
             alert("Please fill in all required fields and agree to the terms and conditions to continue.");
         }
