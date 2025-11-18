@@ -224,25 +224,36 @@ const App: React.FC = () => {
             
             if (session?.user) {
                 const userId = session.user.id;
-                const tableMap = {
-                    artists: '*',
-                    engineers: '*, mixing_samples(*)',
-                    producers: '*, instrumentals(*)',
-                    stoodioz: '*, rooms(*), in_house_engineers(*)',
+                
+                const fetchProfiles = async () => {
+                    const tableMap = {
+                        artists: '*',
+                        engineers: '*, mixing_samples(*)',
+                        producers: '*, instrumentals(*)',
+                        stoodioz: '*, rooms(*), in_house_engineers(*)',
+                    };
+    
+                    const profilePromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
+                        supabase.from(tableName).select(selectQuery).eq('id', userId).single()
+                    );
+                    
+                    const results = await Promise.all(profilePromises);
+                    return results.find(result => result.data);
                 };
-
-                const profilePromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
-                    supabase.from(tableName).select(selectQuery).eq('id', userId).single()
-                );
                 
                 try {
-                    const results = await Promise.all(profilePromises);
-                    const userProfileResult = results.find(result => result.data);
+                    let userProfileResult = await fetchProfiles();
 
-                    if (userProfileResult) {
+                    // Retry logic: If no profile found immediately (race condition on signup), wait 1s and try again
+                    if (!userProfileResult) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        userProfileResult = await fetchProfiles();
+                    }
+
+                    if (userProfileResult && userProfileResult.data) {
                         dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfileResult.data as any } });
                     } else {
-                        console.warn(`Auth session for user ${userId} found, but no profile. Navigating to setup.`);
+                        console.warn(`Auth session for user ${userId} found, but no profile after retry. Navigating to setup.`);
                         navigate(AppView.CHOOSE_PROFILE);
                     }
                 } catch (error) {
