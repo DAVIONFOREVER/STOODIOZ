@@ -4,7 +4,7 @@ import { PhotoIcon, VideoCameraIcon, CloseCircleIcon, PlayIcon } from './icons';
 
 interface CreatePostProps {
     currentUser: Artist | Engineer | Stoodio | Producer;
-    onPost: (postData: { text: string; image_url?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
+    onPost: (postData: { text: string; image_url?: string; video_url?: string; video_thumbnail_url?: string; link?: LinkAttachment }) => Promise<void>;
 }
 
 // A generic video icon as a data URL to replace the picsum placeholder
@@ -82,8 +82,8 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
             await onPost({ 
                 text: text.trim(), 
                 image_url: imageUrl || undefined,
-                videoUrl: videoUrl || undefined,
-                videoThumbnailUrl: videoThumbnailUrl || undefined,
+                video_url: videoUrl || undefined,
+                video_thumbnail_url: videoThumbnailUrl || undefined,
             });
             setText('');
             clearAttachments();

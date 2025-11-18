@@ -1,7 +1,6 @@
 
-
-
 import React from 'react';
+// FIX: Import missing type
 import type { Artist, Engineer, Producer, Stoodio } from '../types';
 import RankingBadge from './RankingBadge';
 import { StarIcon, CalendarIcon } from './icons';

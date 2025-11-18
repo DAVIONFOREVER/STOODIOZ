@@ -22,7 +22,7 @@ const Documents = lazy(() => import('./Documents.tsx'));
 const AmenitiesManager = lazy(() => import('./AmenitiesManager.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
-type JobPostData = Pick<BookingRequest, 'date' | 'startTime' | 'duration' | 'requiredSkills' | 'engineerPayRate'>;
+type JobPostData = Pick<BookingRequest, 'date' | 'start_time' | 'duration' | 'engineer_pay_rate'> & { requiredSkills?: string[] };
 
 const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onPostJob }) => {
     const today = new Date().toISOString().split('T')[0];
@@ -36,9 +36,9 @@ const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onP
         e.preventDefault();
         onPostJob({
             date,
-            startTime,
+            start_time: startTime,
             duration,
-            engineerPayRate,
+            engineer_pay_rate: engineerPayRate,
             requiredSkills: requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
         });
     };
@@ -79,7 +79,7 @@ const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onP
 
 const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; onPostJob: (data: JobPostData) => void; }> = ({ stoodio, bookings, onPostJob }) => {
     const postedJobs = bookings
-        .filter(b => b.postedBy === UserRole.STOODIO && b.stoodio?.id === stoodio.id)
+        .filter(b => b.posted_by === UserRole.STOODIO && b.stoodio?.id === stoodio.id)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const getStatusInfo = (job: Booking) => {
@@ -112,7 +112,7 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
                             </div>
                              <div>
                                 <p className="text-xs text-zinc-400">Payout</p>
-                                <p className="font-semibold text-green-400">${(job.engineerPayRate * job.duration).toFixed(2)}</p>
+                                <p className="font-semibold text-green-400">${(job.engineer_pay_rate * job.duration).toFixed(2)}</p>
                             </div>
                             <div>
                                 <p className="text-xs text-zinc-400">Status</p>
@@ -149,13 +149,13 @@ const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: P
     const [name, setName] = useState(stoodio.name);
     const [description, setDescription] = useState(stoodio.description);
     const [location, setLocation] = useState(stoodio.location);
-    const [businessAddress, setBusinessAddress] = useState(stoodio.businessAddress || '');
+    const [businessAddress, setBusinessAddress] = useState(stoodio.business_address || '');
 
     const handleSave = () => {
-        onUpdateStoodio({ name, description, location, businessAddress });
+        onUpdateStoodio({ name, description, location, business_address: businessAddress });
     };
 
-    const hasChanges = name !== stoodio.name || description !== stoodio.description || location !== stoodio.location || businessAddress !== (stoodio.businessAddress || '');
+    const hasChanges = name !== stoodio.name || description !== stoodio.description || location !== stoodio.location || businessAddress !== (stoodio.business_address || '');
     
     const inputClasses = "w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
@@ -265,7 +265,6 @@ const StoodioDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            // FIX: Changed property name from `imageUrl` to `image_url` to match the type definition.
             reader.onload = (e) => updateProfile({ image_url: e.target?.result as string });
             reader.readAsDataURL(file);
         }
@@ -331,21 +330,21 @@ const StoodioDashboard: React.FC = () => {
         const bookingRequest: BookingRequest = {
             ...jobData,
             room: stoodio.rooms[0],
-            totalCost: 0,
-            requestType: BookingRequestType.FIND_AVAILABLE,
-            engineerPayRate: jobData.engineerPayRate,
+            total_cost: 0,
+            request_type: BookingRequestType.FIND_AVAILABLE,
+            engineer_pay_rate: jobData.engineer_pay_rate,
         };
         
         try {
             const newBooking = await apiService.createBooking(bookingRequest, stoodio, currentUser, UserRole.STOODIO);
-            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, postedBy: UserRole.STOODIO } } });
+            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, posted_by: UserRole.STOODIO } } });
         } catch(error) {
             console.error("Failed to post job", error);
         }
     };
 
     const upcomingBookingsCount = bookings
-        .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.startTime}`) >= new Date())
+        .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.start_time}`) >= new Date())
         .length;
     
     const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.follower_ids || []).includes(u.id));
@@ -498,7 +497,6 @@ const StoodioDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
-                                {/* FIX: Changed `imageUrl` to `image_url` to match the `Stoodio` type definition. */}
                                 <img src={stoodio.image_url} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 

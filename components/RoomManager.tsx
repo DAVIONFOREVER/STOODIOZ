@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Stoodio, Room } from '../types';
 import { SmokingPolicy } from '../types';
@@ -15,8 +16,10 @@ const RoomFormModal: React.FC<{
 }> = ({ room, onSave, onClose }) => {
     const [name, setName] = useState(room?.name || '');
     const [description, setDescription] = useState(room?.description || '');
-    const [hourlyRate, setHourlyRate] = useState(room?.hourlyRate || 0);
-    const [smokingPolicy, setSmokingPolicy] = useState<SmokingPolicy>(room?.smokingPolicy || SmokingPolicy.NON_SMOKING);
+    // FIX: Corrected property name from 'hourlyRate' to 'hourly_rate'
+    const [hourlyRate, setHourlyRate] = useState(room?.hourly_rate || 0);
+    // FIX: Corrected property name from 'smokingPolicy' to 'smoking_policy'
+    const [smokingPolicy, setSmokingPolicy] = useState<SmokingPolicy>(room?.smoking_policy || SmokingPolicy.NON_SMOKING);
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,9 +27,11 @@ const RoomFormModal: React.FC<{
             id: room?.id || `room-${Date.now()}`,
             name,
             description,
-            hourlyRate,
+            // FIX: Corrected property name from 'hourlyRate' to 'hourly_rate'
+            hourly_rate: hourlyRate,
             photos: room?.photos || [],
-            smokingPolicy,
+            // FIX: Corrected property name from 'smokingPolicy' to 'smoking_policy'
+            smoking_policy: smokingPolicy,
         };
         onSave(finalRoom);
     };
@@ -123,10 +128,12 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) =
                             <p className="text-sm text-zinc-400 mt-1 mb-2">{room.description}</p>
                             <div className="flex items-center gap-4">
                                 <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
-                                    <DollarSignIcon className="w-4 h-4" /> ${room.hourlyRate}/hr
+                                    {/* FIX: Corrected property name from 'hourlyRate' to 'hourly_rate' */}
+                                    <DollarSignIcon className="w-4 h-4" /> ${room.hourly_rate}/hr
                                 </div>
-                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${room.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'}`}>
-                                    {room.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED ? 'Smoking Allowed' : 'Non-Smoking'}
+                                {/* FIX: Corrected property name from 'smokingPolicy' to 'smoking_policy' */}
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${room.smoking_policy === SmokingPolicy.SMOKING_ALLOWED ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'}`}>
+                                    {room.smoking_policy === SmokingPolicy.SMOKING_ALLOWED ? 'Smoking Allowed' : 'Non-Smoking'}
                                 </span>
                             </div>
                         </div>

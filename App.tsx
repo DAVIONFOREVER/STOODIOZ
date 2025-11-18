@@ -1,6 +1,3 @@
-
-
-
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
 import { AppView, UserRole, RankingTier } from './types';
@@ -77,7 +74,6 @@ const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassMo
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
 
 const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
-    // If the current user is a studio and has a custom animated logo, display it.
     if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
         return (
             <div className="flex justify-center items-center py-20">
@@ -86,7 +82,6 @@ const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Prod
         );
     }
 
-    // Default SVG spinner
     return (
         <div className="flex justify-center items-center py-20">
             <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -105,30 +100,24 @@ const App: React.FC = () => {
         latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
-        masterclassToPurchase, masterclassToWatch, masterclassToReview
+        masterclassToPurchase, masterclassToWatch, masterclassToReview, bookings, engineers
     } = state;
 
-    // --- Derived State ---
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
-    // --- Custom Hooks for Logic ---
-    const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, viewBooking } = useNavigation();
+    const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup, completeSetup: originalCompleteSetup } = useAuth(navigate);
     
-    // Override completeSetup to handle existing auth users without profiles
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         const { data: { user } } = await supabase.auth.getUser();
 
-        // If no user is logged in, this is a fresh signup. Use the original flow.
         if (!user) {
             await originalCompleteSetup(userData, role);
             return;
         }
 
-        // A user is already authenticated (logged in but profile was missing).
-        // We just need to create the profile row in the database.
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
         const tableMap = {
@@ -145,21 +134,20 @@ const App: React.FC = () => {
         }
         
         const baseData = {
-            id: user.id, // This correctly maps to profile_id = auth.uid()
+            id: user.id,
             email: user.email,
             name: userData.name,
             image_url: userData.image_url || USER_SILHOUETTE_URL,
-            completion_rate: 0, // Default to 0 as required.
-            // Default coordinates for JSONB column. Note: 'lon' is used to match 'types.ts' Location interface.
+            completion_rate: 0,
             coordinates: { lat: 0, lon: 0 },
             followers: 0,
             following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
-            follower_ids: [], // Default to an empty array for the JSON followerIds column as required.
+            follower_ids: [],
             wallet_balance: 0,
             wallet_transactions: [],
             posts: [],
             links: [],
-            isOnline: true,
+            is_online: true,
             rating_overall: 0,
             sessions_completed: 0,
             ranking_tier: RankingTier.Provisional,
@@ -174,16 +162,16 @@ const App: React.FC = () => {
         let profileData: any = {};
         switch (role) {
             case UserRole.ARTIST:
-                profileData = { ...baseData, bio: userData.bio, isSeekingSession: false, showOnMap: false };
+                profileData = { ...baseData, bio: userData.bio, is_seeking_session: false, showOnMap: false };
                 break;
             case UserRole.ENGINEER:
-                profileData = { ...baseData, bio: userData.bio, specialties: [], mixingSamples: [], isAvailable: true, showOnMap: true, displayExactLocation: false };
+                profileData = { ...baseData, bio: userData.bio, specialties: [], mixing_samples: [], is_available: true, showOnMap: true, display_exact_location: false };
                 break;
             case UserRole.PRODUCER:
-                profileData = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], isAvailable: true, showOnMap: true };
+                profileData = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], is_available: true, showOnMap: true };
                 break;
             case UserRole.STOODIO:
-                profileData = { ...baseData, description: userData.description, location: userData.location, businessAddress: userData.businessAddress, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.image_url || ''], rooms: [], verificationStatus: 'UNVERIFIED', showOnMap: true };
+                profileData = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [userData.image_url || ''], rooms: [], verification_status: 'UNVERIFIED', showOnMap: true };
                 break;
         }
 
@@ -227,12 +215,9 @@ const App: React.FC = () => {
         selectRoleToSetup,
     });
 
-    // Start broadcasting location if user is logged in and has opted in.
     useRealtimeLocation({ currentUser });
 
     useEffect(() => {
-        // This handler is called on initial load and whenever the user logs in or out.
-        // It's the central point for session restoration and profile checking.
         const handleAuthStateChange = async (_event: string, session: Session | null) => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             
@@ -245,22 +230,17 @@ const App: React.FC = () => {
                     stoodioz: '*, rooms(*), in_house_engineers(*)',
                 };
 
-                // Query all profile tables in parallel to find which one (if any) the user belongs to.
                 const profilePromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
                     supabase.from(tableName).select(selectQuery).eq('id', userId).single()
                 );
                 
                 try {
                     const results = await Promise.all(profilePromises);
-                    // Find the first successful query result.
                     const userProfileResult = results.find(result => result.data);
 
                     if (userProfileResult) {
-                        // Profile found, log the user in successfully.
                         dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfileResult.data as any } });
                     } else {
-                        // User is authenticated with Supabase Auth but has no profile in our database.
-                        // This can happen if they abandon the signup process. Guide them to the profile creation flow.
                         console.warn(`Auth session for user ${userId} found, but no profile. Navigating to setup.`);
                         navigate(AppView.CHOOSE_PROFILE);
                     }
@@ -269,7 +249,6 @@ const App: React.FC = () => {
                     dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to fetch your profile. Please try again." } });
                 }
             } else {
-                // No session found, ensure the user is logged out in the app state.
                 dispatch({ type: ActionTypes.LOGOUT });
             }
             
@@ -315,11 +294,13 @@ const App: React.FC = () => {
     const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
     const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
 
-
     const handleOpenAriaFromFAB = () => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
     };
+
+    const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
+    const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const renderView = () => {
         switch (currentView) {
@@ -348,7 +329,15 @@ const App: React.FC = () => {
             case AppView.CONFIRMATION:
                 return <BookingConfirmation onDone={() => navigate(AppView.MY_BOOKINGS)} />;
             case AppView.MY_BOOKINGS:
-                return <MyBookings />;
+                return <MyBookings 
+                    bookings={bookings} 
+                    engineers={engineers} 
+                    onOpenTipModal={openTipModal} 
+                    onNavigateToStudio={navigateToStudio} 
+                    onOpenCancelModal={openCancelModal}
+                    onArtistNavigate={startNavigationForBooking}
+                    userRole={userRole}
+                />;
             case AppView.INBOX:
                 return <Inbox />;
             case AppView.MAP_VIEW:

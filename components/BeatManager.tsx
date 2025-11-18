@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Producer, Instrumental } from '../types';
 import { MusicNoteIcon, DollarSignIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
@@ -12,13 +13,17 @@ const BeatFormModal: React.FC<{
     instrumental: Partial<Instrumental> | null;
     onSave: (instrumental: Instrumental, audioFile: File | null, coverArtUrl: string) => void;
     onClose: () => void;
-}> = ({ instrumental, onSave, onClose }) => {
+    isUploading: boolean;
+}> = ({ instrumental, onSave, onClose, isUploading }) => {
     const [title, setTitle] = useState(instrumental?.title || '');
     const [genre, setGenre] = useState(instrumental?.genre || '');
-    const [priceLease, setPriceLease] = useState(instrumental?.priceLease || 29.99);
-    const [priceExclusive, setPriceExclusive] = useState(instrumental?.priceExclusive || 299.99);
+    // FIX: Corrected property name from 'priceLease' to 'price_lease'
+    const [priceLease, setPriceLease] = useState(instrumental?.price_lease || 29.99);
+    // FIX: Corrected property name from 'priceExclusive' to 'price_exclusive'
+    const [priceExclusive, setPriceExclusive] = useState(instrumental?.price_exclusive || 299.99);
     const [tags, setTags] = useState((instrumental?.tags || []).join(', '));
-    const [coverArtPreview, setCoverArtPreview] = useState(instrumental?.coverArtUrl || '');
+    // FIX: Corrected property name from 'coverArtUrl' to 'cover_art_url'
+    const [coverArtPreview, setCoverArtPreview] = useState(instrumental?.cover_art_url || '');
     const [audioFile, setAudioFile] = useState<File | null>(null);
     const audioFileInputRef = React.useRef<HTMLInputElement>(null);
     const coverArtInputRef = React.useRef<HTMLInputElement>(null);
@@ -33,11 +38,15 @@ const BeatFormModal: React.FC<{
             id: instrumental?.id || `inst-${Date.now()}`,
             title,
             genre,
-            priceLease,
-            priceExclusive,
+            // FIX: Corrected property name from 'priceLease' to 'price_lease'
+            price_lease: priceLease,
+            // FIX: Corrected property name from 'priceExclusive' to 'price_exclusive'
+            price_exclusive: priceExclusive,
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-            audioUrl: instrumental?.audioUrl || '', // Will be replaced by the uploaded file URL
-            coverArtUrl: coverArtPreview || `https://picsum.photos/seed/${title.replace(/\s+/g, '')}/200/200`,
+            // FIX: Corrected property name from 'audioUrl' to 'audio_url'
+            audio_url: instrumental?.audio_url || '', // Will be replaced by the uploaded file URL
+            // FIX: Corrected property name from 'coverArtUrl' to 'cover_art_url'
+            cover_art_url: coverArtPreview || `https://picsum.photos/seed/${title.replace(/\s+/g, '')}/200/200`,
         };
         onSave(finalInstrumental, audioFile, coverArtPreview);
     };
@@ -67,7 +76,7 @@ const BeatFormModal: React.FC<{
             <div className="w-full max-w-lg cardSurface">
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-zinc-100">{instrumental?.id ? 'Edit Instrumental' : 'Upload New Instrumental'}</h2>
-                    <button onClick={onClose}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
+                    <button onClick={onClose} disabled={isUploading}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -76,17 +85,18 @@ const BeatFormModal: React.FC<{
                             <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className={inputClasses}/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                             <div className="cursor-pointer" onClick={() => audioFileInputRef.current?.click()}>
+                             <div className="cursor-pointer" onClick={() => !isUploading && audioFileInputRef.current?.click()}>
                                 <label className="block text-sm font-medium text-zinc-300 mb-1">Audio File</label>
                                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md hover:border-orange-500 transition-colors">
                                     <div className="space-y-1 text-center">
                                         <MusicNoteIcon className="mx-auto h-12 w-12 text-zinc-500" />
-                                        <p className="text-xs text-zinc-400">{audioFile ? audioFile.name : 'Click to select MP3 or WAV'}</p>
+                                        {/* FIX: Corrected property name from 'audioUrl' to 'audio_url' */}
+                                        <p className="text-xs text-zinc-400">{audioFile ? audioFile.name : (instrumental?.audio_url ? 'Click to replace file' : 'Click to select MP3 or WAV')}</p>
                                     </div>
                                 </div>
                                 <input type="file" ref={audioFileInputRef} onChange={handleAudioFileChange} accept=".mp3,.wav" className="hidden" />
                             </div>
-                             <div className="cursor-pointer" onClick={() => coverArtInputRef.current?.click()}>
+                             <div className="cursor-pointer" onClick={() => !isUploading && coverArtInputRef.current?.click()}>
                                 <label className="block text-sm font-medium text-zinc-300 mb-1">Cover Art</label>
                                 <div className="mt-1 flex justify-center items-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md hover:border-orange-500 transition-colors h-full">
                                     {coverArtPreview ? (
@@ -125,7 +135,9 @@ const BeatFormModal: React.FC<{
                     </div>
                     <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-end gap-2">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600">Cancel</button>
-                        <button type="submit" className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600">Save Instrumental</button>
+                        <button type="submit" disabled={isUploading} className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600 disabled:bg-zinc-600">
+                            {isUploading ? 'Uploading...' : 'Save Instrumental'}
+                        </button>
                     </div>
                 </form>
             </div>
@@ -145,12 +157,14 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer })
 
     const handleSaveInstrumental = async (instrumentalToSave: Instrumental, audioFile: File | null, coverArtUrl: string) => {
         setIsUploading(true);
-        let finalInstrumental = { ...instrumentalToSave, coverArtUrl };
+        // FIX: Corrected property name from 'coverArtUrl' to 'cover_art_url'
+        let finalInstrumental = { ...instrumentalToSave, cover_art_url: coverArtUrl };
 
         try {
             if (audioFile) {
                 const uploadedAudioUrl = await uploadBeatFile(audioFile, producer.id);
-                finalInstrumental.audioUrl = uploadedAudioUrl;
+                // FIX: Corrected property name from 'audioUrl' to 'audio_url'
+                finalInstrumental.audio_url = uploadedAudioUrl;
             }
 
             let updatedInstrumentals: Instrumental[];
@@ -194,15 +208,18 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer })
             <div className="space-y-4">
                 {producer.instrumentals.length > 0 ? producer.instrumentals.map(inst => (
                     <div key={inst.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-                        <img src={inst.coverArtUrl} alt={inst.title} className="w-16 h-16 rounded-md object-cover flex-shrink-0" />
+                        {/* FIX: Corrected property name from 'coverArtUrl' to 'cover_art_url' */}
+                        <img src={inst.cover_art_url} alt={inst.title} className="w-16 h-16 rounded-md object-cover flex-shrink-0" />
                         <div className="flex-grow">
                             <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><MusicNoteIcon className="w-5 h-5 text-purple-400"/> {inst.title}</h3>
                             <div className="flex items-center gap-4 mt-1">
                                 <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
-                                    <DollarSignIcon className="w-4 h-4" /> Lease: ${inst.priceLease.toFixed(2)}
+                                    {/* FIX: Corrected property name from 'priceLease' to 'price_lease' */}
+                                    <DollarSignIcon className="w-4 h-4" /> Lease: ${inst.price_lease.toFixed(2)}
                                 </div>
                                  <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
-                                    <DollarSignIcon className="w-4 h-4" /> Exclusive: ${inst.priceExclusive.toFixed(2)}
+                                    {/* FIX: Corrected property name from 'priceExclusive' to 'price_exclusive' */}
+                                    <DollarSignIcon className="w-4 h-4" /> Exclusive: ${inst.price_exclusive.toFixed(2)}
                                 </div>
                             </div>
                         </div>
@@ -216,7 +233,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer })
                 )}
             </div>
             
-            {isModalOpen && <BeatFormModal instrumental={editingInstrumental} onSave={handleSaveInstrumental} onClose={() => setIsModalOpen(false)} />}
+            {isModalOpen && <BeatFormModal instrumental={editingInstrumental} onSave={handleSaveInstrumental} onClose={() => setIsModalOpen(false)} isUploading={isUploading} />}
         </div>
     );
 };

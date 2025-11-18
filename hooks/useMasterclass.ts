@@ -28,7 +28,7 @@ export const useMasterclass = () => {
             amount: -masterclass.price,
             category: TransactionCategory.MASTERCLASS_PURCHASE,
             status: TransactionStatus.COMPLETED,
-            relatedUserName: owner.name,
+            related_user_name: owner.name,
         };
         const payoutTransaction: Transaction = {
             id: `txn-${Date.now() + 1}`,
@@ -37,7 +37,7 @@ export const useMasterclass = () => {
             amount: masterclass.price * 0.9, // Assuming a 10% platform fee
             category: TransactionCategory.MASTERCLASS_PAYOUT,
             status: TransactionStatus.COMPLETED,
-            relatedUserName: currentUser.name,
+            related_user_name: currentUser.name,
         };
 
         // 2. Update users
@@ -80,18 +80,19 @@ export const useMasterclass = () => {
         // 1. Create new review
         const newReview: Review = {
             id: `rev-mc-${Date.now()}`,
-            masterclassId: masterclass.id,
-            reviewerName: currentUser.name,
+            masterclass_id: masterclass.id,
+            reviewer_name: currentUser.name,
             rating,
             comment,
             date: new Date().toISOString(),
-            [owner.hasOwnProperty('specialties') ? 'engineerId' : 'producerId']: owner.id
+            // FIX: Correctly check for property existence on the union type
+            ['specialties' in owner ? 'engineer_id' : 'producer_id']: owner.id
         };
 
         const updatedReviews = [...reviews, newReview];
 
         // 2. Recalculate owner's rating
-        const allOwnerReviews = updatedReviews.filter(r => r.engineerId === owner.id || r.producerId === owner.id);
+        const allOwnerReviews = updatedReviews.filter(r => r.engineer_id === owner.id || r.producer_id === owner.id);
         const newAverageRating = allOwnerReviews.reduce((sum, r) => sum + r.rating, 0) / allOwnerReviews.length;
 
         const updatedOwner = { ...owner, rating_overall: newAverageRating };

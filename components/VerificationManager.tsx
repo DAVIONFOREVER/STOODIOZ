@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import type { Stoodio } from '../types';
 import { VerificationStatus } from '../types';
@@ -18,7 +17,7 @@ const VerificationManager: React.FC<VerificationManagerProps> = ({ stoodio, onVe
         onVerificationSubmit(stoodio.id, { googleBusinessProfileUrl, websiteUrl });
     };
 
-    if (stoodio.verificationStatus === VerificationStatus.VERIFIED) {
+    if (stoodio.verification_status === VerificationStatus.VERIFIED) {
         return (
             <div className="cardSurface p-6 text-center">
                 <VerifiedIcon className="w-16 h-16 text-blue-500 mx-auto" />
@@ -28,7 +27,7 @@ const VerificationManager: React.FC<VerificationManagerProps> = ({ stoodio, onVe
         );
     }
 
-    if (stoodio.verificationStatus === VerificationStatus.PENDING) {
+    if (stoodio.verification_status === VerificationStatus.PENDING) {
         return (
             <div className="cardSurface p-6 text-center">
                 <ClockIcon className="w-16 h-16 text-yellow-500 mx-auto animate-pulse" />

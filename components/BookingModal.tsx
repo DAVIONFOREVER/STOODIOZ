@@ -34,7 +34,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     const [selectedProducerId, setSelectedProducerId] = useState<string>(bookingIntent?.producer?.id || '');
     const [selectedBeats, setSelectedBeats] = useState<Instrumental[]>([]);
     const [addMixing, setAddMixing] = useState<boolean>(!!bookingIntent?.mixingDetails);
-    const [mixTrackCount, setMixTrackCount] = useState<number>(bookingIntent?.mixingDetails?.trackCount || 1);
+    // FIX: Corrected property 'trackCount' to 'track_count' to match the 'MixingDetails' type definition.
+    const [mixTrackCount, setMixTrackCount] = useState<number>(bookingIntent?.mixingDetails?.track_count || 1);
     const [includeProducer, setIncludeProducer] = useState<boolean>(!!bookingIntent?.producer && !!bookingIntent?.pullUpFee);
 
 
@@ -55,20 +56,26 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
         return engineerOptions.find(e => e.id === requestedEngineerId);
     }, [requestType, requestedEngineerId, engineerOptions]);
 
-    const canOfferMixing = selectedEngineerForMixing?.mixingServices?.isEnabled;
+    // FIX: Corrected property 'isEnabled' to 'is_enabled' to match the 'MixingServices' type definition.
+    const canOfferMixing = selectedEngineerForMixing?.mixing_services?.is_enabled;
 
 
     const { stoodioCost, engineerFee, serviceFee, totalCost, subtotal, effectivePayRate, beatsCost, pullUpFee, mixingCost } = useMemo(() => {
-        const stoodioCost = initialRoom.hourlyRate * duration;
+        // FIX: Corrected property 'hourlyRate' to 'hourly_rate' to match the 'Room' type definition.
+        const stoodioCost = initialRoom.hourly_rate * duration;
         
-        let currentEngineerPayRate = stoodio.engineerPayRate;
+        // FIX: Corrected property 'engineerPayRate' to 'engineer_pay_rate' to match the 'Stoodio' type definition.
+        let currentEngineerPayRate = stoodio.engineer_pay_rate;
 
         if (requestType === BookingRequestType.SPECIFIC_ENGINEER && requestedEngineerId) {
-            const inHouseEngineerInfo = stoodio.inHouseEngineers?.find(
-                e => e.engineerId === requestedEngineerId
+            // FIX: Corrected property 'inHouseEngineers' to 'in_house_engineers' to match the 'Stoodio' type definition.
+            const inHouseEngineerInfo = stoodio.in_house_engineers?.find(
+                // FIX: Corrected property 'engineerId' to 'engineer_id' to match the 'InHouseEngineerInfo' type definition.
+                e => e.engineer_id === requestedEngineerId
             );
             if (inHouseEngineerInfo) {
-                currentEngineerPayRate = inHouseEngineerInfo.payRate;
+                // FIX: Corrected property 'payRate' to 'pay_rate' to match the 'InHouseEngineerInfo' type definition.
+                currentEngineerPayRate = inHouseEngineerInfo.pay_rate;
             }
         }
 
@@ -76,11 +83,14 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
             ? currentEngineerPayRate * duration 
             : 0;
 
-        const beatsCost = selectedBeats.reduce((total, beat) => total + beat.priceLease, 0);
-        const pullUpFee = (selectedProducer && includeProducer) ? selectedProducer.pullUpPrice || 0 : 0;
+        // FIX: Corrected property 'priceLease' to 'price_lease' to match the 'Instrumental' type definition.
+        const beatsCost = selectedBeats.reduce((total, beat) => total + beat.price_lease, 0);
+        // FIX: Corrected property 'pullUpPrice' to 'pull_up_price' to match the 'Producer' type definition.
+        const pullUpFee = (selectedProducer && includeProducer) ? selectedProducer.pull_up_price || 0 : 0;
 
         const mixingCost = (addMixing && canOfferMixing && selectedEngineerForMixing)
-            ? selectedEngineerForMixing.mixingServices!.pricePerTrack * mixTrackCount
+            // FIX: Corrected property 'pricePerTrack' to 'price_per_track' to match the 'MixingServices' type definition.
+            ? selectedEngineerForMixing.mixing_services!.price_per_track * mixTrackCount
             : 0;
 
         const subtotal = stoodioCost + engineerFee + beatsCost + pullUpFee + mixingCost;
@@ -88,7 +98,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
         const totalCost = subtotal + serviceFee;
         
         return { stoodioCost, engineerFee, serviceFee, totalCost, subtotal, effectivePayRate: currentEngineerPayRate, beatsCost, pullUpFee, mixingCost };
-    }, [initialRoom.hourlyRate, stoodio.engineerPayRate, stoodio.inHouseEngineers, duration, requestType, requestedEngineerId, selectedBeats, selectedProducer, addMixing, mixTrackCount, canOfferMixing, selectedEngineerForMixing, includeProducer]);
+    // FIX: Updated dependencies to use snake_case properties.
+    }, [initialRoom.hourly_rate, stoodio.engineer_pay_rate, stoodio.in_house_engineers, duration, requestType, requestedEngineerId, selectedBeats, selectedProducer, addMixing, mixTrackCount, canOfferMixing, selectedEngineerForMixing, includeProducer]);
 
     const handleBeatToggle = (beat: Instrumental) => {
         setSelectedBeats(prev => 
@@ -103,23 +114,24 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 
         const finalMixingDetails = bookingIntent?.mixingDetails || (addMixing && canOfferMixing && selectedEngineerForMixing ? {
             type: 'IN_STUDIO',
-            trackCount: mixTrackCount,
+            track_count: mixTrackCount,
             notes: '', 
         } : undefined);
 
+        // FIX: Corrected multiple camelCase properties to snake_case to match the 'BookingRequest' type definition.
         const bookingRequest: BookingRequest = { 
             room: initialRoom,
             date, 
-            startTime, 
+            start_time: startTime, 
             duration, 
-            totalCost,
-            engineerPayRate: effectivePayRate,
-            requestType, 
-            requestedEngineerId: requestType === BookingRequestType.SPECIFIC_ENGINEER ? requestedEngineerId : undefined,
-            producerId: selectedProducerId || undefined,
-            instrumentalsToPurchase: selectedBeats,
-            pullUpFee: (selectedProducer && includeProducer) ? selectedProducer.pullUpPrice : undefined,
-            mixingDetails: finalMixingDetails,
+            total_cost: totalCost,
+            engineer_pay_rate: effectivePayRate,
+            request_type: requestType, 
+            requested_engineer_id: requestType === BookingRequestType.SPECIFIC_ENGINEER ? requestedEngineerId : undefined,
+            producer_id: selectedProducerId || undefined,
+            instrumentals_to_purchase: selectedBeats,
+            pull_up_fee: (selectedProducer && includeProducer) ? selectedProducer.pull_up_price : undefined,
+            mixing_details: finalMixingDetails,
         };
         onConfirm(bookingRequest);
     };
@@ -204,7 +216,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                             <div className="flex-grow">
                                                 <p className="font-semibold text-zinc-200">Add In-Studio Mixing</p>
                                                 <p className="text-xs text-zinc-400">
-                                                    ${selectedEngineerForMixing?.mixingServices?.pricePerTrack}/track
+                                                    {/* FIX: Corrected property 'pricePerTrack' to 'price_per_track' to match the 'MixingServices' type definition. */}
+                                                    ${selectedEngineerForMixing?.mixing_services?.price_per_track}/track
                                                 </p>
                                             </div>
                                         </label>
@@ -233,7 +246,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                     
                                     {selectedProducer && (
                                         <div className="mt-3 border-t border-zinc-700 pt-3">
-                                            {selectedProducer.pullUpPrice && (
+                                            {/* FIX: Corrected property 'pullUpPrice' to 'pull_up_price' to match the 'Producer' type definition. */}
+                                            {selectedProducer.pull_up_price && (
                                                 <label className="flex items-center gap-3 p-2 cursor-pointer">
                                                     <input 
                                                         type="checkbox" 
@@ -244,7 +258,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                                     <div>
                                                         <p className="font-semibold text-zinc-200">Include {selectedProducer.name} in Session (Pull Up)</p>
                                                         <p className="text-xs text-zinc-400">
-                                                            Adds a ${selectedProducer.pullUpPrice} fee for the producer's time.
+                                                            {/* FIX: Corrected property 'pullUpPrice' to 'pull_up_price' to match the 'Producer' type definition. */}
+                                                            Adds a ${selectedProducer.pull_up_price} fee for the producer's time.
                                                         </p>
                                                     </div>
                                                 </label>
@@ -258,7 +273,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                                                 <p className="text-sm font-semibold text-zinc-200">{beat.title}</p>
                                                                 <p className="text-xs text-zinc-400">{beat.genre}</p>
                                                             </div>
-                                                            <p className="text-sm font-bold text-green-400">${beat.priceLease.toFixed(2)}</p>
+                                                            {/* FIX: Corrected property 'priceLease' to 'price_lease' to match the 'Instrumental' type definition. */}
+                                                            <p className="text-sm font-bold text-green-400">${beat.price_lease.toFixed(2)}</p>
                                                         </label>
                                                     ))}
                                                 </div>

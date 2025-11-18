@@ -11,19 +11,21 @@ const MasterclassManager: React.FC<MasterclassManagerProps> = ({ user, onUpdateU
     
     const defaultMasterclass: Masterclass = {
         id: `mc-${user.id}`,
-        isEnabled: false,
+        is_enabled: false,
         title: '',
         description: '',
-        videoUrl: '',
+        video_url: '',
         price: 99.99,
     };
 
-    const initialMasterclass = user.masterclass || defaultMasterclass;
+    // FIX: Check if `masterclass` exists on the user object before using it.
+    const initialMasterclass = 'masterclass' in user && user.masterclass ? user.masterclass : defaultMasterclass;
     
     const [masterclass, setMasterclass] = useState<Masterclass>(initialMasterclass);
 
     useEffect(() => {
-        setMasterclass(user.masterclass || defaultMasterclass);
+        // FIX: Check if `masterclass` exists on the user object before using it.
+        setMasterclass('masterclass' in user && user.masterclass ? user.masterclass : defaultMasterclass);
     }, [user.masterclass]);
 
     const handleChange = (field: keyof Omit<Masterclass, 'id'>, value: any) => {
@@ -61,16 +63,16 @@ const MasterclassManager: React.FC<MasterclassManagerProps> = ({ user, onUpdateU
                             <input
                                 type="checkbox"
                                 className="sr-only"
-                                checked={masterclass.isEnabled}
-                                onChange={(e) => handleChange('isEnabled', e.target.checked)}
+                                checked={masterclass.is_enabled}
+                                onChange={(e) => handleChange('is_enabled', e.target.checked)}
                             />
-                            <div className={`block w-12 h-6 rounded-full transition-colors ${masterclass.isEnabled ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                            <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${masterclass.isEnabled ? 'translate-x-6' : ''}`}></div>
+                            <div className={`block w-12 h-6 rounded-full transition-colors ${masterclass.is_enabled ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                            <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${masterclass.is_enabled ? 'translate-x-6' : ''}`}></div>
                         </div>
                     </label>
                 </div>
                 
-                <div className={`transition-opacity ${masterclass.isEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                <div className={`transition-opacity ${masterclass.is_enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
                      <div>
                         <label htmlFor="mc-title" className={labelClasses}>Masterclass Title</label>
                         <input type="text" id="mc-title" value={masterclass.title} onChange={e => handleChange('title', e.target.value)} className={inputClasses} placeholder="e.g., The Art of the Vocal Mix" />
@@ -82,7 +84,7 @@ const MasterclassManager: React.FC<MasterclassManagerProps> = ({ user, onUpdateU
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="mc-video" className={labelClasses}>Video URL</label>
-                            <input type="url" id="mc-video" value={masterclass.videoUrl} onChange={e => handleChange('videoUrl', e.target.value)} className={inputClasses} placeholder="e.g., YouTube or Vimeo link" />
+                            <input type="url" id="mc-video" value={masterclass.video_url} onChange={e => handleChange('video_url', e.target.value)} className={inputClasses} placeholder="e.g., YouTube or Vimeo link" />
                             <p className="text-xs text-zinc-500 mt-1 px-1">
                                 Pro Tip: Use an "Unlisted" video link from YouTube or Vimeo for the best experience. This keeps it private while allowing it to be embedded here.
                             </p>

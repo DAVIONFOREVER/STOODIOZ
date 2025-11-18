@@ -27,7 +27,7 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                         <div className="grid grid-cols-1 gap-4">
                             {studios.map(studio => (
                                 <div key={studio.id} className="cardSurface p-3 flex items-center gap-4">
-                                    {/* FIX: Changed `imageUrl` to `image_url` to match the Stoodio type definition. */}
+                                    {/* FIX: Corrected property 'imageUrl' to 'image_url' to match the user type definition. */}
                                     <img src={studio.image_url} alt={studio.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectStudio(studio)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{studio.name}</button>
@@ -58,7 +58,7 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                         <div className="grid grid-cols-1 gap-4">
                             {engineers.map(engineer => (
                                 <div key={engineer.id} className="cardSurface p-3 flex items-center gap-4">
-                                    {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
+                                    {/* FIX: Corrected property 'imageUrl' to 'image_url' to match the user type definition. */}
                                     <img src={engineer.image_url} alt={engineer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectEngineer(engineer)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{engineer.name}</button>
@@ -86,7 +86,7 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                         <div className="grid grid-cols-1 gap-4">
                             {artists.map(artist => (
                                 <div key={artist.id} className="cardSurface p-3 flex items-center gap-4">
-                                    {/* FIX: Changed `imageUrl` to `image_url` to match the Artist type definition. */}
+                                    {/* FIX: Corrected property 'imageUrl' to 'image_url' to match the user type definition. */}
                                     <img src={artist.image_url} alt={artist.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectArtist(artist)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{artist.name}</button>
@@ -115,7 +115,7 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                         <div className="grid grid-cols-1 gap-4">
                             {producers.map(producer => (
                                 <div key={producer.id} className="cardSurface p-3 flex items-center gap-4">
-                                    {/* FIX: Changed `imageUrl` to `image_url` to match the Producer type definition. */}
+                                    {/* FIX: Corrected property 'imageUrl' to 'image_url' to match the user type definition. */}
                                     <img src={producer.image_url} alt={producer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectProducer(producer)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{producer.name}</button>

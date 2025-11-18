@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { AppView, SmokingPolicy } from '../types';
 import { PhotoIcon } from './icons';
@@ -34,6 +35,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (name.trim() && description.trim() && location.trim() && email.trim() && password.trim() && agreedToTerms) {
+            // FIX: Passing businessAddress correctly to match Stoodio type in parent/apiService
             onCompleteSetup(name, description, location, businessAddress, email, password, imagePreview);
         }
     };

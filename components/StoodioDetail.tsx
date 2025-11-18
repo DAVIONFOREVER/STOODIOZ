@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
@@ -34,7 +35,6 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg text-left cardSurface">
-            {/* FIX: Changed `imageUrl` to `image_url` to match the type definition. */}
             <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -69,7 +69,7 @@ const StoodioDetail: React.FC = () => {
 
     const isFollowing = currentUser && 'following' in currentUser ? (currentUser.following.stoodioz || []).includes(stoodio.id) : false;
 
-    const stoodioReviews = reviews.filter(r => r.stoodioId === stoodio.id);
+    const stoodioReviews = reviews.filter(r => r.stoodio_id === stoodio.id);
     
     const hostedArtists = Array.from(new Set(bookings.filter(b => b.stoodio?.id === stoodio.id && b.artist).map(b => b.artist!.id)))
         .map(id => artists.find(a => a.id === id))
@@ -120,15 +120,13 @@ const StoodioDetail: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
                 {/* Left Column: Stoodio Info */}
                 <div className="lg:col-span-3">
-                    {/* FIX: Changed `imageUrl` to `image_url` to match the `Stoodio` type definition. */}
                     <img src={stoodio.image_url} alt={stoodio.name} className="w-full h-80 object-cover rounded-2xl mb-6 shadow-lg" />
                     
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
                         <div>
                             <div className="flex items-center gap-3">
                                 <h1 className="text-4xl md:text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
-                                {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
-                                    // FIX: The `title` attribute is not a valid prop for the `VerifiedIcon` component. The fix is to use an SVG `<title>` element for accessibility.
+                                {stoodio.verification_status === VerificationStatus.VERIFIED && (
                                     <VerifiedIcon className="w-10 h-10 text-blue-500"><title>Verified Stoodio</title></VerifiedIcon>
                                 )}
                             </div>
@@ -168,17 +166,16 @@ const StoodioDetail: React.FC = () => {
                                 ))}
                             </ul>
                         </div>
-                        {/* FIX: Use selectedRoom.smokingPolicy instead of stoodio.smokingPolicy and make the block conditional. */}
                         {selectedRoom && (
                             <div>
                                 <h3 className="text-2xl font-bold mb-4 text-orange-400">Policies for {selectedRoom.name}</h3>
                                 <ul className="grid grid-cols-1 gap-y-3 text-slate-200 mb-10">
                                     <li className="flex items-center">
-                                        {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED)
+                                        {(selectedRoom.smoking_policy === SmokingPolicy.SMOKING_ALLOWED)
                                             ? <SmokingIcon className="w-5 h-5 mr-3 text-green-400" />
                                             : <NoSmokingIcon className="w-5 h-5 mr-3 text-red-400" />
                                         }
-                                        {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED) ? 'Smoking Allowed' : 'Non-Smoking'}
+                                        {(selectedRoom.smoking_policy === SmokingPolicy.SMOKING_ALLOWED) ? 'Smoking Allowed' : 'Non-Smoking'}
                                     </li>
                                 </ul>
                             </div>
@@ -198,7 +195,6 @@ const StoodioDetail: React.FC = () => {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {hostedArtists.map(artist => (
                                     <button key={artist.id} onClick={() => viewArtistProfile(artist)} className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors">
-                                        {/* FIX: Changed `imageUrl` to `image_url` to match the `Artist` type definition. */}
                                         <img src={artist.image_url} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
                                         <span className="font-semibold text-sm text-slate-200">{artist.name}</span>
                                     </button>
@@ -254,16 +250,16 @@ const StoodioDetail: React.FC = () => {
                         {stoodioReviews.length > 0 ? (
                             <ul className="space-y-5">
                                 {stoodioReviews.map(review => {
-                                    const artist = review.artistId ? artists.find(a => a.id === review.artistId) : null;
+                                    const artist = review.artist_id ? artists.find(a => a.id === review.artist_id) : null;
                                     return (
                                     <li key={review.id} className="border-b border-zinc-700 pb-4 last:border-b-0">
                                         <div className="flex justify-between items-center mb-1">
                                             {artist ? (
                                                 <button onClick={() => viewArtistProfile(artist)} className="font-semibold text-slate-200 text-left hover:text-orange-400 transition-colors">
-                                                    {review.reviewerName}
+                                                    {review.reviewer_name}
                                                 </button>
                                             ) : (
-                                                <p className="font-semibold text-slate-200">{review.reviewerName}</p>
+                                                <p className="font-semibold text-slate-200">{review.reviewer_name}</p>
                                             )}
                                             <div className="flex items-center gap-1 text-sm text-yellow-400">
                                                 <StarIcon className="w-4 h-4" />
@@ -300,7 +296,7 @@ const StoodioDetail: React.FC = () => {
                                 <button key={room.id} onClick={() => setSelectedRoom(room)} className={`w-full text-left p-4 rounded-xl border-2 transition-all ${selectedRoom?.id === room.id ? 'border-orange-500 bg-orange-500/10' : 'border-zinc-700 hover:border-zinc-600 bg-zinc-900/50'}`}>
                                     <div className="flex justify-between items-center">
                                         <span className="font-bold text-lg text-slate-100">{room.name}</span>
-                                        <span className="font-bold text-lg text-orange-400">${room.hourlyRate}/hr</span>
+                                        <span className="font-bold text-lg text-orange-400">${room.hourly_rate}/hr</span>
                                     </div>
                                     <p className="text-sm text-slate-400 mt-1">{room.description}</p>
                                 </button>

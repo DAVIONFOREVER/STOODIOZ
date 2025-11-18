@@ -12,27 +12,31 @@ const ProducerSettings: React.FC<ProducerSettingsProps> = ({ producer, onUpdateP
     const [name, setName] = useState(producer.name);
     const [bio, setBio] = useState(producer.bio);
     const [genres, setGenres] = useState((producer.genres || []).join(', '));
-    const [pullUpPrice, setPullUpPrice] = useState(producer.pullUpPrice || 0);
+    // FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price'
+    const [pullUpPrice, setPullUpPrice] = useState(producer.pull_up_price || 0);
 
     useEffect(() => {
         setName(producer.name);
         setBio(producer.bio);
         setGenres((producer.genres || []).join(', '));
-        setPullUpPrice(producer.pullUpPrice || 0);
+        // FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price'
+        setPullUpPrice(producer.pull_up_price || 0);
     }, [producer]);
     
     const hasChanges = 
         name !== producer.name ||
         bio !== producer.bio ||
         genres !== (producer.genres || []).join(', ') ||
-        pullUpPrice !== (producer.pullUpPrice || 0);
+        // FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price'
+        pullUpPrice !== (producer.pull_up_price || 0);
 
     const handleSave = () => {
         const updatedProfile: Partial<Producer> = {
             name,
             bio,
             genres: genres.split(',').map(g => g.trim()).filter(Boolean),
-            pullUpPrice,
+            // FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price'
+            pull_up_price: pullUpPrice,
         };
         onUpdateProducer(updatedProfile);
     };
@@ -85,4 +89,3 @@ const ProducerSettings: React.FC<ProducerSettingsProps> = ({ producer, onUpdateP
 };
 
 export default ProducerSettings;
-      

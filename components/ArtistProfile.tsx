@@ -1,11 +1,12 @@
+
 import React, { useMemo } from 'react';
 import type { Artist, Engineer, Stoodio, Producer } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon } from './icons.tsx';
-import PostFeed from './PostFeed.tsx';
-import { useAppState } from '../contexts/AppContext.tsx';
-import { useNavigation } from '../hooks/useNavigation.ts';
-import { useSocial } from '../hooks/useSocial.ts';
-import { useMessaging } from '../hooks/useMessaging.ts';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon } from './icons';
+import PostFeed from './PostFeed';
+import { useAppState } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useMessaging } from '../hooks/useMessaging';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -30,6 +31,7 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
+            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
             <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -67,6 +69,7 @@ const ArtistProfile: React.FC = () => {
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.artists || []).includes(artist.id)) : false;
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
     const followers = useMemo(() => allUsers.filter(u => artist.follower_ids.includes(u.id)), [allUsers, artist.follower_ids]);
 
     const followedArtists = useMemo(() => artists.filter(a => artist.following.artists.includes(a.id)), [artists, artist.following.artists]);
@@ -86,6 +89,7 @@ const ArtistProfile: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-12">
                 <div className="p-8 cardSurface">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
+                        {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
                         <img src={artist.image_url} alt={artist.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left flex-grow">
                             <h1 className="text-4xl font-extrabold text-orange-500">{artist.name}</h1>

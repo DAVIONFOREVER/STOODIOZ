@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
+// FIX: Import missing Stoodio type
 import type { UserRole, Artist, Engineer, Stoodio, Producer } from '../types';
 import { supabase } from '../src/supabaseClient.js';
 

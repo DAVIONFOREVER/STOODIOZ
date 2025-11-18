@@ -1,3 +1,4 @@
+
 // FIX: Removed reference to @types/google.maps as it is not available in the environment.
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, OverlayViewF, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
@@ -222,7 +223,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
     const mapItems = useMemo((): MapItem[] => {
         const jobs = bookings
-            .filter(b => b.postedBy === UserRole.STOODIO && b.status === BookingStatus.PENDING)
+            // FIX: Corrected property name from 'postedBy' to 'posted_by'
+            .filter(b => b.posted_by === UserRole.STOODIO && b.status === BookingStatus.PENDING)
             .map(b => ({ ...b, itemType: 'JOB' as const }));
 
         let items: MapUser[] = [];

@@ -2,6 +2,7 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
+// FIX: Import missing Stoodio type
 import type { Artist, Engineer, Stoodio, Producer, UserRole } from '../types';
 
 export const useProfile = () => {

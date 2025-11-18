@@ -1,5 +1,4 @@
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
-// FIX: Added RankingTier to imports to resolve a reference error.
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -28,7 +27,7 @@ const fetchData = async <T>(tableName: string, query: string = '*'): Promise<T[]
 export const fetchStoodioz = (): Promise<Stoodio[]> => fetchData<Stoodio>('stoodioz', '*, rooms(*), in_house_engineers(*)');
 export const fetchArtists = (): Promise<Artist[]> => fetchData<Artist>('artists', '*');
 export const fetchEngineers = (): Promise<Engineer[]> => fetchData<Engineer>('engineers', '*, mixing_samples(*)');
-export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers', '*');
+export const fetchProducers = (): Promise<Producer[]> => fetchData<Producer>('producers', '*, instrumentals(*)');
 export const fetchReviews = (): Promise<Review[]> => fetchData<Review>('reviews', '*');
 export const fetchBookings = (): Promise<Booking[]> => fetchData<Booking>('bookings', '*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)');
 
@@ -139,7 +138,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         wallet_transactions: [],
         posts: [],
         links: [],
-        isOnline: true,
+        is_online: true,
         rating_overall: 0,
         sessions_completed: 0,
         ranking_tier: RankingTier.Provisional,
@@ -155,19 +154,19 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     switch (role) {
         case UserRoleEnum.ARTIST:
             tableName = 'artists';
-            newUserScaffold = { ...baseData, bio: userData.bio, isSeekingSession: false, showOnMap: false };
+            newUserScaffold = { ...baseData, bio: userData.bio, is_seeking_session: false, showOnMap: false };
             break;
         case UserRoleEnum.ENGINEER:
             tableName = 'engineers';
-            newUserScaffold = { ...baseData, bio: userData.bio, specialties: [], mixingSamples: [], isAvailable: true, showOnMap: true, displayExactLocation: false };
+            newUserScaffold = { ...baseData, bio: userData.bio, specialties: [], mixing_samples: [], is_available: true, showOnMap: true, display_exact_location: false };
             break;
         case UserRoleEnum.PRODUCER:
             tableName = 'producers';
-            newUserScaffold = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], isAvailable: true, showOnMap: true };
+            newUserScaffold = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], is_available: true, showOnMap: true };
             break;
         case UserRoleEnum.STOODIO:
             tableName = 'stoodioz';
-            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, businessAddress: userData.businessAddress, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.image_url || USER_SILHOUETTE_URL], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
+            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [userData.image_url || USER_SILHOUETTE_URL], rooms: [], verification_status: VerificationStatus.UNVERIFIED, showOnMap: true };
             break;
         default:
             throw new Error(`Invalid role: ${role}`);
@@ -267,23 +266,23 @@ export const createBooking = async (
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    let status = bookingRequest.requestType === BookingRequestType.SPECIFIC_ENGINEER ? BookingStatus.PENDING_APPROVAL : BookingStatus.PENDING;
+    let status = bookingRequest.request_type === BookingRequestType.SPECIFIC_ENGINEER ? BookingStatus.PENDING_APPROVAL : BookingStatus.PENDING;
 
     const newBookingData: any = {
         date: bookingRequest.date,
-        start_time: bookingRequest.startTime,
+        start_time: bookingRequest.start_time,
         duration: bookingRequest.duration,
-        total_cost: bookingRequest.totalCost,
+        total_cost: bookingRequest.total_cost,
         status: status,
         booked_by_id: bookedByUser.id,
         booked_by_role: bookedByRole,
-        request_type: bookingRequest.requestType,
-        engineer_pay_rate: bookingRequest.engineerPayRate,
-        mixing_details: bookingRequest.mixingDetails,
+        request_type: bookingRequest.request_type,
+        engineer_pay_rate: bookingRequest.engineer_pay_rate,
+        mixing_details: bookingRequest.mixing_details,
         stoodio_id: stoodio?.id,
         artist_id: bookedByRole === UserRoleEnum.ARTIST ? bookedByUser.id : null,
-        requested_engineer_id: bookingRequest.requestedEngineerId,
-        producer_id: bookingRequest.producerId,
+        requested_engineer_id: bookingRequest.requested_engineer_id,
+        producer_id: bookingRequest.producer_id,
         posted_by: bookedByRole === UserRoleEnum.STOODIO ? UserRoleEnum.STOODIO : undefined,
     };
 
@@ -360,7 +359,7 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not initialized");
 
-    const listKey = `${targetType}s`;
+    const listKey = targetType === 'stoodio' ? 'stoodioz' : `${targetType}s`;
     
     const newFollowing = { ...currentUser.following };
     if (isFollowing) {
@@ -452,7 +451,6 @@ export const respondToBooking = async (booking: Booking, action: 'accept' | 'den
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    // FIX: Replaced non-existent BookingStatus.DENIED with BookingStatus.CANCELLED.
     const status = action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
     const engineer_id = action === 'accept' ? engineer.id : null;
 
@@ -474,7 +472,7 @@ export const submitForVerification = async (stoodioId: string, verificationData:
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
     
-    const updates = { ...verificationData, verificationStatus: VerificationStatus.PENDING };
+    const updates = { ...verificationData, verification_status: VerificationStatus.PENDING };
     const { data, error } = await supabase.from('stoodioz').update(updates).eq('id', stoodioId).select().single();
     if (error) throw error;
     return data;

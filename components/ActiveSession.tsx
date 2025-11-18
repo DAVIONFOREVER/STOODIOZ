@@ -1,5 +1,9 @@
 
 
+
+
+
+
 // FIX: Removed reference to @types/google.maps as it is not available in the environment.
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
@@ -158,7 +162,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArt
     
     if (!session) return null;
 
-    const engineerPayout = session.totalCost * 0.20;
+    // FIX: Corrected property 'engineerPayRate' to 'engineer_pay_rate' to match the 'Booking' type definition.
+    const engineerPayout = session.engineer_pay_rate * session.duration;
 
     const handleStartSession = () => {
         setProgress('IN_SESSION');
@@ -223,7 +228,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArt
                         <div className="text-left sm:text-right">
                             <p className="text-slate-400 font-semibold">DATE & TIME</p>
                             <p className="text-lg font-bold mt-2">{formattedDate}</p>
-                            <p className="text-slate-300">{session.startTime} for {session.duration} hours</p>
+                            <p className="text-slate-300">{session.start_time} for {session.duration} hours</p>
                         </div>
                     </div>
                     <div className="border-t border-zinc-700 my-6"></div>

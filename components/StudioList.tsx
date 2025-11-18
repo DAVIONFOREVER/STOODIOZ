@@ -30,11 +30,13 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
         let results = stoodioz;
 
         if (showVerifiedOnly) {
-            results = results.filter(s => s.verificationStatus === VerificationStatus.VERIFIED);
+            // FIX: Corrected property 'verificationStatus' to 'verification_status' to match type definition.
+            results = results.filter(s => s.verification_status === VerificationStatus.VERIFIED);
         }
 
         if (smokingFilter !== 'any') {
-            results = results.filter(s => s.rooms.some(r => (r.smokingPolicy || SmokingPolicy.NON_SMOKING) === smokingFilter));
+            // FIX: Corrected property 'smokingPolicy' to 'smoking_policy' to match type definition.
+            results = results.filter(s => s.rooms.some(r => (r.smoking_policy || SmokingPolicy.NON_SMOKING) === smokingFilter));
         }
 
         if (searchTerm) {
@@ -42,7 +44,8 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
             results = results.filter(s => 
                 s.name.toLowerCase().includes(lowerCaseTerm) || 
                 s.location.toLowerCase().includes(lowerCaseTerm) ||
-                s.businessAddress?.toLowerCase().includes(lowerCaseTerm) ||
+                // FIX: Corrected property 'businessAddress' to 'business_address' to match type definition.
+                s.business_address?.toLowerCase().includes(lowerCaseTerm) ||
                 s.amenities.some(a => a.toLowerCase().includes(lowerCaseTerm))
             );
         }

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Booking } from '../types';
@@ -14,7 +15,7 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
     const [isConfirmed, setIsConfirmed] = useState(false);
 
     const { refundAmount, cancellationFee, policyMessage } = useMemo(() => {
-        const bookingStartTime = new Date(`${booking.date}T${booking.startTime}`);
+        const bookingStartTime = new Date(`${booking.date}T${booking.start_time}`);
         const hoursUntilSession = differenceInHours(bookingStartTime, new Date());
 
         let refundPercentage = 0;
@@ -31,8 +32,8 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
             policyMessage = 'Non-refundable: Session is within 24 hours.';
         }
 
-        const refundAmount = booking.totalCost * refundPercentage;
-        const cancellationFee = booking.totalCost - refundAmount;
+        const refundAmount = booking.total_cost * refundPercentage;
+        const cancellationFee = booking.total_cost - refundAmount;
 
         return { refundAmount, cancellationFee, policyMessage };
     }, [booking]);
@@ -64,7 +65,7 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
                         <div className="space-y-2 text-sm text-slate-200">
                             <div className="flex justify-between">
                                 <span>Total Amount Paid:</span> 
-                                <span>${booking.totalCost.toFixed(2)}</span>
+                                <span>${booking.total_cost.toFixed(2)}</span>
                             </div>
                              <div className="flex justify-between text-red-400">
                                 <span>Cancellation Fee:</span> 

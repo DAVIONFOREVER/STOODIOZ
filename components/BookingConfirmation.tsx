@@ -21,13 +21,14 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
         );
     }
     
-    const { stoodio, engineer, date, startTime, duration, totalCost, requestType, requestedEngineerId } = latestBooking;
+    // FIX: Corrected property 'totalCost' to 'total_cost' to match the 'Booking' type definition.
+    const { stoodio, engineer, date, start_time, duration, total_cost, request_type, requested_engineer_id } = latestBooking;
     
     const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
     
-    const requestedEngineer = engineers.find(e => e.id === requestedEngineerId);
+    const requestedEngineer = engineers.find(e => e.id === requested_engineer_id);
 
     const getTitleAndMessage = () => {
         const atStoodio = stoodio ? `at ${stoodio.name}` : '';
@@ -40,7 +41,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
                 };
             case BookingStatus.PENDING_APPROVAL:
                  const approver = requestedEngineer?.name || 'the engineer';
-                 if(latestBooking.mixingDetails?.type === 'REMOTE') {
+                 if(latestBooking.mixing_details?.type === 'REMOTE') {
                      return {
                         icon: <ClockIcon className="w-20 h-20 text-yellow-500" />,
                         title: 'Mix Request Sent!',
@@ -54,7 +55,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
                 };
             case BookingStatus.CONFIRMED:
             default:
-                if (requestType === BookingRequestType.BRING_YOUR_OWN) {
+                if (request_type === BookingRequestType.BRING_YOUR_OWN) {
                     return {
                         icon: <CheckCircleIcon className="w-20 h-20 text-green-500" />,
                         title: 'Booking Confirmed!',
@@ -70,7 +71,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
     };
     
     const { icon, title, message } = getTitleAndMessage();
-    const isConfirmedWithStoodiozEngineer = latestBooking.status === BookingStatus.CONFIRMED && requestType !== BookingRequestType.BRING_YOUR_OWN;
+    const isConfirmedWithStoodiozEngineer = latestBooking.status === BookingStatus.CONFIRMED && request_type !== BookingRequestType.BRING_YOUR_OWN;
 
     return (
         <div className="max-w-3xl mx-auto text-center">
@@ -92,12 +93,14 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-slate-300">
                             {stoodio && <p><strong>Stoodio:</strong> {stoodio.name}</p>}
                             {stoodio && <p><strong>Location:</strong> {stoodio.location}</p>}
-                            {latestBooking.mixingDetails?.type === 'REMOTE' && <p><strong>Service:</strong> Remote Mixing ({latestBooking.mixingDetails.trackCount} tracks)</p>}
-                            {latestBooking.mixingDetails?.type === 'IN_STUDIO' && <p><strong>Add-on:</strong> In-Studio Mixing ({latestBooking.mixingDetails.trackCount} tracks)</p>}
+                            {/* FIX: Corrected property 'trackCount' to 'track_count' to match the 'MixingDetails' type definition. */}
+                            {latestBooking.mixing_details?.type === 'REMOTE' && <p><strong>Service:</strong> Remote Mixing ({latestBooking.mixing_details.track_count} tracks)</p>}
+                            {/* FIX: Corrected property 'trackCount' to 'track_count' to match the 'MixingDetails' type definition. */}
+                            {latestBooking.mixing_details?.type === 'IN_STUDIO' && <p><strong>Add-on:</strong> In-Studio Mixing ({latestBooking.mixing_details.track_count} tracks)</p>}
                             <p><strong>Date:</strong> {formattedDate}</p>
-                            {startTime !== 'N/A' && <p><strong>Time:</strong> {startTime} for {duration} hours</p>}
-                            <p><strong>Total Paid:</strong> <span className="font-bold">${totalCost.toFixed(2)}</span></p>
-                            <p><strong>Engineer:</strong> {requestType === BookingRequestType.BRING_YOUR_OWN ? 'Provided by Artist' : (engineer?.name || 'To be assigned')}</p>
+                            {start_time !== 'N/A' && <p><strong>Time:</strong> {start_time} for {duration} hours</p>}
+                            <p><strong>Total Paid:</strong> <span className="font-bold">${total_cost.toFixed(2)}</span></p>
+                            <p><strong>Engineer:</strong> {request_type === BookingRequestType.BRING_YOUR_OWN ? 'Provided by Artist' : (engineer?.name || 'To be assigned')}</p>
                              {latestBooking.producer && <p><strong>Producer:</strong> {latestBooking.producer.name}</p>}
                         </div>
                     </div>
@@ -128,19 +131,22 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
                             </div>
                         </>
                     )}
-                     {latestBooking.instrumentalsPurchased && latestBooking.instrumentalsPurchased.length > 0 && (
+                     {/* FIX: Corrected property 'instrumentalsPurchased' to 'instrumentals_purchased' to match the 'Booking' type definition. */}
+                     {latestBooking.instrumentals_purchased && latestBooking.instrumentals_purchased.length > 0 && (
                         <>
                             <div className="border-t border-zinc-700"></div>
                             <div>
                                 <h3 className="font-bold text-lg text-orange-400 mb-4">Download Your Beats</h3>
                                 <div className="space-y-2">
-                                    {latestBooking.instrumentalsPurchased.map(beat => (
+                                    {/* FIX: Corrected property 'instrumentalsPurchased' to 'instrumentals_purchased' to match the 'Booking' type definition. */}
+                                    {latestBooking.instrumentals_purchased.map(beat => (
                                         <div key={beat.id} className="bg-zinc-700/50 p-3 rounded-md flex justify-between items-center">
                                             <div className="flex items-center gap-2">
                                                 <MusicNoteIcon className="w-5 h-5 text-purple-400"/>
                                                 <span className="font-semibold text-slate-200">{beat.title}</span>
                                             </div>
-                                            <a href={beat.audioUrl} download={`${beat.title.replace(/\s+/g, '_')}.mp3`} className="bg-green-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-green-600 transition-all text-sm flex items-center gap-1.5">
+                                            {/* FIX: Corrected property 'audioUrl' to 'audio_url' to match the 'Instrumental' type definition. */}
+                                            <a href={beat.audio_url} download={`${beat.title.replace(/\s+/g, '_')}.mp3`} className="bg-green-500 text-white font-bold py-1 px-3 rounded-lg hover:bg-green-600 transition-all text-sm flex items-center gap-1.5">
                                                 <DownloadIcon className="w-4 h-4"/>
                                                 Download
                                             </a>

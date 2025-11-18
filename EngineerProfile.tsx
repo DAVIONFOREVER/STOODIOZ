@@ -1,6 +1,6 @@
 
-
 import React, { useState, useMemo } from 'react';
+// FIX: Import missing types
 import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
 import { UserRole } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons.tsx';
@@ -37,7 +37,8 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
-            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
+            <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
@@ -72,7 +73,8 @@ const EngineerProfile: React.FC = () => {
     
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.engineers || []).includes(engineer.id)) : false;
 
-    const engineerReviews = reviews.filter(r => r.engineerId === engineer.id);
+    // FIX: Corrected property name from 'engineerId' to 'engineer_id'
+    const engineerReviews = reviews.filter(r => r.engineer_id === engineer.id);
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
@@ -92,7 +94,8 @@ const EngineerProfile: React.FC = () => {
 
     const onOpenMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: true } });
 
-    const canRequestMix = engineer.mixingServices?.isEnabled && currentUser && currentUser.id !== engineer.id;
+    // FIX: Corrected property name from 'mixingServices' to 'mixing_services' and 'isEnabled' to 'is_enabled'
+    const canRequestMix = engineer.mixing_services?.is_enabled && currentUser && currentUser.id !== engineer.id;
 
 
     return (
@@ -104,7 +107,8 @@ const EngineerProfile: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-12">
                 <div className="p-8 cardSurface">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                        <img src={engineer.imageUrl} alt={engineer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                        {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
+                        <img src={engineer.image_url} alt={engineer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left flex-grow">
                             <h1 className="text-4xl font-extrabold text-orange-500">{engineer.name}</h1>
                             <div className="flex items-center justify-center sm:justify-start gap-1 text-yellow-400 mt-2">
@@ -149,7 +153,8 @@ const EngineerProfile: React.FC = () => {
                     </div>
                 </div>
 
-                {engineer.masterclass?.isEnabled && (
+                {/* FIX: Corrected property name from 'isEnabled' to 'is_enabled' */}
+                {engineer.masterclass?.is_enabled && (
                     <MasterclassCard 
                         masterclass={engineer.masterclass}
                         owner={engineer}
@@ -159,7 +164,8 @@ const EngineerProfile: React.FC = () => {
                 )}
                 
                 <div>
-                    <MixingSamplePlayer mixingSamples={engineer.mixingSamples || []} />
+                    {/* FIX: Corrected property name from 'mixingSamples' to 'mixing_samples' */}
+                    <MixingSamplePlayer mixingSamples={engineer.mixing_samples || []} />
                 </div>
 
                  <div className="p-8 cardSurface">

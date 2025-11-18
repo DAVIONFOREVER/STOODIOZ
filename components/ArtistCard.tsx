@@ -1,6 +1,7 @@
 
 
 
+
 import React from 'react';
 import type { Artist } from '../types';
 import { UserPlusIcon, UserCheckIcon } from './icons';

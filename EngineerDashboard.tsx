@@ -1,10 +1,6 @@
 
-
-
-
-
-
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
+// FIX: Import missing types
 import type { Engineer, Artist, Stoodio, Producer, Conversation } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
 import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon } from './icons';
@@ -24,7 +20,8 @@ import FollowersList from './FollowersList.tsx';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
-const MasterclassManager = lazy(() => import('./components/MasterclassManager.tsx'));
+// FIX: Corrected import path
+const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
 
 type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass';
 
@@ -128,7 +125,8 @@ const EngineerDashboard: React.FC = () => {
         }
     };
     
-    const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requestedEngineerId === engineer.id) && new Date(`${b.date}T${b.startTime}`) >= new Date());
+    // FIX: Corrected property name from 'requestedEngineerId' to 'requested_engineer_id' and 'startTime' to 'start_time'
+    const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requested_engineer_id === engineer.id) && new Date(`${b.date}T${b.start_time}`) >= new Date());
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
@@ -231,11 +229,15 @@ const EngineerDashboard: React.FC = () => {
                                 <input 
                                     type="checkbox" 
                                     className="sr-only" 
-                                    checked={engineer.isAvailable} 
-                                    onChange={(e) => updateProfile({ isAvailable: e.target.checked })} 
+                                    // FIX: Corrected property name from 'isAvailable' to 'is_available'
+                                    checked={engineer.is_available} 
+                                    // FIX: Corrected property name from 'isAvailable' to 'is_available'
+                                    onChange={(e) => updateProfile({ is_available: e.target.checked })} 
                                 />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.isAvailable ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.isAvailable ? 'translate-x-6' : ''}`}></div>
+                                {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.is_available ? 'translate-x-6' : ''}`}></div>
                             </div>
                         </label>
                     </div>

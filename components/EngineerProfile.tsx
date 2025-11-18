@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo } from 'react';
 import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
 import { UserRole } from '../types';
@@ -73,7 +71,7 @@ const EngineerProfile: React.FC = () => {
     
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.engineers || []).includes(engineer.id)) : false;
 
-    const engineerReviews = reviews.filter(r => r.engineerId === engineer.id);
+    const engineerReviews = reviews.filter(r => r.engineer_id === engineer.id);
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     const followers = useMemo(() => allUsers.filter(u => engineer.follower_ids.includes(u.id)), [allUsers, engineer.follower_ids]);
@@ -92,7 +90,7 @@ const EngineerProfile: React.FC = () => {
 
     const onOpenMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: true } });
 
-    const canRequestMix = engineer.mixingServices?.isEnabled && currentUser && currentUser.id !== engineer.id;
+    const canRequestMix = engineer.mixing_services?.is_enabled && currentUser && currentUser.id !== engineer.id;
 
 
     return (
@@ -149,7 +147,7 @@ const EngineerProfile: React.FC = () => {
                     </div>
                 </div>
 
-                {engineer.masterclass?.isEnabled && (
+                {engineer.masterclass?.is_enabled && (
                     <MasterclassCard 
                         masterclass={engineer.masterclass}
                         owner={engineer}
@@ -159,7 +157,7 @@ const EngineerProfile: React.FC = () => {
                 )}
                 
                 <div>
-                    <MixingSamplePlayer mixingSamples={engineer.mixingSamples || []} />
+                    <MixingSamplePlayer mixingSamples={engineer.mixing_samples || []} />
                 </div>
 
                  <div className="p-8 cardSurface">

@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
+// FIX: Import missing types
 import type { BookingRequest, Engineer, MixingDetails } from '../types';
 import { redirectToCheckout } from '../lib/stripe';
 
@@ -11,10 +12,9 @@ export const useMixing = (navigate: (view: AppView) => void) => {
     const { currentUser, userRole, engineers, producers } = useAppState();
 
     const confirmRemoteMix = useCallback(async (bookingRequest: BookingRequest) => {
-        if (!currentUser || !bookingRequest.requestedEngineerId || !userRole) return;
+        if (!currentUser || !bookingRequest.requested_engineer_id || !userRole) return;
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
-            // FIX: Replaced deprecated createBooking with createCheckoutSessionForBooking for payment processing.
             const { sessionId } = await apiService.createCheckoutSessionForBooking(
                 bookingRequest,
                 undefined, // No stoodio for remote mix

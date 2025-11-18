@@ -1,5 +1,8 @@
 
 
+
+
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
@@ -8,7 +11,8 @@ let ai: GoogleGenAI | null = null;
 
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
-        const apiKey = (process as any).env.API_KEY || (import.meta as any).env.VITE_API_KEY;
+        // FIX: Per @google/genai guidelines, API key must come exclusively from process.env.API_KEY.
+        const apiKey = process.env.API_KEY;
         if (!apiKey || apiKey.startsWith('{{')) {
             return null;
         }
@@ -32,7 +36,7 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
                     properties: {
                         title: { type: Type.STRING },
                         description: { type: Type.STRING },
-                        imageUrl: { type: Type.STRING },
+                        image_url: { type: Type.STRING },
                     }
                 }
             }
@@ -45,8 +49,7 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
             url,
             title: metadata.title || 'Link',
             description: metadata.description || url,
-            // FIX: Changed `imageUrl` to `image_url` to match the `LinkAttachment` type definition.
-            image_url: metadata.imageUrl || undefined,
+            image_url: metadata.image_url || undefined,
         };
 
     } catch (error) {
@@ -93,11 +96,11 @@ export const moderatePostContent = async (text: string): Promise<{ isSafe: boole
 export const generateSmartReplies = async (messages: Message[], currentUserId: string): Promise<string[]> => {
     const ai = getGenAIClient();
     const lastMessage = messages[messages.length - 1];
-    if (!ai || !lastMessage || lastMessage.senderId === currentUserId) {
+    if (!ai || !lastMessage || lastMessage.sender_id === currentUserId) {
         return [];
     }
     
-    const conversationHistory = messages.slice(-5).map(m => `${m.senderId === currentUserId ? 'You' : 'Them'}: ${m.text}`).join('\n');
+    const conversationHistory = messages.slice(-5).map(m => `${m.sender_id === currentUserId ? 'You' : 'Them'}: ${m.text}`).join('\n');
 
     try {
         const response = await ai.models.generateContent({
@@ -287,19 +290,27 @@ Aria: \`{"type": "showVibeMatchResults", "value": {"vibeDescription": "A dreamy,
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: fullPrompt,
-            config: {
-                responseMimeType: 'application/json',
-            },
         });
         
-        let jsonString = response.text.trim();
+        let responseText = response.text.trim();
         
-        if (jsonString.startsWith('```json')) {
-            jsonString = jsonString.slice(7, -3).trim();
+        if (responseText.startsWith('```json')) {
+            responseText = responseText.slice(7, -3).trim();
         }
 
-        const command = JSON.parse(jsonString) as AriaActionResponse;
-        return command;
+        try {
+            // It might be a JSON command
+            const command = JSON.parse(responseText) as AriaActionResponse;
+            return command;
+        } catch (e) {
+            // If parsing fails, it's a conversational response
+            return {
+                type: 'speak',
+                target: null,
+                value: null,
+                text: responseText,
+            };
+        }
 
     } catch (error: any) {
         console.error("Aria Cantata service error:", error);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Conversation, Message, Artist, Stoodio, Engineer, Booking, Producer, FileAttachment } from '../types';
 import { AppView } from '../types';
@@ -41,7 +42,7 @@ const ConversationList: React.FC<{
                             <div className={`p-4 flex items-center gap-4 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}>
                                 <div className="relative flex-shrink-0">
                                     <img loading="lazy" src={participant.image_url} alt={participant.name} className="w-14 h-14 rounded-xl object-cover"/>
-                                    {participant.isOnline && (
+                                    {participant.is_online && (
                                         <span className="absolute -bottom-1 -right-1 block h-4 w-4 rounded-full bg-green-500 ring-2 ring-zinc-800" title="Online"></span>
                                     )}
                                 </div>
@@ -109,7 +110,7 @@ const ChatThread: React.FC<{
     conversation: Conversation;
     booking: Booking | null;
     currentUser: Artist | Stoodio | Engineer | Producer;
-    onSendMessage: (conversationId: string, messageContent: Omit<Message, 'id' | 'senderId' | 'timestamp'>) => void;
+    onSendMessage: (conversationId: string, messageContent: Omit<Message, 'id' | 'sender_id' | 'timestamp'>) => void;
     onBack: () => void;
     onNavigate: (view: AppView) => void;
     smartReplies: string[];
@@ -147,7 +148,7 @@ const ChatThread: React.FC<{
     }
     
     const handleSendAttachment = (type: 'image' | 'audio' | 'link') => {
-        const messageContent: Omit<Message, 'id' | 'senderId' | 'timestamp'> = { type: 'text' }; // default
+        const messageContent: Omit<Message, 'id' | 'sender_id' | 'timestamp'> = { type: 'text' }; // default
         switch(type) {
             case 'image':
                 messageContent.type = 'image';
@@ -157,8 +158,8 @@ const ChatThread: React.FC<{
             case 'audio':
                  messageContent.type = 'audio';
                  messageContent.text = 'Check out this track.';
-                 messageContent.audioUrl = 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-2-short.mp3';
-                 messageContent.audioInfo = { filename: 'track_idea.mp3', duration: '0:18' };
+                 messageContent.audio_url = 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-2-short.mp3';
+                 messageContent.audio_info = { filename: 'track_idea.mp3', duration: '0:18' };
                  break;
             case 'link':
                  messageContent.type = 'link';
@@ -218,7 +219,7 @@ const ChatThread: React.FC<{
                                     </div>
                                 );
                             }
-                            const isUser = msg.senderId === currentUser.id;
+                            const isUser = msg.sender_id === currentUser.id;
                             return (
                                 <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
                                     {!isUser && <img loading="lazy" src={participant.image_url} className="w-6 h-6 rounded-full self-start"/>}
@@ -232,9 +233,9 @@ const ChatThread: React.FC<{
                                                     <p className="text-xs opacity-80">{msg.link.url}</p>
                                                 </a>
                                             )}
-                                            {msg.type === 'audio' && msg.audioUrl && (
+                                            {msg.type === 'audio' && msg.audio_url && (
                                                 <div className="bg-black/20 p-2 rounded-lg">
-                                                    <audio controls src={msg.audioUrl} className="w-full h-8 inbox-audio-player"></audio>
+                                                    <audio controls src={msg.audio_url} className="w-full h-8 inbox-audio-player"></audio>
                                                 </div>
                                             )}
                                             {msg.type === 'files' && msg.files && msg.files.map((file, i) => (
@@ -336,7 +337,8 @@ const Inbox: React.FC = () => {
     }, [selectedConversationId, conversations, fetchSmartReplies]);
     
     const selectedConversation = selectedConversationId ? conversations.find(c => c.id === selectedConversationId) : null;
-    const associatedBooking = selectedConversation?.bookingId ? bookings.find(b => b.id === selectedConversation.bookingId) : null;
+    // FIX: Corrected property name from 'bookingId' to 'booking_id'
+    const associatedBooking = selectedConversation?.booking_id ? bookings.find(b => b.id === selectedConversation.booking_id) : null;
 
     if (!currentUser) return null;
 

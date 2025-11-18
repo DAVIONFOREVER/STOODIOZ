@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useMemo } from 'react';
 import type { Booking } from '../types';
 import { CloseIcon } from './icons';
@@ -21,7 +23,8 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
     
     const tipOptions = [15, 20, 25];
 
-    const engineerPayout = booking.engineerPayRate * booking.duration;
+    // FIX: Corrected property 'engineerPayRate' to 'engineer_pay_rate' to match the 'Booking' type definition.
+    const engineerPayout = booking.engineer_pay_rate * booking.duration;
 
     const finalTipAmount = useMemo(() => {
         if (customAmount) return parseFloat(customAmount) || 0;

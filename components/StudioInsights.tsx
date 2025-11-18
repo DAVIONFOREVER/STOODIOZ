@@ -38,105 +38,96 @@ const StudioInsights: React.FC = () => {
     const { sessionsThisMonth, onTimeRate, avgRating, mostRequestedEngineer } = useMemo(() => {
         const now = new Date();
         const monthlyBookings = studioBookings.filter(b => isThisMonth(new Date(b.date)));
+        const completedBookings = studioBookings.filter(b => b.status === BookingStatus.COMPLETED);
         
-        // In a real app with feedback data, this would be more accurate.
-        // This is a placeholder calculation.
-        const onTimeCount = monthlyBookings.filter(b => b.status === BookingStatus.COMPLETED).length;
-        const onTimeRate = monthlyBookings.length > 0 ? Math.round((onTimeCount / monthlyBookings.length) * 100) : 100;
+        const sessionsThisMonth = monthlyBookings.length;
 
-        const engineerCounts = monthlyBookings
-            .filter(b => b.engineer)
-            .reduce((acc, b) => {
-                acc[b.engineer!.id] = (acc[b.engineer!.id] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
-            
-        const topEngineerId = Object.keys(engineerCounts).sort((a,b) => engineerCounts[b] - engineerCounts[a])[0];
-        const mostRequestedEngineer = engineers.find(e => e.id === topEngineerId);
+        // Mocked for now - these would come from booking feedback
+        const onTimeRate = studio.on_time_rate; 
+        const avgRating = studio.rating_overall;
 
-        return {
-            sessionsThisMonth: monthlyBookings.length,
-            onTimeRate: onTimeRate,
-            avgRating: studio.rating_overall,
-            mostRequestedEngineer: mostRequestedEngineer || null
-        };
-    }, [studioBookings, engineers, studio.rating_overall]);
+        const engineerCounts = new Map<string, number>();
+        completedBookings.forEach(b => {
+            if (b.engineer) {
+                engineerCounts.set(b.engineer.id, (engineerCounts.get(b.engineer.id) || 0) + 1);
+            }
+        });
+        
+        let mostRequestedId: string | null = null;
+        let maxCount = 0;
+        engineerCounts.forEach((count, id) => {
+            if (count > maxCount) {
+                maxCount = count;
+                mostRequestedId = id;
+            }
+        });
 
-    const upcomingSessions = useMemo(() => {
-        return studioBookings
-            .filter(b => new Date(b.date) >= new Date() && b.status === BookingStatus.CONFIRMED)
-            .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [studioBookings]);
+        const mostRequestedEngineer = mostRequestedId ? engineers.find(e => e.id === mostRequestedId) : null;
+
+        return { sessionsThisMonth, onTimeRate, avgRating, mostRequestedEngineer };
+    }, [studioBookings, engineers, studio]);
 
     return (
-        <div className="space-y-8">
-            <h1 className="text-5xl font-extrabold tracking-tight text-orange-400">Studio Insights</h1>
+        <div className="space-y-8 animate-fade-in">
+             <div className="text-center">
+                <h1 className="text-5xl font-extrabold tracking-tight text-zinc-100">
+                    Studio Insights
+                </h1>
+                <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-400">
+                    Track your studio's performance, manage bookings, and grow your business.
+                </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label="Sessions This Month" value={sessionsThisMonth} icon={<CalendarIcon className="w-8 h-8 text-orange-400" />} />
-                <StatCard label="Engineer On-Time Rate" value={`${onTimeRate}%`} icon={<CheckCircleIcon className="w-8 h-8 text-green-400" />} />
-                <StatCard label="Average Artist Rating" value={`${avgRating.toFixed(1)} / 5`} icon={<StarIcon className="w-8 h-8 text-yellow-400" />} />
+                <StatCard label="Sessions This Month" value={sessionsThisMonth.toString()} icon={<CalendarIcon className="w-8 h-8 text-orange-400" />} />
+                <StatCard label="On-Time Rate" value={`${onTimeRate}%`} icon={<CheckCircleIcon className="w-8 h-8 text-green-400" />} />
+                <StatCard label="Average Rating" value={avgRating.toFixed(1)} icon={<StarIcon className="w-8 h-8 text-yellow-400" />} />
                 <StatCard 
-                    label="Most Requested Engineer"
-                    value={mostRequestedEngineer ? <span className="text-2xl">{mostRequestedEngineer.name}</span> : 'N/A'}
+                    label="Most Booked Engineer" 
+                    value={mostRequestedEngineer ? mostRequestedEngineer.name : 'N/A'} 
                     icon={<UsersIcon className="w-8 h-8 text-blue-400" />} 
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 p-6 cardSurface">
-                    <h2 className="text-2xl font-bold text-zinc-100 mb-4">Upcoming Sessions</h2>
-                     <div className="space-y-3">
-                        {upcomingSessions.length > 0 ? upcomingSessions.map(b => (
-                            <div key={b.id} className="cardSurface p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <div>
-                                    <p className="font-bold text-zinc-200">{format(new Date(b.date), 'EEE, MMM d')} @ {b.startTime}</p>
-                                    <p className="text-sm text-zinc-400">{b.artist?.name || 'Studio Booking'} • {b.duration} hrs</p>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    {b.engineer ? (
-                                        <div className="text-right">
-                                            <p className="font-semibold text-sm text-green-300">Locked In</p>
-                                            <p className="text-xs text-zinc-400">{b.engineer.name}</p>
-                                        </div>
-                                    ) : (
-                                        <p className="font-semibold text-sm text-yellow-400">Needs Engineer</p>
-                                    )}
-                                    <button onClick={() => setIsModalOpen(true)} className="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg text-sm">
-                                        {b.engineer ? 'View' : 'Assign'}
-                                    </button>
-                                </div>
-                            </div>
-                        )) : <p className="text-zinc-500 text-center py-8">No upcoming sessions.</p>}
-                     </div>
+            <div className="cardSurface p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-zinc-100">Upcoming Sessions</h2>
+                     <button onClick={() => setIsModalOpen(true)} className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                        Assign Engineer
+                    </button>
                 </div>
-                 <div className="p-6 cardSurface">
-                    <h2 className="text-2xl font-bold text-zinc-100 mb-4">Top Talent</h2>
-                     <div className="space-y-4">
-                        {engineers.slice(0, 3).map(eng => (
-                            <div key={eng.id} className="cardSurface p-3">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex items-center gap-3">
-                                        {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
-                                        <img src={eng.image_url} alt={eng.name} className="w-10 h-10 rounded-lg object-cover" />
-                                        <div>
-                                            <p className="font-bold text-zinc-200">{eng.name}</p>
-                                            <p className="text-xs text-zinc-400">{eng.sessions_completed} sessions</p>
-                                        </div>
-                                    </div>
-                                    <RankingBadge tier={eng.ranking_tier} isOnStreak={eng.is_on_streak} short />
-                                </div>
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                    {eng.strength_tags.slice(0,2).map(tag => <span key={tag} className="text-[10px] font-semibold bg-zinc-700 text-zinc-300 px-1.5 py-0.5 rounded">{tag}</span>)}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-zinc-400">
+                        <thead className="text-xs text-zinc-400 uppercase bg-zinc-800/50">
+                            <tr>
+                                <th scope="col" className="px-6 py-3">Date & Time</th>
+                                <th scope="col" className="px-6 py-3">Artist</th>
+                                <th scope="col" className="px-6 py-3">Engineer</th>
+                                <th scope="col" className="px-6 py-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {studioBookings.filter(b => new Date(b.date) >= new Date() && b.status !== BookingStatus.CANCELLED).map(b => (
+                                <tr key={b.id} className="border-b border-zinc-700/50 hover:bg-zinc-800/30">
+                                    <td className="px-6 py-4 font-semibold text-zinc-200">{format(new Date(b.date + 'T' + b.start_time), 'MMM d, h:mm a')}</td>
+                                    <td className="px-6 py-4">{b.artist?.name || 'N/A'}</td>
+                                    <td className="px-6 py-4">{b.engineer?.name || 'Unassigned'}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                            b.status === BookingStatus.CONFIRMED ? 'bg-green-400/10 text-green-300' : 'bg-yellow-400/10 text-yellow-300'
+                                        }`}>{b.status}</span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                 </div>
             </div>
+
             {isModalOpen && <AssignEngineerModal onClose={() => setIsModalOpen(false)} />}
+
         </div>
     );
-}
+};
 
 export default StudioInsights;

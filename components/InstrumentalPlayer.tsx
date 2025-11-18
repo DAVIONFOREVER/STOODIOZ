@@ -17,7 +17,8 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
             setPlayingId(null);
         } else {
             if (audioRef.current) {
-                audioRef.current.src = instrumental.audioUrl;
+                // FIX: Corrected property 'audioUrl' to 'audio_url' to match the 'Instrumental' type definition.
+                audioRef.current.src = instrumental.audio_url;
                 audioRef.current.play();
                 setPlayingId(instrumental.id);
             }
@@ -39,8 +40,9 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
             <div className="divide-y divide-zinc-700">
                 {instrumentals.map(instrumental => (
                     <div key={instrumental.id} className="p-4 flex flex-col sm:flex-row items-center gap-4 hover:bg-zinc-700/50">
-                        {instrumental.coverArtUrl ? (
-                            <img src={instrumental.coverArtUrl} alt={instrumental.title} className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
+                        {/* FIX: Corrected property 'coverArtUrl' to 'cover_art_url' to match the 'Instrumental' type definition. */}
+                        {instrumental.cover_art_url ? (
+                            <img src={instrumental.cover_art_url} alt={instrumental.title} className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
                         ) : (
                             <div className="w-20 h-20 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0">
                                 <MusicNoteIcon className="w-10 h-10 text-zinc-500" />
@@ -60,21 +62,24 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
                         <div className="flex items-center gap-4 flex-shrink-0">
                             <div className="text-center">
                                 <p className="text-xs text-zinc-400">Lease</p>
-                                <p className="font-semibold text-green-400">${instrumental.priceLease.toFixed(2)}</p>
+                                {/* FIX: Corrected property 'priceLease' to 'price_lease' to match the 'Instrumental' type definition. */}
+                                <p className="font-semibold text-green-400">${instrumental.price_lease.toFixed(2)}</p>
                             </div>
                              <div className="text-center">
                                 <p className="text-xs text-zinc-400">Exclusive</p>
-                                <p className="font-semibold text-green-400">${instrumental.priceExclusive.toFixed(2)}</p>
+                                {/* FIX: Corrected property 'priceExclusive' to 'price_exclusive' to match the 'Instrumental' type definition. */}
+                                <p className="font-semibold text-green-400">${instrumental.price_exclusive.toFixed(2)}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                            {instrumental.isFreeDownloadAvailable ? (
-                                <a href={instrumental.audioUrl} download={`${instrumental.title} (Free).mp3`} className="bg-zinc-700 text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-zinc-600 transition-colors text-sm flex items-center gap-1.5">
+                            {/* FIX: Corrected property 'isFreeDownloadAvailable' to 'is_free_download_available' to match the 'Instrumental' type definition. */}
+                            {instrumental.is_free_download_available ? (
+                                <a href={instrumental.audio_url} download={`${instrumental.title} (Free).mp3`} className="bg-zinc-700 text-slate-200 font-bold py-2 px-4 rounded-lg hover:bg-zinc-600 transition-colors text-sm flex items-center gap-1.5">
                                     <DownloadIcon className="w-4 h-4" />
                                     Free
                                 </a>
                             ) : (
-                                <a href={instrumental.audioUrl} download={`${instrumental.title} (Tagged Sample).mp3`} className="p-2 text-zinc-400 hover:text-orange-400 rounded-full bg-zinc-700" title="Download Sample (Tagged)">
+                                <a href={instrumental.audio_url} download={`${instrumental.title} (Tagged Sample).mp3`} className="p-2 text-zinc-400 hover:text-orange-400 rounded-full bg-zinc-700" title="Download Sample (Tagged)">
                                     <DownloadIcon className="w-5 h-5"/>
                                 </a>
                             )}

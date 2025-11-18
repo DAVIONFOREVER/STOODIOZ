@@ -16,7 +16,7 @@ const BookingContextCard: React.FC<BookingContextCardProps> = ({ booking, onNavi
         onNavigate(AppView.MY_BOOKINGS);
     }
 
-    const isRemoteMix = booking.mixingDetails?.type === 'REMOTE';
+    const isRemoteMix = booking.mixing_details?.type === 'REMOTE';
     const imageUrl = isRemoteMix ? booking.engineer?.image_url : booking.stoodio?.image_url;
     const title = isRemoteMix ? `Remote Mix: ${booking.engineer?.name}` : booking.stoodio?.name;
 
@@ -31,8 +31,8 @@ const BookingContextCard: React.FC<BookingContextCardProps> = ({ booking, onNavi
                          {title}
                     </p>
                     <p className="text-zinc-400 flex items-center gap-2"><CalendarIcon className="w-4 h-4 flex-shrink-0" /> {new Date(booking.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</p>
-                    {booking.startTime !== 'N/A' && (
-                        <p className="text-zinc-400 flex items-center gap-2"><ClockIcon className="w-4 h-4 flex-shrink-0" /> {booking.startTime} for {booking.duration} hours</p>
+                    {booking.start_time !== 'N/A' && (
+                        <p className="text-zinc-400 flex items-center gap-2"><ClockIcon className="w-4 h-4 flex-shrink-0" /> {booking.start_time} for {booking.duration} hours</p>
                     )}
                 </div>
                 <button onClick={handleViewBooking} className="bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-semibold p-2 rounded-full transition-colors flex-shrink-0">

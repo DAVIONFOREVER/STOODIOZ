@@ -13,7 +13,8 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
     if (!stoodio) return null; 
 
     const rating = stoodio.rating_overall != null ? stoodio.rating_overall.toFixed(1) : "0.0";
-    const hourlyRate = stoodio.hourlyRate != null ? stoodio.hourlyRate : 0;
+    // FIX: Corrected property 'hourlyRate' to 'hourly_rate' to match the 'Stoodio' type definition.
+    const hourlyRate = stoodio.hourly_rate != null ? stoodio.hourly_rate : 0;
 
     return (
         <div
@@ -21,12 +22,14 @@ const StoodioCard: React.FC<StoodioCardProps> = ({ stoodio, onSelectStoodio }) =
             onClick={() => onSelectStoodio(stoodio)}
         >
             <div className="relative">
-                <img loading="lazy" src={stoodio.imageUrl} alt={stoodio.name || "Studio Image"} className="w-full h-48 object-cover transition-transform duration-300" />
+                {/* FIX: Corrected property 'imageUrl' to 'image_url' to match the 'Stoodio' type definition. */}
+                <img loading="lazy" src={stoodio.image_url} alt={stoodio.name || "Studio Image"} className="w-full h-48 object-cover transition-transform duration-300" />
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 to-transparent"></div>
                 <div className="absolute bottom-4 left-4">
                     <h3 className="text-2xl font-bold text-white group-hover:text-orange-400 transition-colors flex items-center gap-2 text-glow">
                         {stoodio.name || "Unnamed Studio"}
-                        {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
+                        {/* FIX: Corrected property 'verificationStatus' to 'verification_status' to match the 'Stoodio' type definition. */}
+                        {stoodio.verification_status === VerificationStatus.VERIFIED && (
                             // FIX: The `title` attribute is not a valid prop for the `VerifiedIcon` component. The fix is to use an SVG `<title>` element for accessibility.
                             <VerifiedIcon className="w-6 h-6 text-blue-400"><title>Verified Stoodio</title></VerifiedIcon>
                         )}

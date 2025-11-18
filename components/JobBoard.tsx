@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { useBookings } from '../hooks/useBookings';
@@ -13,7 +14,8 @@ const JobBoard: React.FC = () => {
 
     const openJobs = useMemo(() => {
         return bookings
-            .filter(b => b.postedBy === UserRole.STOODIO && b.status === BookingStatus.PENDING)
+            // FIX: Corrected property name from 'postedBy' to 'posted_by'
+            .filter(b => b.posted_by === UserRole.STOODIO && b.status === BookingStatus.PENDING)
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [bookings]);
 
@@ -39,7 +41,8 @@ const JobBoard: React.FC = () => {
             {openJobs.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {openJobs.map(job => {
-                        const payout = job.engineerPayRate * job.duration;
+                        // FIX: Corrected property name from 'engineerPayRate' to 'engineer_pay_rate'
+                        const payout = job.engineer_pay_rate * job.duration;
                         return (
                             <div key={job.id} className="cardSurface p-6 flex flex-col">
                                 <h3 className="font-bold text-lg text-orange-400 flex items-center gap-2">
@@ -55,7 +58,8 @@ const JobBoard: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-2 text-zinc-300">
                                         <ClockIcon className="w-4 h-4 text-zinc-400" />
-                                        <span>{job.startTime} for {job.duration} hours</span>
+                                        {/* FIX: Corrected property name from 'startTime' to 'start_time' */}
+                                        <span>{job.start_time} for {job.duration} hours</span>
                                     </div>
                                     <div className="flex items-center gap-2 font-bold text-green-400">
                                         <DollarSignIcon className="w-4 h-4" />

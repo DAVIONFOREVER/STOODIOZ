@@ -20,7 +20,7 @@ const Calendar: React.FC<CalendarProps> = ({ availability, bookings, onSelectTim
         return new Set(
             bookings
                 .filter(b => b.date === selectedDate)
-                .map(b => b.startTime)
+                .map(b => b.start_time)
         );
     }, [bookings, selectedDate]);
 

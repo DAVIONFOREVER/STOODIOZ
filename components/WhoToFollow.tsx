@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import type { Artist, Engineer, Stoodio, Producer } from '../types';
 import { UserPlusIcon } from './icons';
@@ -38,7 +37,7 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
                             className="bg-zinc-700 text-slate-300 hover:bg-zinc-600 font-semibold p-2 rounded-full transition-colors"
                             aria-label={`Follow ${user.name}`}
                         >
-                           <UserPlusIcon className="w-5 h-5"/>
+                            <UserPlusIcon className="w-4 h-4" />
                         </button>
                     </div>
                 ))}

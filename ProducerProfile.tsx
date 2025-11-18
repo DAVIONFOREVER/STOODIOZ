@@ -1,8 +1,6 @@
 
-
-
-
 import React, { useMemo } from 'react';
+// FIX: Import missing types
 import type { Producer, Artist, Stoodio, Engineer } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons';
 import PostFeed from './PostFeed';
@@ -36,7 +34,8 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
-            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
+            <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
@@ -87,20 +86,24 @@ const ProducerProfile: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-12">
                 <div className="p-8 cardSurface">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                        <img src={producer.imageUrl} alt={producer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                        {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
+                        <img src={producer.image_url} alt={producer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left flex-grow">
                             <h1 className="text-4xl font-extrabold text-purple-400">{producer.name}</h1>
                             <p className="text-slate-300 leading-relaxed mt-4">{producer.bio}</p>
-                             {producer.pullUpPrice && (
+                             {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
+                             {producer.pull_up_price && (
                                 <div className="mt-4 inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
                                     <span className="flex items-center gap-2">
                                         <DollarSignIcon className="w-5 h-5"/>
-                                        <span>"Pull Up" Session Fee: ${producer.pullUpPrice}</span>
+                                        {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
+                                        <span>"Pull Up" Session Fee: ${producer.pull_up_price}</span>
                                     </span>
                                 </div>
                             )}
                             <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
-                                {producer.pullUpPrice && currentUser && (
+                                {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
+                                {producer.pull_up_price && currentUser && (
                                      <button 
                                         onClick={() => initiateBookingWithProducer(producer)}
                                         className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"

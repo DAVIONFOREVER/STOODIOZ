@@ -14,7 +14,7 @@ const WatchMasterclassModal: React.FC<WatchMasterclassModalProps> = ({ mastercla
 
     const embedUrl = useMemo(() => {
         try {
-            const url = new URL(masterclass.videoUrl);
+            const url = new URL(masterclass.video_url);
             if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
                 const videoId = url.searchParams.get('v') || url.pathname.split('/').pop();
                 return `https://www.youtube.com/embed/${videoId}`;
@@ -26,8 +26,8 @@ const WatchMasterclassModal: React.FC<WatchMasterclassModalProps> = ({ mastercla
         } catch (e) {
             // Not a valid URL, return original
         }
-        return masterclass.videoUrl;
-    }, [masterclass.videoUrl]);
+        return masterclass.video_url;
+    }, [masterclass.video_url]);
 
     const handleOpenReviewModal = () => {
         onClose();

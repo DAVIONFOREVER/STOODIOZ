@@ -3,6 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { UserRole, AppView } from '../types';
+// FIX: Import missing types
 import type { BookingRequest, Booking, Engineer, Producer, Room } from '../types';
 import { redirectToCheckout } from '../lib/stripe';
 
@@ -20,7 +21,7 @@ export const useBookings = (navigate: (view: AppView) => void) => {
     }, [dispatch, navigate]);
 
     const initiateBookingWithProducer = useCallback((producer: Producer) => {
-        dispatch({ type: ActionTypes.SET_BOOKING_INTENT, payload: { intent: { producer, pullUpFee: producer.pullUpPrice } } });
+        dispatch({ type: ActionTypes.SET_BOOKING_INTENT, payload: { intent: { producer, pullUpFee: producer.pull_up_price } } });
         navigate(AppView.STOODIO_LIST);
     }, [dispatch, navigate]);
 

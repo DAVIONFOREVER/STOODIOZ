@@ -2,6 +2,7 @@
 import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
+// FIX: Import missing Booking type
 import type { Booking } from '../types';
 import { UserRole } from '../types';
 import { redirectToCheckout } from '../lib/stripe';

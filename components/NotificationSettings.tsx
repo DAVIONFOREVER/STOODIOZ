@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Engineer } from '../types';
 import { BellIcon, RoadIcon, DollarSignIcon } from './icons';
@@ -8,19 +9,21 @@ interface NotificationSettingsProps {
 }
 
 const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, onUpdateEngineer }) => {
-    const prefs = engineer.notificationPreferences || { enabled: false, radius: 25 };
+    // FIX: Corrected property name from 'notificationPreferences' to 'notification_preferences'
+    const prefs = engineer.notification_preferences || { enabled: false, radius: 25 };
 
     const handleToggle = (enabled: boolean) => {
-        onUpdateEngineer({ notificationPreferences: { ...prefs, enabled } });
+        onUpdateEngineer({ notification_preferences: { ...prefs, enabled } });
     };
 
     const handleRadiusChange = (radius: number) => {
-        onUpdateEngineer({ notificationPreferences: { ...prefs, radius } });
+        onUpdateEngineer({ notification_preferences: { ...prefs, radius } });
     };
 
     const handlePayRateChange = (rate: number) => {
         // If input is cleared, send undefined to clear the value, otherwise send the number
-        onUpdateEngineer({ minimumPayRate: isNaN(rate) ? undefined : rate });
+        // FIX: Corrected property name from 'minimumPayRate' to 'minimum_pay_rate'
+        onUpdateEngineer({ minimum_pay_rate: isNaN(rate) ? undefined : rate });
     };
 
     return (
@@ -95,7 +98,8 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
                         <input
                             type="number"
                             id="pay-rate-input"
-                            value={engineer.minimumPayRate || ''}
+                            // FIX: Corrected property name from 'minimumPayRate' to 'minimum_pay_rate'
+                            value={engineer.minimum_pay_rate || ''}
                             onChange={(e) => handlePayRateChange(parseInt(e.target.value))}
                             className="w-full pl-7 pr-12 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="e.g., 50"

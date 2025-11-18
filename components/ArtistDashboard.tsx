@@ -1,16 +1,17 @@
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon, PaperclipIcon, MusicNoteIcon } from './icons';
-import CreatePost from './CreatePost.tsx';
-import PostFeed from './PostFeed.tsx';
-import Following from './Following.tsx';
-import FollowersList from './FollowersList.tsx';
-import Wallet from './Wallet.tsx';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
-import { useNavigation } from '../hooks/useNavigation.ts';
-import { useSocial } from '../hooks/useSocial.ts';
-import { useProfile } from '../hooks/useProfile.ts';
+import CreatePost from './CreatePost';
+import PostFeed from './PostFeed';
+import Following from './Following';
+import FollowersList from './FollowersList';
+import Wallet from './Wallet';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useProfile } from '../hooks/useProfile';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));

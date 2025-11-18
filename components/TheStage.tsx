@@ -1,13 +1,10 @@
-
-
-
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { AppView, UserRole } from '../types';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import UserProfileCard from './UserProfileCard.tsx';
-import WhoToFollow from './WhoToFollow.tsx';
+import WhoToFollow from './WhoToFollow';
 import TrendingPost from './TrendingPost.tsx';
 import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';

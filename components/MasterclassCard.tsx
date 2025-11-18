@@ -14,12 +14,11 @@ const MasterclassCard: React.FC<MasterclassCardProps> = ({ masterclass, owner, o
     const { currentUser, reviews } = useAppState();
 
     const hasPurchased = useMemo(() => {
-        // FIX: Changed `purchasedMasterclassIds` to `purchased_masterclass_ids` to match the property name in the `BaseUser` type.
         return currentUser?.purchased_masterclass_ids?.includes(masterclass.id) || false;
     }, [currentUser, masterclass.id]);
 
     const { averageRating, reviewCount } = useMemo(() => {
-        const relevantReviews = reviews.filter(r => r.masterclassId === masterclass.id);
+        const relevantReviews = reviews.filter(r => r.masterclass_id === masterclass.id);
         if (relevantReviews.length === 0) {
             return { averageRating: 0, reviewCount: 0 };
         }

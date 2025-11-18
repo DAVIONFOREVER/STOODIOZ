@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, InHouseEngineerInfo } from '../types';
 import { SoundWaveIcon, DollarSignIcon, TrashIcon, PlusCircleIcon } from './icons';
@@ -10,16 +11,19 @@ interface EngineerManagerProps {
 
 const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers, onUpdateStoodio }) => {
     const [selectedEngineerId, setSelectedEngineerId] = useState('');
-    const [payRate, setPayRate] = useState<number>(stoodio.engineerPayRate || 40);
+    // FIX: Corrected property name from 'engineerPayRate' to 'engineer_pay_rate'
+    const [payRate, setPayRate] = useState<number>(stoodio.engineer_pay_rate || 40);
 
     const inHouseEngineers = useMemo(() => {
-        return (stoodio.inHouseEngineers || [])
+        // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers'
+        return (stoodio.in_house_engineers || [])
             .map(info => {
-                const engineer = allEngineers.find(e => e.id === info.engineerId);
+                // FIX: Corrected property name from 'engineerId' to 'engineer_id'
+                const engineer = allEngineers.find(e => e.id === info.engineer_id);
                 return engineer ? { ...info, engineer } : null;
             })
             .filter(Boolean as any as (x: any) => x is { engineer: Engineer } & InHouseEngineerInfo);
-    }, [stoodio.inHouseEngineers, allEngineers]);
+    }, [stoodio.in_house_engineers, allEngineers]);
 
     const availableEngineers = useMemo(() => {
         const inHouseIds = new Set(inHouseEngineers.map(e => e.engineer.id));
@@ -34,21 +38,28 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
         }
         
         const newInHouseInfo: InHouseEngineerInfo = {
-            engineerId: selectedEngineerId,
-            payRate,
+            // FIX: Corrected property name from 'engineerId' to 'engineer_id'
+            engineer_id: selectedEngineerId,
+            // FIX: Corrected property name from 'payRate' to 'pay_rate'
+            pay_rate: payRate,
         };
 
-        const updatedEngineers = [...(stoodio.inHouseEngineers || []), newInHouseInfo];
-        onUpdateStoodio({ inHouseEngineers: updatedEngineers });
+        // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers'
+        const updatedEngineers = [...(stoodio.in_house_engineers || []), newInHouseInfo];
+        // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers'
+        onUpdateStoodio({ in_house_engineers: updatedEngineers });
 
         setSelectedEngineerId('');
-        setPayRate(stoodio.engineerPayRate || 40);
+        // FIX: Corrected property name from 'engineerPayRate' to 'engineer_pay_rate'
+        setPayRate(stoodio.engineer_pay_rate || 40);
     };
 
     const handleDeleteEngineer = (engineerId: string) => {
         if (window.confirm('Are you sure you want to remove this engineer from your in-house roster?')) {
-            const updatedEngineers = (stoodio.inHouseEngineers || []).filter(e => e.engineerId !== engineerId);
-            onUpdateStoodio({ inHouseEngineers: updatedEngineers });
+            // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers' and 'engineerId' to 'engineer_id'
+            const updatedEngineers = (stoodio.in_house_engineers || []).filter(e => e.engineer_id !== engineerId);
+            // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers'
+            onUpdateStoodio({ in_house_engineers: updatedEngineers });
         }
     };
     
@@ -94,14 +105,17 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
 
             {/* Current Roster */}
             <div className="space-y-4">
-                {inHouseEngineers.length > 0 ? inHouseEngineers.map(({ engineer, payRate }) => (
+                {/* FIX: Corrected property name from 'payRate' to 'pay_rate' */}
+                {inHouseEngineers.length > 0 ? inHouseEngineers.map(({ engineer, pay_rate }) => (
                     <div key={engineer.id} className="cardSurface p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3 flex-grow">
+                            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
                             <img src={engineer.image_url} alt={engineer.name} className="w-12 h-12 rounded-lg object-cover" />
                             <div>
                                 <h3 className="font-bold text-zinc-200">{engineer.name}</h3>
                                 <div className="text-sm text-green-400 font-semibold flex items-center gap-1 mt-1">
-                                    <DollarSignIcon className="w-4 h-4"/> ${payRate}/hr
+                                    {/* FIX: Corrected property name from 'payRate' to 'pay_rate' */}
+                                    <DollarSignIcon className="w-4 h-4"/> ${pay_rate}/hr
                                 </div>
                             </div>
                         </div>

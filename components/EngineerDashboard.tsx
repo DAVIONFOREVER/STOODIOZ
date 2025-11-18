@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Engineer, Artist, Stoodio, Producer, Conversation } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
@@ -122,7 +123,7 @@ const EngineerDashboard: React.FC = () => {
         }
     };
     
-    const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requestedEngineerId === engineer.id) && new Date(`${b.date}T${b.startTime}`) >= new Date());
+    const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requested_engineer_id === engineer.id) && new Date(`${b.date}T${b.start_time}`) >= new Date());
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
@@ -237,16 +238,16 @@ const EngineerDashboard: React.FC = () => {
                                 Book a New Session
                             </button>
                             <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                                <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+                                <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
                                 <div className="relative">
                                     <input 
                                         type="checkbox" 
                                         className="sr-only" 
-                                        checked={engineer.showOnMap ?? false} 
-                                        onChange={(e) => updateProfile({ showOnMap: e.target.checked })} 
+                                        checked={engineer.is_available} 
+                                        onChange={(e) => updateProfile({ is_available: e.target.checked })} 
                                     />
-                                    <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.showOnMap ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.showOnMap ? 'translate-x-6' : ''}`}></div>
+                                    <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.is_available ? 'translate-x-6' : ''}`}></div>
                                 </div>
                             </label>
                         </div>

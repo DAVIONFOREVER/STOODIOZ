@@ -113,7 +113,7 @@ export const useAria = (dependencies: AriaHookDependencies) => {
 
                 dependencies.startConversation(recipient);
                 setTimeout(() => {
-                    const newMessage: Message = { type: 'text', text: command.value, id: `msg-${Date.now()}`, senderId: currentUser.id, timestamp: new Date().toISOString() };
+                    const newMessage: Message = { type: 'text', text: command.value, id: `msg-${Date.now()}`, sender_id: currentUser.id, timestamp: new Date().toISOString() };
                     const existingConvo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [currentUser.id, recipient.id].includes(p.id)));
                     const conversationId = existingConvo ? existingConvo.id : `convo-${currentUser.id}-${recipient.id}`;
                     const updatedConversations = conversations.map(convo => 
@@ -139,7 +139,7 @@ export const useAria = (dependencies: AriaHookDependencies) => {
 
                 const regularMessage: Message = {
                     id: `msg-doc-${Date.now()}`,
-                    senderId: ariaProfile.id,
+                    sender_id: ariaProfile.id,
                     timestamp: new Date().toISOString(),
                     type: 'files',
                     text: command.text || `As requested, I've prepared this document for you: ${fileName}`,
@@ -152,8 +152,7 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 if (convo) {
                     updatedConversations = conversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, regularMessage] } : c);
                 } else {
-                    // FIX: Changed `imageUrl` to `image_url` to match Conversation and Artist types.
-                    convo = { id: `convo-${currentUser.id}-${ariaProfile.id}`, participants: [currentUser, ariaProfile], messages: [regularMessage], unreadCount: 0, title: 'Aria Cantata', image_url: ariaProfile.image_url };
+                    convo = { id: `convo-${currentUser.id}-${ariaProfile.id}`, participants: [currentUser, ariaProfile], messages: [regularMessage], unread_count: 0, title: 'Aria Cantata', image_url: ariaProfile.image_url };
                     updatedConversations = [convo, ...conversations];
                 }
                 dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });

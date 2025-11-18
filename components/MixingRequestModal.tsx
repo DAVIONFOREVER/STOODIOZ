@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+// FIX: Import missing types
 import type { Engineer, BookingRequest, MixingDetails } from '../types';
 import { BookingRequestType } from '../types';
 import { CloseIcon } from './icons';
@@ -12,6 +13,15 @@ interface MixingRequestModalProps {
     isLoading: boolean;
 }
 
+// FIX: Define the missing RadioOption component locally.
+const RadioOption: React.FC<{id: string, value: 'REMOTE' | 'IN_STUDIO', label: string, description: string, checked: boolean, onChange: (value: 'REMOTE' | 'IN_STUDIO') => void, disabled?: boolean}> = ({id, value, label, description, checked, onChange, disabled}) => (
+    <label htmlFor={id} className={`block p-3 rounded-lg border-2 transition-all ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${checked ? 'bg-orange-500/10 border-orange-500' : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-500'}`}>
+        <input type="radio" name="mixType" id={id} value={value} checked={checked} onChange={() => onChange(value)} className="sr-only" disabled={disabled}/>
+        <p className={`font-bold ${checked ? 'text-orange-400' : 'text-zinc-100'}`}>{label}</p>
+        <p className="text-xs text-zinc-400">{description}</p>
+    </label>
+);
+
 const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClose, onConfirm, onInitiateInStudio, isLoading }) => {
     const [trackCount, setTrackCount] = useState(1);
     const [notes, setNotes] = useState('');
@@ -22,16 +32,16 @@ const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClo
         return null;
     }
 
-    const services = engineer.mixingServices;
+    const services = engineer.mixing_services;
     const totalCost = useMemo(() => {
-        return services ? services.pricePerTrack * trackCount : 0;
+        return services ? services.price_per_track * trackCount : 0;
     }, [services, trackCount]);
 
     if (!services) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const mixingDetails = { type: mixType, trackCount, notes };
+        const mixingDetails = { type: mixType, track_count: trackCount, notes };
         
         if (mixType === 'IN_STUDIO') {
             onInitiateInStudio(engineer, mixingDetails);
@@ -40,13 +50,13 @@ const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClo
 
         const bookingRequest: BookingRequest = {
             date: new Date().toISOString().split('T')[0],
-            startTime: 'N/A',
+            start_time: 'N/A',
             duration: 0,
-            totalCost,
-            engineerPayRate: totalCost, // For remote mixing, engineer gets the full amount (minus platform fee later)
-            requestType: BookingRequestType.SPECIFIC_ENGINEER,
-            requestedEngineerId: engineer.id,
-            mixingDetails
+            total_cost: totalCost,
+            engineer_pay_rate: totalCost, // For remote mixing, engineer gets the full amount (minus platform fee later)
+            request_type: BookingRequestType.SPECIFIC_ENGINEER,
+            requested_engineer_id: engineer.id,
+            mixing_details: mixingDetails
         };
         onConfirm(bookingRequest);
     };
@@ -81,36 +91,36 @@ const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClo
                                 id="trackCount"
                                 value={trackCount}
                                 min="1"
-                                onChange={(e) => setTrackCount(parseInt(e.target.value))}
+                                // FIX: Ensure value is parsed as an integer to match state type.
+                                onChange={(e) => setTrackCount(parseInt(e.target.value, 10) || 1)}
                                 className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="notes" className="block text-sm font-semibold text-zinc-400 mb-2">Notes for {engineer.name} (optional)</label>
+                            <label htmlFor="notes" className="block text-sm font-semibold text-zinc-400 mb-2">Notes for the Engineer (Optional)</label>
                             <textarea
                                 id="notes"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 rows={3}
                                 className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3"
-                                placeholder="e.g., Reference tracks, specific requests..."
+                                placeholder="e.g., References to other songs, specific vocal effects, etc."
                             />
                         </div>
-                        
-                        {mixType === 'REMOTE' && (
-                             <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/20">
-                                <div className="flex justify-between font-bold text-lg">
-                                    <span>Total Cost</span>
-                                    <span className="text-orange-400">${totalCost.toFixed(2)}</span>
-                                </div>
-                            </div>
-                        )}
-
                     </div>
-                    <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 rounded-b-2xl flex justify-end">
-                        <button type="submit" disabled={isLoading} className="text-white bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-600 font-bold rounded-lg text-sm px-5 py-3 text-center transition-all w-48">
-                            {isLoading ? 'Requesting...' : (mixType === 'REMOTE' ? 'Send Request' : 'Next: Find Stoodio')}
+
+                    <div className="p-6 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-between items-center">
+                        <div>
+                            <p className="text-zinc-400 text-sm">Total Cost</p>
+                            <p className="text-orange-400 font-bold text-2xl">${totalCost.toFixed(2)}</p>
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="text-white bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-600 disabled:cursor-not-allowed font-bold rounded-lg text-sm px-5 py-3 text-center transition-colors w-48"
+                        >
+                            {isLoading ? 'Processing...' : 'Proceed to Payment'}
                         </button>
                     </div>
                 </form>
@@ -118,13 +128,5 @@ const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClo
         </div>
     );
 };
-
-const RadioOption: React.FC<{id: string, value: 'REMOTE' | 'IN_STUDIO', label: string, description: string, checked: boolean, onChange: (value: 'REMOTE' | 'IN_STUDIO') => void}> = ({id, value, label, description, checked, onChange}) => (
-    <label htmlFor={id} className={`w-full block p-3 rounded-lg border-2 transition-all cursor-pointer ${checked ? 'bg-orange-500/10 border-orange-500' : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-500'}`}>
-        <input type="radio" name="mixType" id={id} value={value} checked={checked} onChange={() => onChange(value)} className="sr-only" />
-        <p className={`font-bold ${checked ? 'text-orange-400' : 'text-zinc-100'}`}>{label}</p>
-        <p className="text-xs text-zinc-400">{description}</p>
-    </label>
-);
 
 export default MixingRequestModal;

@@ -10,7 +10,7 @@ interface MixingSampleManagerProps {
 
 const MixingSampleFormModal: React.FC<{
     sample: Partial<MixingSample> | null;
-    onSave: (sample: Omit<MixingSample, 'id' | 'audioUrl'>, audioFile: File | null) => void;
+    onSave: (sample: Omit<MixingSample, 'id' | 'audio_url'>, audioFile: File | null) => void;
     onClose: () => void;
     isUploading: boolean;
 }> = ({ sample, onSave, onClose, isUploading }) => {
@@ -59,15 +59,15 @@ const MixingSampleFormModal: React.FC<{
                             <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md hover:border-orange-500 transition-colors">
                                 <div className="space-y-1 text-center">
                                     <MusicNoteIcon className="mx-auto h-12 w-12 text-zinc-500" />
-                                    <p className="text-xs text-zinc-400">{audioFile ? audioFile.name : (sample?.audioUrl ? 'Click to replace file' : 'Click to select MP3 or WAV')}</p>
+                                    <p className="text-xs text-zinc-400">{audioFile ? audioFile.name : (sample?.audio_url ? 'Click to replace file' : 'Click to select MP3 or WAV')}</p>
                                 </div>
                             </div>
                             <input type="file" ref={audioFileInputRef} onChange={handleAudioFileChange} accept=".mp3,.wav" className="hidden" />
                         </div>
                     </div>
                     <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-end gap-2">
-                        <button type="button" onClick={onClose} disabled={isUploading} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600 disabled:opacity-50">Cancel</button>
-                        <button type="submit" disabled={isUploading} className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600 disabled:bg-zinc-600 w-32">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600">Cancel</button>
+                        <button type="submit" disabled={isUploading} className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600 disabled:bg-zinc-600">
                             {isUploading ? 'Uploading...' : 'Save Sample'}
                         </button>
                     </div>
@@ -87,57 +87,52 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
         setIsModalOpen(true);
     };
 
-    const handleSaveSample = async (sampleData: Omit<MixingSample, 'id' | 'audioUrl'>, audioFile: File | null) => {
+    const handleSaveSample = async (sampleData: Omit<MixingSample, 'id' | 'audio_url'>, audioFile: File | null) => {
         setIsUploading(true);
+        let finalSample: MixingSample = { 
+            id: editingSample?.id || `sample-${Date.now()}`, 
+            ...sampleData, 
+            audio_url: editingSample?.audio_url || '' 
+        };
+
         try {
-            let audioUrl = editingSample?.audioUrl || '';
             if (audioFile) {
-                audioUrl = await uploadMixingSampleFile(audioFile, engineer.id);
+                const uploadedAudioUrl = await uploadMixingSampleFile(audioFile, engineer.id);
+                finalSample.audio_url = uploadedAudioUrl;
             }
 
-            if (!audioUrl) {
-                alert("An audio file is required to save the sample.");
-                setIsUploading(false);
-                return;
-            }
-
-            const finalSample: MixingSample = {
-                id: editingSample?.id || `mix-${Date.now()}`,
-                ...sampleData,
-                audioUrl,
-            };
-
-            const existingIndex = (engineer.mixingSamples || []).findIndex(s => s.id === finalSample.id);
             let updatedSamples: MixingSample[];
+            const existingIndex = (engineer.mixing_samples || []).findIndex(s => s.id === finalSample.id);
 
             if (existingIndex > -1) {
-                updatedSamples = (engineer.mixingSamples || []).map(s => s.id === finalSample.id ? finalSample : s);
+                updatedSamples = (engineer.mixing_samples || []).map(s => s.id === finalSample.id ? finalSample : s);
             } else {
-                updatedSamples = [...(engineer.mixingSamples || []), finalSample];
+                updatedSamples = [...(engineer.mixing_samples || []), finalSample];
             }
             
-            onUpdateEngineer({ mixingSamples: updatedSamples });
+            onUpdateEngineer({ mixing_samples: updatedSamples });
+            
+        } catch (error) {
+            console.error("Failed to save sample:", error);
+            alert("Error saving sample. Please check the console for details.");
+        } finally {
             setIsModalOpen(false);
             setEditingSample(null);
-        } catch (error) {
-            console.error("Failed to save mixing sample:", error);
-            alert("Error saving sample. Please try again.");
-        } finally {
             setIsUploading(false);
         }
     };
 
     const handleDeleteSample = (sampleId: string) => {
-        if (window.confirm('Are you sure you want to delete this mixing sample?')) {
-            const updatedSamples = (engineer.mixingSamples || []).filter(i => i.id !== sampleId);
-            onUpdateEngineer({ mixingSamples: updatedSamples });
+        if (window.confirm('Are you sure you want to delete this sample?')) {
+            const updatedSamples = (engineer.mixing_samples || []).filter(s => s.id !== sampleId);
+            onUpdateEngineer({ mixing_samples: updatedSamples });
         }
     };
 
     return (
         <div className="p-6 cardSurface">
              <div className="flex justify-between items-center mb-6">
-                 <h1 className="text-2xl font-bold text-zinc-100">My Mixing Samples</h1>
+                 <h1 className="text-2xl font-bold text-zinc-100">Manage Mixing Samples</h1>
                  <button onClick={() => handleOpenModal({})} className="flex items-center gap-2 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm">
                     <PlusCircleIcon className="w-5 h-5"/>
                     Add Sample
@@ -145,10 +140,10 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
             </div>
             
             <div className="space-y-4">
-                {(engineer.mixingSamples || []).length > 0 ? (engineer.mixingSamples || []).map(sample => (
+                {(engineer.mixing_samples || []).length > 0 ? (engineer.mixing_samples || []).map(sample => (
                     <div key={sample.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                         <div className="flex-grow">
-                            <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><MusicNoteIcon className="w-5 h-5 text-purple-400"/> {sample.title}</h3>
+                            <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><MusicNoteIcon className="w-5 h-5 text-orange-400"/> {sample.title}</h3>
                             <p className="text-sm text-zinc-400 mt-1">{sample.description}</p>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-2">
@@ -157,7 +152,7 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
                         </div>
                     </div>
                 )) : (
-                    <p className="text-center py-8 text-zinc-500">You haven't uploaded any mixing samples yet. Add your first sample to showcase your work!</p>
+                    <p className="text-center py-8 text-zinc-500">You haven't added any mixing samples yet. Add samples to showcase your work!</p>
                 )}
             </div>
             

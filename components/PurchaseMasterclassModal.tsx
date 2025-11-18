@@ -23,7 +23,6 @@ const PurchaseMasterclassModal: React.FC<PurchaseMasterclassModalProps> = ({ mas
 
                 <div className="p-6 space-y-4">
                     <div className="flex items-center gap-4">
-                        {/* FIX: Changed `imageUrl` to `image_url` to match the owner's profile type definition. */}
                         <img src={owner.image_url} alt={owner.name} className="w-16 h-16 rounded-lg object-cover" />
                         <div>
                             <p className="text-sm text-zinc-400">Masterclass by</p>

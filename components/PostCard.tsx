@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -90,21 +88,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                         <img src={post.image_url} alt="Post content" className="w-full h-auto object-cover"/>
                     </div>
                 )}
-                {post.videoUrl && post.videoThumbnailUrl && (
+                {post.video_url && post.video_thumbnail_url && (
                     <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
                         {isPlaying ? (
                             <video
-                                src={post.videoUrl}
+                                src={post.video_url}
                                 controls
                                 autoPlay
                                 playsInline
                                 className="w-full h-full object-contain"
-                                poster={post.videoThumbnailUrl}
+                                poster={post.video_thumbnail_url}
                                 onEnded={() => setIsPlaying(false)}
                             />
                         ) : (
                             <button onClick={() => setIsPlaying(true)} className="w-full h-full block relative group" aria-label="Play video">
-                                <img src={post.videoThumbnailUrl} alt="Video thumbnail" className="w-full h-full object-cover"/>
+                                <img src={post.video_thumbnail_url} alt="Video thumbnail" className="w-full h-full object-cover"/>
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity opacity-70 group-hover:opacity-100">
                                      <div className="bg-black/50 rounded-full p-4 transition-transform group-hover:scale-110">
                                         <PlayIcon className="w-10 h-10 text-white"/>

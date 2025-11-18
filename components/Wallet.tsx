@@ -49,15 +49,14 @@ const StatusBadge: React.FC<{ status: TransactionStatus }> = ({ status }) => {
 
 const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onViewBooking, userRole }) => {
 
-    // FIX: Changed `walletTransactions` to `wallet_transactions` to match the property name in the `BaseUser` type.
-    const sortedTransactions = [...user.wallet_transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // FIX: Corrected property 'wallet_transactions' to be accessed correctly for sorting.
+    const sortedTransactions = [...(user.wallet_transactions || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return (
         <div className="p-6 cardSurface">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 pb-6 border-b border-zinc-700">
                 <div>
                     <h3 className="text-xl font-bold text-slate-100">Wallet</h3>
-                    {/* FIX: Changed `walletBalance` to `wallet_balance` to match the property name in the `BaseUser` type. */}
                     <p className="text-4xl font-bold text-green-400 mt-1">${user.wallet_balance.toFixed(2)}</p>
                     <p className="text-sm text-slate-400">Available Balance</p>
                 </div>
@@ -84,7 +83,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
                                 <p className="font-semibold text-slate-200">{tx.description}</p>
                                 <p className="text-xs text-slate-400">
                                     {format(new Date(tx.date), 'MMM d, yyyy, h:mm a')}
-                                    {tx.relatedUserName && ` • To/From ${tx.relatedUserName}`}
+                                    {tx.related_user_name && ` • To/From ${tx.related_user_name}`}
                                 </p>
                             </div>
                             <div className="text-right flex-shrink-0">
@@ -92,7 +91,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
                                     {isCredit ? '+' : ''}${tx.amount.toFixed(2)}
                                 </p>
                                 <div className="flex items-center justify-end gap-2 mt-0.5">
-                                    {tx.relatedBookingId && <button onClick={() => onViewBooking(tx.relatedBookingId!)} className="text-xs text-orange-400 hover:underline">View Booking</button>}
+                                    {tx.related_booking_id && <button onClick={() => onViewBooking(tx.related_booking_id!)} className="text-xs text-orange-400 hover:underline">View Booking</button>}
                                     <StatusBadge status={tx.status} />
                                 </div>
                             </div>

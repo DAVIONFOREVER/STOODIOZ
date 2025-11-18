@@ -14,7 +14,8 @@ const MapJobPopup: React.FC<MapJobPopupProps> = ({ job, onClose }) => {
     const { navigate } = useNavigation();
     const { acceptJob } = useBookings(navigate);
     
-    const payout = job.engineerPayRate * job.duration;
+    // FIX: Corrected property 'engineerPayRate' to 'engineer_pay_rate' to match the 'Booking' type definition.
+    const payout = job.engineer_pay_rate * job.duration;
 
     const handleAccept = () => {
         acceptJob(job);
@@ -40,7 +41,8 @@ const MapJobPopup: React.FC<MapJobPopupProps> = ({ job, onClose }) => {
                     </div>
                      <div className="flex items-center gap-2 text-zinc-300">
                         <ClockIcon className="w-4 h-4 text-zinc-400" />
-                        <span>{job.startTime} for {job.duration} hours</span>
+                        {/* FIX: Corrected property 'startTime' to 'start_time' to match the 'Booking' type definition. */}
+                        <span>{job.start_time} for {job.duration} hours</span>
                     </div>
                     <div className="flex items-center gap-2 font-bold text-green-400">
                         <DollarSignIcon className="w-4 h-4" />

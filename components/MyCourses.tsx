@@ -3,7 +3,7 @@ import React, { useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { useMasterclass } from '../hooks/useMasterclass';
 import { PlayIcon, MusicNoteIcon } from './icons';
-import type { Engineer, Producer } from '../types';
+import type { Engineer, Producer, Masterclass } from '../types';
 
 interface CourseCardProps {
     course: {
@@ -48,8 +48,10 @@ const MyCourses: React.FC = () => {
         const allCreators = [...engineers, ...producers];
         
         const courses = allCreators
-            .filter(creator => creator.masterclass && purchasedIds.has(creator.masterclass.id))
+            // FIX: Check for the existence of the masterclass property before filtering
+            .filter(creator => 'masterclass' in creator && creator.masterclass && purchasedIds.has(creator.masterclass.id))
             .map(creator => ({
+                // FIX: Added a non-null assertion as the filter guarantees it exists
                 masterclass: creator.masterclass!,
                 owner: creator
             }));
