@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
@@ -118,7 +120,8 @@ const ProducerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const coverImageUrl = e.target?.result as string;
-                updateProfile({ coverImageUrl });
+                // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
+                updateProfile({ cover_image_url: coverImageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -127,7 +130,8 @@ const ProducerDashboard: React.FC = () => {
     const isProPlan = producer.subscription?.plan === SubscriptionPlan.PRODUCER_PRO;
 
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => (producer.followerIds || []).includes(u.id));
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
+    const followers = allUsers.filter(u => (producer.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (producer.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (producer.following?.engineers || []).includes(e.id));
     const followedStoodioz = stoodioz.filter(s => (producer.following?.stoodioz || []).includes(s.id));
@@ -138,7 +142,7 @@ const ProducerDashboard: React.FC = () => {
             case 'analytics':
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <AnalyticsDashboard user={producer} />
+                        <AnalyticsDashboard user={producer} userRole={UserRole.PRODUCER} />
                     </Suspense>
                 );
             case 'beatStore': return <BeatManager producer={producer} onUpdateProducer={updateProfile} />;
@@ -173,7 +177,8 @@ const ProducerDashboard: React.FC = () => {
             {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
                 <img 
-                    src={producer.coverImageUrl || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'} 
+                    // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
+                    src={producer.cover_image_url || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'} 
                     alt={`${producer.name}'s cover photo`}
                     className="w-full h-48 md:h-64 object-cover"
                 />
@@ -234,7 +239,8 @@ const ProducerDashboard: React.FC = () => {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <StatCard label="Wallet Balance" value={`$${producer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                {/* FIX: Corrected property name from 'walletBalance' to 'wallet_balance' to match the type definition. */}
+                <StatCard label="Wallet Balance" value={`$${producer.wallet_balance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Beats for Sale" value={producer.instrumentals.length} icon={<MusicNoteIcon className="w-6 h-6 text-purple-400" />} />
                 <StatCard label="Followers" value={producer.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
             </div>

@@ -1,17 +1,17 @@
 
 
+
+
 import React, { useMemo } from 'react';
 import type { Producer, Artist, Stoodio, Engineer } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons';
 import PostFeed from './PostFeed';
 import InstrumentalPlayer from './InstrumentalPlayer';
-import MasterclassCard from './MasterclassCard';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { useBookings } from '../hooks/useBookings';
-import { useMasterclass } from '../hooks/useMasterclass';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -52,7 +52,6 @@ const ProducerProfile: React.FC = () => {
     const { toggleFollow, likePost, commentOnPost } = useSocial();
     const { startConversation } = useMessaging(useNavigation().navigate);
     const { initiateBookingWithProducer } = useBookings(useNavigation().navigate);
-    const { openPurchaseMasterclassModal, openWatchMasterclassModal } = useMasterclass();
 
     const producer = selectedProducer;
 
@@ -68,7 +67,8 @@ const ProducerProfile: React.FC = () => {
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.producers || []).includes(producer.id)) : false;
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => producer.followerIds.includes(u.id)), [allUsers, producer.followerIds]);
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
+    const followers = useMemo(() => allUsers.filter(u => producer.follower_ids.includes(u.id)), [allUsers, producer.follower_ids]);
 
     const followedArtists = useMemo(() => artists.filter(a => producer.following.artists.includes(a.id)), [artists, producer.following.artists]);
     const followedEngineers = useMemo(() => engineers.filter(e => producer.following.engineers.includes(e.id)), [engineers, producer.following.engineers]);
@@ -129,15 +129,6 @@ const ProducerProfile: React.FC = () => {
                         </div>
                     </div>
                 </div>
-
-                {producer.masterclass?.isEnabled && (
-                    <MasterclassCard 
-                        masterclass={producer.masterclass}
-                        owner={producer}
-                        onPurchase={openPurchaseMasterclassModal}
-                        onWatch={openWatchMasterclassModal}
-                    />
-                )}
 
                 <InstrumentalPlayer instrumentals={producer.instrumentals} onInquire={(instrumental) => { /* TODO: Implement inbox inquiry */ }} />
                 

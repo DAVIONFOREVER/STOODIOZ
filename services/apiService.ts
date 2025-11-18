@@ -1,5 +1,3 @@
-
-
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
 // FIX: Added RankingTier to imports to resolve a reference error.
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier } from '../types';
@@ -147,7 +145,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         ranking_tier: RankingTier.Provisional,
         is_on_streak: false,
         on_time_rate: 100,
-        completion_rate: 100,
+        completion_rate: 0,
         repeat_hire_rate: 0,
         strength_tags: [],
         local_rank_text: 'Just getting started!',

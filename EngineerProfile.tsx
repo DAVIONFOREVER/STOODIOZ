@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
 import { UserRole } from '../types';
@@ -73,7 +75,8 @@ const EngineerProfile: React.FC = () => {
     const engineerReviews = reviews.filter(r => r.engineerId === engineer.id);
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => engineer.followerIds.includes(u.id)), [allUsers, engineer.followerIds]);
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
+    const followers = useMemo(() => allUsers.filter(u => engineer.follower_ids.includes(u.id)), [allUsers, engineer.follower_ids]);
 
     const followedArtists = useMemo(() => artists.filter(a => engineer.following.artists.includes(a.id)), [artists, engineer.following.artists]);
     const followedEngineers = useMemo(() => engineers.filter(e => engineer.following.engineers.includes(e.id)), [engineers, engineer.following.engineers]);
@@ -106,8 +109,7 @@ const EngineerProfile: React.FC = () => {
                             <h1 className="text-4xl font-extrabold text-orange-500">{engineer.name}</h1>
                             <div className="flex items-center justify-center sm:justify-start gap-1 text-yellow-400 mt-2">
                                 <StarIcon className="w-5 h-5" />
-                                {/* FIX: Changed `engineer.rating` to `engineer.rating_overall` to match the property name in the `BaseUser` type. */}
-                                <span className="font-bold text-lg text-slate-200">{engineer.rating_overall.toFixed(1)}</span>
+                                <span className="font-bold text-lg text-slate-200">{(engineer.rating_overall ?? 0).toFixed(1)}</span>
                                 <span className="text-slate-400 text-sm">({engineerReviews.length} reviews)</span>
                             </div>
                             <p className="text-slate-300 leading-relaxed mt-4">{engineer.bio}</p>
