@@ -17,7 +17,7 @@ const BookingContextCard: React.FC<BookingContextCardProps> = ({ booking, onNavi
     }
 
     const isRemoteMix = booking.mixingDetails?.type === 'REMOTE';
-    const imageUrl = isRemoteMix ? booking.engineer?.imageUrl : booking.stoodio?.imageUrl;
+    const imageUrl = isRemoteMix ? booking.engineer?.image_url : booking.stoodio?.image_url;
     const title = isRemoteMix ? `Remote Mix: ${booking.engineer?.name}` : booking.stoodio?.name;
 
     return (

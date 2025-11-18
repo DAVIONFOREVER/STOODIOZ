@@ -108,7 +108,8 @@ const EngineerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                updateProfile({ imageUrl });
+                // FIX: Corrected property name from `imageUrl` to `image_url` to match the type definition.
+                updateProfile({ image_url: imageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -202,7 +203,8 @@ const EngineerDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
-                                <img src={engineer.imageUrl} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
+                                <img src={engineer.image_url} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 
                                     className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"

@@ -117,7 +117,8 @@ const StudioInsights: React.FC = () => {
                             <div key={eng.id} className="cardSurface p-3">
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-3">
-                                        <img src={eng.imageUrl} alt={eng.name} className="w-10 h-10 rounded-lg object-cover" />
+                                        {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
+                                        <img src={eng.image_url} alt={eng.name} className="w-10 h-10 rounded-lg object-cover" />
                                         <div>
                                             <p className="font-bold text-zinc-200">{eng.name}</p>
                                             <p className="text-xs text-zinc-400">{eng.sessions_completed} sessions</p>

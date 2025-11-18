@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import type { Booking } from '../types';
 import { CloseIcon } from './icons';
@@ -55,7 +56,8 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
                 </div>
 
                 <div className="p-6 text-center">
-                    <img src={booking.engineer.imageUrl} alt={booking.engineer.name} className="w-24 h-24 rounded-xl object-cover mx-auto mb-4 border-4 border-zinc-700 shadow-lg" />
+                    {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
+                    <img src={booking.engineer.image_url} alt={booking.engineer.name} className="w-24 h-24 rounded-xl object-cover mx-auto mb-4 border-4 border-zinc-700 shadow-lg" />
                     <p className="text-xl font-semibold text-slate-100">Enjoyed your session with {booking.engineer.name}?</p>
                     <p className="text-slate-400 mt-1">Show your appreciation by leaving a tip on their payout of ${engineerPayout.toFixed(2)}.</p>
 

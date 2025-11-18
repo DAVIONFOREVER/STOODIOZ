@@ -131,14 +131,14 @@ export interface LinkAttachment {
     url: string;
     title: string;
     description?: string;
-    imageUrl?: string;
+    image_url?: string;
 }
 
 export interface Comment {
     id: string;
     authorId: string;
     authorName: string;
-    authorImageUrl: string;
+    author_image_url: string;
     text: string;
     timestamp: string;
 }
@@ -149,7 +149,7 @@ export interface Post {
     authorType: UserRole;
     timestamp: string;
     text: string;
-    imageUrl?: string;
+    image_url?: string;
     videoUrl?: string;
     videoThumbnailUrl?: string;
     link?: LinkAttachment;
@@ -189,7 +189,7 @@ export interface BaseUser {
     name: string;
     email: string;
     password?: string;
-    imageUrl: string;
+    image_url: string;
     cover_image_url?: string;
     animated_logo_url?: string;
     followers: number;
@@ -367,7 +367,7 @@ export interface AppNotification {
     actor?: {
         id: string;
         name: string;
-        imageUrl: string;
+        image_url: string;
     };
     link?: {
         view: AppView;
@@ -388,7 +388,7 @@ export interface Message {
     timestamp: string;
     type: 'text' | 'image' | 'link' | 'audio' | 'files' | 'system';
     text?: string;
-    imageUrl?: string;
+    image_url?: string;
     link?: Link;
     audioUrl?: string;
     audioInfo?: { filename: string; duration: string };
@@ -402,7 +402,7 @@ export interface Conversation {
     unreadCount: number;
     bookingId?: string;
     title?: string;
-    imageUrl?: string;
+    image_url?: string;
 }
 
 export interface VibeMatchResult {

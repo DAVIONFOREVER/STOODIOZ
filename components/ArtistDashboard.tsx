@@ -85,7 +85,7 @@ const ArtistDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                updateProfile({ imageUrl });
+                updateProfile({ image_url: imageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -190,7 +190,7 @@ const ArtistDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
-                                <img src={artist.imageUrl} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <img src={artist.image_url} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 
                                     className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"

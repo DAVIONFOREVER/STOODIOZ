@@ -4,7 +4,7 @@ import { PhotoIcon, VideoCameraIcon, CloseCircleIcon, PlayIcon } from './icons';
 
 interface CreatePostProps {
     currentUser: Artist | Engineer | Stoodio | Producer;
-    onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
+    onPost: (postData: { text: string; image_url?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
 }
 
 // A generic video icon as a data URL to replace the picsum placeholder
@@ -81,7 +81,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
             setIsPosting(true);
             await onPost({ 
                 text: text.trim(), 
-                imageUrl: imageUrl || undefined,
+                image_url: imageUrl || undefined,
                 videoUrl: videoUrl || undefined,
                 videoThumbnailUrl: videoThumbnailUrl || undefined,
             });
@@ -134,7 +134,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     return (
         <div className="p-6 cardSurface">
             <div className="flex items-start gap-4">
-                <img src={currentUser.imageUrl} alt={currentUser.name} className="w-12 h-12 rounded-xl object-cover" />
+                <img src={currentUser.image_url} alt={currentUser.name} className="w-12 h-12 rounded-xl object-cover" />
                 <div className="w-full">
                     <form onSubmit={handleSubmit}>
                          <input

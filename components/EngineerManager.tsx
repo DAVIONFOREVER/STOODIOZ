@@ -97,7 +97,7 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
                 {inHouseEngineers.length > 0 ? inHouseEngineers.map(({ engineer, payRate }) => (
                     <div key={engineer.id} className="cardSurface p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3 flex-grow">
-                            <img src={engineer.imageUrl} alt={engineer.name} className="w-12 h-12 rounded-lg object-cover" />
+                            <img src={engineer.image_url} alt={engineer.name} className="w-12 h-12 rounded-lg object-cover" />
                             <div>
                                 <h3 className="font-bold text-zinc-200">{engineer.name}</h3>
                                 <div className="text-sm text-green-400 font-semibold flex items-center gap-1 mt-1">

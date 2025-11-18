@@ -34,7 +34,8 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg text-left cardSurface">
-            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+            {/* FIX: Changed `imageUrl` to `image_url` to match the type definition. */}
+            <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
@@ -76,7 +77,6 @@ const StoodioDetail: React.FC = () => {
         .slice(0, 5);
 
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    // FIX: Changed `followerIds` to `follower_ids` to match the property name in the `BaseUser` type.
     const followers = useMemo(() => allUsers.filter(u => stoodio.follower_ids.includes(u.id)), [allUsers, stoodio.follower_ids]);
     const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
     const followedEngineers = engineers.filter(e => stoodio.following.engineers.includes(e.id));
@@ -120,7 +120,8 @@ const StoodioDetail: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
                 {/* Left Column: Stoodio Info */}
                 <div className="lg:col-span-3">
-                    <img src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-80 object-cover rounded-2xl mb-6 shadow-lg" />
+                    {/* FIX: Changed `imageUrl` to `image_url` to match the `Stoodio` type definition. */}
+                    <img src={stoodio.image_url} alt={stoodio.name} className="w-full h-80 object-cover rounded-2xl mb-6 shadow-lg" />
                     
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
                         <div>
@@ -197,7 +198,8 @@ const StoodioDetail: React.FC = () => {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {hostedArtists.map(artist => (
                                     <button key={artist.id} onClick={() => viewArtistProfile(artist)} className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors">
-                                        <img src={artist.imageUrl} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
+                                        {/* FIX: Changed `imageUrl` to `image_url` to match the `Artist` type definition. */}
+                                        <img src={artist.image_url} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
                                         <span className="font-semibold text-sm text-slate-200">{artist.name}</span>
                                     </button>
                                 ))}

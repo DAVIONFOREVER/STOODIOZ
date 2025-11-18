@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { Engineer } from '../types';
 import { UserPlusIcon, UserCheckIcon, StarIcon } from './icons';
@@ -26,7 +27,7 @@ const EngineerCard: React.FC<EngineerCardProps> = ({ engineer, onSelectEngineer,
         >
             <div className="relative">
                 <button onClick={() => onSelectEngineer(engineer)} className="w-full text-center">
-                    <img loading="lazy" src={engineer.imageUrl} alt={engineer.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                    <img loading="lazy" src={engineer.image_url} alt={engineer.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-orange-500 transition-colors" />
                     <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400 text-glow">{engineer.name}</h3>
                     <div className="flex items-center justify-center gap-1 text-yellow-400 mt-1">
                         <StarIcon className="w-4 h-4" />

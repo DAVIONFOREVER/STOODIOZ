@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -60,7 +61,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {/* Post Header */}
                 <div className="flex items-start justify-between gap-4 mb-4">
                     <button onClick={onSelectAuthor} className="flex items-center gap-4 group text-left">
-                        <img src={author.imageUrl} alt={author.name} className="w-12 h-12 rounded-xl object-cover" />
+                        <img src={author.image_url} alt={author.name} className="w-12 h-12 rounded-xl object-cover" />
                         <div>
                             <p className="font-bold text-slate-100 group-hover:text-orange-400 transition-colors">{author.name}</p>
                             <p className="text-sm text-slate-400">{formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}</p>
@@ -84,9 +85,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {/* Post Content */}
                 {post.text && <p className="text-slate-300 whitespace-pre-wrap mb-4">{post.text}</p>}
                 
-                {post.imageUrl && (
+                {post.image_url && (
                     <div className="my-4 rounded-lg overflow-hidden border border-zinc-700">
-                        <img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover"/>
+                        <img src={post.image_url} alt="Post content" className="w-full h-auto object-cover"/>
                     </div>
                 )}
                 {post.videoUrl && post.videoThumbnailUrl && (
@@ -153,7 +154,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     {post.comments.length > 0 ? (
                         post.comments.map(comment => (
                             <div key={comment.id} className="flex items-start gap-3">
-                                <img src={comment.authorImageUrl} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
+                                <img src={comment.author_image_url} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
                                 <div>
                                     <div className="bg-zinc-700 rounded-xl p-3">
                                         <p className="font-semibold text-sm text-slate-200">{comment.authorName}</p>
@@ -168,7 +169,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     )}
                      {/* Comment Form */}
                     <form onSubmit={handleCommentSubmit} className="flex items-center gap-2 pt-4">
-                        <img src={currentUser.imageUrl} alt="Your profile" className="w-8 h-8 rounded-lg object-cover"/>
+                        <img src={currentUser.image_url} alt="Your profile" className="w-8 h-8 rounded-lg object-cover"/>
                          <input
                             type="text"
                             value={commentText}

@@ -66,7 +66,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ notifications, on
                                 <button onClick={() => handleNotificationClick(notification)} className="w-full flex items-start gap-4 p-4 text-left hover:bg-zinc-700/50 transition-colors">
                                     <div className="relative flex-shrink-0 mt-1">
                                         {notification.actor ? (
-                                             <img src={notification.actor.imageUrl} alt={notification.actor.name} className="w-10 h-10 rounded-xl object-cover" />
+                                             <img src={notification.actor.image_url} alt={notification.actor.name} className="w-10 h-10 rounded-xl object-cover" />
                                         ) : (
                                             <div className="w-10 h-10 rounded-xl bg-zinc-700 flex items-center justify-center">
                                                 <NotificationIcon type={notification.type} />

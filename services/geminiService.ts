@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
@@ -44,7 +45,8 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
             url,
             title: metadata.title || 'Link',
             description: metadata.description || url,
-            imageUrl: metadata.imageUrl || undefined,
+            // FIX: Changed `imageUrl` to `image_url` to match the `LinkAttachment` type definition.
+            image_url: metadata.imageUrl || undefined,
         };
 
     } catch (error) {

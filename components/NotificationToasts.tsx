@@ -21,7 +21,7 @@ const NotificationToast: React.FC<{ notification: AppNotification, onDismiss: (i
       {/* Icon */}
       <div className="bg-orange-500/20 text-orange-400 p-2 rounded-full flex-shrink-0 mt-1">
         {notification.actor ? (
-            <img src={notification.actor.imageUrl} alt={notification.actor.name} className="w-6 h-6 rounded-full object-cover" />
+            <img src={notification.actor.image_url} alt={notification.actor.name} className="w-6 h-6 rounded-full object-cover" />
         ) : (
             <BellIcon className="w-5 h-5" />
         )}

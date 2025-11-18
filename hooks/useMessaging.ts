@@ -42,7 +42,8 @@ export const useMessaging = (navigate: (view: any) => void) => {
             dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: existingConvo.id } });
             navigate('INBOX');
         } else {
-            const newConversation = { id: `convo-${currentUser.id}-${participant.id}`, participants: [currentUser, participant], messages: [], unreadCount: 0, title: participant.name, imageUrl: participant.imageUrl };
+            // FIX: Changed `imageUrl` to `image_url` to match the Conversation type definition.
+            const newConversation = { id: `convo-${currentUser.id}-${participant.id}`, participants: [currentUser, participant], messages: [], unreadCount: 0, title: participant.name, image_url: participant.image_url };
             dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: [newConversation, ...conversations] }});
             dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: newConversation.id } });
             navigate('INBOX');

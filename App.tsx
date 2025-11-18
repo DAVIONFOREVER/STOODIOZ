@@ -1,5 +1,6 @@
 
 
+
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
 import { AppView, UserRole, RankingTier } from './types';
@@ -147,7 +148,7 @@ const App: React.FC = () => {
             id: user.id, // This correctly maps to profile_id = auth.uid()
             email: user.email,
             name: userData.name,
-            imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
+            image_url: userData.image_url || USER_SILHOUETTE_URL,
             completion_rate: 0, // Default to 0 as required.
             // Default coordinates for JSONB column. Note: 'lon' is used to match 'types.ts' Location interface.
             coordinates: { lat: 0, lon: 0 },
@@ -182,7 +183,7 @@ const App: React.FC = () => {
                 profileData = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], isAvailable: true, showOnMap: true };
                 break;
             case UserRole.STOODIO:
-                profileData = { ...baseData, description: userData.description, location: userData.location, businessAddress: userData.businessAddress, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.imageUrl || ''], rooms: [], verificationStatus: 'UNVERIFIED', showOnMap: true };
+                profileData = { ...baseData, description: userData.description, location: userData.location, businessAddress: userData.businessAddress, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.image_url || ''], rooms: [], verificationStatus: 'UNVERIFIED', showOnMap: true };
                 break;
         }
 
@@ -329,13 +330,13 @@ const App: React.FC = () => {
             case AppView.CHOOSE_PROFILE:
                 return <ChooseProfile onSelectRole={selectRoleToSetup} />;
             case AppView.ARTIST_SETUP:
-                return <ArtistSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, imageUrl }, UserRole.ARTIST)} onNavigate={navigate} />;
+                return <ArtistSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, image_url: imageUrl }, UserRole.ARTIST)} onNavigate={navigate} />;
             case AppView.ENGINEER_SETUP:
-                return <EngineerSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, imageUrl }, UserRole.ENGINEER)} onNavigate={navigate} />;
+                return <EngineerSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, image_url: imageUrl }, UserRole.ENGINEER)} onNavigate={navigate} />;
             case AppView.PRODUCER_SETUP:
-                return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, imageUrl }, UserRole.PRODUCER)} onNavigate={navigate} />;
+                return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl) => completeSetup({ name, bio, email, password, image_url: imageUrl }, UserRole.PRODUCER)} onNavigate={navigate} />;
             case AppView.STOODIO_SETUP:
-                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl) => completeSetup({ name, description, location, businessAddress, email, password, imageUrl }, UserRole.STOODIO)} onNavigate={navigate} />;
+                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl }, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:

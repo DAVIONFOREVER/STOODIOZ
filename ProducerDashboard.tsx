@@ -108,7 +108,8 @@ const ProducerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                updateProfile({ imageUrl });
+                // FIX: Corrected property name from `imageUrl` to `image_url` to match the type definition.
+                updateProfile({ image_url: imageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -187,83 +188,4 @@ const ProducerDashboard: React.FC = () => {
                     onClick={handleCoverImageUploadClick}
                     className="absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold py-1.5 px-3 rounded-full hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100 flex items-center gap-2"
                 >
-                    <PhotoIcon className="w-4 h-4" /> Edit Cover
-                </button>
-                <input
-                    type="file"
-                    ref={coverImageInputRef}
-                    onChange={handleCoverFileChange}
-                    className="hidden"
-                    accept="image/*"
-                />
-                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
-                        <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
-                            <div className="relative group/pfp flex-shrink-0">
-                                <img src={producer.imageUrl} alt={producer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
-                                <button 
-                                    onClick={handleImageUploadClick} 
-                                    className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
-                                    aria-label="Change profile photo"
-                                >
-                                    <EditIcon className="w-8 h-8 text-white" />
-                                </button>
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={handleFileChange}
-                                    className="hidden"
-                                    accept="image/*"
-                                />
-                            </div>
-                            <div>
-                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{producer.name}</h1>
-                                <p className="text-zinc-400 mt-1">Producer Dashboard</p>
-                            </div>
-                        </div>
-                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
-                            <div className="relative">
-                                <input 
-                                    type="checkbox" 
-                                    className="sr-only" 
-                                    checked={producer.isAvailable} 
-                                    onChange={(e) => updateProfile({ isAvailable: e.target.checked })} 
-                                />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${producer.isAvailable ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.isAvailable ? 'translate-x-6' : ''}`}></div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {/* FIX: Corrected property name from 'walletBalance' to 'wallet_balance' to match the type definition. */}
-                <StatCard label="Wallet Balance" value={`$${producer.wallet_balance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                <StatCard label="Beats for Sale" value={producer.instrumentals.length} icon={<MusicNoteIcon className="w-6 h-6 text-purple-400" />} />
-                <StatCard label="Followers" value={producer.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
-            </div>
-
-            <div className="cardSurface">
-                <div className="flex border-b border-zinc-700/50 overflow-x-auto">
-                    <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
-                    <TabButton label="Beat Store" isActive={activeTab === 'beatStore'} onClick={() => setActiveTab('beatStore')} />
-                    <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
-                    <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
-                    <TabButton label="Masterclass" isActive={activeTab === 'masterclass'} onClick={() => setActiveTab('masterclass')} />
-                    <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
-                    <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
-                    <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
-                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
-                </div>
-                <div className="p-6">
-                    {renderContent()}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export default ProducerDashboard;
+                    <PhotoIcon className="w-4 h-4"

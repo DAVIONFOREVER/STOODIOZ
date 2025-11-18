@@ -35,7 +35,8 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                 </div>
                 <div className="flex-grow overflow-y-auto p-6 space-y-6">
                     <div className="flex items-center gap-4">
-                        <img src={user.imageUrl} alt={user.name} className="w-20 h-20 rounded-xl object-cover" />
+                        {/* FIX: Changed `imageUrl` to `image_url` to match the user type definition. */}
+                        <img src={user.image_url} alt={user.name} className="w-20 h-20 rounded-xl object-cover" />
                         <div>
                             <h3 className="text-2xl font-bold text-orange-400">{user.name}</h3>
                             <p className="text-zinc-400">{'location' in user ? user.location : 'Remote'}</p>
@@ -162,7 +163,6 @@ const AdminRankings: React.FC = () => {
         return 'Artist';
     };
 
-    // FIX: Add missing return statement to render the component's UI.
     return (
         <div className="space-y-8 animate-fade-in">
             <div className="text-center">
@@ -226,7 +226,8 @@ const AdminRankings: React.FC = () => {
                                     <tr key={user.id} className="border-b border-zinc-700/50 hover:bg-zinc-800/30">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <img src={user.imageUrl} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
+                                                {/* FIX: Changed `imageUrl` to `image_url` to match the user type definition. */}
+                                                <img src={user.image_url} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
                                                 <div>
                                                     <div className="font-semibold text-zinc-100">{user.name}</div>
                                                     <div className="text-xs text-zinc-500">{role}</div>
@@ -256,5 +257,4 @@ const AdminRankings: React.FC = () => {
     );
 };
 
-// FIX: Add missing default export.
 export default AdminRankings;

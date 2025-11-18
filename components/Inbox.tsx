@@ -40,7 +40,7 @@ const ConversationList: React.FC<{
                         <li key={convo.id} onClick={() => onSelect(convo.id)}>
                             <div className={`p-4 flex items-center gap-4 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}>
                                 <div className="relative flex-shrink-0">
-                                    <img loading="lazy" src={participant.imageUrl} alt={participant.name} className="w-14 h-14 rounded-xl object-cover"/>
+                                    <img loading="lazy" src={participant.image_url} alt={participant.name} className="w-14 h-14 rounded-xl object-cover"/>
                                     {participant.isOnline && (
                                         <span className="absolute -bottom-1 -right-1 block h-4 w-4 rounded-full bg-green-500 ring-2 ring-zinc-800" title="Online"></span>
                                     )}
@@ -151,7 +151,7 @@ const ChatThread: React.FC<{
         switch(type) {
             case 'image':
                 messageContent.type = 'image';
-                messageContent.imageUrl = `https://picsum.photos/seed/chatimg${Date.now()}/400/300`;
+                messageContent.image_url = `https://picsum.photos/seed/chatimg${Date.now()}/400/300`;
                 messageContent.text = 'Here is a photo.';
                 break;
             case 'audio':
@@ -182,7 +182,7 @@ const ChatThread: React.FC<{
                     <button onClick={onBack} className="md:hidden p-2 rounded-full hover:bg-zinc-800">
                         <ChevronLeftIcon className="w-6 h-6" />
                     </button>
-                    <img src={participant.imageUrl} alt={participant.name} className="w-10 h-10 rounded-xl object-cover" />
+                    <img src={participant.image_url} alt={participant.name} className="w-10 h-10 rounded-xl object-cover" />
                     <h3 className="font-bold text-lg text-zinc-100">{participant.name}</h3>
                 </div>
                 <div className="flex border-b border-zinc-700/50 bg-zinc-950/80 backdrop-blur-sm">
@@ -221,11 +221,11 @@ const ChatThread: React.FC<{
                             const isUser = msg.senderId === currentUser.id;
                             return (
                                 <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                                    {!isUser && <img loading="lazy" src={participant.imageUrl} className="w-6 h-6 rounded-full self-start"/>}
+                                    {!isUser && <img loading="lazy" src={participant.image_url} className="w-6 h-6 rounded-full self-start"/>}
                                     <div className={`max-w-xs md:max-w-md lg:max-w-lg p-1 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-zinc-200 rounded-bl-lg'}`}>
                                         <div className="p-2 space-y-2">
                                             {msg.text && <p>{msg.text}</p>}
-                                            {msg.type === 'image' && msg.imageUrl && <img loading="lazy" src={msg.imageUrl} alt="Sent image" className="rounded-xl w-full h-auto" />}
+                                            {msg.type === 'image' && msg.image_url && <img loading="lazy" src={msg.image_url} alt="Sent image" className="rounded-xl w-full h-auto" />}
                                             {msg.type === 'link' && msg.link && (
                                                 <a href={msg.link.url} target="_blank" rel="noopener noreferrer" className="block bg-black/20 p-3 hover:bg-black/30 rounded-xl">
                                                     <p className="font-bold">{msg.link.title}</p>

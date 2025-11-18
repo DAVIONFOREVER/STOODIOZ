@@ -30,7 +30,8 @@ const MapBookingPopup: React.FC<MapBookingPopupProps> = ({ engineer, onClose, on
 
                 <div className="p-6">
                     <div className="flex items-center gap-4 mb-4">
-                        <img src={engineer.imageUrl} alt={engineer.name} className="w-20 h-20 rounded-xl object-cover" />
+                        {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
+                        <img src={engineer.image_url} alt={engineer.name} className="w-20 h-20 rounded-xl object-cover" />
                         <div>
                             <h3 className="text-2xl font-bold text-orange-400">{engineer.name}</h3>
                             <div className="flex items-center gap-1 text-yellow-400 mt-1">

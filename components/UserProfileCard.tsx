@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { Artist, Engineer, Stoodio, Producer } from '../types';
 import { AppView, UserRole } from '../types';
@@ -21,8 +22,9 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, onNavigate }) =
         <div className="overflow-hidden cardSurface">
             <div className="h-20 bg-gradient-to-r from-orange-500 to-amber-500"></div>
             <div className="p-4 pt-0 -mt-10">
+                {/* FIX: Changed `imageUrl` to `image_url` to match the user type definition. */}
                 <img 
-                    src={user.imageUrl} 
+                    src={user.image_url} 
                     alt={user.name}
                     className="w-20 h-20 rounded-full object-cover border-4 border-zinc-800 mx-auto"
                 />
@@ -41,4 +43,3 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, onNavigate }) =
 };
 
 export default UserProfileCard;
-      

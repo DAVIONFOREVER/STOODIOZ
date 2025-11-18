@@ -49,7 +49,8 @@ const FollowersList: React.FC<FollowersListProps> = ({ followers, onSelectStoodi
                                 onClick={() => handleSelect(user)}
                                 className="cardSurface p-3 flex items-center gap-4 text-left w-full"
                             >
-                                <img src={user.imageUrl} alt={user.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                                {/* FIX: Changed `imageUrl` to `image_url` to match the user type definition. */}
+                                <img src={user.image_url} alt={user.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                 <div className="flex-grow">
                                     <p className="font-bold text-zinc-200">{user.name}</p>
                                     <div className="text-sm text-zinc-400 flex items-center gap-1.5 mt-1">

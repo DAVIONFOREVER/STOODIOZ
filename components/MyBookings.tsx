@@ -63,12 +63,12 @@ const MyBookings: React.FC = () => {
     };
     
     const getBookingImage = (booking: Booking): string => {
-        if (booking.stoodio?.imageUrl) return booking.stoodio.imageUrl;
-        if (booking.engineer?.imageUrl) return booking.engineer.imageUrl;
-        if (booking.producer?.imageUrl) return booking.producer.imageUrl;
+        if (booking.stoodio?.image_url) return booking.stoodio.image_url;
+        if (booking.engineer?.image_url) return booking.engineer.image_url;
+        if (booking.producer?.image_url) return booking.producer.image_url;
         if (booking.requestedEngineerId) {
             const reqEngineer = engineers.find(e => e.id === booking.requestedEngineerId);
-            if (reqEngineer?.imageUrl) return reqEngineer.imageUrl;
+            if (reqEngineer?.image_url) return reqEngineer.image_url;
         }
         return `https://source.unsplash.com/random/400x300?music-studio&${booking.id}`;
     }

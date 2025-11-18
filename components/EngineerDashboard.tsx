@@ -104,7 +104,7 @@ const EngineerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                updateProfile({ imageUrl });
+                updateProfile({ image_url: imageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -116,7 +116,6 @@ const EngineerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const coverImageUrl = e.target?.result as string;
-                // FIX: Changed `coverImageUrl` to `cover_image_url` to match the property name in the `BaseUser` type.
                 updateProfile({ cover_image_url: coverImageUrl });
             };
             reader.readAsDataURL(file);
@@ -127,7 +126,6 @@ const EngineerDashboard: React.FC = () => {
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    // FIX: Changed `followerIds` to `follower_ids` to match the property name in the `BaseUser` type.
     const followers = allUsers.filter(u => (engineer.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (engineer.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (engineer.following?.engineers || []).includes(e.id));
@@ -187,7 +185,6 @@ const EngineerDashboard: React.FC = () => {
             {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
                 <img 
-                    // FIX: Changed `cover_image_url` to `cover_image_url` to match the property name in the `BaseUser` type.
                     src={engineer.cover_image_url || 'https://images.unsplash.com/photo-1617886322207-6f504e7472c5?q=80&w=1200&auto=format&fit=crop'} 
                     alt={`${engineer.name}'s cover photo`}
                     className="w-full h-48 md:h-64 object-cover"
@@ -210,7 +207,7 @@ const EngineerDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
-                                <img src={engineer.imageUrl} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <img src={engineer.image_url} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 
                                     className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
@@ -258,7 +255,6 @@ const EngineerDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {/* FIX: Changed `walletBalance` to `wallet_balance` to match the property name in the `BaseUser` type. */}
                 <StatCard label="Wallet Balance" value={`$${(engineer.wallet_balance || 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Upcoming Sessions" value={upcomingBookings.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                 <StatCard label="Overall Rating" value={(engineer.rating_overall || 0).toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />

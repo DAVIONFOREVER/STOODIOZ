@@ -1,5 +1,6 @@
 
 
+
 import React from 'react';
 import type { Artist, Engineer, Producer, Stoodio } from '../types';
 import RankingBadge from './RankingBadge';
@@ -26,7 +27,8 @@ const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotli
                 className="w-full bg-black rounded-lg p-6 border-2 border-orange-500 shadow-2xl shadow-orange-500/20 flex flex-col md:flex-row items-center gap-6 text-left transition-all hover:shadow-orange-500/30 overflow-hidden"
             >
                 <div className="relative flex-shrink-0">
-                    <img src={profile.imageUrl} alt={profile.name} className="w-32 h-32 rounded-full object-cover border-4 border-zinc-700" />
+                    {/* FIX: Changed `imageUrl` to `image_url` to match the profile type definition. */}
+                    <img src={profile.image_url} alt={profile.name} className="w-32 h-32 rounded-full object-cover border-4 border-zinc-700" />
                     <div className="absolute -top-2 -left-2 w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center text-white font-extrabold text-xl shadow-lg">#1</div>
                 </div>
                 <div>
@@ -49,7 +51,8 @@ const RankedUserCard: React.FC<RankedUserCardProps> = ({ profile, rank, isSpotli
             className="w-full p-4 flex items-center gap-4 text-left transition-all duration-300 ease-in-out cardSurface overflow-hidden"
         >
             <div className="text-xl font-bold text-zinc-500 w-8 text-center flex-shrink-0">{rank}</div>
-            <img src={profile.imageUrl} alt={profile.name} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+            {/* FIX: Changed `imageUrl` to `image_url` to match the profile type definition. */}
+            <img src={profile.image_url} alt={profile.name} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-bold text-zinc-100 truncate">{profile.name}</p>
                 <div className="my-1"><RankingBadge tier={profile.ranking_tier} isOnStreak={profile.is_on_streak} short /></div>

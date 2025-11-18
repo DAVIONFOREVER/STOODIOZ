@@ -152,7 +152,8 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 if (convo) {
                     updatedConversations = conversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, regularMessage] } : c);
                 } else {
-                    convo = { id: `convo-${currentUser.id}-${ariaProfile.id}`, participants: [currentUser, ariaProfile], messages: [regularMessage], unreadCount: 0, title: 'Aria Cantata', imageUrl: ariaProfile.imageUrl };
+                    // FIX: Changed `imageUrl` to `image_url` to match Conversation and Artist types.
+                    convo = { id: `convo-${currentUser.id}-${ariaProfile.id}`, participants: [currentUser, ariaProfile], messages: [regularMessage], unreadCount: 0, title: 'Aria Cantata', image_url: ariaProfile.image_url };
                     updatedConversations = [convo, ...conversations];
                 }
                 dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });

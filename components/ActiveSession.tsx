@@ -1,4 +1,5 @@
 
+
 // FIX: Removed reference to @types/google.maps as it is not available in the environment.
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
@@ -207,7 +208,7 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArt
                             <div className="cursor-pointer group" onClick={() => onSelectArtist(session.artist!)}>
                                 <p className="text-slate-400 font-semibold">SESSION FOR</p>
                                 <div className="flex items-center gap-3 mt-2">
-                                    <img src={session.artist.imageUrl} alt={session.artist.name} className="w-12 h-12 rounded-xl object-cover"/>
+                                    <img src={session.artist.image_url} alt={session.artist.name} className="w-12 h-12 rounded-xl object-cover"/>
                                     <div>
                                         <h3 className="text-xl font-bold group-hover:text-orange-400 transition-colors">{session.artist.name}</h3>
                                     </div>

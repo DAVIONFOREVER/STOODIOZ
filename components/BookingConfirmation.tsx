@@ -110,7 +110,7 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
                                 <h3 className="font-bold text-lg text-orange-400 mb-4">Your Assigned Engineer</h3>
                                 <div className="flex items-start space-x-4">
                                     <div>
-                                    <img src={engineer.imageUrl} alt={engineer.name} className="w-16 h-16 rounded-xl object-cover border-2 border-zinc-600" />
+                                    <img src={engineer.image_url} alt={engineer.name} className="w-16 h-16 rounded-xl object-cover border-2 border-zinc-600" />
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-slate-100 text-xl">{engineer.name}</h4>

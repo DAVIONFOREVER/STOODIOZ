@@ -130,7 +130,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         id: authData.user.id,
         name: userData.name,
         email: authData.user.email,
-        imageUrl: userData.imageUrl || USER_SILHOUETTE_URL,
+        image_url: userData.image_url || USER_SILHOUETTE_URL,
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
         follower_ids: [],
@@ -167,7 +167,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             break;
         case UserRoleEnum.STOODIO:
             tableName = 'stoodioz';
-            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, businessAddress: userData.businessAddress, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.imageUrl || USER_SILHOUETTE_URL], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
+            newUserScaffold = { ...baseData, description: userData.description, location: userData.location, businessAddress: userData.businessAddress, hourlyRate: 100, engineerPayRate: 50, amenities: [], availability: [], photos: [userData.image_url || USER_SILHOUETTE_URL], rooms: [], verificationStatus: VerificationStatus.UNVERIFIED, showOnMap: true };
             break;
         default:
             throw new Error(`Invalid role: ${role}`);
@@ -380,7 +380,7 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
     return { updatedCurrentUser, updatedTargetUser };
 };
 
-export const createPost = async (postData: { text: string; imageUrl?: string; link?: any }, author: any, authorType: UserRole): Promise<any> => {
+export const createPost = async (postData: { text: string; image_url?: string; link?: any }, author: any, authorType: UserRole): Promise<any> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not initialized");
 
@@ -426,7 +426,7 @@ export const commentOnPost = async (postId: string, commentText: string, comment
         id: `comment-${Date.now()}`, 
         authorId: commentAuthor.id, 
         authorName: commentAuthor.name, 
-        authorImageUrl: commentAuthor.imageUrl, 
+        author_image_url: commentAuthor.image_url, 
         text: commentText, 
         timestamp: new Date().toISOString() 
     };

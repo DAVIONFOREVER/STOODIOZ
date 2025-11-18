@@ -30,7 +30,7 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
-            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+            <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
@@ -86,7 +86,7 @@ const ArtistProfile: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-12">
                 <div className="p-8 cardSurface">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                        <img src={artist.imageUrl} alt={artist.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                        <img src={artist.image_url} alt={artist.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left flex-grow">
                             <h1 className="text-4xl font-extrabold text-orange-500">{artist.name}</h1>
                             <p className="text-slate-300 leading-relaxed mt-4">{artist.bio}</p>

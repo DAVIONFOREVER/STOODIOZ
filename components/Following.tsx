@@ -27,7 +27,8 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                         <div className="grid grid-cols-1 gap-4">
                             {studios.map(studio => (
                                 <div key={studio.id} className="cardSurface p-3 flex items-center gap-4">
-                                    <img src={studio.imageUrl} alt={studio.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                                    {/* FIX: Changed `imageUrl` to `image_url` to match the Stoodio type definition. */}
+                                    <img src={studio.image_url} alt={studio.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectStudio(studio)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{studio.name}</button>
                                         <p className="text-sm text-zinc-400 flex items-center gap-1.5 mt-1">
@@ -57,7 +58,8 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                         <div className="grid grid-cols-1 gap-4">
                             {engineers.map(engineer => (
                                 <div key={engineer.id} className="cardSurface p-3 flex items-center gap-4">
-                                    <img src={engineer.imageUrl} alt={engineer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                                    {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
+                                    <img src={engineer.image_url} alt={engineer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectEngineer(engineer)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{engineer.name}</button>
                                         <p className="text-sm text-zinc-400 truncate">{engineer.specialties.join(', ')}</p>
@@ -84,7 +86,8 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                         <div className="grid grid-cols-1 gap-4">
                             {artists.map(artist => (
                                 <div key={artist.id} className="cardSurface p-3 flex items-center gap-4">
-                                    <img src={artist.imageUrl} alt={artist.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                                    {/* FIX: Changed `imageUrl` to `image_url` to match the Artist type definition. */}
+                                    <img src={artist.image_url} alt={artist.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectArtist(artist)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{artist.name}</button>
                                         <p className="text-sm text-zinc-400 truncate">{artist.bio.substring(0,50)}...</p>
@@ -112,7 +115,8 @@ const Following: React.FC<FollowingProps> = ({ studios, engineers, artists, prod
                         <div className="grid grid-cols-1 gap-4">
                             {producers.map(producer => (
                                 <div key={producer.id} className="cardSurface p-3 flex items-center gap-4">
-                                    <img src={producer.imageUrl} alt={producer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                                    {/* FIX: Changed `imageUrl` to `image_url` to match the Producer type definition. */}
+                                    <img src={producer.image_url} alt={producer.name} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                                     <div className="flex-grow">
                                         <button onClick={() => onSelectProducer(producer)} className="font-bold text-zinc-200 hover:text-orange-400 transition-colors text-left">{producer.name}</button>
                                         <p className="text-sm text-zinc-400 truncate">{producer.genres.join(', ')}</p>
