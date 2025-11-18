@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -69,7 +70,8 @@ export const useAuth = (navigate: (view: any) => void) => {
     const logout = useCallback(async () => {
         await supabase.auth.signOut();
         dispatch({ type: ActionTypes.LOGOUT });
-    }, [dispatch]);
+        navigate(AppView.LANDING_PAGE);
+    }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);

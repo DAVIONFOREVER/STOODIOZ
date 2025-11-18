@@ -242,18 +242,22 @@ const App: React.FC = () => {
                 };
                 
                 try {
-                    let userProfileResult = await fetchProfiles();
+                    let userProfileResult = null;
+                    let attempts = 0;
 
-                    // Retry logic: If no profile found immediately (race condition on signup), wait 1s and try again
-                    if (!userProfileResult) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    // Improved Retry logic: Loop up to 3 times with 1s delay to allow DB insertion to complete during signup
+                    while (!userProfileResult && attempts < 3) {
                         userProfileResult = await fetchProfiles();
+                        if (!userProfileResult) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            attempts++;
+                        }
                     }
 
                     if (userProfileResult && userProfileResult.data) {
                         dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfileResult.data as any } });
                     } else {
-                        console.warn(`Auth session for user ${userId} found, but no profile after retry. Navigating to setup.`);
+                        console.warn(`Auth session for user ${userId} found, but no profile after retries. Navigating to setup.`);
                         navigate(AppView.CHOOSE_PROFILE);
                     }
                 } catch (error) {
