@@ -229,7 +229,7 @@ const StoodioDashboard: React.FC = () => {
     
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
-    const { updateProfile, verificationSubmit } = useProfile();
+    const { updateProfile, refreshCurrentUser, verificationSubmit } = useProfile();
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
     const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
@@ -378,9 +378,9 @@ const StoodioDashboard: React.FC = () => {
                     </Suspense>
                 );
             case 'rooms':
-                return <RoomManager stoodio={stoodio} onUpdateStoodio={updateProfile} />;
+                return <RoomManager stoodio={stoodio} onRefresh={refreshCurrentUser} />;
             case 'engineers':
-                return <EngineerManager stoodio={stoodio} allEngineers={engineers} onUpdateStoodio={updateProfile} />;
+                return <EngineerManager stoodio={stoodio} allEngineers={engineers} onRefresh={refreshCurrentUser} />;
             case 'wallet':
                 return (
                      <Wallet

@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import type { Stoodio, Room } from '../types';
 import { SmokingPolicy } from '../types';
 import { HouseIcon, DollarSignIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon } from './icons';
+import { upsertRoom, deleteRoom } from '../services/apiService';
 
 interface RoomManagerProps {
     stoodio: Stoodio;
-    onUpdateStoodio: (updatedProfile: Partial<Stoodio>) => void;
+    onRefresh: () => void;
 }
 
 const RoomFormModal: React.FC<{
@@ -79,7 +80,7 @@ const RoomFormModal: React.FC<{
     );
 }
 
-const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) => {
+const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRoom, setEditingRoom] = useState<Partial<Room> | null>(null);
 
@@ -88,25 +89,29 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onUpdateStoodio }) =
         setIsModalOpen(true);
     };
 
-    const handleSaveRoom = (roomToSave: Room) => {
-        let updatedRooms: Room[];
-        const existingRoomIndex = stoodio.rooms.findIndex(r => r.id === roomToSave.id);
-
-        if (existingRoomIndex > -1) {
-            updatedRooms = stoodio.rooms.map(r => r.id === roomToSave.id ? roomToSave : r);
-        } else {
-            updatedRooms = [...stoodio.rooms, roomToSave];
+    const handleSaveRoom = async (roomToSave: Room) => {
+        try {
+            await upsertRoom(roomToSave, stoodio.id);
+            // Refresh user profile to get updated room list
+            onRefresh();
+        } catch (error) {
+            console.error("Failed to save room:", error);
+            alert("Failed to save room. Please try again.");
+        } finally {
+            setIsModalOpen(false);
+            setEditingRoom(null);
         }
-        
-        onUpdateStoodio({ rooms: updatedRooms });
-        setIsModalOpen(false);
-        setEditingRoom(null);
     };
 
-    const handleDeleteRoom = (roomId: string) => {
+    const handleDeleteRoom = async (roomId: string) => {
         if (window.confirm('Are you sure you want to delete this room? This cannot be undone.')) {
-            const updatedRooms = stoodio.rooms.filter(r => r.id !== roomId);
-            onUpdateStoodio({ rooms: updatedRooms });
+             try {
+                await deleteRoom(roomId);
+                onRefresh();
+            } catch (error) {
+                console.error("Failed to delete room:", error);
+                alert("Failed to delete room. Please try again.");
+            }
         }
     };
 

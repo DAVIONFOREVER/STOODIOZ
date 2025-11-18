@@ -64,7 +64,7 @@ const EngineerDashboard: React.FC = () => {
     
     const { navigate, viewBooking, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
-    const { updateProfile } = useProfile();
+    const { updateProfile, refreshCurrentUser } = useProfile();
 
     if (!currentUser) {
         return (
@@ -148,7 +148,7 @@ const EngineerDashboard: React.FC = () => {
                     </Suspense>
                 );
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
-             case 'mixingSamples': return <MixingSampleManager engineer={engineer} onUpdateEngineer={updateProfile} />;
+             case 'mixingSamples': return <MixingSampleManager engineer={engineer} onRefresh={refreshCurrentUser} />;
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'masterclass': return <Suspense fallback={<div/>}><MasterclassManager user={engineer} onUpdateUser={updateProfile} /></Suspense>;
              case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateEngineer={updateProfile} />;

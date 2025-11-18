@@ -2,14 +2,15 @@
 import React, { useState, useMemo } from 'react';
 import type { Stoodio, Engineer, InHouseEngineerInfo } from '../types';
 import { SoundWaveIcon, DollarSignIcon, TrashIcon, PlusCircleIcon } from './icons';
+import { upsertInHouseEngineer, deleteInHouseEngineer } from '../services/apiService';
 
 interface EngineerManagerProps {
     stoodio: Stoodio;
     allEngineers: Engineer[];
-    onUpdateStoodio: (updatedProfile: Partial<Stoodio>) => void;
+    onRefresh: () => void;
 }
 
-const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers, onUpdateStoodio }) => {
+const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers, onRefresh }) => {
     const [selectedEngineerId, setSelectedEngineerId] = useState('');
     // FIX: Corrected property name from 'engineerPayRate' to 'engineer_pay_rate'
     const [payRate, setPayRate] = useState<number>(stoodio.engineer_pay_rate || 40);
@@ -30,36 +31,38 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
         return allEngineers.filter(e => !inHouseIds.has(e.id));
     }, [allEngineers, inHouseEngineers]);
     
-    const handleAddEngineer = (e: React.FormEvent) => {
+    const handleAddEngineer = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedEngineerId || payRate <= 0) {
             alert('Please select an engineer and set a valid pay rate.');
             return;
         }
         
-        const newInHouseInfo: InHouseEngineerInfo = {
-            // FIX: Corrected property name from 'engineerId' to 'engineer_id'
-            engineer_id: selectedEngineerId,
-            // FIX: Corrected property name from 'payRate' to 'pay_rate'
-            pay_rate: payRate,
-        };
-
-        // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers'
-        const updatedEngineers = [...(stoodio.in_house_engineers || []), newInHouseInfo];
-        // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers'
-        onUpdateStoodio({ in_house_engineers: updatedEngineers });
-
-        setSelectedEngineerId('');
-        // FIX: Corrected property name from 'engineerPayRate' to 'engineer_pay_rate'
-        setPayRate(stoodio.engineer_pay_rate || 40);
+        try {
+            const info: InHouseEngineerInfo = {
+                engineer_id: selectedEngineerId,
+                pay_rate: payRate
+            };
+            await upsertInHouseEngineer(info, stoodio.id);
+            onRefresh();
+            setSelectedEngineerId('');
+             // FIX: Corrected property name from 'engineerPayRate' to 'engineer_pay_rate'
+            setPayRate(stoodio.engineer_pay_rate || 40);
+        } catch (error) {
+            console.error("Failed to add engineer:", error);
+            alert("Failed to add engineer. Please try again.");
+        }
     };
 
-    const handleDeleteEngineer = (engineerId: string) => {
+    const handleDeleteEngineer = async (engineerId: string) => {
         if (window.confirm('Are you sure you want to remove this engineer from your in-house roster?')) {
-            // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers' and 'engineerId' to 'engineer_id'
-            const updatedEngineers = (stoodio.in_house_engineers || []).filter(e => e.engineer_id !== engineerId);
-            // FIX: Corrected property name from 'inHouseEngineers' to 'in_house_engineers'
-            onUpdateStoodio({ in_house_engineers: updatedEngineers });
+            try {
+                await deleteInHouseEngineer(engineerId, stoodio.id);
+                onRefresh();
+            } catch (error) {
+                console.error("Failed to remove engineer:", error);
+                alert("Failed to remove engineer.");
+            }
         }
     };
     

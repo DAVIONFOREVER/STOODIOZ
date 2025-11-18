@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
@@ -229,7 +230,7 @@ const StoodioDashboard: React.FC = () => {
     
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
-    const { updateProfile, verificationSubmit } = useProfile();
+    const { updateProfile, refreshCurrentUser, verificationSubmit } = useProfile();
     
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
     const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
@@ -378,9 +379,11 @@ const StoodioDashboard: React.FC = () => {
                     </Suspense>
                 );
             case 'rooms':
-                return <RoomManager stoodio={stoodio} onUpdateStoodio={updateProfile} />;
+                // FIX: Use refreshCurrentUser to reload rooms list from DB after changes
+                return <RoomManager stoodio={stoodio} onRefresh={refreshCurrentUser} />;
             case 'engineers':
-                return <EngineerManager stoodio={stoodio} allEngineers={engineers} onUpdateStoodio={updateProfile} />;
+                 // FIX: Use refreshCurrentUser to reload in-house engineers from DB after changes
+                return <EngineerManager stoodio={stoodio} allEngineers={engineers} onRefresh={refreshCurrentUser} />;
             case 'wallet':
                 return (
                      <Wallet

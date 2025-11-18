@@ -32,7 +32,7 @@ export const useSocial = () => {
         }
     }, [currentUser, allUsers, dispatch]);
 
-    const createPost = useCallback(async (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => {
+    const createPost = useCallback(async (postData: { text: string; imageFile?: File; imageUrl?: string; videoFile?: File; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => {
         if (!currentUser || !userRole) return;
         try {
             const moderationResult = await moderatePostContent(postData.text);
@@ -43,8 +43,42 @@ export const useSocial = () => {
 
             const urlRegex = /(https?:\/\/[^\s]+)/g;
             const urls = postData.text.match(urlRegex);
-            let finalPostData = { ...postData };
-            if (urls && urls[0] && !postData.imageUrl && !postData.videoUrl) {
+            let finalPostData: { text: string; image_url?: string; video_url?: string; video_thumbnail_url?: string; link?: LinkAttachment } = { 
+                text: postData.text,
+                link: postData.link,
+                video_thumbnail_url: postData.videoThumbnailUrl
+            };
+
+            // Handle file uploads to Supabase Storage
+            if (postData.imageFile) {
+                try {
+                    const uploadedUrl = await apiService.uploadPostAttachment(postData.imageFile, currentUser.id);
+                    finalPostData.image_url = uploadedUrl;
+                } catch (err) {
+                    console.error("Failed to upload image:", err);
+                    alert("Failed to upload image. Post was not created.");
+                    return;
+                }
+            } else if (postData.imageUrl) {
+                // Fallback if a URL was passed but no file (e.g. from a link scraper or other source)
+                finalPostData.image_url = postData.imageUrl;
+            }
+
+            if (postData.videoFile) {
+                try {
+                    const uploadedUrl = await apiService.uploadPostAttachment(postData.videoFile, currentUser.id);
+                    finalPostData.video_url = uploadedUrl;
+                } catch (err) {
+                    console.error("Failed to upload video:", err);
+                    alert("Failed to upload video. Post was not created.");
+                    return;
+                }
+            } else if (postData.videoUrl) {
+                 finalPostData.video_url = postData.videoUrl;
+            }
+
+
+            if (urls && urls[0] && !finalPostData.image_url && !finalPostData.video_url) {
                 const metadata = await fetchLinkMetadata(urls[0]);
                 if (metadata) {
                     finalPostData.link = metadata;
@@ -56,6 +90,7 @@ export const useSocial = () => {
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {
             console.error("Failed to create post:", error);
+            alert("Failed to create post. Please try again.");
         }
     }, [currentUser, userRole, allUsers, dispatch]);
     

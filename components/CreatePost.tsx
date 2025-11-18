@@ -1,10 +1,11 @@
+
 import React, { useState, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { PhotoIcon, VideoCameraIcon, CloseCircleIcon, PlayIcon } from './icons';
 
 interface CreatePostProps {
     currentUser: Artist | Engineer | Stoodio | Producer;
-    onPost: (postData: { text: string; image_url?: string; video_url?: string; video_thumbnail_url?: string; link?: LinkAttachment }) => Promise<void>;
+    onPost: (postData: { text: string; imageFile?: File; imageUrl?: string; videoFile?: File; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
 }
 
 // A generic video icon as a data URL to replace the picsum placeholder
@@ -61,14 +62,18 @@ const generateVideoThumbnail = (file: File): Promise<string> => {
 const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     const [text, setText] = useState('');
     const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
+    const [videoFile, setVideoFile] = useState<File | null>(null);
     const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
     const [isPosting, setIsPosting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const clearAttachments = () => {
         setImageUrl(null);
+        setImageFile(null);
         setVideoUrl(null);
+        setVideoFile(null);
         setVideoThumbnailUrl(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = ""; // Reset file input
@@ -77,13 +82,15 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if ((text.trim() || imageUrl || videoUrl) && !isPosting) {
+        if ((text.trim() || imageFile || videoFile) && !isPosting) {
             setIsPosting(true);
             await onPost({ 
                 text: text.trim(), 
-                image_url: imageUrl || undefined,
-                video_url: videoUrl || undefined,
-                video_thumbnail_url: videoThumbnailUrl || undefined,
+                imageFile: imageFile || undefined,
+                imageUrl: imageUrl || undefined,
+                videoFile: videoFile || undefined,
+                videoUrl: videoUrl || undefined,
+                videoThumbnailUrl: videoThumbnailUrl || undefined,
             });
             setText('');
             clearAttachments();
@@ -98,12 +105,14 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
         clearAttachments();
 
         if (file.type.startsWith('image/')) {
+            setImageFile(file);
             const reader = new FileReader();
             reader.onload = (event) => {
                 setImageUrl(event.target?.result as string);
             };
             reader.readAsDataURL(file);
         } else if (file.type.startsWith('video/')) {
+            setVideoFile(file);
             setVideoUrl(URL.createObjectURL(file));
             setVideoThumbnailUrl(GENERIC_VIDEO_THUMBNAIL); // Set a placeholder immediately
             try {
@@ -184,7 +193,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                                 <p className="text-xs text-zinc-500 hidden sm:block">Posts are subject to Community Guidelines.</p>
                                 <button
                                     type="submit"
-                                    disabled={(!text.trim() && !imageUrl && !videoUrl) || isPosting}
+                                    disabled={(!text.trim() && !imageFile && !videoFile) || isPosting}
                                     className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 disabled:bg-zinc-600 disabled:cursor-not-allowed"
                                 >
                                     {isPosting ? 'Posting...' : 'Post'}

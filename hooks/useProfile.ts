@@ -2,6 +2,7 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
+import { getSupabase } from '../lib/supabase';
 // FIX: Import missing Stoodio type
 import type { Artist, Engineer, Stoodio, Producer, UserRole } from '../types';
 
@@ -43,6 +44,43 @@ export const useProfile = () => {
         }
     };
 
+    const refreshCurrentUser = useCallback(async () => {
+        if (!currentUser || !userRole) return;
+        const supabase = getSupabase();
+        if (!supabase) return;
+
+        const tableName = getTableNameFromRole(userRole);
+        if (!tableName) return;
+
+        let selectQuery = '*';
+        if (userRole === 'STOODIO') selectQuery = '*, rooms(*), in_house_engineers(*)';
+        if (userRole === 'ENGINEER') selectQuery = '*, mixing_samples(*)';
+        if (userRole === 'PRODUCER') selectQuery = '*, instrumentals(*)';
+
+        try {
+            const { data, error } = await supabase
+                .from(tableName)
+                .select(selectQuery)
+                .eq('id', currentUser.id)
+                .single();
+            
+            if (error) throw error;
+            if (data) {
+                // Cast to correct type and update
+                const refreshedUser = data as Artist | Engineer | Stoodio | Producer;
+                // We also need to update this user in the larger lists (engineers, stoodioz, etc)
+                const updatedUsers = allUsers.map(u => u.id === refreshedUser.id ? refreshedUser : u);
+                
+                dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
+                // Explicitly set current user to ensure immediate reflection
+                dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: refreshedUser } });
+            }
+
+        } catch (error) {
+             console.error("Failed to refresh user profile:", error);
+        }
+    }, [currentUser, userRole, allUsers, dispatch]);
+
     useEffect(() => {
         if (isSaved) {
             const timer = setTimeout(() => setIsSaved(false), 2000);
@@ -60,5 +98,5 @@ export const useProfile = () => {
         }
     }, [allUsers, dispatch]);
     
-    return { updateProfile, verificationSubmit, isSaved };
+    return { updateProfile, refreshCurrentUser, verificationSubmit, isSaved };
 };

@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import type { Producer, Instrumental } from '../types';
 import { MusicNoteIcon, DollarSignIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
-import { uploadBeatFile } from '../services/apiService';
+import { uploadBeatFile, upsertInstrumental, deleteInstrumental } from '../services/apiService';
 
 interface BeatManagerProps {
     producer: Producer;
-    onUpdateProducer: (updatedProfile: Partial<Producer>) => void;
+    onRefresh: () => void;
 }
 
 const BeatFormModal: React.FC<{
@@ -145,7 +145,7 @@ const BeatFormModal: React.FC<{
     );
 }
 
-const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer }) => {
+const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInstrumental, setEditingInstrumental] = useState<Partial<Instrumental> | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -167,16 +167,8 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer })
                 finalInstrumental.audio_url = uploadedAudioUrl;
             }
 
-            let updatedInstrumentals: Instrumental[];
-            const existingIndex = producer.instrumentals.findIndex(i => i.id === finalInstrumental.id);
-
-            if (existingIndex > -1) {
-                updatedInstrumentals = producer.instrumentals.map(i => i.id === finalInstrumental.id ? finalInstrumental : i);
-            } else {
-                updatedInstrumentals = [...producer.instrumentals, finalInstrumental];
-            }
-            
-            onUpdateProducer({ instrumentals: updatedInstrumentals });
+            await upsertInstrumental(finalInstrumental, producer.id);
+            onRefresh();
             
         } catch (error) {
             console.error("Failed to save instrumental:", error);
@@ -188,10 +180,15 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onUpdateProducer })
         }
     };
 
-    const handleDeleteInstrumental = (instrumentalId: string) => {
+    const handleDeleteInstrumental = async (instrumentalId: string) => {
         if (window.confirm('Are you sure you want to delete this instrumental?')) {
-            const updatedInstrumentals = producer.instrumentals.filter(i => i.id !== instrumentalId);
-            onUpdateProducer({ instrumentals: updatedInstrumentals });
+            try {
+                await deleteInstrumental(instrumentalId);
+                onRefresh();
+            } catch (error) {
+                console.error("Failed to delete instrumental:", error);
+                alert("Error deleting beat.");
+            }
         }
     };
 

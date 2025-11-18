@@ -73,7 +73,7 @@ const ProducerDashboard: React.FC = () => {
 
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
-    const { updateProfile } = useProfile();
+    const { updateProfile, refreshCurrentUser } = useProfile();
 
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
     const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
@@ -139,7 +139,7 @@ const ProducerDashboard: React.FC = () => {
                         <AnalyticsDashboard user={producer} userRole={UserRole.PRODUCER} />
                     </Suspense>
                 );
-            case 'beatStore': return <BeatManager producer={producer} onUpdateProducer={updateProfile} />;
+            case 'beatStore': return <BeatManager producer={producer} onRefresh={refreshCurrentUser} />;
             case 'availability': return <AvailabilityManager user={producer} onUpdateUser={updateProfile} />;
             case 'settings': return <ProducerSettings producer={producer} onUpdateProducer={updateProfile} />;
             case 'masterclass': return <Suspense fallback={<div/>}><MasterclassManager user={producer} onUpdateUser={updateProfile} /></Suspense>;

@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -65,6 +65,39 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
     if (!data || !data.publicUrl) {
         throw new Error("Could not get public URL for uploaded avatar.");
     }
+
+    return data.publicUrl;
+};
+
+/**
+ * Uploads a post attachment (image or video) to Supabase Storage.
+ * Uses the 'avatars' bucket for now as it is publicly configured.
+ * @param file The file to upload.
+ * @param userId The ID of the user uploading.
+ * @returns The public URL of the uploaded file.
+ */
+export const uploadPostAttachment = async (file: File, userId: string): Promise<string> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `post_${Date.now()}.${fileExtension}`;
+    const filePath = `${userId}/posts/${fileName}`;
+
+    // We reuse the 'avatars' bucket since we know it has the correct permissions set up from the previous step.
+    // Ideally, this would be a separate 'posts' bucket, but 'avatars' works for general public assets.
+    const { error: uploadError } = await supabase.storage
+        .from('avatars') 
+        .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+        console.error('Error uploading post attachment:', uploadError);
+        throw uploadError;
+    }
+
+    const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
 
     return data.publicUrl;
 };
@@ -136,6 +169,139 @@ export const uploadMixingSampleFile = async (file: File, engineerId: string): Pr
 
     return data.publicUrl;
 };
+
+// --- RELATION MANAGEMENT (Rooms, Beats, Samples, Engineers) ---
+
+export const upsertRoom = async (room: Room, stoodioId: string): Promise<Room> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const roomData = {
+        // If ID looks temporary (starts with 'room-'), don't send it so DB generates a UUID.
+        // Otherwise send it to update existing.
+        id: room.id.startsWith('room-') ? undefined : room.id,
+        name: room.name,
+        description: room.description,
+        hourly_rate: room.hourly_rate,
+        smoking_policy: room.smoking_policy,
+        photos: room.photos,
+        stoodio_id: stoodioId
+    };
+
+    const { data, error } = await supabase
+        .from('rooms')
+        .upsert(roomData)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as Room;
+};
+
+export const deleteRoom = async (roomId: string): Promise<void> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const { error } = await supabase.from('rooms').delete().eq('id', roomId);
+    if (error) throw error;
+};
+
+export const upsertInstrumental = async (instrumental: Instrumental, producerId: string): Promise<Instrumental> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const beatData = {
+        id: instrumental.id.startsWith('inst-') ? undefined : instrumental.id,
+        title: instrumental.title,
+        genre: instrumental.genre,
+        tags: instrumental.tags,
+        price_lease: instrumental.price_lease,
+        price_exclusive: instrumental.price_exclusive,
+        audio_url: instrumental.audio_url,
+        cover_art_url: instrumental.cover_art_url,
+        is_free_download_available: instrumental.is_free_download_available,
+        producer_id: producerId
+    };
+
+    const { data, error } = await supabase
+        .from('instrumentals')
+        .upsert(beatData)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as Instrumental;
+};
+
+export const deleteInstrumental = async (instrumentalId: string): Promise<void> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const { error } = await supabase.from('instrumentals').delete().eq('id', instrumentalId);
+    if (error) throw error;
+};
+
+export const upsertMixingSample = async (sample: MixingSample, engineerId: string): Promise<MixingSample> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const sampleData = {
+        id: sample.id.startsWith('sample-') ? undefined : sample.id,
+        title: sample.title,
+        description: sample.description,
+        audio_url: sample.audio_url,
+        engineer_id: engineerId
+    };
+
+    const { data, error } = await supabase
+        .from('mixing_samples')
+        .upsert(sampleData)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as MixingSample;
+};
+
+export const deleteMixingSample = async (sampleId: string): Promise<void> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const { error } = await supabase.from('mixing_samples').delete().eq('id', sampleId);
+    if (error) throw error;
+};
+
+export const upsertInHouseEngineer = async (info: InHouseEngineerInfo, stoodioId: string): Promise<InHouseEngineerInfo> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const { data, error } = await supabase
+        .from('in_house_engineers')
+        .upsert({
+            stoodio_id: stoodioId,
+            engineer_id: info.engineer_id,
+            pay_rate: info.pay_rate
+        }, { onConflict: 'stoodio_id,engineer_id' })
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data as InHouseEngineerInfo;
+};
+
+export const deleteInHouseEngineer = async (engineerId: string, stoodioId: string): Promise<void> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const { error } = await supabase
+        .from('in_house_engineers')
+        .delete()
+        .match({ stoodio_id: stoodioId, engineer_id: engineerId });
+        
+    if (error) throw error;
+};
+
+// --- USER MANAGEMENT ---
 
 export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | null> => {
     const supabase = getSupabase();
@@ -425,7 +591,7 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
     return { updatedCurrentUser, updatedTargetUser };
 };
 
-export const createPost = async (postData: { text: string; image_url?: string; link?: any }, author: any, authorType: UserRole): Promise<any> => {
+export const createPost = async (postData: { text: string; image_url?: string; video_url?: string; link?: any }, author: any, authorType: UserRole): Promise<any> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not initialized");
 

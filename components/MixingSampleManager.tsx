@@ -1,11 +1,12 @@
+
 import React, { useState } from 'react';
 import type { Engineer, MixingSample } from '../types';
 import { MusicNoteIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon } from './icons';
-import { uploadMixingSampleFile } from '../services/apiService';
+import { uploadMixingSampleFile, upsertMixingSample, deleteMixingSample } from '../services/apiService';
 
 interface MixingSampleManagerProps {
     engineer: Engineer;
-    onUpdateEngineer: (updatedProfile: Partial<Engineer>) => void;
+    onRefresh: () => void;
 }
 
 const MixingSampleFormModal: React.FC<{
@@ -77,7 +78,7 @@ const MixingSampleFormModal: React.FC<{
     );
 }
 
-const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onUpdateEngineer }) => {
+const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onRefresh }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSample, setEditingSample] = useState<Partial<MixingSample> | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -101,16 +102,8 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
                 finalSample.audio_url = uploadedAudioUrl;
             }
 
-            let updatedSamples: MixingSample[];
-            const existingIndex = (engineer.mixing_samples || []).findIndex(s => s.id === finalSample.id);
-
-            if (existingIndex > -1) {
-                updatedSamples = (engineer.mixing_samples || []).map(s => s.id === finalSample.id ? finalSample : s);
-            } else {
-                updatedSamples = [...(engineer.mixing_samples || []), finalSample];
-            }
-            
-            onUpdateEngineer({ mixing_samples: updatedSamples });
+            await upsertMixingSample(finalSample, engineer.id);
+            onRefresh();
             
         } catch (error) {
             console.error("Failed to save sample:", error);
@@ -122,10 +115,15 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onU
         }
     };
 
-    const handleDeleteSample = (sampleId: string) => {
+    const handleDeleteSample = async (sampleId: string) => {
         if (window.confirm('Are you sure you want to delete this sample?')) {
-            const updatedSamples = (engineer.mixing_samples || []).filter(s => s.id !== sampleId);
-            onUpdateEngineer({ mixing_samples: updatedSamples });
+            try {
+                await deleteMixingSample(sampleId);
+                onRefresh();
+            } catch (error) {
+                 console.error("Failed to delete sample:", error);
+                 alert("Error deleting sample.");
+            }
         }
     };
 
