@@ -32,15 +32,16 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
 
     const triggerFileInput = () => fileInputRef.current?.click();
 
+    const isFormValid = name.trim() && description.trim() && location.trim() && email.trim() && password.trim() && agreedToTerms;
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (name.trim() && description.trim() && location.trim() && email.trim() && password.trim() && agreedToTerms) {
-            // FIX: Passing businessAddress correctly to match Stoodio type in parent/apiService
+        if (isFormValid) {
             onCompleteSetup(name, description, location, businessAddress, email, password, imagePreview);
+        } else {
+            alert("Please fill in all required fields and agree to the terms and conditions to continue.");
         }
     };
-
-    const isFormValid = name.trim() && description.trim() && location.trim() && email.trim() && password.trim() && agreedToTerms;
 
     return (
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
@@ -167,7 +168,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
                         </span>
                     </label>
                 </div>
-                <button type="submit" disabled={!isFormValid} className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 disabled:bg-zinc-600 disabled:text-zinc-400 disabled:cursor-not-allowed">
+                <button type="submit" className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20">
                     Complete Profile
                 </button>
             </form>

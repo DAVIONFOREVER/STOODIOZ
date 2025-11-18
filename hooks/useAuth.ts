@@ -70,6 +70,7 @@ export const useAuth = (navigate: (view: any) => void) => {
     const logout = useCallback(async () => {
         await supabase.auth.signOut();
         dispatch({ type: ActionTypes.LOGOUT });
+        // Explicitly navigate to landing page to ensure UI update
         navigate(AppView.LANDING_PAGE);
     }, [dispatch, navigate]);
 

@@ -224,6 +224,7 @@ const App: React.FC = () => {
             
             if (session?.user) {
                 const userId = session.user.id;
+                const userEmail = session.user.email;
                 
                 const fetchProfiles = async () => {
                     const tableMap = {
@@ -233,12 +234,25 @@ const App: React.FC = () => {
                         stoodioz: '*, rooms(*), in_house_engineers(*)',
                     };
     
-                    const profilePromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
+                    // Strategy 1: Fetch by ID
+                    const idPromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
                         supabase.from(tableName).select(selectQuery).eq('id', userId).single()
                     );
                     
-                    const results = await Promise.all(profilePromises);
-                    return results.find(result => result.data);
+                    const idResults = await Promise.all(idPromises);
+                    const foundById = idResults.find(result => result.data);
+                    if (foundById) return foundById;
+
+                    // Strategy 2: Fetch by Email (Fallback)
+                    if (userEmail) {
+                         const emailPromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
+                            supabase.from(tableName).select(selectQuery).eq('email', userEmail).single()
+                        );
+                        const emailResults = await Promise.all(emailPromises);
+                        return emailResults.find(result => result.data);
+                    }
+
+                    return null;
                 };
                 
                 try {
