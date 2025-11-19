@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
+// FIX: Import missing types
 import type { Engineer, Artist, Stoodio, Producer, Conversation } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
-import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon, MusicNoteIcon, BriefcaseIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon, EyeIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import AvailabilityManager from './AvailabilityManager.tsx';
@@ -19,6 +20,7 @@ import FollowersList from './FollowersList.tsx';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
+// FIX: Corrected import path
 const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
 const JobBoard = lazy(() => import('./JobBoard.tsx'));
@@ -105,6 +107,7 @@ const EngineerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
+                // FIX: Corrected property name from `imageUrl` to `image_url` to match the type definition.
                 updateProfile({ image_url: imageUrl });
             };
             reader.readAsDataURL(file);
@@ -117,16 +120,19 @@ const EngineerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const coverImageUrl = e.target?.result as string;
+                // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
                 updateProfile({ cover_image_url: coverImageUrl });
             };
             reader.readAsDataURL(file);
         }
     };
     
+    // FIX: Corrected property name from 'requestedEngineerId' to 'requested_engineer_id' and 'startTime' to 'start_time'
     const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requested_engineer_id === engineer.id) && new Date(`${b.date}T${b.start_time}`) >= new Date());
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
     const followers = allUsers.filter(u => (engineer.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (engineer.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (engineer.following?.engineers || []).includes(e.id));
@@ -186,6 +192,7 @@ const EngineerDashboard: React.FC = () => {
             {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
                 <img 
+                    // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
                     src={engineer.cover_image_url || 'https://images.unsplash.com/photo-1617886322207-6f504e7472c5?q=80&w=1200&auto=format&fit=crop'} 
                     alt={`${engineer.name}'s cover photo`}
                     className="w-full h-48 md:h-64 object-cover"
@@ -208,6 +215,7 @@ const EngineerDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
+                                {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
                                 <img src={engineer.image_url} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 
@@ -229,24 +237,35 @@ const EngineerDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Engineer Dashboard</p>
                             </div>
                         </div>
-                        <div className="flex-shrink-0 flex flex-col gap-y-4">
+                        <div className="flex-shrink-0 flex flex-col gap-y-2 items-center sm:items-end">
+                             <button
+                                onClick={() => viewEngineerProfile(engineer)}
+                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md w-full sm:w-auto justify-center"
+                            >
+                                <EyeIcon className="w-4 h-4" />
+                                View Public Profile
+                            </button>
                             <button
                                 onClick={() => navigate(AppView.STOODIO_LIST)}
-                                className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                                className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2 w-full sm:w-auto"
                             >
                                 <CalendarIcon className="w-5 h-5"/>
                                 Book a New Session
                             </button>
-                            <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                            <label className="flex items-center cursor-pointer self-center sm:self-auto mt-2">
                                 <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
                                 <div className="relative">
                                     <input 
                                         type="checkbox" 
                                         className="sr-only" 
+                                        // FIX: Corrected property name from 'isAvailable' to 'is_available'
                                         checked={engineer.is_available} 
+                                        // FIX: Corrected property name from 'isAvailable' to 'is_available'
                                         onChange={(e) => updateProfile({ is_available: e.target.checked })} 
                                     />
+                                    {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
                                     <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
                                     <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.is_available ? 'translate-x-6' : ''}`}></div>
                                 </div>
                             </label>
@@ -256,6 +275,7 @@ const EngineerDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {/* FIX: Corrected property name from 'walletBalance' to 'wallet_balance' to match the type definition. */}
                 <StatCard label="Wallet Balance" value={`$${(engineer.wallet_balance || 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Upcoming Sessions" value={upcomingBookings.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                 <StatCard label="Overall Rating" value={(engineer.rating_overall || 0).toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
@@ -266,7 +286,6 @@ const EngineerDashboard: React.FC = () => {
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                     <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
                     <TabButton label="Job Board" isActive={activeTab === 'jobBoard'} onClick={() => setActiveTab('jobBoard')} />
-                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Mixing Samples" isActive={activeTab === 'mixingSamples'} onClick={() => setActiveTab('mixingSamples')} />
                     <TabButton label="Mixing Services" isActive={activeTab === 'mixingServices'} onClick={() => setActiveTab('mixingServices')} />

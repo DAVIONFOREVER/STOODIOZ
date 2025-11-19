@@ -2,7 +2,7 @@
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon, EyeIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -379,10 +379,8 @@ const StoodioDashboard: React.FC = () => {
                     </Suspense>
                 );
             case 'rooms':
-                // FIX: Use refreshCurrentUser to reload rooms list from DB after changes
                 return <RoomManager stoodio={stoodio} onRefresh={refreshCurrentUser} />;
             case 'engineers':
-                 // FIX: Use refreshCurrentUser to reload in-house engineers from DB after changes
                 return <EngineerManager stoodio={stoodio} allEngineers={engineers} onRefresh={refreshCurrentUser} />;
             case 'wallet':
                 return (
@@ -521,7 +519,14 @@ const StoodioDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Stoodio Dashboard</p>
                             </div>
                         </div>
-                        <div className="flex-shrink-0">
+                        <div className="flex flex-col items-end gap-3">
+                             <button
+                                onClick={() => viewStoodioDetails(stoodio)}
+                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md w-full sm:w-auto justify-center"
+                            >
+                                <EyeIcon className="w-4 h-4" />
+                                View Public Profile
+                            </button>
                             <label className="flex items-center cursor-pointer self-center sm:self-auto">
                                 <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
                                 <div className="relative">

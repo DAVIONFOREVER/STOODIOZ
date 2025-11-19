@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon, PaperclipIcon, MusicNoteIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon, PaperclipIcon, MusicNoteIcon, EyeIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import Following from './Following';
@@ -212,7 +212,14 @@ const ArtistDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Artist Dashboard</p>
                             </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2 items-center">
+                             <button
+                                onClick={() => viewArtistProfile(artist)}
+                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md"
+                            >
+                                <EyeIcon className="w-4 h-4" />
+                                View Public Profile
+                            </button>
                             <button
                                 onClick={() => navigate(AppView.STOODIO_LIST)}
                                 className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"

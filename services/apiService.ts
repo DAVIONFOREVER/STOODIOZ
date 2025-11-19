@@ -176,10 +176,8 @@ export const upsertRoom = async (room: Room, stoodioId: string): Promise<Room> =
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not initialized");
 
-    const roomData = {
-        // If ID looks temporary (starts with 'room-'), don't send it so DB generates a UUID.
-        // Otherwise send it to update existing.
-        id: room.id.startsWith('room-') ? undefined : room.id,
+    // Create a clean object for the database
+    const roomData: any = {
         name: room.name,
         description: room.description,
         hourly_rate: room.hourly_rate,
@@ -187,6 +185,11 @@ export const upsertRoom = async (room: Room, stoodioId: string): Promise<Room> =
         photos: room.photos,
         stoodio_id: stoodioId
     };
+
+    // Only include ID if it's a valid existing UUID (not a temp client ID starting with 'room-')
+    if (room.id && !room.id.startsWith('room-')) {
+        roomData.id = room.id;
+    }
 
     const { data, error } = await supabase
         .from('rooms')
@@ -210,8 +213,7 @@ export const upsertInstrumental = async (instrumental: Instrumental, producerId:
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not initialized");
 
-    const beatData = {
-        id: instrumental.id.startsWith('inst-') ? undefined : instrumental.id,
+    const beatData: any = {
         title: instrumental.title,
         genre: instrumental.genre,
         tags: instrumental.tags,
@@ -222,6 +224,10 @@ export const upsertInstrumental = async (instrumental: Instrumental, producerId:
         is_free_download_available: instrumental.is_free_download_available,
         producer_id: producerId
     };
+
+    if (instrumental.id && !instrumental.id.startsWith('inst-')) {
+        beatData.id = instrumental.id;
+    }
 
     const { data, error } = await supabase
         .from('instrumentals')
@@ -245,13 +251,16 @@ export const upsertMixingSample = async (sample: MixingSample, engineerId: strin
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not initialized");
 
-    const sampleData = {
-        id: sample.id.startsWith('sample-') ? undefined : sample.id,
+    const sampleData: any = {
         title: sample.title,
         description: sample.description,
         audio_url: sample.audio_url,
         engineer_id: engineerId
     };
+
+    if (sample.id && !sample.id.startsWith('sample-')) {
+        sampleData.id = sample.id;
+    }
 
     const { data, error } = await supabase
         .from('mixing_samples')

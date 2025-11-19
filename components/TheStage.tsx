@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { AppView, UserRole } from '../types';
@@ -107,7 +108,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Left Sidebar */}
                 <aside className="hidden lg:block lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
-                       <UserProfileCard user={currentUser} onNavigate={onNavigate}/>
+                       <UserProfileCard user={currentUser} onNavigate={onNavigate} />
                        <div className="cardSurface p-4">
                            <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
                            <nav className="space-y-1">

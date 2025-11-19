@@ -96,7 +96,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
             onRefresh();
         } catch (error) {
             console.error("Failed to save room:", error);
-            alert("Failed to save room. Please try again.");
+            alert(`Failed to save room: ${error instanceof Error ? error.message : 'Unknown error'}`);
         } finally {
             setIsModalOpen(false);
             setEditingRoom(null);
@@ -110,7 +110,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
                 onRefresh();
             } catch (error) {
                 console.error("Failed to delete room:", error);
-                alert("Failed to delete room. Please try again.");
+                alert(`Failed to delete room: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
         }
     };

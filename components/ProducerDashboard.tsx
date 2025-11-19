@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
+// FIX: Import missing types
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, MagicWandIcon, EditIcon, PhotoIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, MagicWandIcon, EditIcon, PhotoIcon, EyeIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import Following from './Following.tsx';
@@ -18,6 +19,7 @@ import { useProfile } from '../hooks/useProfile.ts';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
+// FIX: Corrected import path
 const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
@@ -104,6 +106,7 @@ const ProducerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
+                // FIX: Corrected property name from `imageUrl` to `image_url` to match the type definition.
                 updateProfile({ image_url: imageUrl });
             };
             reader.readAsDataURL(file);
@@ -116,6 +119,7 @@ const ProducerDashboard: React.FC = () => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const coverImageUrl = e.target?.result as string;
+                // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
                 updateProfile({ cover_image_url: coverImageUrl });
             };
             reader.readAsDataURL(file);
@@ -125,6 +129,7 @@ const ProducerDashboard: React.FC = () => {
     const isProPlan = producer.subscription?.plan === SubscriptionPlan.PRODUCER_PRO;
 
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
     const followers = allUsers.filter(u => (producer.follower_ids || []).includes(u.id));
     const followedArtists = artists.filter(a => (producer.following?.artists || []).includes(a.id));
     const followedEngineers = engineers.filter(e => (producer.following?.engineers || []).includes(e.id));
@@ -177,6 +182,7 @@ const ProducerDashboard: React.FC = () => {
             {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
                 <img 
+                    // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
                     src={producer.cover_image_url || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'} 
                     alt={`${producer.name}'s cover photo`}
                     className="w-full h-48 md:h-64 object-cover"
@@ -199,6 +205,7 @@ const ProducerDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
+                                {/* FIX: Corrected property name from `imageUrl` to `image_url` */}
                                 <img src={producer.image_url} alt={producer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 
@@ -220,24 +227,34 @@ const ProducerDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Producer Dashboard</p>
                             </div>
                         </div>
-                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
-                            <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
-                            <div className="relative">
-                                <input 
-                                    type="checkbox" 
-                                    className="sr-only" 
-                                    checked={producer.is_available} 
-                                    onChange={(e) => updateProfile({ is_available: e.target.checked })} 
-                                />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${producer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.is_available ? 'translate-x-6' : ''}`}></div>
-                            </div>
-                        </label>
+                        <div className="flex flex-col gap-2 items-end">
+                             <button
+                                onClick={() => viewProducerProfile(producer)}
+                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md w-full sm:w-auto justify-center"
+                            >
+                                <EyeIcon className="w-4 h-4" />
+                                View Public Profile
+                            </button>
+                            <label className="flex items-center cursor-pointer self-center sm:self-auto mt-1">
+                                <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
+                                <div className="relative">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only" 
+                                        checked={producer.is_available} 
+                                        onChange={(e) => updateProfile({ is_available: e.target.checked })} 
+                                    />
+                                    <div className={`block w-12 h-6 rounded-full transition-colors ${producer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.is_available ? 'translate-x-6' : ''}`}></div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
             
              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {/* FIX: Corrected property name from `walletBalance` to `wallet_balance` */}
                 <StatCard label="Wallet Balance" value={`$${(producer.wallet_balance || 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Followers" value={producer.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 <StatCard label="Overall Rating" value={(producer.rating_overall || 0).toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />

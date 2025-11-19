@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
-import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon, DollarSignIcon } from './icons.tsx';
+import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon, DollarSignIcon, EyeIcon } from './icons.tsx';
 import NotificationPanel from './NotificationPanel.tsx';
 import UniversalSearch from './UniversalSearch.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
@@ -25,7 +26,7 @@ const Header: React.FC<HeaderProps> = (props) => {
         onNavigate, onGoBack, onGoForward, canGoBack, canGoForward, onLogout, onMarkAsRead, onMarkAllAsRead,
         onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio
     } = props;
-    const { userRole, notifications, artists, engineers, producers, stoodioz } = useAppState();
+    const { userRole, notifications, artists, engineers, producers, stoodioz, currentUser } = useAppState();
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -81,6 +82,15 @@ const Header: React.FC<HeaderProps> = (props) => {
                 onNavigate(AppView.STOODIO_DASHBOARD);
                 break;
         }
+    };
+
+    const handleViewProfile = () => {
+        if (!currentUser) return;
+        if ('amenities' in currentUser) onSelectStoodio(currentUser as Stoodio);
+        else if ('specialties' in currentUser) onSelectEngineer(currentUser as Engineer);
+        else if ('instrumentals' in currentUser) onSelectProducer(currentUser as Producer);
+        else onSelectArtist(currentUser as Artist);
+        setIsMobileMenuOpen(false);
     };
     
     const handleMobileNav = (view: AppView) => {
@@ -173,6 +183,10 @@ const Header: React.FC<HeaderProps> = (props) => {
                                             </div>
                                         </div>
                                     </div>
+                                    <button onClick={handleViewProfile} className={`${navLinkClasses} flex items-center gap-1.5`}>
+                                        <EyeIcon className="w-5 h-5" />
+                                        <span>My Profile</span>
+                                    </button>
                                     <button onClick={handleDashboardNavigate} className={`${navLinkClasses} flex items-center gap-1.5`}>
                                         <UserCircleIcon className="w-5 h-5" />
                                         <span>My Dashboard</span>
@@ -267,6 +281,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                             {userRole ? (
                                 <>
                                     <MobileNavLink icon={<MicrophoneIcon className="w-5 h-5"/>} label="The Stage" onClick={() => handleMobileNav(AppView.THE_STAGE)} />
+                                    <MobileNavLink icon={<EyeIcon className="w-5 h-5"/>} label="My Profile" onClick={handleViewProfile} />
                                     <MobileNavLink icon={<UserCircleIcon className="w-5 h-5"/>} label="My Dashboard" onClick={handleMobileDashboardNav} />
                                     <MobileNavLink icon={<ChartBarIcon className="w-5 h-5"/>} label="Top Talent" onClick={() => handleMobileNav(AppView.LEADERBOARD)} />
                                     <MobileNavLink icon={<MapIcon className="w-5 h-5"/>} label="Map View" onClick={() => handleMobileNav(AppView.MAP_VIEW)} />
