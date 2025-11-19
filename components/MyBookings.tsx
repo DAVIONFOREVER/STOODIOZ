@@ -135,7 +135,7 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                                      {booking.tip && <p className="text-sm text-green-400 font-semibold">+ ${booking.tip.toFixed(2)} Tip</p>}
                                  </div>
 
-                                 {/* NEW: Invoice Download */}
+                                 {/* Invoice Download */}
                                  {booking.invoice_url && (
                                     <a 
                                         href={booking.invoice_url} 

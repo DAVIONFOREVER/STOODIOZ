@@ -66,9 +66,11 @@ export async function generateInvoicePDF(booking: Booking, buyer: BaseUser, sell
     y -= 40;
 
     // --- "PAID" Stamp ---
-    page.drawText('PAID', {
-        x: width - margin - 100,
-        y: height - margin - 20,
+    const stampText = 'PAID';
+    const stampWidth = fontBold.widthOfTextAtSize(stampText, 40);
+    page.drawText(stampText, {
+        x: width - margin - stampWidth - 20,
+        y: height - margin - 40,
         size: 40,
         font: fontBold,
         color: rgb(0, 0.6, 0),
@@ -151,7 +153,8 @@ export async function generateInvoicePDF(booking: Booking, buyer: BaseUser, sell
     page.drawText('Subtotal:', { x: totalX, y, size: 10, font });
     page.drawText(`$${booking.total_cost.toFixed(2)}`, { x: valueX, y, size: 10, font });
     y -= 20;
-
+    
+    // Assuming service fee is included or separate. For simplicity showing Total.
     page.drawText('Total Paid:', { x: totalX, y, size: 12, font: fontBold });
     page.drawText(`$${booking.total_cost.toFixed(2)}`, { x: valueX, y, size: 12, font: fontBold });
 

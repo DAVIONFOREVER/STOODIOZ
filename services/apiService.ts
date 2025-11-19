@@ -5,7 +5,8 @@ import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
 import { generateInvoicePDF } from '../lib/pdf';
 
-// --- HELPER ---
+// --- HELPER FUNCTIONS (Defined before use) ---
+
 // Timeout to prevent infinite hanging on uploads (60 seconds)
 const timeoutPromise = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error(`Request timed out after ${ms/1000} seconds`)), ms));
 
@@ -29,54 +30,6 @@ const uploadFile = async (file: File | Blob, bucket: string, path: string): Prom
         return URL.createObjectURL(file as Blob);
     }
 };
-
-const getTableFromRole = (role: UserRole): string => {
-    switch (role) {
-        case UserRoleEnum.ARTIST: return 'artists';
-        case UserRoleEnum.ENGINEER: return 'engineers';
-        case UserRoleEnum.PRODUCER: return 'producers';
-        case UserRoleEnum.STOODIO: return 'stoodioz';
-        default: return 'artists'; // Fallback
-    }
-};
-
-const inferUserTable = (user: any): string => {
-    if ('amenities' in user) return 'stoodioz';
-    if ('specialties' in user) return 'engineers';
-    if ('instrumentals' in user) return 'producers';
-    return 'artists';
-};
-
-// --- INVOICE GENERATION ---
-export const generateAndStoreInvoice = async (booking: Booking, buyer: BaseUser, seller: BaseUser) => {
-    try {
-        // 1. Generate PDF
-        const pdfBytes = await generateInvoicePDF(booking, buyer, seller);
-        const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
-
-        // 2. Upload to Supabase
-        // We store it under the buyer's folder structure for organization, or a general invoices folder
-        const safeName = `invoice_${booking.id}_${Date.now()}.pdf`;
-        const invoiceUrl = await uploadDocument(pdfBlob, safeName, buyer.id);
-
-        // 3. Update Booking Record
-        const supabase = getSupabase();
-        if (supabase) {
-            await supabase
-                .from('bookings')
-                .update({ invoice_url: invoiceUrl })
-                .eq('id', booking.id);
-        }
-
-        return invoiceUrl;
-    } catch (error) {
-        console.error("Failed to generate automatic invoice:", error);
-        return null;
-    }
-};
-
-
-// --- UPLOAD WRAPPERS ---
 
 export const uploadAvatar = async (file: File, userId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
@@ -114,6 +67,51 @@ export const uploadDocument = async (file: Blob, fileName: string, userId: strin
     const path = `${userId}/docs/${Date.now()}_${safeName}`;
     return uploadFile(file, 'documents', path);
 };
+
+const getTableFromRole = (role: UserRole): string => {
+    switch (role) {
+        case UserRoleEnum.ARTIST: return 'artists';
+        case UserRoleEnum.ENGINEER: return 'engineers';
+        case UserRoleEnum.PRODUCER: return 'producers';
+        case UserRoleEnum.STOODIO: return 'stoodioz';
+        default: return 'artists'; // Fallback
+    }
+};
+
+const inferUserTable = (user: any): string => {
+    if ('amenities' in user) return 'stoodioz';
+    if ('specialties' in user) return 'engineers';
+    if ('instrumentals' in user) return 'producers';
+    return 'artists';
+};
+
+// --- INVOICE GENERATION ---
+export const generateAndStoreInvoice = async (booking: Booking, buyer: BaseUser, seller: BaseUser) => {
+    try {
+        // 1. Generate PDF
+        const pdfBytes = await generateInvoicePDF(booking, buyer, seller);
+        const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+        // 2. Upload to Supabase
+        const safeName = `invoice_${booking.id}_${Date.now()}.pdf`;
+        const invoiceUrl = await uploadDocument(pdfBlob, safeName, buyer.id);
+
+        // 3. Update Booking Record
+        const supabase = getSupabase();
+        if (supabase) {
+            await supabase
+                .from('bookings')
+                .update({ invoice_url: invoiceUrl })
+                .eq('id', booking.id);
+        }
+
+        return invoiceUrl;
+    } catch (error) {
+        console.error("Failed to generate automatic invoice:", error);
+        return null;
+    }
+};
+
 
 // --- USER MANAGEMENT ---
 
@@ -391,7 +389,7 @@ export const acceptJob = async (booking: Booking, engineer: Engineer): Promise<B
 
     // AUTO-GENERATE INVOICE for job acceptance
     // Studio (booking.stoodio) is paying Engineer (engineer)
-    // We assume booking.stoodio exists because it was a job post
+    // We ensure booking.stoodio exists because it was a job post (posted_by STOODIO)
     if (data && booking.stoodio) {
         await generateAndStoreInvoice(data, booking.stoodio, engineer);
     }
