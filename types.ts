@@ -332,6 +332,7 @@ export interface Booking {
     coordinates?: Location;
     instrumentals_purchased?: Instrumental[];
     tip?: number;
+    invoice_url?: string;
 }
 
 export interface BookingRequest {

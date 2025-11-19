@@ -1,8 +1,9 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
+import { generateInvoicePDF } from '../lib/pdf';
 
 // --- HELPER ---
 // Timeout to prevent infinite hanging on uploads (60 seconds)
@@ -45,6 +46,35 @@ const inferUserTable = (user: any): string => {
     if ('instrumentals' in user) return 'producers';
     return 'artists';
 };
+
+// --- INVOICE GENERATION ---
+export const generateAndStoreInvoice = async (booking: Booking, buyer: BaseUser, seller: BaseUser) => {
+    try {
+        // 1. Generate PDF
+        const pdfBytes = await generateInvoicePDF(booking, buyer, seller);
+        const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
+
+        // 2. Upload to Supabase
+        // We store it under the buyer's folder structure for organization, or a general invoices folder
+        const safeName = `invoice_${booking.id}_${Date.now()}.pdf`;
+        const invoiceUrl = await uploadDocument(pdfBlob, safeName, buyer.id);
+
+        // 3. Update Booking Record
+        const supabase = getSupabase();
+        if (supabase) {
+            await supabase
+                .from('bookings')
+                .update({ invoice_url: invoiceUrl })
+                .eq('id', booking.id);
+        }
+
+        return invoiceUrl;
+    } catch (error) {
+        console.error("Failed to generate automatic invoice:", error);
+        return null;
+    }
+};
+
 
 // --- UPLOAD WRAPPERS ---
 
@@ -358,6 +388,14 @@ export const acceptJob = async (booking: Booking, engineer: Engineer): Promise<B
         .single();
 
     if (error) throw error;
+
+    // AUTO-GENERATE INVOICE for job acceptance
+    // Studio (booking.stoodio) is paying Engineer (engineer)
+    // We assume booking.stoodio exists because it was a job post
+    if (data && booking.stoodio) {
+        await generateAndStoreInvoice(data, booking.stoodio, engineer);
+    }
+
     return data as Booking;
 };
 
@@ -382,6 +420,9 @@ export const endSession = async (booking: Booking): Promise<{ updatedBooking: Bo
 // --- FINANCIALS (MOCKED STRIPE) ---
 
 export const createCheckoutSessionForBooking = async (bookingRequest: BookingRequest, stoodioId: string | undefined, userId: string, userRole: UserRole) => {
+    // In a real backend, this is where we'd also generate the invoice after successful webhook callback.
+    // For this demo, we'll assume successful payment immediately triggers invoice generation logic 
+    // elsewhere (e.g., in the purchaseBeat or confirmation hooks).
     return { sessionId: 'mock_session_id_' + Date.now() };
 };
 
@@ -434,7 +475,7 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
         instrumentals_purchased: [instrumental]
     };
 
-    const { error: bookingError } = await supabase.from('bookings').insert(booking);
+    const { data: newBooking, error: bookingError } = await supabase.from('bookings').insert(booking).select().single();
     if (bookingError) throw bookingError;
 
     // 3. Update Wallet
@@ -448,7 +489,15 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
 
     if (userError) throw userError;
 
-    return { updatedBooking: booking };
+    // 4. AUTO-GENERATE INVOICE
+    if (newBooking) {
+        await generateAndStoreInvoice(newBooking, buyer, producer);
+        // Fetch updated booking with invoice URL
+        const { data: finalBooking } = await supabase.from('bookings').select('*').eq('id', newBooking.id).single();
+        return { updatedBooking: finalBooking as Booking };
+    }
+
+    return { updatedBooking: newBooking as Booking };
 };
 
 // --- SOCIAL ---
