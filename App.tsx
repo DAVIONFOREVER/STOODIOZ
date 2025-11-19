@@ -238,7 +238,6 @@ const App: React.FC = () => {
 
             if (event === 'SIGNED_OUT' || !session) {
                 dispatch({ type: ActionTypes.LOGOUT });
-                // Don't need to navigate here as useAuth logout handles it, but ensuring state is clear is key
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
                 return;
             }
@@ -248,8 +247,8 @@ const App: React.FC = () => {
                 const userEmail = session.user.email;
                 
                 const fetchProfiles = async () => {
-                    // 1. Strict Role Check: If the user signed up with a specific role, ONLY look for that role first.
-                    // This prevents race conditions where a user might have an old 'Engineer' profile but just signed up as 'Stoodio'.
+                    // 1. Strict Role Check: If the user signed up with a specific role, check that table first.
+                    // This minimizes race conditions where an old profile might be found before a new one.
                     const metaRole = session.user.user_metadata?.role;
 
                     if (metaRole) {
@@ -263,15 +262,13 @@ const App: React.FC = () => {
 
                         if (targetTable) {
                             const { data } = await supabase.from(targetTable).select(targetQuery).eq('id', userId).single();
-                            // If we found the correct profile for the role, return it immediately.
                             if (data) return { data };
-                            // If we didn't find it, DO NOT fallback to searching other tables yet. 
-                            // The DB insertion might still be pending in the background loop.
-                            return null; 
+                            // If not found, proceed to check other tables (fallback), 
+                            // because user might have deleted their profile associated with metaRole but kept another one.
                         }
                     }
 
-                    // 2. Fallback: If no metadata role is present (legacy users), check all tables.
+                    // 2. Fallback: Check all tables.
                     // We prioritize Stoodioz/Producers to avoid accidental Artist matches if IDs conflict (unlikely but safe).
                     const tableMap = {
                         stoodioz: '*, rooms(*), in_house_engineers(*)',

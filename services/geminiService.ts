@@ -1,8 +1,3 @@
-
-
-
-
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
@@ -12,7 +7,15 @@ let ai: GoogleGenAI | null = null;
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
         // FIX: Per @google/genai guidelines, API key must come exclusively from process.env.API_KEY.
-        const apiKey = process.env.API_KEY;
+        // We wrap this in a try-catch to safely handle environments (like some browser contexts) 
+        // where accessing 'process' directly might throw a ReferenceError before the polyfill/define kicks in.
+        let apiKey: string | undefined;
+        try {
+            apiKey = process.env.API_KEY;
+        } catch (e) {
+            console.error("Error accessing process.env.API_KEY. Ensure vite.config.ts is configured correctly.", e);
+        }
+
         if (!apiKey || apiKey.startsWith('{{')) {
             return null;
         }
