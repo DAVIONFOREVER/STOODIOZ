@@ -187,8 +187,12 @@ export const upsertRoom = async (room: Room, stoodioId: string): Promise<Room> =
     };
 
     // Only include ID if it's a valid existing UUID (not a temp client ID starting with 'room-')
+    // If we send a string like 'room-12345' to a UUID column, Supabase will error.
     if (room.id && !room.id.startsWith('room-')) {
         roomData.id = room.id;
+    } else {
+        // Explicitly delete it to be safe, letting Postgres generate the UUID
+        delete roomData.id;
     }
 
     const { data, error } = await supabase
@@ -227,6 +231,8 @@ export const upsertInstrumental = async (instrumental: Instrumental, producerId:
 
     if (instrumental.id && !instrumental.id.startsWith('inst-')) {
         beatData.id = instrumental.id;
+    } else {
+        delete beatData.id;
     }
 
     const { data, error } = await supabase
@@ -260,6 +266,8 @@ export const upsertMixingSample = async (sample: MixingSample, engineerId: strin
 
     if (sample.id && !sample.id.startsWith('sample-')) {
         sampleData.id = sample.id;
+    } else {
+        delete sampleData.id;
     }
 
     const { data, error } = await supabase
@@ -489,6 +497,11 @@ export const createBooking = async (
 
     let status = bookingRequest.request_type === BookingRequestType.SPECIFIC_ENGINEER ? BookingStatus.PENDING_APPROVAL : BookingStatus.PENDING;
 
+    // Auto-complete standalone beat purchases
+    if (bookingRequest.request_type === BookingRequestType.BEAT_PURCHASE) {
+        status = BookingStatus.COMPLETED;
+    }
+
     const newBookingData: any = {
         date: bookingRequest.date,
         start_time: bookingRequest.start_time,
@@ -505,6 +518,7 @@ export const createBooking = async (
         requested_engineer_id: bookingRequest.requested_engineer_id,
         producer_id: bookingRequest.producer_id,
         posted_by: bookedByRole === UserRoleEnum.STOODIO ? UserRoleEnum.STOODIO : undefined,
+        instrumentals_purchased: bookingRequest.instrumentals_to_purchase
     };
 
     const { data, error } = await supabase
@@ -519,6 +533,37 @@ export const createBooking = async (
     }
 
     return data as Booking;
+};
+
+export const purchaseBeat = async (
+    instrumental: Instrumental,
+    type: 'lease' | 'exclusive',
+    buyer: Artist | Engineer | Stoodio | Producer,
+    producer: Producer,
+    buyerRole: UserRole
+): Promise<{ updatedBooking: Booking }> => {
+    const price = type === 'lease' ? instrumental.price_lease : instrumental.price_exclusive;
+    
+    // 1. Create booking record (COMPLETED status)
+    const bookingRequest: BookingRequest = {
+        date: new Date().toISOString().split('T')[0],
+        start_time: 'N/A',
+        duration: 0,
+        total_cost: price,
+        request_type: BookingRequestType.BEAT_PURCHASE,
+        engineer_pay_rate: 0,
+        producer_id: producer.id,
+        instrumentals_to_purchase: [instrumental]
+    };
+
+    const booking = await createBooking(bookingRequest, undefined, buyer, buyerRole);
+
+    // 2. Create Transaction (Payment)
+    // In a real app, this would be handled by webhook after Stripe payment. 
+    // Here we simulate success.
+    // TODO: Create wallet transaction entries via Edge Function for security in prod.
+
+    return { updatedBooking: booking };
 };
 
 export const endSession = async (booking: Booking): Promise<{ updatedBooking: Booking }> => {
@@ -684,7 +729,8 @@ export const acceptJob = async (booking: Booking, engineer: Engineer): Promise<{
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized.");
     
-    const { data, error } = await supabase.from('bookings').update({ status: BookingStatus.CONFIRMED, engineer_id: engineer.id, posted_by: null }).eq('id', booking.id).select('*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)').single();
+    const { data, error } = await supabase.from('bookings').update({ status: BookingStatus.CONFIRMED, engineer_id: engineer.id, posted_by: null }).eq('id', booking.id).select('*, stoodio:stoodioz(*), artist:artists(*), engineer:engineers(*), producer:producers(*)')
+        .single();
     if (error) throw error;
     return { updatedBooking: data as Booking };
 };

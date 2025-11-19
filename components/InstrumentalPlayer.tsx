@@ -1,13 +1,14 @@
+
 import React, { useState, useRef } from 'react';
 import type { Instrumental } from '../types';
 import { PlayIcon, PauseIcon, DownloadIcon, DollarSignIcon, MusicNoteIcon } from './icons';
 
 interface InstrumentalPlayerProps {
     instrumentals: Instrumental[];
-    onInquire: (instrumental: Instrumental) => void;
+    onPurchase: (instrumental: Instrumental) => void;
 }
 
-const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, onInquire }) => {
+const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, onPurchase }) => {
     const [playingId, setPlayingId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -83,7 +84,7 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
                                     <DownloadIcon className="w-5 h-5"/>
                                 </a>
                             )}
-                             <button onClick={() => onInquire(instrumental)} className="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center gap-1.5">
+                             <button onClick={() => onPurchase(instrumental)} className="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center gap-1.5">
                                 <DollarSignIcon className="w-4 h-4" />
                                 Purchase
                             </button>

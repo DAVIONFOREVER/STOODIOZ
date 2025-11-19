@@ -1,14 +1,18 @@
 
-import React, { useMemo } from 'react';
-import type { Producer, Artist, Stoodio, Engineer } from '../types';
+import React, { useMemo, useState } from 'react';
+// FIX: Import missing types
+import type { Producer, Artist, Stoodio, Engineer, Instrumental } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons';
 import PostFeed from './PostFeed';
 import InstrumentalPlayer from './InstrumentalPlayer';
-import { useAppState } from '../contexts/AppContext';
+import PurchaseBeatModal from './PurchaseBeatModal';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { useBookings } from '../hooks/useBookings';
+import { AppView } from '../types';
+import * as apiService from '../services/apiService';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -43,12 +47,16 @@ const ProfileCard: React.FC<{
 };
 
 const ProducerProfile: React.FC = () => {
-    const { selectedProducer, currentUser, artists, engineers, stoodioz, producers } = useAppState();
+    const { selectedProducer, currentUser, artists, engineers, stoodioz, producers, userRole } = useAppState();
+    const dispatch = useAppDispatch();
     
-    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, navigate } = useNavigation();
     const { toggleFollow, likePost, commentOnPost } = useSocial();
-    const { startConversation } = useMessaging(useNavigation().navigate);
-    const { initiateBookingWithProducer } = useBookings(useNavigation().navigate);
+    const { startConversation } = useMessaging(navigate);
+    const { initiateBookingWithProducer } = useBookings(navigate);
+
+    const [selectedBeat, setSelectedBeat] = useState<Instrumental | null>(null);
+    const [isPurchasing, setIsPurchasing] = useState(false);
 
     const producer = selectedProducer;
 
@@ -64,6 +72,7 @@ const ProducerProfile: React.FC = () => {
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.producers || []).includes(producer.id)) : false;
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
     const followers = useMemo(() => allUsers.filter(u => producer.follower_ids.includes(u.id)), [allUsers, producer.follower_ids]);
 
     const followedArtists = useMemo(() => artists.filter(a => producer.following.artists.includes(a.id)), [artists, producer.following.artists]);
@@ -73,6 +82,33 @@ const ProducerProfile: React.FC = () => {
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const sortedPosts = useMemo(() => (producer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [producer.posts]);
+
+    const handlePurchaseClick = (instrumental: Instrumental) => {
+        if (!currentUser) {
+            navigate(AppView.LOGIN);
+            return;
+        }
+        setSelectedBeat(instrumental);
+    };
+
+    const confirmPurchase = async (type: 'lease' | 'exclusive') => {
+        if (!currentUser || !selectedBeat || !userRole) return;
+
+        setIsPurchasing(true);
+        try {
+            const { updatedBooking } = await apiService.purchaseBeat(selectedBeat, type, currentUser, producer, userRole);
+            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: updatedBooking } });
+            alert(`Purchase successful! "${selectedBeat.title}" has been added to 'My Bookings' where you can download the file.`);
+            setSelectedBeat(null);
+            // Optionally navigate to My Bookings or stay here
+            // navigate(AppView.MY_BOOKINGS); 
+        } catch (error) {
+            console.error("Purchase failed:", error);
+            alert("Purchase failed. Please try again.");
+        } finally {
+            setIsPurchasing(false);
+        }
+    };
 
     return (
         <div>
@@ -87,15 +123,18 @@ const ProducerProfile: React.FC = () => {
                         <div className="text-center sm:text-left flex-grow">
                             <h1 className="text-4xl font-extrabold text-purple-400">{producer.name}</h1>
                             <p className="text-slate-300 leading-relaxed mt-4">{producer.bio}</p>
+                             {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
                              {producer.pull_up_price && (
                                 <div className="mt-4 inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
                                     <span className="flex items-center gap-2">
                                         <DollarSignIcon className="w-5 h-5"/>
+                                        {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
                                         <span>"Pull Up" Session Fee: ${producer.pull_up_price}</span>
                                     </span>
                                 </div>
                             )}
                             <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
+                                {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
                                 {producer.pull_up_price && currentUser && (
                                      <button 
                                         onClick={() => initiateBookingWithProducer(producer)}
@@ -126,7 +165,7 @@ const ProducerProfile: React.FC = () => {
                     </div>
                 </div>
 
-                <InstrumentalPlayer instrumentals={producer.instrumentals} onInquire={(instrumental) => { /* TODO: Implement inbox inquiry */ }} />
+                <InstrumentalPlayer instrumentals={producer.instrumentals} onPurchase={handlePurchaseClick} />
                 
                  {producer.links && producer.links.length > 0 && (
                     <div>
@@ -186,6 +225,16 @@ const ProducerProfile: React.FC = () => {
                      />
                 </div>
             </div>
+
+            {selectedBeat && (
+                <PurchaseBeatModal 
+                    instrumental={selectedBeat}
+                    producer={producer}
+                    onClose={() => setSelectedBeat(null)}
+                    onConfirm={confirmPurchase}
+                    isLoading={isPurchasing}
+                />
+            )}
         </div>
     );
 };

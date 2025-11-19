@@ -8,6 +8,7 @@ import BookingContextCard from './BookingContextCard';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useMessaging } from '../hooks/useMessaging';
+import * as apiService from '../services/apiService';
 
 const ConversationList: React.FC<{
     conversations: Conversation[];
@@ -118,8 +119,10 @@ const ChatThread: React.FC<{
 }> = ({ conversation, booking, currentUser, onSendMessage, onBack, onNavigate, smartReplies, isSmartRepliesLoading }) => {
     const [newMessage, setNewMessage] = useState('');
     const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [activeTab, setActiveTab] = useState<'messages' | 'documents'>('messages');
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     const participant = conversation.participants.find(p => p.id !== currentUser.id) || conversation.participants[0];
 
@@ -146,29 +149,54 @@ const ChatThread: React.FC<{
             setNewMessage('');
         }
     }
-    
-    const handleSendAttachment = (type: 'image' | 'audio' | 'link') => {
-        const messageContent: Omit<Message, 'id' | 'sender_id' | 'timestamp'> = { type: 'text' }; // default
-        switch(type) {
-            case 'image':
-                messageContent.type = 'image';
-                messageContent.image_url = `https://picsum.photos/seed/chatimg${Date.now()}/400/300`;
-                messageContent.text = 'Here is a photo.';
-                break;
-            case 'audio':
-                 messageContent.type = 'audio';
-                 messageContent.text = 'Check out this track.';
-                 messageContent.audio_url = 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-2-short.mp3';
-                 messageContent.audio_info = { filename: 'track_idea.mp3', duration: '0:18' };
-                 break;
-            case 'link':
-                 messageContent.type = 'link';
-                 messageContent.link = { title: 'Inspiration Board', url: 'https://www.pinterest.com' };
-                 messageContent.text = 'Here is a link for inspiration.';
-                 break;
-        }
-        onSendMessage(conversation.id, messageContent);
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
         setIsAttachmentMenuOpen(false);
+
+        try {
+            const url = await apiService.uploadPostAttachment(file, currentUser.id);
+            
+            if (file.type.startsWith('image/')) {
+                onSendMessage(conversation.id, { 
+                    type: 'image', 
+                    image_url: url,
+                    text: 'Sent an image' 
+                });
+            } else if (file.type.startsWith('audio/')) {
+                onSendMessage(conversation.id, { 
+                    type: 'audio', 
+                    audio_url: url,
+                    text: 'Sent an audio file',
+                    audio_info: { filename: file.name, duration: 'unknown' }
+                });
+            } else {
+                 // Generic file
+                 onSendMessage(conversation.id, { 
+                    type: 'files', 
+                    text: 'Sent a file',
+                    files: [{ name: file.name, url: url, size: `${(file.size / 1024).toFixed(1)} KB` }]
+                });
+            }
+
+        } catch (error) {
+            console.error("Upload failed", error);
+            alert("Failed to upload file.");
+        } finally {
+            setIsUploading(false);
+            // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+    
+    const triggerUpload = (acceptType: string) => {
+        if (fileInputRef.current) {
+            fileInputRef.current.accept = acceptType;
+            fileInputRef.current.click();
+        }
     }
     
     const handleSmartReplyClick = (reply: string) => {
@@ -177,6 +205,7 @@ const ChatThread: React.FC<{
 
     return (
         <div className="flex flex-col h-full bg-zinc-900">
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
             {/* Header */}
             <header className="flex-shrink-0 z-10">
                 <div className="flex items-center gap-4 p-3 border-b border-zinc-700/50 bg-zinc-950/80 backdrop-blur-sm">
@@ -246,6 +275,13 @@ const ChatThread: React.FC<{
                                 </div>
                             )
                         })}
+                        {isUploading && (
+                             <div className="flex justify-end">
+                                <div className="bg-orange-500 text-white rounded-l-lg rounded-tr-lg p-2 text-sm animate-pulse">
+                                    Uploading file...
+                                </div>
+                            </div>
+                        )}
                         <div ref={messagesEndRef} />
                     </div>
                 ) : (
@@ -295,9 +331,10 @@ const ChatThread: React.FC<{
                     <div className="relative p-4 bg-zinc-950/80 backdrop-blur-sm border-t border-zinc-700/50">
                         {isAttachmentMenuOpen && (
                             <div className="absolute bottom-20 left-4 bg-zinc-800 p-2 rounded-lg border border-zinc-700 shadow-xl flex flex-col gap-1 z-20 text-zinc-200">
-                                <button onClick={() => handleSendAttachment('image')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PhotoIcon className="w-5 h-5 text-zinc-400" /> Send Photo</button>
-                                <button onClick={() => handleSendAttachment('link')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><LinkIcon className="w-5 h-5 text-zinc-400" /> Send Link</button>
-                                <button onClick={() => handleSendAttachment('audio')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><MusicNoteIcon className="w-5 h-5 text-zinc-400" /> Send Music</button>
+                                <button onClick={() => triggerUpload('image/*')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PhotoIcon className="w-5 h-5 text-zinc-400" /> Send Photo</button>
+                                <button onClick={() => handleSmartReplyClick("Here is a link.")} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><LinkIcon className="w-5 h-5 text-zinc-400" /> Send Link</button>
+                                <button onClick={() => triggerUpload('audio/*')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><MusicNoteIcon className="w-5 h-5 text-zinc-400" /> Send Music</button>
+                                <button onClick={() => triggerUpload('*/*')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PaperclipIcon className="w-5 h-5 text-zinc-400" /> Send File</button>
                             </div>
                         )}
                         <form onSubmit={handleSubmit} className="flex items-center gap-2">

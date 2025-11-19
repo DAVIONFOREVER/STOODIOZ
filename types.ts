@@ -64,6 +64,8 @@ export enum TransactionCategory {
     WITHDRAWAL = 'WITHDRAWAL',
     MASTERCLASS_PURCHASE = 'MASTERCLASS_PURCHASE',
     MASTERCLASS_PAYOUT = 'MASTERCLASS_PAYOUT',
+    BEAT_PURCHASE = 'BEAT_PURCHASE',
+    BEAT_SALE = 'BEAT_SALE',
 }
 
 export enum TransactionStatus {
@@ -84,6 +86,7 @@ export enum BookingRequestType {
     FIND_AVAILABLE = 'FIND_AVAILABLE',
     SPECIFIC_ENGINEER = 'SPECIFIC_ENGINEER',
     BRING_YOUR_OWN = 'BRING_YOUR_OWN',
+    BEAT_PURCHASE = 'BEAT_PURCHASE',
 }
 
 export enum NotificationType {

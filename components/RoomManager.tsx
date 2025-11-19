@@ -94,9 +94,15 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
             await upsertRoom(roomToSave, stoodio.id);
             // Refresh user profile to get updated room list
             onRefresh();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to save room:", error);
-            alert(`Failed to save room: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            let errorMessage = error.message;
+            if (error.code === '23505') { // Postgres unique violation
+                errorMessage = "A room with this ID already exists.";
+            } else if (error.code === '23503') { // Foreign key violation
+                errorMessage = "Could not link room to studio. Please try logging in again.";
+            }
+            alert(`Error saving room: ${errorMessage}`);
         } finally {
             setIsModalOpen(false);
             setEditingRoom(null);
@@ -108,9 +114,9 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
              try {
                 await deleteRoom(roomId);
                 onRefresh();
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to delete room:", error);
-                alert(`Failed to delete room: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                alert(`Failed to delete room: ${error.message || 'Unknown error'}`);
             }
         }
     };
