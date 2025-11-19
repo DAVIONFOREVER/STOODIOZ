@@ -113,6 +113,12 @@ const App: React.FC = () => {
     const { login, logout, selectRoleToSetup, completeSetup: originalCompleteSetup } = useAuth(navigate);
     
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
+        // CRITICAL FIX: If creating a new account (email/password present), ensure we start with a clean slate.
+        // This prevents the new profile from being accidentally attached to a stale/previous session.
+        if (userData.email && userData.password) {
+            await supabase.auth.signOut();
+        }
+        
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {

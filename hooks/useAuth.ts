@@ -68,14 +68,20 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        try {
-            await supabase.auth.signOut();
-        } catch (e) {
-            console.warn("Supabase signout error (ignoring):", e);
-        }
-        
-        dispatch({ type: ActionTypes.LOGOUT });
+        // FIX: Navigate away FIRST to unmount dashboard components that might depend on currentUser.
+        // This prevents "white screen" crashes where the UI tries to render data that just got deleted.
         navigate(AppView.LANDING_PAGE);
+
+        // Use a small timeout to ensure the navigation has processed and components unmounted
+        setTimeout(async () => {
+            try {
+                await supabase.auth.signOut();
+            } catch (e) {
+                console.warn("Supabase signout error (ignoring):", e);
+            }
+            
+            dispatch({ type: ActionTypes.LOGOUT });
+        }, 100);
     }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {

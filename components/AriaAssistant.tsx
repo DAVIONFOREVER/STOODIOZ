@@ -6,6 +6,7 @@ import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIco
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { createPdfBytes } from '../lib/pdf';
+import * as apiService from '../services/apiService'; // Added import
 
 interface AriaCantataAssistantProps {
     isOpen: boolean;
@@ -150,17 +151,27 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
                 try {
                     const pdfBytes = await createPdfBytes(documentContent);
                     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                    const blobUrl = URL.createObjectURL(blob);
                     
-                    const finalFileName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
-                    
-                    const fileAttachment: FileAttachment = { 
-                        name: finalFileName, 
-                        url: blobUrl, // Use the real blob URL here
-                        size: `${(pdfBytes.length / 1024).toFixed(1)} KB`,
-                        rawContent: pdfBytes,
-                    };
-                    ariaResponse.files = [fileAttachment];
+                    // Auto-save to Supabase Documents bucket
+                    let publicUrl = '#';
+                    if (currentUser) {
+                        const finalFileName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+                        try {
+                             publicUrl = await apiService.uploadDocument(blob, finalFileName, currentUser.id);
+                        } catch (uploadErr) {
+                            console.error("Failed to upload document to Supabase:", uploadErr);
+                            // Fallback to blob URL if upload fails, though less persistent
+                            publicUrl = URL.createObjectURL(blob);
+                        }
+
+                        const fileAttachment: FileAttachment = { 
+                            name: finalFileName, 
+                            url: publicUrl,
+                            size: `${(pdfBytes.length / 1024).toFixed(1)} KB`,
+                            rawContent: pdfBytes, // Keeping raw content for immediate download if needed
+                        };
+                        ariaResponse.files = [fileAttachment];
+                    }
                 } catch (pdfError) {
                     console.error("Failed to create PDF:", pdfError);
                     ariaResponse.parts[0].text += "\n\n(I tried to generate the document file, but something went wrong. Here is the text content instead:)\n\n" + documentContent;

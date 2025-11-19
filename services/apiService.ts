@@ -9,7 +9,7 @@ import { USER_SILHOUETTE_URL } from '../constants';
 const timeoutPromise = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error(`Request timed out after ${ms/1000} seconds`)), ms));
 
 // Generic upload function with timeout and error handling
-const uploadFile = async (file: File, bucket: string, path: string): Promise<string> => {
+const uploadFile = async (file: File | Blob, bucket: string, path: string): Promise<string> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
 
@@ -25,8 +25,25 @@ const uploadFile = async (file: File, bucket: string, path: string): Promise<str
     } catch (error: any) {
         console.error(`Upload failed to ${bucket}/${path}:`, error);
         // Fallback for demo if RLS fails
-        return URL.createObjectURL(file);
+        return URL.createObjectURL(file as Blob);
     }
+};
+
+const getTableFromRole = (role: UserRole): string => {
+    switch (role) {
+        case UserRoleEnum.ARTIST: return 'artists';
+        case UserRoleEnum.ENGINEER: return 'engineers';
+        case UserRoleEnum.PRODUCER: return 'producers';
+        case UserRoleEnum.STOODIO: return 'stoodioz';
+        default: return 'artists'; // Fallback
+    }
+};
+
+const inferUserTable = (user: any): string => {
+    if ('amenities' in user) return 'stoodioz';
+    if ('specialties' in user) return 'engineers';
+    if ('instrumentals' in user) return 'producers';
+    return 'artists';
 };
 
 // --- UPLOAD WRAPPERS ---
@@ -59,6 +76,13 @@ export const uploadMixingSampleFile = async (file: File, userId: string): Promis
     const ext = file.name.split('.').pop();
     const path = `${userId}/samples/${Date.now()}.${ext}`;
     return uploadFile(file, 'audio', path);
+};
+
+export const uploadDocument = async (file: Blob, fileName: string, userId: string): Promise<string> => {
+    // Sanitize filename
+    const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const path = `${userId}/docs/${Date.now()}_${safeName}`;
+    return uploadFile(file, 'documents', path);
 };
 
 // --- USER MANAGEMENT ---
@@ -209,13 +233,9 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
         targetFollowers = [...targetFollowers, currentUser.id];
     }
 
-    // Perform updates
-    // Note: In a real app, you'd want to use array_append/array_remove or a junction table
-    // For simplicity in this JSON-based structure:
-    
     // Update Current User
     const { data: updatedCurrent } = await supabase
-        .from(getUserTable(currentUser))
+        .from(inferUserTable(currentUser))
         .update({ following: currentFollowing })
         .eq('id', currentUser.id)
         .select()
@@ -223,7 +243,7 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
 
     // Update Target User
     const { data: updatedTarget } = await supabase
-        .from(getUserTable(targetUser))
+        .from(inferUserTable(targetUser))
         .update({ 
             follower_ids: targetFollowers,
             followers: targetFollowers.length
@@ -232,32 +252,17 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
         .select()
         .single();
 
-    // Send notification if following
-    if (!isFollowing) {
-        // Add notification logic here if needed
-    }
-
     return { updatedCurrentUser: updatedCurrent, updatedTargetUser: updatedTarget };
-};
-
-const getUserTable = (user: any) => {
-    if ('amenities' in user) return 'stoodioz';
-    if ('specialties' in user) return 'engineers';
-    if ('instrumentals' in user) return 'producers';
-    return 'artists';
 };
 
 export const submitForVerification = async (stoodioId: string, data: { googleBusinessProfileUrl: string, websiteUrl: string }) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    // In a real app, this would go to a 'verification_requests' table.
-    // Here we update the profile status to PENDING.
     const { data: updatedStoodio, error } = await supabase
         .from('stoodioz')
         .update({ 
             verification_status: VerificationStatus.PENDING,
-            // Store these fields if your schema supports them, or ignore for now
         })
         .eq('id', stoodioId)
         .select()
@@ -377,7 +382,6 @@ export const endSession = async (booking: Booking): Promise<{ updatedBooking: Bo
 // --- FINANCIALS (MOCKED STRIPE) ---
 
 export const createCheckoutSessionForBooking = async (bookingRequest: BookingRequest, stoodioId: string | undefined, userId: string, userRole: UserRole) => {
-    // In a real app, calls backend endpoint /create-checkout-session
     return { sessionId: 'mock_session_id_' + Date.now() };
 };
 
@@ -390,7 +394,6 @@ export const createCheckoutSessionForSubscription = async (planId: SubscriptionP
 };
 
 export const initiatePayout = async (amount: number, userId: string) => {
-    // Call backend to trigger payout via Stripe Connect
     return { success: true };
 };
 
@@ -415,7 +418,7 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
         related_user_name: producer.name
     };
 
-    // 2. Create "Booking" record to represent the purchase (so it shows in My Bookings)
+    // 2. Create "Booking" record to represent the purchase
     const booking: Booking = {
         id: `bk-beat-${Date.now()}`,
         date: new Date().toISOString().split('T')[0],
@@ -438,7 +441,7 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
     const currentTransactions = buyer.wallet_transactions || [];
     const updatedTransactions = [...currentTransactions, transaction];
 
-    const { error: userError } = await updateUser(buyer.id, getUserTable(buyer), { 
+    const { error: userError } = await updateUser(buyer.id, inferUserTable(buyer), { 
         wallet_balance: buyer.wallet_balance - price,
         wallet_transactions: updatedTransactions
     });
@@ -471,8 +474,8 @@ export const createPost = async (postData: any, user: any, userRole: UserRole) =
     const currentPosts = user.posts || [];
     const updatedPosts = [newPost, ...currentPosts];
 
-    // Determine table based on role or user object properties
-    const table = getUserTable(user);
+    // Use explicit role to determine table, falling back to inference if needed (though role should be present)
+    const table = getTableFromRole(userRole);
 
     const { data: updatedUser, error } = await supabase
         .from(table)
@@ -508,7 +511,7 @@ export const likePost = async (postId: string, userId: string, author: any) => {
     const updatedPosts = [...posts];
     updatedPosts[postIndex] = updatedPost;
 
-    const table = getUserTable(author);
+    const table = inferUserTable(author);
     const { data: updatedAuthor, error } = await supabase
         .from(table)
         .update({ posts: updatedPosts })
@@ -543,7 +546,7 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
     const updatedPosts = [...posts];
     updatedPosts[postIndex] = updatedPost;
 
-    const table = getUserTable(author);
+    const table = inferUserTable(author);
     const { data: updatedAuthor, error } = await supabase
         .from(table)
         .update({ posts: updatedPosts })
