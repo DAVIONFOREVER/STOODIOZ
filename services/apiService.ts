@@ -67,17 +67,107 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     const supabase = getSupabase();
     if (!supabase) return null;
 
+    // 1. Sign Up
     const { data: { user: authUser }, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
+        options: {
+            data: { 
+                role: role,
+                name: userData.name
+            }
+        }
     });
 
     if (authError) throw authError;
     if (!authUser) return null;
 
-    // Profile creation is handled in App.tsx completeSetup usually, 
-    // but this is a fallback if we need to do it here.
-    return null; 
+    // 2. Upload Avatar if provided (userData.imageFile)
+    let avatarUrl = userData.image_url || USER_SILHOUETTE_URL;
+    if (userData.imageFile) {
+        try {
+             avatarUrl = await uploadAvatar(userData.imageFile, authUser.id);
+        } catch (e) {
+            console.error("Avatar upload failed during signup", e);
+        }
+    }
+
+    // 3. Create Profile Data
+    const baseData = {
+        id: authUser.id,
+        email: authUser.email,
+        name: userData.name,
+        image_url: avatarUrl,
+        completion_rate: 0,
+        coordinates: { lat: 0, lon: 0 }, // Default, usually updated later or via map
+        followers: 0,
+        following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
+        follower_ids: [],
+        wallet_balance: 0,
+        wallet_transactions: [],
+        posts: [],
+        links: [],
+        is_online: true,
+        rating_overall: 0, 
+        sessions_completed: 0,
+        ranking_tier: RankingTier.Provisional,
+        is_on_streak: false,
+        on_time_rate: 100,
+        repeat_hire_rate: 0,
+        strength_tags: [],
+        local_rank_text: 'New Member',
+        purchased_masterclass_ids: [],
+    };
+
+    let tableName = '';
+    let specificData = {};
+
+    switch (role) {
+        case UserRoleEnum.ARTIST:
+            tableName = 'artists';
+            specificData = { bio: userData.bio, is_seeking_session: false, show_on_map: false };
+            break;
+        case UserRoleEnum.ENGINEER:
+            tableName = 'engineers';
+            specificData = { bio: userData.bio, specialties: [], mixing_samples: [], is_available: true, show_on_map: true, display_exact_location: false };
+            break;
+        case UserRoleEnum.PRODUCER:
+            tableName = 'producers';
+            specificData = { bio: userData.bio, genres: [], instrumentals: [], is_available: true, show_on_map: true };
+            break;
+        case UserRoleEnum.STOODIO:
+            tableName = 'stoodioz';
+            specificData = { 
+                description: userData.description, 
+                location: userData.location, 
+                business_address: userData.business_address || userData.businessAddress, 
+                hourly_rate: 100, 
+                engineer_pay_rate: 50, 
+                amenities: [], 
+                availability: [], 
+                photos: [avatarUrl], 
+                rooms: [], 
+                verification_status: 'UNVERIFIED', 
+                show_on_map: true 
+            };
+            break;
+        default:
+            console.error("Unknown role:", role);
+            return null;
+    }
+
+    const { data: newProfile, error: profileError } = await supabase
+        .from(tableName)
+        .insert({ ...baseData, ...specificData })
+        .select()
+        .single();
+
+    if (profileError) {
+        console.error("Error creating profile:", profileError);
+        throw profileError;
+    }
+
+    return newProfile as any;
 };
 
 export const updateUser = async (userId: string, table: string, updates: any) => {
