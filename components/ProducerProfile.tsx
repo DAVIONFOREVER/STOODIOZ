@@ -69,16 +69,16 @@ const ProducerProfile: React.FC = () => {
         );
     }
     
-    const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.producers || []).includes(producer.id)) : false;
+    const isFollowing = currentUser ? ('following' in currentUser && currentUser.following && currentUser.following.producers ? currentUser.following.producers.includes(producer.id) : false) : false;
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
-    const followers = useMemo(() => allUsers.filter(u => producer.follower_ids.includes(u.id)), [allUsers, producer.follower_ids]);
+    const followers = useMemo(() => allUsers.filter(u => (producer.follower_ids || []).includes(u.id)), [allUsers, producer.follower_ids]);
 
-    const followedArtists = useMemo(() => artists.filter(a => producer.following.artists.includes(a.id)), [artists, producer.following.artists]);
-    const followedEngineers = useMemo(() => engineers.filter(e => producer.following.engineers.includes(e.id)), [engineers, producer.following.engineers]);
-    const followedStoodioz = useMemo(() => stoodioz.filter(s => producer.following.stoodioz.includes(s.id)), [stoodioz, producer.following.stoodioz]);
-    const followedProducers = useMemo(() => producers.filter(p => producer.following.producers.includes(p.id)), [producers, producer.following.producers]);
+    const followedArtists = useMemo(() => artists.filter(a => (producer.following?.artists || []).includes(a.id)), [artists, producer.following?.artists]);
+    const followedEngineers = useMemo(() => engineers.filter(e => (producer.following?.engineers || []).includes(e.id)), [engineers, producer.following?.engineers]);
+    const followedStoodioz = useMemo(() => stoodioz.filter(s => (producer.following?.stoodioz || []).includes(s.id)), [stoodioz, producer.following?.stoodioz]);
+    const followedProducers = useMemo(() => producers.filter(p => (producer.following?.producers || []).includes(p.id)), [producers, producer.following?.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const sortedPosts = useMemo(() => (producer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [producer.posts]);
@@ -165,7 +165,7 @@ const ProducerProfile: React.FC = () => {
                     </div>
                 </div>
 
-                <InstrumentalPlayer instrumentals={producer.instrumentals} onPurchase={handlePurchaseClick} />
+                <InstrumentalPlayer instrumentals={producer.instrumentals || []} onPurchase={handlePurchaseClick} />
                 
                  {producer.links && producer.links.length > 0 && (
                     <div>

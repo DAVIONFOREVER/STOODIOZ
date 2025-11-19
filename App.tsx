@@ -248,11 +248,36 @@ const App: React.FC = () => {
                 const userEmail = session.user.email;
                 
                 const fetchProfiles = async () => {
+                    // 1. Strict Role Check: If the user signed up with a specific role, ONLY look for that role first.
+                    // This prevents race conditions where a user might have an old 'Engineer' profile but just signed up as 'Stoodio'.
+                    const metaRole = session.user.user_metadata?.role;
+
+                    if (metaRole) {
+                        let targetTable = '';
+                        let targetQuery = '*';
+
+                        if (metaRole === 'STOODIO') { targetTable = 'stoodioz'; targetQuery = '*, rooms(*), in_house_engineers(*)'; }
+                        else if (metaRole === 'ENGINEER') { targetTable = 'engineers'; targetQuery = '*, mixing_samples(*)'; }
+                        else if (metaRole === 'PRODUCER') { targetTable = 'producers'; targetQuery = '*, instrumentals(*)'; }
+                        else if (metaRole === 'ARTIST') { targetTable = 'artists'; targetQuery = '*'; }
+
+                        if (targetTable) {
+                            const { data } = await supabase.from(targetTable).select(targetQuery).eq('id', userId).single();
+                            // If we found the correct profile for the role, return it immediately.
+                            if (data) return { data };
+                            // If we didn't find it, DO NOT fallback to searching other tables yet. 
+                            // The DB insertion might still be pending in the background loop.
+                            return null; 
+                        }
+                    }
+
+                    // 2. Fallback: If no metadata role is present (legacy users), check all tables.
+                    // We prioritize Stoodioz/Producers to avoid accidental Artist matches if IDs conflict (unlikely but safe).
                     const tableMap = {
-                        artists: '*',
-                        engineers: '*, mixing_samples(*)',
-                        producers: '*, instrumentals(*)',
                         stoodioz: '*, rooms(*), in_house_engineers(*)',
+                        producers: '*, instrumentals(*)',
+                        engineers: '*, mixing_samples(*)',
+                        artists: '*',
                     };
     
                     // Strategy 1: Fetch by ID

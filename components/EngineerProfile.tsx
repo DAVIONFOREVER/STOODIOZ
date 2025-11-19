@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+// FIX: Import missing types
 import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
 import { UserRole } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons.tsx';
@@ -36,6 +37,7 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
+            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
             <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -71,15 +73,17 @@ const EngineerProfile: React.FC = () => {
     
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.engineers || []).includes(engineer.id)) : false;
 
+    // FIX: Corrected property name from 'engineerId' to 'engineer_id'
     const engineerReviews = reviews.filter(r => r.engineer_id === engineer.id);
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => engineer.follower_ids.includes(u.id)), [allUsers, engineer.follower_ids]);
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
+    const followers = useMemo(() => allUsers.filter(u => (engineer.follower_ids || []).includes(u.id)), [allUsers, engineer.follower_ids]);
 
-    const followedArtists = useMemo(() => artists.filter(a => engineer.following.artists.includes(a.id)), [artists, engineer.following.artists]);
-    const followedEngineers = useMemo(() => engineers.filter(e => engineer.following.engineers.includes(e.id)), [engineers, engineer.following.engineers]);
-    const followedStoodioz = useMemo(() => stoodioz.filter(s => engineer.following.stoodioz.includes(s.id)), [stoodioz, engineer.following.stoodioz]);
-    const followedProducers = useMemo(() => producers.filter(p => engineer.following.producers.includes(p.id)), [producers, engineer.following.producers]);
+    const followedArtists = useMemo(() => artists.filter(a => (engineer.following?.artists || []).includes(a.id)), [artists, engineer.following?.artists]);
+    const followedEngineers = useMemo(() => engineers.filter(e => (engineer.following?.engineers || []).includes(e.id)), [engineers, engineer.following?.engineers]);
+    const followedStoodioz = useMemo(() => stoodioz.filter(s => (engineer.following?.stoodioz || []).includes(s.id)), [stoodioz, engineer.following?.stoodioz]);
+    const followedProducers = useMemo(() => producers.filter(p => (engineer.following?.producers || []).includes(p.id)), [producers, engineer.following?.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const sortedPosts = useMemo(() => (engineer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [engineer.posts]);
@@ -90,6 +94,7 @@ const EngineerProfile: React.FC = () => {
 
     const onOpenMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: true } });
 
+    // FIX: Corrected property name from 'mixingServices' to 'mixing_services' and 'isEnabled' to 'is_enabled'
     const canRequestMix = engineer.mixing_services?.is_enabled && currentUser && currentUser.id !== engineer.id;
 
 
@@ -102,6 +107,7 @@ const EngineerProfile: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-12">
                 <div className="p-8 cardSurface">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
+                        {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
                         <img src={engineer.image_url} alt={engineer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left flex-grow">
                             <h1 className="text-4xl font-extrabold text-orange-500">{engineer.name}</h1>
@@ -140,13 +146,14 @@ const EngineerProfile: React.FC = () => {
                      <div>
                         <h3 className="text-xl font-bold mb-3 text-orange-400 flex items-center gap-2"><CogIcon className="w-6 h-6"/>Specialties</h3>
                         <div className="flex flex-wrap gap-2">
-                            {engineer.specialties.map(spec => (
+                            {(engineer.specialties || []).map(spec => (
                                 <span key={spec} className="bg-zinc-700 text-slate-200 text-sm font-medium px-3 py-1.5 rounded-full">{spec}</span>
                             ))}
                         </div>
                     </div>
                 </div>
 
+                {/* FIX: Corrected property name from 'isEnabled' to 'is_enabled' */}
                 {engineer.masterclass?.is_enabled && (
                     <MasterclassCard 
                         masterclass={engineer.masterclass}
@@ -157,6 +164,7 @@ const EngineerProfile: React.FC = () => {
                 )}
                 
                 <div>
+                    {/* FIX: Corrected property name from 'mixingSamples' to 'mixing_samples' */}
                     <MixingSamplePlayer mixingSamples={engineer.mixing_samples || []} />
                 </div>
 
