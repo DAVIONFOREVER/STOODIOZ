@@ -53,6 +53,26 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
         onSelectAuthor();
     };
 
+    // Helper to detect video links
+    const getVideoEmbedUrl = (url: string): string | null => {
+        try {
+            const urlObj = new URL(url);
+            if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) {
+                const videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop();
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            if (urlObj.hostname.includes('vimeo.com')) {
+                const videoId = urlObj.pathname.split('/').pop();
+                return `https://player.vimeo.com/video/${videoId}`;
+            }
+        } catch (e) {
+            return null;
+        }
+        return null;
+    };
+
+    const externalVideoUrl = post.link ? getVideoEmbedUrl(post.link.url) : null;
+
     return (
         <div className="rounded-2xl cardSurface overflow-hidden">
             <div className="p-6">
@@ -88,30 +108,45 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                         <img src={post.image_url} alt="Post content" className="w-full h-auto object-cover"/>
                     </div>
                 )}
-                {post.video_url && post.video_thumbnail_url && (
+                
+                {/* Direct Video Upload */}
+                {post.video_url && (
                     <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
-                        {isPlaying ? (
-                            <video
-                                src={post.video_url}
-                                controls
-                                autoPlay
-                                playsInline
-                                className="w-full h-full object-contain"
-                                poster={post.video_thumbnail_url}
-                                onEnded={() => setIsPlaying(false)}
-                            />
-                        ) : (
-                            <button onClick={() => setIsPlaying(true)} className="w-full h-full block relative group" aria-label="Play video">
-                                <img src={post.video_thumbnail_url} alt="Video thumbnail" className="w-full h-full object-cover"/>
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity opacity-70 group-hover:opacity-100">
-                                     <div className="bg-black/50 rounded-full p-4 transition-transform group-hover:scale-110">
-                                        <PlayIcon className="w-10 h-10 text-white"/>
-                                    </div>
-                                </div>
-                            </button>
-                        )}
+                         <video
+                            src={post.video_url}
+                            controls
+                            playsInline
+                            className="w-full h-full object-contain"
+                            poster={post.video_thumbnail_url}
+                        />
                     </div>
                 )}
+
+                {/* External Video Embed (YouTube/Vimeo) */}
+                {externalVideoUrl && (
+                     <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
+                        <iframe 
+                            src={externalVideoUrl} 
+                            className="w-full h-full" 
+                            frameBorder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowFullScreen
+                        ></iframe>
+                    </div>
+                )}
+                
+                {/* Standard Link Preview (if not a video) */}
+                {post.link && !externalVideoUrl && (
+                    <a href={post.link.url} target="_blank" rel="noopener noreferrer" className="block bg-zinc-800 rounded-lg overflow-hidden border border-zinc-700 hover:bg-zinc-700 transition-colors mt-2">
+                        {post.link.image_url && <img src={post.link.image_url} alt={post.link.title} className="w-full h-32 object-cover" />}
+                        <div className="p-3">
+                            <p className="font-bold text-zinc-200 truncate">{post.link.title}</p>
+                            <p className="text-xs text-zinc-400 truncate mt-1">{post.link.description}</p>
+                            <p className="text-xs text-orange-400 mt-2">{new URL(post.link.url).hostname}</p>
+                        </div>
+                    </a>
+                )}
+
             </div>
 
             {/* Contextual CTA */}

@@ -233,8 +233,15 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     useEffect(() => {
-        const handleAuthStateChange = async (_event: string, session: Session | null) => {
+        const handleAuthStateChange = async (event: string, session: Session | null) => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+
+            if (event === 'SIGNED_OUT' || !session) {
+                dispatch({ type: ActionTypes.LOGOUT });
+                // Don't need to navigate here as useAuth logout handles it, but ensuring state is clear is key
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                return;
+            }
             
             if (session?.user) {
                 const userId = session.user.id;
@@ -292,8 +299,6 @@ const App: React.FC = () => {
                     console.error("A network error occurred while fetching user profiles:", error);
                     dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to fetch your profile. Please try again." } });
                 }
-            } else {
-                dispatch({ type: ActionTypes.LOGOUT });
             }
             
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });

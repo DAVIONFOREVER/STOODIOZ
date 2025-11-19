@@ -39,7 +39,17 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isFormValid) {
-            onCompleteSetup(name, description, location, businessAddress, email, password, imagePreview, imageFile);
+            // Ensure location and description are clean strings
+            onCompleteSetup(
+                name.trim(), 
+                description.trim(), 
+                location.trim(), 
+                businessAddress.trim(), 
+                email.trim(), 
+                password, 
+                imagePreview, 
+                imageFile
+            );
         } else {
             alert("Please fill in all required fields and agree to the terms and conditions to continue.");
         }

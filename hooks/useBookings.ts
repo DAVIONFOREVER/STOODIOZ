@@ -49,7 +49,7 @@ export const useBookings = (navigate: (view: AppView) => void) => {
         const bookingToCancel = bookings.find(b => b.id === bookingId);
         if (!currentUser || !bookingToCancel) return;
         try {
-            const { updatedBooking } = await apiService.cancelBooking(bookingToCancel);
+            const updatedBooking = await apiService.cancelBooking(bookingToCancel);
             dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === bookingId ? updatedBooking : b) } });
         } catch (error) {
             console.error("Failed to cancel booking:", error);
@@ -61,7 +61,7 @@ export const useBookings = (navigate: (view: AppView) => void) => {
     const acceptBooking = useCallback(async (booking: Booking) => {
         if (userRole !== UserRole.ENGINEER || !currentUser) return;
         try {
-            const { updatedBooking } = await apiService.respondToBooking(booking, 'accept', currentUser as Engineer);
+            const updatedBooking = await apiService.respondToBooking(booking, 'accept', currentUser as Engineer);
             dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === booking.id ? updatedBooking : b) } });
         } catch (error) { console.error(error); }
     }, [bookings, currentUser, userRole, dispatch]);
@@ -69,7 +69,7 @@ export const useBookings = (navigate: (view: AppView) => void) => {
     const denyBooking = useCallback(async (booking: Booking) => {
         if (userRole !== UserRole.ENGINEER || !currentUser) return;
         try {
-            const { updatedBooking } = await apiService.respondToBooking(booking, 'deny', currentUser as Engineer);
+            const updatedBooking = await apiService.respondToBooking(booking, 'deny', currentUser as Engineer);
             dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === booking.id ? updatedBooking : b) } });
         } catch (error) { console.error(error); }
     }, [bookings, currentUser, userRole, dispatch]);
@@ -81,7 +81,7 @@ export const useBookings = (navigate: (view: AppView) => void) => {
         }
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
-            const { updatedBooking } = await apiService.acceptJob(booking, currentUser as Engineer);
+            const updatedBooking = await apiService.acceptJob(booking, currentUser as Engineer);
             const updatedBookings = bookings.map(b => b.id === booking.id ? updatedBooking : b);
             dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: updatedBookings } });
             navigate(AppView.MY_BOOKINGS);

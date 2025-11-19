@@ -68,9 +68,13 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        await supabase.auth.signOut();
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn("Supabase signout error (ignoring):", e);
+        }
+        
         dispatch({ type: ActionTypes.LOGOUT });
-        // Explicitly navigate to landing page to ensure UI update
         navigate(AppView.LANDING_PAGE);
     }, [dispatch, navigate]);
 
