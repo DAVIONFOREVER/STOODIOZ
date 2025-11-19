@@ -5,6 +5,7 @@ import * as apiService from '../services/apiService';
 import { AppView } from '../types';
 // FIX: Import missing Stoodio type
 import type { UserRole, Artist, Engineer, Stoodio, Producer } from '../types';
+import { UserRole as UserRoleEnum } from '../types';
 import { getSupabase } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
@@ -31,8 +32,19 @@ export const useAuth = (navigate: (view: any) => void) => {
     
         // Login successful → find user profile, set user & navigate via dispatch
         if (data.user) {
-            const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
+            const roleMap: Record<string, UserRole> = {
+                'artists': UserRoleEnum.ARTIST,
+                'engineers': UserRoleEnum.ENGINEER,
+                'producers': UserRoleEnum.PRODUCER,
+                'stoodioz': UserRoleEnum.STOODIO
+            };
+            
+            // Prioritize finding specialized roles first. This fixes issues where a user might exist 
+            // in multiple tables (rare but possible) or if the fallback logic was too broad.
+            const tables = ['stoodioz', 'producers', 'engineers', 'artists'];
+            
             let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
+            let detectedRole: UserRole | undefined;
     
             for (const table of tables) {
                 // Adjust select query based on table for relational data
@@ -53,17 +65,24 @@ export const useAuth = (navigate: (view: any) => void) => {
                 }
 
                 if (profileData && profileData.length > 0) {
-                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase, resolving the 'GenericStringError' conversion issue.
+                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
                     userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer;
-                    break;
+                    detectedRole = roleMap[table];
+                    break; // Stop searching once found
                 }
             }
     
-            if (userProfile) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile } });
+            if (userProfile && detectedRole) {
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile, role: detectedRole } });
                 if ('Notification' in window && Notification.permission !== 'denied') {
                     Notification.requestPermission();
                 }
+                // Explicitly navigate based on detected role
+                if (detectedRole === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+
             } else {
                 console.warn(`Login successful, but no profile found for ${email}. Routing to profile setup.`);
                 navigate(AppView.CHOOSE_PROFILE);

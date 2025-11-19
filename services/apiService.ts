@@ -834,32 +834,30 @@ export const deleteInHouseEngineer = async (engineerId: string, stoodioId: strin
 };
 
 export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number): Promise<AnalyticsData> => {
-    // In a real app, this would query the database for aggregations.
-    // For this demo, we mock the data structure.
-    
-    const mockData: AnalyticsData = {
+    // Return clean empty data for new users to avoid confusion with random numbers
+    const emptyData: AnalyticsData = {
         kpis: {
-            totalRevenue: 12500,
-            profileViews: 3450,
-            newFollowers: 120,
-            bookings: 45
+            totalRevenue: 0,
+            profileViews: 0,
+            newFollowers: 0,
+            bookings: 0
         },
         revenueOverTime: Array.from({ length: 10 }, (_, i) => ({
             date: new Date(Date.now() - i * 86400000).toISOString(),
-            revenue: Math.floor(Math.random() * 500) + 100
+            revenue: 0
         })).reverse(),
         engagementOverTime: Array.from({ length: 10 }, (_, i) => ({
             date: new Date(Date.now() - i * 86400000).toISOString(),
-            views: Math.floor(Math.random() * 200),
-            followers: Math.floor(Math.random() * 10),
-            likes: Math.floor(Math.random() * 50)
+            views: 0,
+            followers: 0,
+            likes: 0
         })).reverse(),
         revenueSources: [
-            { name: 'Bookings', revenue: 8000 },
-            { name: 'Tips', revenue: 500 },
-            { name: 'Mixing', revenue: 4000 }
+            { name: 'Bookings', revenue: 0 },
+            { name: 'Tips', revenue: 0 },
+            { name: 'Mixing', revenue: 0 }
         ]
     };
     
-    return mockData;
+    return emptyData;
 };

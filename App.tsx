@@ -214,8 +214,16 @@ const App: React.FC = () => {
 
         if (newProfile) {
             dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newProfile as any, role } });
+            // Ensure loading is turned off after setup is complete to prevent "slow/sloppy" feeling
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+
+            // Force navigation based on role immediately
+            if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+            else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+            else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+            else if (role === UserRole.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
         }
-    }, [dispatch, originalCompleteSetup]);
+    }, [dispatch, originalCompleteSetup, navigate]);
 
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();

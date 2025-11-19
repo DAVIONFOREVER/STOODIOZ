@@ -1,3 +1,4 @@
+
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
@@ -127,7 +128,7 @@ type Payload = {
     [ActionTypes.GO_FORWARD]: undefined;
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
-    [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer };
+    [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer, role?: UserRole };
     [ActionTypes.LOGIN_FAILURE]: { error: string };
     [ActionTypes.LOGOUT]: undefined;
     [ActionTypes.COMPLETE_SETUP]: { newUser: Artist | Engineer | Stoodio | Producer, role: UserRole };
@@ -273,25 +274,35 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, isLoading: action.payload.isLoading };
 
         case ActionTypes.LOGIN_SUCCESS: {
-            const user = action.payload.user;
-            let role: UserRole | null = null;
+            const { user, role: explicitRole } = action.payload;
+            let role = explicitRole;
 
-            if ('amenities' in user) {
-                role = UserRole.STOODIO;
-            } else if ('specialties' in user) {
-                role = UserRole.ENGINEER;
-            } else if ('instrumentals' in user) {
-                role = UserRole.PRODUCER;
-            } else {
-                role = UserRole.ARTIST;
+            // Fallback role detection if not provided explicitly
+            if (!role) {
+                if ('amenities' in user) {
+                    role = UserRole.STOODIO;
+                } else if ('specialties' in user) {
+                    role = UserRole.ENGINEER;
+                } else if ('instrumentals' in user) {
+                    role = UserRole.PRODUCER;
+                } else {
+                    role = UserRole.ARTIST;
+                }
             }
+
+            // Determine landing page based on role
+            let landingView = AppView.THE_STAGE;
+            if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
+            else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
+            else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
+            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
             
             return {
                 ...state,
                 currentUser: user,
                 userRole: role,
                 loginError: null,
-                history: [AppView.THE_STAGE],
+                history: [landingView],
                 historyIndex: 0,
                 ariaHistory: [],
             };
@@ -332,11 +343,18 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
             }
 
+             // Determine landing page based on role
+            let landingView = AppView.THE_STAGE;
+            if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
+            else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
+            else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
+            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
+
             return {
                 ...updatedState,
                 currentUser: newUser,
                 userRole: role,
-                history: [AppView.THE_STAGE],
+                history: [landingView],
                 historyIndex: 0,
             };
         }
