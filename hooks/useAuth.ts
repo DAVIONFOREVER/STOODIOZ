@@ -5,13 +5,19 @@ import * as apiService from '../services/apiService';
 import { AppView } from '../types';
 // FIX: Import missing Stoodio type
 import type { UserRole, Artist, Engineer, Stoodio, Producer } from '../types';
-import { supabase } from '../src/supabaseClient.js';
+import { getSupabase } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
+
+        const supabase = getSupabase();
+        if (!supabase) {
+             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
+             return;
+        }
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
@@ -75,7 +81,8 @@ export const useAuth = (navigate: (view: any) => void) => {
         // Use a small timeout to ensure the navigation has processed and components unmounted
         setTimeout(async () => {
             try {
-                await supabase.auth.signOut();
+                const supabase = getSupabase();
+                if (supabase) await supabase.auth.signOut();
             } catch (e) {
                 console.warn("Supabase signout error (ignoring):", e);
             }

@@ -20,7 +20,7 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { supabase } from './src/supabaseClient.js';
+import { getSupabase } from './lib/supabase.ts';
 import { USER_SILHOUETTE_URL } from './constants.ts';
 import * as apiService from './services/apiService.ts';
 
@@ -113,6 +113,9 @@ const App: React.FC = () => {
     const { login, logout, selectRoleToSetup, completeSetup: originalCompleteSetup } = useAuth(navigate);
     
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
+        const supabase = getSupabase();
+        if (!supabase) return;
+
         // CRITICAL FIX: If creating a new account (email/password present), ensure we start with a clean slate.
         // This prevents the new profile from being accidentally attached to a stale/previous session.
         if (userData.email && userData.password) {
@@ -239,6 +242,9 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     useEffect(() => {
+        const supabase = getSupabase();
+        if (!supabase) return;
+
         const handleAuthStateChange = async (event: string, session: Session | null) => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
@@ -254,7 +260,6 @@ const App: React.FC = () => {
                 
                 const fetchProfiles = async () => {
                     // 1. Strict Role Check: If the user signed up with a specific role, check that table first.
-                    // This minimizes race conditions where an old profile might be found before a new one.
                     const metaRole = session.user.user_metadata?.role;
 
                     if (metaRole) {
@@ -269,13 +274,10 @@ const App: React.FC = () => {
                         if (targetTable) {
                             const { data } = await supabase.from(targetTable).select(targetQuery).eq('id', userId).single();
                             if (data) return { data };
-                            // If not found, proceed to check other tables (fallback), 
-                            // because user might have deleted their profile associated with metaRole but kept another one.
                         }
                     }
 
                     // 2. Fallback: Check all tables.
-                    // We prioritize Stoodioz/Producers to avoid accidental Artist matches if IDs conflict (unlikely but safe).
                     const tableMap = {
                         stoodioz: '*, rooms(*), in_house_engineers(*)',
                         producers: '*, instrumentals(*)',
@@ -308,7 +310,7 @@ const App: React.FC = () => {
                     let userProfileResult = null;
                     let attempts = 0;
 
-                    // Improved Retry logic: Loop up to 3 times with 1s delay to allow DB insertion to complete during signup
+                    // Improved Retry logic: Loop up to 3 times with 1s delay
                     while (!userProfileResult && attempts < 3) {
                         userProfileResult = await fetchProfiles();
                         if (!userProfileResult) {
