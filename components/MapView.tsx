@@ -153,14 +153,15 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                     lon: position.coords.longitude,
                 };
                 setUserLocation(newLocation);
-                if (map && !directionsIntent) {
+                // Only pan on initial load, or if tracking
+                if (map && !directionsIntent && !selectedItem) {
                     map.panTo({ lat: newLocation.lat, lng: newLocation.lon });
                 }
             },
             () => console.log("Could not get user's location."),
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
-    }, [map, directionsIntent]);
+    }, [map, directionsIntent, selectedItem]);
 
     // Effect for Supabase real-time channel
     useEffect(() => {
@@ -173,8 +174,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         channel
             .on('broadcast', { event: 'location_update' }, (message) => {
                 const { userId, coordinates } = message.payload;
-                // FIX: Removed the check that ignored the current user's updates.
-                // This allows the user to see their own public marker move in real-time.
+                // Update map state with new location for any user ID
                 setRealtimeLocations(prev => new Map(prev).set(userId, coordinates));
             })
             .subscribe();
@@ -234,25 +234,46 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if (activeFilter === 'ALL' || activeFilter === 'ENGINEER') items.push(...engineers);
         if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') items.push(...producers);
 
+        // Filter visible users based on DB flag
         let visibleUsers = items.filter(u => u.show_on_map && u.coordinates);
 
-        // FIX: Ensure the current user is always included in the visible list if their "Show on Map" is enabled, regardless of filters.
-        if (currentUser && currentUser.show_on_map && currentUser.coordinates && !visibleUsers.some(u => u.id === currentUser.id)) {
-            visibleUsers.push(currentUser);
-        }
-
+        // Apply realtime updates overrides
         const liveUpdatedUsers = visibleUsers.map(user => {
             if (realtimeLocations.has(user.id)) {
                 return { ...user, coordinates: realtimeLocations.get(user.id)! };
             }
             return user;
         });
+
+        // CRITICAL FIX: Force Current User Visibility
+        // If the current user has "Show on Map" enabled, we must ensure they are in the list,
+        // using their local device location if realtime hasn't synced yet.
+        if (currentUser && currentUser.show_on_map && userLocation) {
+            // Check if they are already in the list (e.g., from realtime or initial DB fetch)
+            const exists = liveUpdatedUsers.some(u => u.id === currentUser.id);
+            
+            if (!exists) {
+                // If they aren't in the list but should be, add them with local coords
+                // This bridges the gap between "Toggle On" and "Database Update"
+                liveUpdatedUsers.push({
+                    ...currentUser,
+                    coordinates: userLocation 
+                });
+            } else {
+                // If they are in the list, update their position to local userLocation 
+                // to ensure the user sees *themselves* move instantly.
+                const userIndex = liveUpdatedUsers.findIndex(u => u.id === currentUser.id);
+                if (userIndex !== -1) {
+                    liveUpdatedUsers[userIndex] = { ...liveUpdatedUsers[userIndex], coordinates: userLocation };
+                }
+            }
+        }
         
         let allItems: MapItem[] = liveUpdatedUsers;
         if (activeFilter === 'ALL' || activeFilter === 'JOB') allItems.push(...jobs.filter(j => j.coordinates));
         
         return allItems;
-    }, [stoodioz, artists, engineers, producers, bookings, activeFilter, realtimeLocations, currentUser]);
+    }, [stoodioz, artists, engineers, producers, bookings, activeFilter, realtimeLocations, currentUser, userLocation]);
     
     const handleMarkerClick = useCallback((item: MapItem) => {
         setSelectedItem(item);
@@ -315,7 +336,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                             strokeWeight: 2,
                         }}
                     />
-                // FIX: Only show the private "blue dot" marker if the user is NOT showing their public profile on the map.
+                // Show the blue dot if the user is NOT sharing location publically (private view)
                 ) : userLocation && (!currentUser || !currentUser.show_on_map) && (
                     <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={getPixelPositionOffset}>
                         <UserMarker />

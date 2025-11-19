@@ -37,9 +37,6 @@ export const fetchBookings = (): Promise<Booking[]> => fetchData<Booking>('booki
 
 /**
  * Uploads a profile avatar to Supabase Storage.
- * @param file The image file to upload.
- * @param userId The ID of the user.
- * @returns The public URL of the uploaded file.
  */
 export const uploadAvatar = async (file: File, userId: string): Promise<string> => {
     const supabase = getSupabase();
@@ -62,19 +59,38 @@ export const uploadAvatar = async (file: File, userId: string): Promise<string> 
         .from('avatars')
         .getPublicUrl(filePath);
 
-    if (!data || !data.publicUrl) {
-        throw new Error("Could not get public URL for uploaded avatar.");
+    return data.publicUrl;
+};
+
+/**
+ * Uploads a room photo to Supabase Storage.
+ */
+export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `room_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExtension}`;
+    const filePath = `${stoodioId}/rooms/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from('avatars') 
+        .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+        console.error('Error uploading room photo:', uploadError);
+        throw uploadError;
     }
+
+    const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
 
     return data.publicUrl;
 };
 
 /**
  * Uploads a post attachment (image or video) to Supabase Storage.
- * Uses the 'avatars' bucket for now as it is publicly configured.
- * @param file The file to upload.
- * @param userId The ID of the user uploading.
- * @returns The public URL of the uploaded file.
  */
 export const uploadPostAttachment = async (file: File, userId: string): Promise<string> => {
     const supabase = getSupabase();
@@ -84,8 +100,6 @@ export const uploadPostAttachment = async (file: File, userId: string): Promise<
     const fileName = `post_${Date.now()}.${fileExtension}`;
     const filePath = `${userId}/posts/${fileName}`;
 
-    // We reuse the 'avatars' bucket since we know it has the correct permissions set up from the previous step.
-    // Ideally, this would be a separate 'posts' bucket, but 'avatars' works for general public assets.
     const { error: uploadError } = await supabase.storage
         .from('avatars') 
         .upload(filePath, file, { upsert: true });
@@ -104,9 +118,6 @@ export const uploadPostAttachment = async (file: File, userId: string): Promise<
 
 /**
  * Uploads an instrumental file to Supabase Storage.
- * @param file The audio file (MP3, WAV) to upload.
- * @param producerId The ID of the producer uploading the file.
- * @returns The public URL of the uploaded file.
  */
 export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
     const supabase = getSupabase();
@@ -129,18 +140,11 @@ export const uploadBeatFile = async (file: File, producerId: string): Promise<st
         .from('instrumentals')
         .getPublicUrl(filePath);
 
-    if (!data || !data.publicUrl) {
-        throw new Error("Could not get public URL for uploaded file.");
-    }
-
     return data.publicUrl;
 };
 
 /**
  * Uploads a mixing sample file to Supabase Storage.
- * @param file The audio file (MP3, WAV) to upload.
- * @param engineerId The ID of the engineer uploading the file.
- * @returns The public URL of the uploaded file.
  */
 export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
     const supabase = getSupabase();
@@ -163,10 +167,6 @@ export const uploadMixingSampleFile = async (file: File, engineerId: string): Pr
         .from('mixing-samples')
         .getPublicUrl(filePath);
 
-    if (!data || !data.publicUrl) {
-        throw new Error("Could not get public URL for uploaded file.");
-    }
-
     return data.publicUrl;
 };
 
@@ -176,7 +176,6 @@ export const upsertRoom = async (room: Room, stoodioId: string): Promise<Room> =
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not initialized");
 
-    // Create a clean object for the database
     const roomData: any = {
         name: room.name,
         description: room.description,
@@ -186,12 +185,9 @@ export const upsertRoom = async (room: Room, stoodioId: string): Promise<Room> =
         stoodio_id: stoodioId
     };
 
-    // Only include ID if it's a valid existing UUID (not a temp client ID starting with 'room-')
-    // If we send a string like 'room-12345' to a UUID column, Supabase will error.
     if (room.id && !room.id.startsWith('room-')) {
         roomData.id = room.id;
     } else {
-        // Explicitly delete it to be safe, letting Postgres generate the UUID
         delete roomData.id;
     }
 
@@ -343,7 +339,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     let avatarUrl = userData.image_url || USER_SILHOUETTE_URL;
     
-    // If an actual file object was passed, upload it
     if (userData.imageFile && userData.imageFile instanceof File) {
         try {
             avatarUrl = await uploadAvatar(userData.imageFile, authData.user.id);
@@ -497,7 +492,6 @@ export const createBooking = async (
 
     let status = bookingRequest.request_type === BookingRequestType.SPECIFIC_ENGINEER ? BookingStatus.PENDING_APPROVAL : BookingStatus.PENDING;
 
-    // Auto-complete standalone beat purchases
     if (bookingRequest.request_type === BookingRequestType.BEAT_PURCHASE) {
         status = BookingStatus.COMPLETED;
     }
@@ -544,7 +538,6 @@ export const purchaseBeat = async (
 ): Promise<{ updatedBooking: Booking }> => {
     const price = type === 'lease' ? instrumental.price_lease : instrumental.price_exclusive;
     
-    // 1. Create booking record (COMPLETED status)
     const bookingRequest: BookingRequest = {
         date: new Date().toISOString().split('T')[0],
         start_time: 'N/A',
@@ -557,11 +550,6 @@ export const purchaseBeat = async (
     };
 
     const booking = await createBooking(bookingRequest, undefined, buyer, buyerRole);
-
-    // 2. Create Transaction (Payment)
-    // In a real app, this would be handled by webhook after Stripe payment. 
-    // Here we simulate success.
-    // TODO: Create wallet transaction entries via Edge Function for security in prod.
 
     return { updatedBooking: booking };
 };
