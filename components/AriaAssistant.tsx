@@ -6,7 +6,7 @@ import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIco
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { createPdfBytes } from '../lib/pdf';
-import * as apiService from '../services/apiService'; // Added import
+import * as apiService from '../services/apiService';
 
 interface AriaCantataAssistantProps {
     isOpen: boolean;
@@ -27,9 +27,7 @@ const TypingIndicator: React.FC = () => (
 );
 
 const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => {
-    // Helper to download file
     const handleDownload = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        // If it's a hash link or invalid, don't default navigate
         if (!file.url || file.url === '#') {
             e.preventDefault();
             if (file.rawContent) {
@@ -147,7 +145,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
             if (command.type === 'sendDocumentMessage' && command.value?.documentContent && command.value?.fileName) {
                 const { documentContent, fileName } = command.value;
                 
-                // Generate the PDF blob immediately to create a URL
+                // Use try/catch block for PDF generation to prevent crash
                 try {
                     const pdfBytes = await createPdfBytes(documentContent);
                     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -160,7 +158,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
                              publicUrl = await apiService.uploadDocument(blob, finalFileName, currentUser.id);
                         } catch (uploadErr) {
                             console.error("Failed to upload document to Supabase:", uploadErr);
-                            // Fallback to blob URL if upload fails, though less persistent
+                            // Fallback to blob URL if upload fails
                             publicUrl = URL.createObjectURL(blob);
                         }
 
@@ -168,13 +166,14 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
                             name: finalFileName, 
                             url: publicUrl,
                             size: `${(pdfBytes.length / 1024).toFixed(1)} KB`,
-                            rawContent: pdfBytes, // Keeping raw content for immediate download if needed
+                            rawContent: pdfBytes, 
                         };
                         ariaResponse.files = [fileAttachment];
                     }
                 } catch (pdfError) {
                     console.error("Failed to create PDF:", pdfError);
-                    ariaResponse.parts[0].text += "\n\n(I tried to generate the document file, but something went wrong. Here is the text content instead:)\n\n" + documentContent;
+                    // Fallback: Send the content as text if PDF fails
+                    ariaResponse.parts[0].text += "\n\n(Note: I tried to generate the document file, but encountered an error. Here is the text content instead:)\n\n" + documentContent;
                 }
             }
 

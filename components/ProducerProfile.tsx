@@ -88,8 +88,10 @@ const ProducerProfile: React.FC = () => {
             navigate(AppView.LOGIN);
             return;
         }
+        // Fix Issue #4: Prevent self-purchase
         if (currentUser.id === producer.id) {
-            return; // Prevent self-purchase
+            alert("You cannot purchase your own beat.");
+            return; 
         }
         setSelectedBeat(instrumental);
     };

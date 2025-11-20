@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Engineer, Producer, Masterclass } from '../types';
 import { EditIcon } from './icons';
@@ -18,13 +19,11 @@ const MasterclassManager: React.FC<MasterclassManagerProps> = ({ user, onUpdateU
         price: 99.99,
     };
 
-    // FIX: Check if `masterclass` exists on the user object before using it.
     const initialMasterclass = 'masterclass' in user && user.masterclass ? user.masterclass : defaultMasterclass;
     
     const [masterclass, setMasterclass] = useState<Masterclass>(initialMasterclass);
 
     useEffect(() => {
-        // FIX: Check if `masterclass` exists on the user object before using it.
         setMasterclass('masterclass' in user && user.masterclass ? user.masterclass : defaultMasterclass);
     }, [user.masterclass]);
 
@@ -33,7 +32,13 @@ const MasterclassManager: React.FC<MasterclassManagerProps> = ({ user, onUpdateU
     };
 
     const handleSave = () => {
-        onUpdateUser({ masterclass });
+        try {
+            onUpdateUser({ masterclass });
+            alert("Masterclass settings saved successfully!");
+        } catch (error) {
+            console.error("Error saving masterclass:", error);
+            alert("Failed to save changes. Please verify your connection and try again.");
+        }
     };
 
     const hasChanges = JSON.stringify(masterclass) !== JSON.stringify(initialMasterclass);

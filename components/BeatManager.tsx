@@ -17,12 +17,9 @@ const BeatFormModal: React.FC<{
 }> = ({ instrumental, onSave, onClose, isUploading }) => {
     const [title, setTitle] = useState(instrumental?.title || '');
     const [genre, setGenre] = useState(instrumental?.genre || '');
-    // FIX: Corrected property name from 'priceLease' to 'price_lease'
     const [priceLease, setPriceLease] = useState(instrumental?.price_lease || 29.99);
-    // FIX: Corrected property name from 'priceExclusive' to 'price_exclusive'
     const [priceExclusive, setPriceExclusive] = useState(instrumental?.price_exclusive || 299.99);
     const [tags, setTags] = useState((instrumental?.tags || []).join(', '));
-    // FIX: Corrected property name from 'coverArtUrl' to 'cover_art_url'
     const [coverArtPreview, setCoverArtPreview] = useState(instrumental?.cover_art_url || '');
     const [audioFile, setAudioFile] = useState<File | null>(null);
     const audioFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -38,14 +35,10 @@ const BeatFormModal: React.FC<{
             id: instrumental?.id || `inst-${Date.now()}`,
             title,
             genre,
-            // FIX: Corrected property name from 'priceLease' to 'price_lease'
             price_lease: priceLease,
-            // FIX: Corrected property name from 'priceExclusive' to 'price_exclusive'
             price_exclusive: priceExclusive,
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-            // FIX: Corrected property name from 'audioUrl' to 'audio_url'
             audio_url: instrumental?.audio_url || '', // Will be replaced by the uploaded file URL
-            // FIX: Corrected property name from 'coverArtUrl' to 'cover_art_url'
             cover_art_url: coverArtPreview || `https://picsum.photos/seed/${title.replace(/\s+/g, '')}/200/200`,
         };
         onSave(finalInstrumental, audioFile, coverArtPreview);
@@ -90,7 +83,6 @@ const BeatFormModal: React.FC<{
                                 <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-zinc-600 border-dashed rounded-md hover:border-orange-500 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                     <div className="space-y-1 text-center">
                                         <MusicNoteIcon className="mx-auto h-12 w-12 text-zinc-500" />
-                                        {/* FIX: Corrected property name from 'audioUrl' to 'audio_url' */}
                                         <p className="text-xs text-zinc-400">
                                             {isUploading ? 'Uploading...' : (audioFile ? audioFile.name : (instrumental?.audio_url ? 'Click to replace file' : 'Click to select MP3 or WAV'))}
                                         </p>
@@ -165,13 +157,11 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
 
     const handleSaveInstrumental = async (instrumentalToSave: Instrumental, audioFile: File | null, coverArtUrl: string) => {
         setIsUploading(true);
-        // FIX: Corrected property name from 'coverArtUrl' to 'cover_art_url'
         let finalInstrumental = { ...instrumentalToSave, cover_art_url: coverArtUrl };
 
         try {
             if (audioFile) {
                 const uploadedAudioUrl = await uploadBeatFile(audioFile, producer.id);
-                // FIX: Corrected property name from 'audioUrl' to 'audio_url'
                 finalInstrumental.audio_url = uploadedAudioUrl;
             }
 
@@ -213,17 +203,14 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
             <div className="space-y-4">
                 {producer.instrumentals.length > 0 ? producer.instrumentals.map(inst => (
                     <div key={inst.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-                        {/* FIX: Corrected property name from 'coverArtUrl' to 'cover_art_url' */}
                         <img src={inst.cover_art_url} alt={inst.title} className="w-16 h-16 rounded-md object-cover flex-shrink-0" />
                         <div className="flex-grow">
                             <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><MusicNoteIcon className="w-5 h-5 text-purple-400"/> {inst.title}</h3>
                             <div className="flex items-center gap-4 mt-1">
                                 <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
-                                    {/* FIX: Corrected property name from 'priceLease' to 'price_lease' */}
                                     <DollarSignIcon className="w-4 h-4" /> Lease: ${inst.price_lease.toFixed(2)}
                                 </div>
                                  <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
-                                    {/* FIX: Corrected property name from 'priceExclusive' to 'price_exclusive' */}
                                     <DollarSignIcon className="w-4 h-4" /> Exclusive: ${inst.price_exclusive.toFixed(2)}
                                 </div>
                             </div>

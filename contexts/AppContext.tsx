@@ -237,7 +237,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
         case ActionTypes.NAVIGATE: {
             const { view } = action.payload;
-            // Prevent pushing the same view onto the history stack
             if (view === state.history[state.historyIndex]) {
                 return state;
             }
@@ -277,7 +276,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             const { user, role: explicitRole } = action.payload;
             let role = explicitRole;
 
-            // Fallback role detection if not provided explicitly
             if (!role) {
                 if ('amenities' in user) {
                     role = UserRole.STOODIO;
@@ -290,7 +288,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 }
             }
 
-            // Determine landing page based on role
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
@@ -325,12 +322,13 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.COMPLETE_SETUP: {
             const { newUser, role } = action.payload;
             let updatedState = { ...state };
+            
+            // Use temporary array update, but logic in UPDATE_USERS is better for uniqueness
             if (role === UserRole.ARTIST) updatedState.artists = [...state.artists, newUser as Artist];
             else if (role === UserRole.ENGINEER) updatedState.engineers = [...state.engineers, newUser as Engineer];
             else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];
             else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
 
-            // Make Aria Cantata follow the new user back permanently.
             const aria = updatedState.artists.find(a => a.id === 'artist-aria-cantata');
             if (aria) {
                 let newFollowing: Following = { ...aria.following };
@@ -343,7 +341,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
             }
 
-             // Determine landing page based on role
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
@@ -380,13 +377,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookings: [...state.bookings, action.payload.booking] };
         
         case ActionTypes.UPDATE_USERS: {
-            // IMPORTANT: Use a Map to ensure uniqueness of users by ID. 
-            // This fixes the bug where "Find Producers" or other lists would show duplicates 
-            // if multiple updates were dispatched or if API returned redundant data.
+            // Fix for Issue #6: Use Map to ensure unique IDs when merging new users with existing state
             const newUsers = action.payload.users;
             const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
             
-            // Add existing users to map first
+            // Add existing users to map first to preserve current state
             [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz].forEach(u => allUsersMap.set(u.id, u));
             
             // Add/Overwrite with new users from payload
