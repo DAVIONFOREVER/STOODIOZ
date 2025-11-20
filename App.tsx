@@ -114,116 +114,42 @@ const App: React.FC = () => {
     
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         const supabase = getSupabase();
-        if (!supabase) return;
+        if (!supabase) {
+            alert("System error: Database connection unavailable.");
+            return;
+        }
 
-        // CRITICAL FIX: If creating a new account (email/password present), ensure we start with a clean slate.
-        // This prevents the new profile from being accidentally attached to a stale/previous session.
+        // If creating a new account, ensure we sign out previous session first
         if (userData.email && userData.password) {
             await supabase.auth.signOut();
         }
         
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            // User isn't logged in yet, proceed with full signup flow via apiService
-            await originalCompleteSetup(userData, role);
-            return;
-        }
+        // Use existing user if session active, otherwise it will be created in apiService.createUser
+        const { data: { user: existingUser } } = await supabase.auth.getUser();
 
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
-        let avatarUrl = userData.image_url || USER_SILHOUETTE_URL;
+        try {
+            // Call the consolidated apiService function which handles both auth creation AND profile insertion
+            // AND robustly handles avatar uploads failure.
+            const newUser = await apiService.createUser(userData, role);
 
-        // If a file object is present, upload it first
-        if (userData.imageFile && userData.imageFile instanceof File) {
-            try {
-                avatarUrl = await apiService.uploadAvatar(userData.imageFile, user.id);
-            } catch (error) {
-                console.error("Failed to upload avatar:", error);
-                alert("Failed to upload profile picture. Continuing with default.");
+            if (newUser) {
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
+                
+                // Force navigation based on role
+                if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                else if (role === UserRole.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
             }
-        }
-
-        const tableMap = {
-            [UserRole.ARTIST]: 'artists',
-            [UserRole.STOODIO]: 'stoodioz',
-            [UserRole.ENGINEER]: 'engineers',
-            [UserRole.PRODUCER]: 'producers',
-        };
-        const tableName = tableMap[role];
-        if (!tableName) {
-            console.error("Invalid role for profile creation:", role);
+        } catch (error: any) {
+            console.error("Complete setup failed:", error);
+            alert(`Setup failed: ${error.message || "Unknown error"}`);
+        } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            return;
         }
-        
-        const baseData = {
-            id: user.id,
-            email: user.email,
-            name: userData.name,
-            image_url: avatarUrl,
-            completion_rate: 0,
-            coordinates: { lat: 0, lon: 0 },
-            followers: 0,
-            following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
-            follower_ids: [],
-            wallet_balance: 0,
-            wallet_transactions: [],
-            posts: [],
-            links: [],
-            is_online: true,
-            rating_overall: 0,
-            sessions_completed: 0,
-            ranking_tier: RankingTier.Provisional,
-            is_on_streak: false,
-            on_time_rate: 100,
-            repeat_hire_rate: 0,
-            strength_tags: [],
-            local_rank_text: 'Just getting started!',
-            purchased_masterclass_ids: [],
-        };
-
-        let profileData: any = {};
-        switch (role) {
-            case UserRole.ARTIST:
-                profileData = { ...baseData, bio: userData.bio, is_seeking_session: false, show_on_map: false };
-                break;
-            case UserRole.ENGINEER:
-                profileData = { ...baseData, bio: userData.bio, specialties: [], mixing_samples: [], is_available: true, show_on_map: true, display_exact_location: false };
-                break;
-            case UserRole.PRODUCER:
-                profileData = { ...baseData, bio: userData.bio, genres: [], instrumentals: [], is_available: true, show_on_map: true };
-                break;
-            case UserRole.STOODIO:
-                profileData = { ...baseData, description: userData.description, location: userData.location, business_address: userData.businessAddress, hourly_rate: 100, engineer_pay_rate: 50, amenities: [], availability: [], photos: [avatarUrl], rooms: [], verification_status: 'UNVERIFIED', show_on_map: true };
-                break;
-        }
-
-        const { data: newProfile, error } = await supabase
-            .from(tableName)
-            .insert(profileData)
-            .select()
-            .single();
-        
-        if (error) {
-            console.error("Error inserting profile:", error);
-            alert(`Error: ${error.message}`);
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            return;
-        }
-
-        if (newProfile) {
-            dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newProfile as any, role } });
-            // Ensure loading is turned off after setup is complete to prevent "slow/sloppy" feeling
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-
-            // Force navigation based on role immediately
-            if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
-            else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
-            else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
-            else if (role === UserRole.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-        }
-    }, [dispatch, originalCompleteSetup, navigate]);
+    }, [dispatch, navigate]);
 
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
@@ -254,11 +180,8 @@ const App: React.FC = () => {
         if (!supabase) return;
 
         const handleAuthStateChange = async (event: string, session: Session | null) => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-
             if (event === 'SIGNED_OUT' || !session) {
                 dispatch({ type: ActionTypes.LOGOUT });
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
                 return;
             }
             
@@ -266,14 +189,17 @@ const App: React.FC = () => {
                 const userId = session.user.id;
                 const userEmail = session.user.email;
                 
-                const fetchProfiles = async () => {
-                    // 1. Strict Role Check: If the user signed up with a specific role, check that table first.
-                    const metaRole = session.user.user_metadata?.role;
+                // Optimization: If we already have the correct user in state, don't refetch
+                if (currentUser && currentUser.id === userId) return;
 
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+
+                const fetchProfiles = async () => {
+                    // 1. Strict Role Check
+                    const metaRole = session.user.user_metadata?.role;
                     if (metaRole) {
                         let targetTable = '';
                         let targetQuery = '*';
-
                         if (metaRole === 'STOODIO') { targetTable = 'stoodioz'; targetQuery = '*, rooms(*), in_house_engineers(*)'; }
                         else if (metaRole === 'ENGINEER') { targetTable = 'engineers'; targetQuery = '*, mixing_samples(*)'; }
                         else if (metaRole === 'PRODUCER') { targetTable = 'producers'; targetQuery = '*, instrumentals(*)'; }
@@ -292,54 +218,38 @@ const App: React.FC = () => {
                         engineers: '*, mixing_samples(*)',
                         artists: '*',
                     };
-    
-                    // Strategy 1: Fetch by ID
                     const idPromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
                         supabase.from(tableName).select(selectQuery).eq('id', userId).single()
                     );
-                    
                     const idResults = await Promise.all(idPromises);
                     const foundById = idResults.find(result => result.data);
                     if (foundById) return foundById;
-
-                    // Strategy 2: Fetch by Email (Fallback)
-                    if (userEmail) {
-                         const emailPromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
-                            supabase.from(tableName).select(selectQuery).eq('email', userEmail).single()
-                        );
-                        const emailResults = await Promise.all(emailPromises);
-                        return emailResults.find(result => result.data);
-                    }
 
                     return null;
                 };
                 
                 try {
-                    let userProfileResult = null;
-                    let attempts = 0;
-
-                    // Improved Retry logic: Loop up to 3 times with 1s delay
-                    while (!userProfileResult && attempts < 3) {
-                        userProfileResult = await fetchProfiles();
-                        if (!userProfileResult) {
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                            attempts++;
-                        }
+                    let userProfileResult = await fetchProfiles();
+                    
+                    // Retry logic for race conditions on signup
+                    if (!userProfileResult) {
+                         await new Promise(resolve => setTimeout(resolve, 1000));
+                         userProfileResult = await fetchProfiles();
                     }
 
                     if (userProfileResult && userProfileResult.data) {
                         dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfileResult.data as any } });
                     } else {
-                        console.warn(`Auth session for user ${userId} found, but no profile after retries. Navigating to setup.`);
-                        navigate(AppView.CHOOSE_PROFILE);
+                        // If we have a session but no profile, send to setup
+                         navigate(AppView.CHOOSE_PROFILE);
                     }
                 } catch (error) {
-                    console.error("A network error occurred while fetching user profiles:", error);
-                    dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to fetch your profile. Please try again." } });
+                    console.error("Error fetching user profiles:", error);
+                    dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
+                } finally {
+                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
                 }
             }
-            
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         };
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
@@ -347,7 +257,7 @@ const App: React.FC = () => {
         return () => {
             subscription?.unsubscribe();
         };
-    }, [dispatch, navigate]);
+    }, [dispatch, navigate, currentUser]); // Dependencies critical for stability
 
     useEffect(() => {
         let timerId: number;
@@ -359,11 +269,8 @@ const App: React.FC = () => {
                 }
             });
         }
-        
         return () => {
-            if (timerId) {
-                clearTimeout(timerId);
-            }
+            if (timerId) clearTimeout(timerId);
         };
     }, [currentUser, userRole, dispatch]);
 

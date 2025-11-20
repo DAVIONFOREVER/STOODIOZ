@@ -5,20 +5,26 @@ import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
 import { generateInvoicePDF } from '../lib/pdf';
 
-// --- HELPER FUNCTIONS (Defined before use) ---
+// --- HELPER FUNCTIONS ---
 
-// Timeout to prevent infinite hanging on uploads (60 seconds)
+// Timeout helper: Rejects if the promise doesn't resolve within ms
 const timeoutPromise = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error(`Request timed out after ${ms/1000} seconds`)), ms));
 
-// Generic upload function with timeout and error handling
+// Robust upload function that fails gracefully
 const uploadFile = async (file: File | Blob, bucket: string, path: string): Promise<string> => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized");
+    if (!supabase) {
+        console.warn("Supabase not configured. Returning blob URL.");
+        return URL.createObjectURL(file as Blob);
+    }
 
     try {
-        const uploadPromise = supabase.storage.from(bucket).upload(path, file, { upsert: true });
-        // Race against timeout
-        const result: any = await Promise.race([uploadPromise, timeoutPromise(60000)]);
+        // Race the upload against a 15-second timeout to prevent freezing
+        const uploadTask = supabase.storage.from(bucket).upload(path, file, { upsert: true });
+        const result: any = await Promise.race([
+            uploadTask,
+            timeoutPromise(15000) // 15 second hard timeout
+        ]);
         
         if (result.error) throw result.error;
 
@@ -26,7 +32,7 @@ const uploadFile = async (file: File | Blob, bucket: string, path: string): Prom
         return publicUrl;
     } catch (error: any) {
         console.error(`Upload failed to ${bucket}/${path}:`, error);
-        // Fallback for demo if RLS fails
+        // CRITICAL FIX: Fallback to local object URL so the app flow doesn't break if storage is misconfigured
         return URL.createObjectURL(file as Blob);
     }
 };
@@ -62,7 +68,6 @@ export const uploadMixingSampleFile = async (file: File, userId: string): Promis
 };
 
 export const uploadDocument = async (file: Blob, fileName: string, userId: string): Promise<string> => {
-    // Sanitize filename
     const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
     const path = `${userId}/docs/${Date.now()}_${safeName}`;
     return uploadFile(file, 'documents', path);
@@ -74,7 +79,7 @@ const getTableFromRole = (role: UserRole): string => {
         case UserRoleEnum.ENGINEER: return 'engineers';
         case UserRoleEnum.PRODUCER: return 'producers';
         case UserRoleEnum.STOODIO: return 'stoodioz';
-        default: return 'artists'; // Fallback
+        default: return 'artists';
     }
 };
 
@@ -88,15 +93,11 @@ const inferUserTable = (user: any): string => {
 // --- INVOICE GENERATION ---
 export const generateAndStoreInvoice = async (booking: Booking, buyer: BaseUser, seller: BaseUser) => {
     try {
-        // 1. Generate PDF
         const pdfBytes = await generateInvoicePDF(booking, buyer, seller);
         const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' });
-
-        // 2. Upload to Supabase
         const safeName = `invoice_${booking.id}_${Date.now()}.pdf`;
         const invoiceUrl = await uploadDocument(pdfBlob, safeName, buyer.id);
 
-        // 3. Update Booking Record
         const supabase = getSupabase();
         if (supabase) {
             await supabase
@@ -104,14 +105,12 @@ export const generateAndStoreInvoice = async (booking: Booking, buyer: BaseUser,
                 .update({ invoice_url: invoiceUrl })
                 .eq('id', booking.id);
         }
-
         return invoiceUrl;
     } catch (error) {
         console.error("Failed to generate automatic invoice:", error);
         return null;
     }
 };
-
 
 // --- USER MANAGEMENT ---
 
@@ -134,13 +133,18 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     if (authError) throw authError;
     if (!authUser) return null;
 
-    // 2. Upload Avatar if provided (userData.imageFile)
+    // 2. Upload Avatar (Robust handling)
     let avatarUrl = userData.image_url || USER_SILHOUETTE_URL;
     if (userData.imageFile) {
         try {
+             // This will now timeout gracefully if storage is broken
              avatarUrl = await uploadAvatar(userData.imageFile, authUser.id);
         } catch (e) {
-            console.error("Avatar upload failed during signup", e);
+            console.error("Avatar upload failed, continuing with default/local URL:", e);
+            // Ensure we have *some* URL so the profile image isn't broken
+            if (userData.imageFile) {
+                avatarUrl = URL.createObjectURL(userData.imageFile);
+            }
         }
     }
 
@@ -151,7 +155,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         name: userData.name,
         image_url: avatarUrl,
         completion_rate: 0,
-        coordinates: { lat: 0, lon: 0 }, // Default, usually updated later or via map
+        coordinates: { lat: 0, lon: 0 },
         followers: 0,
         following: { stoodioz: [], engineers: [], artists: ["artist-aria-cantata"], producers: [] },
         follower_ids: [],
@@ -203,9 +207,21 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
                 show_on_map: true 
             };
             break;
-        default:
-            console.error("Unknown role:", role);
-            return null;
+    }
+
+    // CRITICAL: Check if profile already exists to avoid unique constraint errors on retry
+    const { data: existingProfile } = await supabase.from(tableName).select('id').eq('id', authUser.id).single();
+    
+    if (existingProfile) {
+        console.log("Profile already exists, updating instead of inserting.");
+        const { data: updatedProfile, error: updateError } = await supabase
+            .from(tableName)
+            .update({ ...baseData, ...specificData })
+            .eq('id', authUser.id)
+            .select()
+            .single();
+        if (updateError) throw updateError;
+        return updatedProfile as any;
     }
 
     const { data: newProfile, error: profileError } = await supabase
@@ -215,7 +231,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         .single();
 
     if (profileError) {
-        console.error("Error creating profile:", profileError);
+        console.error("Error inserting profile:", profileError);
         throw profileError;
     }
 
@@ -224,7 +240,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
 export const updateUser = async (userId: string, table: string, updates: any) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) return null;
 
     const { data, error } = await supabase
         .from(table)
@@ -241,9 +257,8 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    // 1. Update Current User's "following" list
     const currentFollowing = { ...currentUser.following };
-    const listKey = `${targetType}s` as keyof typeof currentFollowing; // e.g., 'artists', 'stoodioz'
+    const listKey = `${targetType}s` as keyof typeof currentFollowing;
     
     let newList = currentFollowing[listKey] || [];
     if (isFollowing) {
@@ -253,7 +268,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
     }
     currentFollowing[listKey] = newList;
 
-    // 2. Update Target User's "follower_ids" list
     let targetFollowers = targetUser.follower_ids || [];
     if (isFollowing) {
         targetFollowers = targetFollowers.filter((id: string) => id !== currentUser.id);
@@ -261,7 +275,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
         targetFollowers = [...targetFollowers, currentUser.id];
     }
 
-    // Update Current User
     const { data: updatedCurrent } = await supabase
         .from(inferUserTable(currentUser))
         .update({ following: currentFollowing })
@@ -269,7 +282,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
         .select()
         .single();
 
-    // Update Target User
     const { data: updatedTarget } = await supabase
         .from(inferUserTable(targetUser))
         .update({ 
@@ -285,13 +297,11 @@ export const toggleFollow = async (currentUser: any, targetUser: any, targetType
 
 export const submitForVerification = async (stoodioId: string, data: { googleBusinessProfileUrl: string, websiteUrl: string }) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) return null;
 
     const { data: updatedStoodio, error } = await supabase
         .from('stoodioz')
-        .update({ 
-            verification_status: VerificationStatus.PENDING,
-        })
+        .update({ verification_status: VerificationStatus.PENDING })
         .eq('id', stoodioId)
         .select()
         .single();
@@ -310,20 +320,12 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio, u
     const newBooking: Booking = {
         id: bookingId,
         ...request,
-        status: BookingStatus.PENDING, // Or CONFIRMED if auto-confirm
+        status: userRole === UserRoleEnum.STOODIO ? BookingStatus.PENDING : BookingStatus.PENDING_APPROVAL,
         booked_by_id: user.id,
         booked_by_role: userRole,
         stoodio: stoodio,
-        posted_by: userRole, // If created by studio, it's a job post
+        posted_by: userRole,
     };
-
-    // If it's a job post (created by studio), status is PENDING until accepted
-    if (userRole === UserRoleEnum.STOODIO) {
-         newBooking.status = BookingStatus.PENDING;
-    } else {
-        // If booked by artist, it might need approval
-        newBooking.status = BookingStatus.PENDING_APPROVAL;
-    }
 
     const { data, error } = await supabase
         .from('bookings')
@@ -354,13 +356,13 @@ export const respondToBooking = async (booking: Booking, response: 'accept' | 'd
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    const status = response === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED; // Or DENIED
+    const status = response === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
 
     const { data, error } = await supabase
         .from('bookings')
         .update({ 
             status,
-            engineer: response === 'accept' ? responder : booking.engineer // Assign engineer if accepted
+            engineer: response === 'accept' ? responder : booking.engineer
         })
         .eq('id', booking.id)
         .select()
@@ -387,9 +389,6 @@ export const acceptJob = async (booking: Booking, engineer: Engineer): Promise<B
 
     if (error) throw error;
 
-    // AUTO-GENERATE INVOICE for job acceptance
-    // Studio (booking.stoodio) is paying Engineer (engineer)
-    // We ensure booking.stoodio exists because it was a job post (posted_by STOODIO)
     if (data && booking.stoodio) {
         await generateAndStoreInvoice(data, booking.stoodio, engineer);
     }
@@ -409,18 +408,12 @@ export const endSession = async (booking: Booking): Promise<{ updatedBooking: Bo
         .single();
 
     if (error) throw error;
-    
-    // Trigger payout logic here in real backend
-    
     return { updatedBooking: data as Booking };
 };
 
 // --- FINANCIALS (MOCKED STRIPE) ---
 
 export const createCheckoutSessionForBooking = async (bookingRequest: BookingRequest, stoodioId: string | undefined, userId: string, userRole: UserRole) => {
-    // In a real backend, this is where we'd also generate the invoice after successful webhook callback.
-    // For this demo, we'll assume successful payment immediately triggers invoice generation logic 
-    // elsewhere (e.g., in the purchaseBeat or confirmation hooks).
     return { sessionId: 'mock_session_id_' + Date.now() };
 };
 
@@ -446,7 +439,6 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
     
     const price = type === 'lease' ? instrumental.price_lease : instrumental.price_exclusive;
     
-    // 1. Create Transaction
     const transaction: Transaction = {
         id: `txn-${Date.now()}`,
         date: new Date().toISOString(),
@@ -457,7 +449,6 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
         related_user_name: producer.name
     };
 
-    // 2. Create "Booking" record to represent the purchase
     const booking: Booking = {
         id: `bk-beat-${Date.now()}`,
         date: new Date().toISOString().split('T')[0],
@@ -476,7 +467,6 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
     const { data: newBooking, error: bookingError } = await supabase.from('bookings').insert(booking).select().single();
     if (bookingError) throw bookingError;
 
-    // 3. Update Wallet
     const currentTransactions = buyer.wallet_transactions || [];
     const updatedTransactions = [...currentTransactions, transaction];
 
@@ -487,10 +477,8 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
 
     if (userError) throw userError;
 
-    // 4. AUTO-GENERATE INVOICE
     if (newBooking) {
         await generateAndStoreInvoice(newBooking, buyer, producer);
-        // Fetch updated booking with invoice URL
         const { data: finalBooking } = await supabase.from('bookings').select('*').eq('id', newBooking.id).single();
         return { updatedBooking: finalBooking as Booking };
     }
@@ -500,7 +488,6 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
 
 // --- SOCIAL ---
 
-// NEW: Fetch global feed from 'posts' table with pagination
 export const fetchGlobalFeed = async (limit: number = 10, beforeTimestamp?: string): Promise<Post[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
@@ -521,7 +508,6 @@ export const fetchGlobalFeed = async (limit: number = 10, beforeTimestamp?: stri
         return [];
     }
 
-    // Map DB snake_case to camelCase expected by UI types
     return (data || []).map((row: any) => ({
         id: row.id,
         authorId: row.author_id,
@@ -541,7 +527,6 @@ export const createPost = async (postData: any, user: any, userRole: UserRole) =
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    // 1. Write to new 'posts' table (Global Feed)
     const postForDb = {
         id: `post-${Date.now()}`,
         author_id: user.id,
@@ -559,7 +544,7 @@ export const createPost = async (postData: any, user: any, userRole: UserRole) =
     const { error: dbError } = await supabase.from('posts').insert(postForDb);
     if (dbError) console.error("Error inserting into posts table:", dbError);
 
-    // 2. Write to legacy JSONB column (User Profile) - Keeping this for backward compatibility with profiles
+    // Update user profile posts for backward compatibility
     const newPost: Post = {
         id: postForDb.id,
         authorId: user.id,
@@ -593,41 +578,26 @@ export const likePost = async (postId: string, userId: string, author: any) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    // 1. Fetch current post from 'posts' table to get latest likes
-    const { data: postData, error: fetchError } = await supabase
-        .from('posts')
-        .select('likes')
-        .eq('id', postId)
-        .single();
+    const { data: postData } = await supabase.from('posts').select('likes').eq('id', postId).single();
 
-    let newLikes: string[] = [];
-    
-    // If post exists in global table, update it
     if (postData) {
-        const currentLikes = postData.likes || [];
-        if (currentLikes.includes(userId)) {
-            newLikes = currentLikes.filter((id: string) => id !== userId);
+        let newLikes = postData.likes || [];
+        if (newLikes.includes(userId)) {
+            newLikes = newLikes.filter((id: string) => id !== userId);
         } else {
-            newLikes = [...currentLikes, userId];
+            newLikes = [...newLikes, userId];
         }
         await supabase.from('posts').update({ likes: newLikes }).eq('id', postId);
     }
 
-    // 2. Update legacy JSONB in user profile (optimistic fallback if global table fetch failed/didn't exist)
+    // Legacy update logic for profile compatibility
     const posts = author.posts || [];
     const postIndex = posts.findIndex((p: Post) => p.id === postId);
-    
     if (postIndex === -1) return author;
 
     const post = posts[postIndex];
     const isLiked = post.likes.includes(userId);
-    
-    let legacyLikes = [...post.likes];
-    if (isLiked) {
-        legacyLikes = legacyLikes.filter((id: string) => id !== userId);
-    } else {
-        legacyLikes.push(userId);
-    }
+    let legacyLikes = isLiked ? post.likes.filter((id: string) => id !== userId) : [...post.likes, userId];
 
     const updatedPost = { ...post, likes: legacyLikes };
     const updatedPosts = [...posts];
@@ -658,17 +628,14 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
         timestamp: new Date().toISOString()
     };
 
-    // 1. Update global posts table
     const { data: postData } = await supabase.from('posts').select('comments').eq('id', postId).single();
     if (postData) {
         const currentComments = postData.comments || [];
         await supabase.from('posts').update({ comments: [...currentComments, newComment] }).eq('id', postId);
     }
 
-    // 2. Update legacy JSONB
     const posts = author.posts || [];
     const postIndex = posts.findIndex((p: Post) => p.id === postId);
-
     if (postIndex === -1) return author;
 
     const post = posts[postIndex];
@@ -694,253 +661,123 @@ export const upsertRoom = async (room: Room, stoodioId: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    // First get current studio to append to rooms array
-    const { data: studio, error: fetchError } = await supabase
-        .from('stoodioz')
-        .select('rooms')
-        .eq('id', stoodioId)
-        .single();
-    
-    if (fetchError) throw fetchError;
-
-    const currentRooms: Room[] = studio.rooms || [];
+    const { data: studio } = await supabase.from('stoodioz').select('rooms').eq('id', stoodioId).single();
+    const currentRooms: Room[] = studio?.rooms || [];
     const roomIndex = currentRooms.findIndex(r => r.id === room.id);
     let updatedRooms = [...currentRooms];
 
-    if (roomIndex >= 0) {
-        updatedRooms[roomIndex] = room;
-    } else {
-        updatedRooms.push(room);
-    }
+    if (roomIndex >= 0) updatedRooms[roomIndex] = room;
+    else updatedRooms.push(room);
 
-    const { data: updatedStudio, error: updateError } = await supabase
-        .from('stoodioz')
-        .update({ rooms: updatedRooms })
-        .eq('id', stoodioId)
-        .select()
-        .single();
-
-    if (updateError) throw updateError;
+    const { data: updatedStudio, error } = await supabase.from('stoodioz').update({ rooms: updatedRooms }).eq('id', stoodioId).select().single();
+    if (error) throw error;
     return updatedStudio;
 };
 
 export const deleteRoom = async (roomId: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
-    
-    // Get user session to identify which studio to update
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
-    const { data: studio, error: fetchError } = await supabase
-        .from('stoodioz')
-        .select('rooms')
-        .eq('id', user.id)
-        .single();
+    const { data: studio } = await supabase.from('stoodioz').select('rooms').eq('id', user.id).single();
+    const updatedRooms = (studio?.rooms || []).filter((r: Room) => r.id !== roomId);
 
-    if (fetchError) throw fetchError;
-
-    const updatedRooms = (studio.rooms || []).filter((r: Room) => r.id !== roomId);
-
-    const { error: updateError } = await supabase
-        .from('stoodioz')
-        .update({ rooms: updatedRooms })
-        .eq('id', user.id);
-
-    if (updateError) throw updateError;
+    const { error } = await supabase.from('stoodioz').update({ rooms: updatedRooms }).eq('id', user.id);
+    if (error) throw error;
 };
-
 
 export const upsertInstrumental = async (instrumental: Instrumental, producerId: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    const { data: producer, error: fetchError } = await supabase
-        .from('producers')
-        .select('instrumentals')
-        .eq('id', producerId)
-        .single();
-    
-    if (fetchError) throw fetchError;
-
-    const currentBeats: Instrumental[] = producer.instrumentals || [];
+    const { data: producer } = await supabase.from('producers').select('instrumentals').eq('id', producerId).single();
+    const currentBeats: Instrumental[] = producer?.instrumentals || [];
     const index = currentBeats.findIndex(i => i.id === instrumental.id);
     let updatedBeats = [...currentBeats];
 
-    if (index >= 0) {
-        updatedBeats[index] = instrumental;
-    } else {
-        updatedBeats.push(instrumental);
-    }
+    if (index >= 0) updatedBeats[index] = instrumental;
+    else updatedBeats.push(instrumental);
 
-    const { error: updateError } = await supabase
-        .from('producers')
-        .update({ instrumentals: updatedBeats })
-        .eq('id', producerId);
-
-    if (updateError) throw updateError;
+    const { error } = await supabase.from('producers').update({ instrumentals: updatedBeats }).eq('id', producerId);
+    if (error) throw error;
 };
-
 
 export const deleteInstrumental = async (instrumentalId: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
-    
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
-    const { data: producer, error: fetchError } = await supabase
-        .from('producers')
-        .select('instrumentals')
-        .eq('id', user.id)
-        .single();
+    const { data: producer } = await supabase.from('producers').select('instrumentals').eq('id', user.id).single();
+    const updatedBeats = (producer?.instrumentals || []).filter((i: Instrumental) => i.id !== instrumentalId);
 
-    if (fetchError) throw fetchError;
-
-    const updatedBeats = (producer.instrumentals || []).filter((i: Instrumental) => i.id !== instrumentalId);
-
-    const { error: updateError } = await supabase
-        .from('producers')
-        .update({ instrumentals: updatedBeats })
-        .eq('id', user.id);
-
-    if (updateError) throw updateError;
+    const { error } = await supabase.from('producers').update({ instrumentals: updatedBeats }).eq('id', user.id);
+    if (error) throw error;
 };
 
 export const upsertMixingSample = async (sample: MixingSample, engineerId: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    const { data: engineer, error: fetchError } = await supabase
-        .from('engineers')
-        .select('mixing_samples')
-        .eq('id', engineerId)
-        .single();
-    
-    if (fetchError) throw fetchError;
-
-    const currentSamples: MixingSample[] = engineer.mixing_samples || [];
+    const { data: engineer } = await supabase.from('engineers').select('mixing_samples').eq('id', engineerId).single();
+    const currentSamples: MixingSample[] = engineer?.mixing_samples || [];
     const index = currentSamples.findIndex(s => s.id === sample.id);
     let updatedSamples = [...currentSamples];
 
-    if (index >= 0) {
-        updatedSamples[index] = sample;
-    } else {
-        updatedSamples.push(sample);
-    }
+    if (index >= 0) updatedSamples[index] = sample;
+    else updatedSamples.push(sample);
 
-    const { error: updateError } = await supabase
-        .from('engineers')
-        .update({ mixing_samples: updatedSamples })
-        .eq('id', engineerId);
-
-    if (updateError) throw updateError;
+    const { error } = await supabase.from('engineers').update({ mixing_samples: updatedSamples }).eq('id', engineerId);
+    if (error) throw error;
 };
 
 export const deleteMixingSample = async (sampleId: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
-    
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
-    const { data: engineer, error: fetchError } = await supabase
-        .from('engineers')
-        .select('mixing_samples')
-        .eq('id', user.id)
-        .single();
+    const { data: engineer } = await supabase.from('engineers').select('mixing_samples').eq('id', user.id).single();
+    const updatedSamples = (engineer?.mixing_samples || []).filter((s: MixingSample) => s.id !== sampleId);
 
-    if (fetchError) throw fetchError;
-
-    const updatedSamples = (engineer.mixing_samples || []).filter((s: MixingSample) => s.id !== sampleId);
-
-    const { error: updateError } = await supabase
-        .from('engineers')
-        .update({ mixing_samples: updatedSamples })
-        .eq('id', user.id);
-
-    if (updateError) throw updateError;
+    const { error } = await supabase.from('engineers').update({ mixing_samples: updatedSamples }).eq('id', user.id);
+    if (error) throw error;
 };
-
 
 export const upsertInHouseEngineer = async (info: InHouseEngineerInfo, stoodioId: string) => {
      const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    const { data: studio, error: fetchError } = await supabase
-        .from('stoodioz')
-        .select('in_house_engineers')
-        .eq('id', stoodioId)
-        .single();
-    
-    if (fetchError) throw fetchError;
-
-    const currentEngineers: InHouseEngineerInfo[] = studio.in_house_engineers || [];
-    // Check if already exists
+    const { data: studio } = await supabase.from('stoodioz').select('in_house_engineers').eq('id', stoodioId).single();
+    const currentEngineers: InHouseEngineerInfo[] = studio?.in_house_engineers || [];
     const index = currentEngineers.findIndex(e => e.engineer_id === info.engineer_id);
     let updatedEngineers = [...currentEngineers];
 
-    if (index >= 0) {
-        updatedEngineers[index] = info;
-    } else {
-        updatedEngineers.push(info);
-    }
+    if (index >= 0) updatedEngineers[index] = info;
+    else updatedEngineers.push(info);
 
-    const { error: updateError } = await supabase
-        .from('stoodioz')
-        .update({ in_house_engineers: updatedEngineers })
-        .eq('id', stoodioId);
-
-    if (updateError) throw updateError;
+    const { error } = await supabase.from('stoodioz').update({ in_house_engineers: updatedEngineers }).eq('id', stoodioId);
+    if (error) throw error;
 };
 
 export const deleteInHouseEngineer = async (engineerId: string, stoodioId: string) => {
      const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    const { data: studio, error: fetchError } = await supabase
-        .from('stoodioz')
-        .select('in_house_engineers')
-        .eq('id', stoodioId)
-        .single();
-    
-    if (fetchError) throw fetchError;
+    const { data: studio } = await supabase.from('stoodioz').select('in_house_engineers').eq('id', stoodioId).single();
+    const updatedEngineers = (studio?.in_house_engineers || []).filter((e: InHouseEngineerInfo) => e.engineer_id !== engineerId);
 
-    const updatedEngineers = (studio.in_house_engineers || []).filter((e: InHouseEngineerInfo) => e.engineer_id !== engineerId);
-
-    const { error: updateError } = await supabase
-        .from('stoodioz')
-        .update({ in_house_engineers: updatedEngineers })
-        .eq('id', stoodioId);
-
-    if (updateError) throw updateError;
+    const { error } = await supabase.from('stoodioz').update({ in_house_engineers: updatedEngineers }).eq('id', stoodioId);
+    if (error) throw error;
 };
 
 export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number): Promise<AnalyticsData> => {
-    // Return clean empty data for new users to avoid confusion with random numbers
     const emptyData: AnalyticsData = {
-        kpis: {
-            totalRevenue: 0,
-            profileViews: 0,
-            newFollowers: 0,
-            bookings: 0
-        },
-        revenueOverTime: Array.from({ length: 10 }, (_, i) => ({
-            date: new Date(Date.now() - i * 86400000).toISOString(),
-            revenue: 0
-        })).reverse(),
-        engagementOverTime: Array.from({ length: 10 }, (_, i) => ({
-            date: new Date(Date.now() - i * 86400000).toISOString(),
-            views: 0,
-            followers: 0,
-            likes: 0
-        })).reverse(),
-        revenueSources: [
-            { name: 'Bookings', revenue: 0 },
-            { name: 'Tips', revenue: 0 },
-            { name: 'Mixing', revenue: 0 }
-        ]
+        kpis: { totalRevenue: 0, profileViews: 0, newFollowers: 0, bookings: 0 },
+        revenueOverTime: Array.from({ length: 10 }, (_, i) => ({ date: new Date(Date.now() - i * 86400000).toISOString(), revenue: 0 })).reverse(),
+        engagementOverTime: Array.from({ length: 10 }, (_, i) => ({ date: new Date(Date.now() - i * 86400000).toISOString(), views: 0, followers: 0, likes: 0 })).reverse(),
+        revenueSources: [{ name: 'Bookings', revenue: 0 }, { name: 'Tips', revenue: 0 }, { name: 'Mixing', revenue: 0 }]
     };
-    
     return emptyData;
 };

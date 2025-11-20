@@ -39,10 +39,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     useEffect(() => {
         if (videoRef.current) {
             if (isVisible) {
-                videoRef.current.play().catch(e => {
-                    // Autoplay policy might block this without interaction, which is expected
-                    // console.log("Autoplay blocked", e); 
-                });
+                const playPromise = videoRef.current.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                         // Auto-play was prevented
+                         // console.log("Autoplay blocked");
+                    });
+                }
             } else {
                 videoRef.current.pause();
             }
@@ -240,4 +243,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     );
 };
 
-export default PostCard;
+// Use React.memo to prevent re-rendering if props haven't changed
+export default React.memo(PostCard, (prevProps, nextProps) => {
+    return (
+        prevProps.post.id === nextProps.post.id &&
+        prevProps.post.likes.length === nextProps.post.likes.length &&
+        prevProps.post.comments.length === nextProps.post.comments.length &&
+        prevProps.author.id === nextProps.author.id
+    );
+});

@@ -5,23 +5,28 @@ export function useOnScreen<T extends Element>(ref: MutableRefObject<T | null>, 
   const [isIntersecting, setIntersecting] = useState<boolean>(false);
 
   useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIntersecting(entry.isIntersecting);
       },
       {
         rootMargin,
+        threshold: 0.1 // Slightly less sensitive than 0
       }
     );
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
+
+    observer.observe(element);
+
     return () => {
-      if (ref.current) {
-        observer.unobserve(ref.current);
+      if (element) {
+        observer.unobserve(element);
       }
+      observer.disconnect();
     };
-  }, [ref, rootMargin]);
+  }, [ref, rootMargin]); // Re-run only if ref or margin changes
 
   return isIntersecting;
 }
