@@ -38,7 +38,7 @@ const BeatFormModal: React.FC<{
             price_lease: priceLease,
             price_exclusive: priceExclusive,
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-            audio_url: instrumental?.audio_url || '', // Will be replaced by the uploaded file URL
+            audio_url: instrumental?.audio_url || '', 
             cover_art_url: coverArtPreview || `https://picsum.photos/seed/${title.replace(/\s+/g, '')}/200/200`,
         };
         onSave(finalInstrumental, audioFile, coverArtPreview);
@@ -166,14 +166,13 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
             }
 
             await upsertInstrumental(finalInstrumental, producer.id);
-            onRefresh();
-            
+            await onRefresh(); // Ensure we wait for refresh
+            setIsModalOpen(false);
+            setEditingInstrumental(null);
         } catch (error) {
             console.error("Failed to save instrumental:", error);
             alert("Error saving beat. Please check the console for details.");
         } finally {
-            setIsModalOpen(false);
-            setEditingInstrumental(null);
             setIsUploading(false);
         }
     };
@@ -201,7 +200,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
             </div>
             
             <div className="space-y-4">
-                {producer.instrumentals.length > 0 ? producer.instrumentals.map(inst => (
+                {(producer.instrumentals || []).length > 0 ? producer.instrumentals.map(inst => (
                     <div key={inst.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                         <img src={inst.cover_art_url} alt={inst.title} className="w-16 h-16 rounded-md object-cover flex-shrink-0" />
                         <div className="flex-grow">

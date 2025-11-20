@@ -29,10 +29,14 @@ const PlanCard: React.FC<{
     badge?: string;
     onClick: () => void;
     disabled?: boolean;
-}> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick, disabled = false }) => (
-    <div className={`relative p-8 flex flex-col cardSurface ${isFeatured ? 'border-2 border-orange-500' : ''} ${disabled && title !== 'Artist' ? 'opacity-60' : ''}`}>
+    isCurrentPlan?: boolean;
+}> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick, disabled = false, isCurrentPlan }) => (
+    <div className={`relative p-8 flex flex-col cardSurface ${isFeatured ? 'border-2 border-orange-500' : ''} ${disabled && !isCurrentPlan && title !== 'Artist' ? 'opacity-60' : ''} ${isCurrentPlan ? 'ring-4 ring-green-500/50' : ''}`}>
         {badge && (
             <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">{badge}</div>
+        )}
+        {isCurrentPlan && (
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white text-sm font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">Current Plan</div>
         )}
         <div className="flex-grow">
             <div className="flex items-center gap-3 mb-4">
@@ -55,14 +59,14 @@ const PlanCard: React.FC<{
             <p className="text-center text-zinc-400 italic text-sm mb-6 h-10 flex items-center justify-center">“{tagline}”</p>
             <button 
                 onClick={onClick}
-                disabled={disabled}
+                disabled={disabled || isCurrentPlan}
                 className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${
-                    isFeatured && !disabled ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' 
+                    isFeatured && !disabled && !isCurrentPlan ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' 
                     : 'bg-zinc-700 text-white'} ${
-                    disabled ? 'cursor-not-allowed bg-zinc-600' : 'hover:bg-zinc-600'
+                    (disabled || isCurrentPlan) ? 'cursor-not-allowed bg-zinc-600 text-zinc-400' : 'hover:bg-zinc-600'
                 }`}
             >
-                {buttonText}
+                {isCurrentPlan ? "Active" : buttonText}
             </button>
         </div>
     </div>
@@ -84,6 +88,9 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
     
     const isSubscribed = (plan: SubscriptionPlan) => 
         currentUser?.subscription?.status === 'active' && currentUser?.subscription?.plan === plan;
+        
+    // Determine implied plan based on role if no explicit subscription object
+    const currentPlanRole = userRole;
 
     return (
         <div className="max-w-7xl mx-auto animate-fade-in">
@@ -111,6 +118,7 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                     buttonText="Start Free"
                     onClick={() => handlePlanSelection(UserRole.ARTIST)}
                     disabled={!!currentUser}
+                    isCurrentPlan={!!currentUser && currentPlanRole === UserRole.ARTIST}
                 />
                 <PlanCard
                     icon={<MusicNoteIcon className="w-8 h-8 text-purple-400"/>}
@@ -124,9 +132,10 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                         "Track your sales and profile growth with an advanced Analytics Dashboard."
                     ]}
                     tagline="Turn your beats into a business."
-                    buttonText={isSubscribed(SubscriptionPlan.PRODUCER_PRO) ? "Current Plan" : "Upgrade Now"}
+                    buttonText="Upgrade Now"
                     onClick={() => handlePlanSelection(UserRole.PRODUCER)}
                     disabled={isSubscribed(SubscriptionPlan.PRODUCER_PRO) || (!!currentUser && userRole !== UserRole.PRODUCER)}
+                    isCurrentPlan={isSubscribed(SubscriptionPlan.PRODUCER_PRO) || (!!currentUser && currentPlanRole === UserRole.PRODUCER)}
                 />
                  <PlanCard
                     icon={<SoundWaveIcon className="w-8 h-8 text-indigo-400"/>}
@@ -141,9 +150,10 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                         "Showcase your skills with a dedicated Mixing Samples portfolio."
                     ]}
                     tagline="Your talent, your terms. We bring the work to you."
-                    buttonText={isSubscribed(SubscriptionPlan.ENGINEER_PLUS) ? "Current Plan" : "Upgrade Now"}
+                    buttonText="Upgrade Now"
                     onClick={() => handlePlanSelection(UserRole.ENGINEER)}
                     disabled={isSubscribed(SubscriptionPlan.ENGINEER_PLUS) || (!!currentUser && userRole !== UserRole.ENGINEER)}
+                    isCurrentPlan={isSubscribed(SubscriptionPlan.ENGINEER_PLUS) || (!!currentUser && currentPlanRole === UserRole.ENGINEER)}
                 />
                  <PlanCard
                     icon={<HouseIcon className="w-8 h-8 text-red-400"/>}
@@ -157,9 +167,10 @@ const SubscriptionPlans: React.FC<SubscriptionPlansProps> = ({ onSelect, onSubsc
                         "Get verified to build trust and boost your visibility in search and on the Map."
                     ]}
                     tagline="Your space, fully booked. Your business, on autopilot."
-                    buttonText={isSubscribed(SubscriptionPlan.STOODIO_PRO) ? "Current Plan" : "Upgrade Now"}
+                    buttonText="Upgrade Now"
                     onClick={() => handlePlanSelection(UserRole.STOODIO)}
                     disabled={isSubscribed(SubscriptionPlan.STOODIO_PRO) || (!!currentUser && userRole !== UserRole.STOODIO)}
+                    isCurrentPlan={isSubscribed(SubscriptionPlan.STOODIO_PRO) || (!!currentUser && currentPlanRole === UserRole.STOODIO)}
                 />
             </div>
         </div>

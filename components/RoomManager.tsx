@@ -19,9 +19,7 @@ const RoomFormModal: React.FC<{
 }> = ({ room, stoodioId, onSave, onClose, isUploading }) => {
     const [name, setName] = useState(room?.name || '');
     const [description, setDescription] = useState(room?.description || '');
-    // FIX: Corrected property name from 'hourlyRate' to 'hourly_rate'
     const [hourlyRate, setHourlyRate] = useState(room?.hourly_rate || 0);
-    // FIX: Corrected property name from 'smokingPolicy' to 'smoking_policy'
     const [smokingPolicy, setSmokingPolicy] = useState<SmokingPolicy>(room?.smoking_policy || SmokingPolicy.NON_SMOKING);
     
     const [existingPhotos, setExistingPhotos] = useState<string[]>(room?.photos || []);
@@ -49,7 +47,6 @@ const RoomFormModal: React.FC<{
     const removeNewPhoto = (index: number) => {
         setNewPhotoFiles(prev => prev.filter((_, i) => i !== index));
         setPreviewUrls(prev => {
-            // Revoke URL to prevent memory leak
             URL.revokeObjectURL(prev[index]);
             return prev.filter((_, i) => i !== index);
         });
@@ -57,13 +54,11 @@ const RoomFormModal: React.FC<{
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
         const finalRoom: Room = {
             id: room?.id || `room-${Date.now()}`,
             name,
             description,
             hourly_rate: hourlyRate,
-            // Combine existing (remote) photos. New files are handled by parent save function
             photos: existingPhotos, 
             smoking_policy: smokingPolicy,
         };
@@ -75,7 +70,7 @@ const RoomFormModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="w-full max-w-lg cardSurface max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center sticky top-0 bg-black z-10">
+                <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center sticky top-0 bg-zinc-900 z-10">
                     <h2 className="text-xl font-bold text-zinc-100">{room?.id ? 'Edit Room' : 'Add New Room'}</h2>
                     <button onClick={onClose} disabled={isUploading}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
                 </div>
@@ -182,8 +177,6 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
         setIsUploading(true);
         try {
             const uploadedUrls: string[] = [];
-            
-            // Upload new photos one by one
             for (const file of newPhotoFiles) {
                 const url = await uploadRoomPhoto(file, stoodio.id);
                 uploadedUrls.push(url);
@@ -195,19 +188,12 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
             };
 
             await upsertRoom(finalRoom, stoodio.id);
-            // Refresh user profile to get updated room list
-            onRefresh();
+            await onRefresh(); // Wait for refresh to complete
             setIsModalOpen(false);
             setEditingRoom(null);
         } catch (error: any) {
             console.error("Failed to save room:", error);
-            let errorMessage = error.message;
-            if (error.code === '23505') { // Postgres unique violation
-                errorMessage = "A room with this ID already exists.";
-            } else if (error.code === '23503') { // Foreign key violation
-                errorMessage = "Could not link room to studio. Please try logging in again.";
-            }
-            alert(`Error saving room: ${errorMessage}`);
+            alert(`Error saving room: ${error.message || 'Please check your connection.'}`);
         } finally {
             setIsUploading(false);
         }
@@ -220,7 +206,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
                 onRefresh();
             } catch (error: any) {
                 console.error("Failed to delete room:", error);
-                alert(`Failed to delete room: ${error.message || 'Unknown error'}`);
+                alert("Failed to delete room.");
             }
         }
     };
@@ -236,7 +222,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
             </div>
             
             <div className="space-y-4">
-                {stoodio.rooms.length > 0 ? stoodio.rooms.map(room => (
+                {(stoodio.rooms || []).length > 0 ? stoodio.rooms.map(room => (
                     <div key={room.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex items-start gap-4 flex-grow">
                             {room.photos && room.photos.length > 0 ? (
@@ -251,10 +237,8 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
                                 <p className="text-sm text-zinc-400 mt-1 mb-2">{room.description}</p>
                                 <div className="flex items-center gap-4">
                                     <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
-                                        {/* FIX: Corrected property name from 'hourlyRate' to 'hourly_rate' */}
                                         <DollarSignIcon className="w-4 h-4" /> ${room.hourly_rate}/hr
                                     </div>
-                                    {/* FIX: Corrected property name from 'smokingPolicy' to 'smoking_policy' */}
                                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${room.smoking_policy === SmokingPolicy.SMOKING_ALLOWED ? 'bg-green-500/10 text-green-300' : 'bg-red-500/10 text-red-300'}`}>
                                         {room.smoking_policy === SmokingPolicy.SMOKING_ALLOWED ? 'Smoking Allowed' : 'Non-Smoking'}
                                     </span>
@@ -267,7 +251,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
                         </div>
                     </div>
                 )) : (
-                    <p className="text-center py-8 text-zinc-500">You haven't added any rooms yet. Add your first room to get started!</p>
+                    <p className="text-center py-8 text-zinc-500">You haven't added any rooms yet.</p>
                 )}
             </div>
             

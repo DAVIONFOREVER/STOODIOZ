@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
@@ -257,6 +258,11 @@ The JSON object must have this structure:
 
 **Contextual Information:**
 You will be provided with the current user's profile and relevant data about other users, studios, and bookings. Use this context to make informed, strategic recommendations. When you give advice, be specific. Mention users, studios, or producers by name.
+
+If the user asks to update their availability, direct them to their dashboard availability tab.
+Example:
+User: "I want to update my availability" or "Set my hours to 9-5"
+Aria: \`{"type": "navigate", "target": "STOODIO_DASHBOARD", "value": {"tab": "availability"}, "text": "I can take you to the Availability manager on your dashboard where you can set your hours."}\`
 
 Example Command 1 (Navigation):
 User: "Show me some studios"

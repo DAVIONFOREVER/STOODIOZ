@@ -69,7 +69,7 @@ const ProducerProfile: React.FC = () => {
         );
     }
     
-    const isFollowing = currentUser ? ('following' in currentUser && currentUser.following && currentUser.following.producers ? currentUser.following.producers.includes(producer.id) : false) : false;
+    const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.producers || []).includes(producer.id)) : false;
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
@@ -88,7 +88,6 @@ const ProducerProfile: React.FC = () => {
             navigate(AppView.LOGIN);
             return;
         }
-        // Fix Issue #4: Prevent self-purchase
         if (currentUser.id === producer.id) {
             alert("You cannot purchase your own beat.");
             return; 
@@ -105,8 +104,6 @@ const ProducerProfile: React.FC = () => {
             dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: updatedBooking } });
             alert(`Purchase successful! "${selectedBeat.title}" has been added to 'My Bookings' where you can download the file.`);
             setSelectedBeat(null);
-            // Optionally navigate to My Bookings or stay here
-            // navigate(AppView.MY_BOOKINGS); 
         } catch (error) {
             console.error("Purchase failed:", error);
             alert("Purchase failed. Please try again.");
@@ -123,115 +120,110 @@ const ProducerProfile: React.FC = () => {
                 <ChevronLeftIcon className="w-5 h-5" />
                 Back to Producers
             </button>
-            <div className="max-w-4xl mx-auto space-y-12">
-                <div className="p-8 cardSurface">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                        <img src={producer.image_url} alt={producer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
-                        <div className="text-center sm:text-left flex-grow">
-                            <h1 className="text-4xl font-extrabold text-purple-400">{producer.name}</h1>
-                            <p className="text-slate-300 leading-relaxed mt-4">{producer.bio}</p>
-                             {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
-                             {producer.pull_up_price && (
-                                <div className="mt-4 inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
-                                    <span className="flex items-center gap-2">
-                                        <DollarSignIcon className="w-5 h-5"/>
-                                        {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
-                                        <span>"Pull Up" Session Fee: ${producer.pull_up_price}</span>
-                                    </span>
-                                </div>
-                            )}
-                            {!isSelf && (
-                                <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
-                                    {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
-                                    {producer.pull_up_price && currentUser && (
-                                         <button 
-                                            onClick={() => initiateBookingWithProducer(producer)}
-                                            className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                         >
-                                            <CalendarIcon className="w-5 h-5" />
-                                            Book Pull Up Session
-                                        </button>
-                                    )}
-                                    <button 
-                                        onClick={() => currentUser && startConversation(producer)}
-                                        disabled={!currentUser}
-                                        className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <MessageIcon className="w-5 h-5" />
-                                        Message
-                                    </button>
-                                    <button 
-                                        onClick={() => currentUser && toggleFollow('producer', producer.id)}
-                                        disabled={!currentUser}
-                                        className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-700 text-purple-400 border-2 border-purple-400 hover:bg-zinc-600'}`}
-                                    >
-                                        {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
-                                        {isFollowing ? 'Following' : 'Follow'}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                <InstrumentalPlayer instrumentals={producer.instrumentals || []} onPurchase={handlePurchaseClick} />
-                
-                 {producer.links && producer.links.length > 0 && (
-                    <div>
-                        <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-6 h-6" /> Links</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {producer.links.map(link => (
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="p-3 transition-colors flex items-center gap-3 cardSurface">
-                                    <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
-                                    <div className="overflow-hidden">
-                                        <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>
-                                        <p className="text-xs text-slate-400 truncate">{link.url}</p>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+                {/* Left Column: Info & Beats */}
+                <div className="lg:col-span-3 space-y-12">
+                    <div className="cardSurface p-8">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
+                            <img src={producer.image_url} alt={producer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                            <div className="text-center sm:text-left flex-grow">
+                                <h1 className="text-4xl font-extrabold text-purple-400">{producer.name}</h1>
+                                <p className="text-slate-300 leading-relaxed mt-4">{producer.bio}</p>
+                                 {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
+                                 {producer.pull_up_price && (
+                                    <div className="mt-4 inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
+                                        <span className="flex items-center gap-2">
+                                            <DollarSignIcon className="w-5 h-5"/>
+                                            {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
+                                            <span>"Pull Up" Session Fee: ${producer.pull_up_price}</span>
+                                        </span>
                                     </div>
-                                </a>
-                            ))}
+                                )}
+                                {!isSelf && (
+                                    <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
+                                        {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
+                                        {producer.pull_up_price && currentUser && (
+                                             <button 
+                                                onClick={() => initiateBookingWithProducer(producer)}
+                                                className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                             >
+                                                <CalendarIcon className="w-5 h-5" />
+                                                Book Pull Up Session
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={() => currentUser && startConversation(producer)}
+                                            disabled={!currentUser}
+                                            className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <MessageIcon className="w-5 h-5" />
+                                            Message
+                                        </button>
+                                        <button 
+                                            onClick={() => currentUser && toggleFollow('producer', producer.id)}
+                                            disabled={!currentUser}
+                                            className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-700 text-purple-400 border-2 border-purple-400 hover:bg-zinc-600'}`}
+                                        >
+                                            {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
+                                            {isFollowing ? 'Following' : 'Follow'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                )}
 
-                <div>
-                    <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UsersIcon className="w-6 h-6" /> Followers ({followers.length})</h3>
-                    {followers.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {followers.map(f => {
-                                const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
-                                const onClick = () => {
-                                    if (type === 'artist') viewArtistProfile(f as Artist);
-                                    else if (type === 'engineer') viewEngineerProfile(f as Engineer);
-                                    else if (type === 'stoodio') viewStoodioDetails(f as Stoodio);
-                                    else if (type === 'producer') viewProducerProfile(f as Producer);
-                                }
-                                return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
-                            })}
-                        </div>
-                    ) : <p className="text-slate-400">No followers yet.</p>}
+                    <InstrumentalPlayer instrumentals={producer.instrumentals || []} onPurchase={handlePurchaseClick} />
+                    
+                     <div>
+                         <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts & Updates</h3>
+                         <PostFeed 
+                            posts={sortedPosts}
+                            authors={new Map([[producer.id, producer]])}
+                            onLikePost={likePost}
+                            onCommentOnPost={commentOnPost}
+                            onSelectAuthor={() => viewProducerProfile(producer)}
+                         />
+                    </div>
                 </div>
 
-                <div>
-                    <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-6 h-6" /> Following ({followingCount})</h3>
-                    {followingCount > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
-                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
-                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
-                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
+                {/* Right Column: Sidebar */}
+                <div className="lg:col-span-2 space-y-8">
+                     {producer.links && producer.links.length > 0 && (
+                        <div>
+                            <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-5 h-5" /> Links</h3>
+                            <div className="space-y-3">
+                                {producer.links.map(link => (
+                                    <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="p-3 transition-colors flex items-center gap-3 cardSurface hover:bg-zinc-800">
+                                        <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
+                                        <div className="overflow-hidden">
+                                            <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>
+                                            <p className="text-xs text-slate-400 truncate">{link.url}</p>
+                                        </div>
+                                    </a>
+                                ))}
+                            </div>
                         </div>
-                    ) : <p className="text-slate-400">Not following anyone yet.</p>}
-                </div>
-                
-                <div>
-                     <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts</h3>
-                     <PostFeed 
-                        posts={sortedPosts}
-                        authors={new Map([[producer.id, producer]])}
-                        onLikePost={likePost}
-                        onCommentOnPost={commentOnPost}
-                        onSelectAuthor={() => viewProducerProfile(producer)}
-                     />
+                    )}
+
+                    <div>
+                        <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UsersIcon className="w-5 h-5" /> Followers ({followers.length})</h3>
+                        {followers.length > 0 ? (
+                            <div className="space-y-3">
+                                {followers.slice(0, 5).map(f => {
+                                    const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
+                                    const onClick = () => {
+                                        if (type === 'artist') viewArtistProfile(f as Artist);
+                                        else if (type === 'engineer') viewEngineerProfile(f as Engineer);
+                                        else if (type === 'stoodio') viewStoodioDetails(f as Stoodio);
+                                        else if (type === 'producer') viewProducerProfile(f as Producer);
+                                    }
+                                    return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
+                                })}
+                            </div>
+                        ) : <p className="text-slate-400">No followers yet.</p>}
+                    </div>
                 </div>
             </div>
 

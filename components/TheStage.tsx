@@ -65,10 +65,10 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
         if (currentUser && 'following' in currentUser) {
             const followedIds = new Set([
-                ...currentUser.following.artists,
-                ...currentUser.following.engineers,
-                ...currentUser.following.stoodioz,
-                ...currentUser.following.producers,
+                ...(currentUser.following.artists || []),
+                ...(currentUser.following.engineers || []),
+                ...(currentUser.following.stoodioz || []),
+                ...(currentUser.following.producers || []),
                 currentUser.id
             ]);
             return allUsers.filter(u => !followedIds.has(u.id) && u.id !== 'artist-aria-cantata').slice(0, 4);
@@ -96,7 +96,12 @@ const TheStage: React.FC<TheStageProps> = (props) => {
             if (newPosts.length < 10) {
                 setHasMore(false);
             }
-            setPosts(prev => [...prev, ...newPosts]);
+            // Merge new posts, avoiding duplicates by ID
+            setPosts(prev => {
+                const existingIds = new Set(prev.map(p => p.id));
+                const uniqueNewPosts = newPosts.filter(p => !existingIds.has(p.id));
+                return [...prev, ...uniqueNewPosts];
+            });
         } catch (e) {
             console.error("Failed to load feed:", e);
         } finally {
@@ -164,10 +169,14 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     const handleNewPost = async (postData: any) => {
         await onPost(postData);
-        // Reset feed to show new post immediately at top
+        // Refresh feed to show new post immediately
         const latest = await fetchGlobalFeed(1);
         if (latest.length > 0) {
-             setPosts(prev => [latest[0], ...prev]);
+             // Prepend and ensure no duplicate keys
+             setPosts(prev => {
+                 if (prev.some(p => p.id === latest[0].id)) return prev;
+                 return [latest[0], ...prev];
+             });
         }
     }
 

@@ -43,7 +43,6 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
                          // Auto-play was prevented
-                         // console.log("Autoplay blocked");
                     });
                 }
             } else {
@@ -72,6 +71,27 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     const handleCTA = (e: React.MouseEvent) => {
         e.stopPropagation();
         onSelectAuthor();
+    };
+
+    const handleShare = async () => {
+        const url = `${window.location.origin}/post/${post.id}`;
+        try {
+            if (navigator.share) {
+                await navigator.share({
+                    title: `Post by ${author.name}`,
+                    text: post.text,
+                    url: url
+                });
+            } else {
+                await navigator.clipboard.writeText(url);
+                alert('Link copied to clipboard!');
+            }
+        } catch (err) {
+            console.error("Error sharing:", err);
+            // Fallback
+            await navigator.clipboard.writeText(url);
+            alert('Link copied to clipboard!');
+        }
     };
 
     // Helper to detect video links
@@ -198,7 +218,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     <span className="hidden sm:inline">Comment</span>
                     <span>({post.comments.length})</span>
                 </button>
-                <button className="flex items-center gap-1.5 font-semibold hover:text-blue-400 transition-colors p-2 rounded-lg text-sm">
+                <button onClick={handleShare} className="flex items-center gap-1.5 font-semibold hover:text-blue-400 transition-colors p-2 rounded-lg text-sm">
                     <ShareIcon className="w-5 h-5" />
                     <span className="hidden sm:inline">Share</span>
                 </button>
