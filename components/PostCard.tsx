@@ -4,6 +4,7 @@ import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../type
 import { formatDistanceToNow } from 'date-fns';
 import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
+import { useOnScreen } from '../hooks/useOnScreen.ts';
 
 interface PostCardProps {
     post: Post;
@@ -18,8 +19,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     const [showComments, setShowComments] = useState(false);
     const [commentText, setCommentText] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    
+    // Video optimization refs
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const isVisible = useOnScreen(videoRef as any, '0px');
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -30,6 +34,20 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Handle video auto-play/pause based on visibility
+    useEffect(() => {
+        if (videoRef.current) {
+            if (isVisible) {
+                videoRef.current.play().catch(e => {
+                    // Autoplay policy might block this without interaction, which is expected
+                    // console.log("Autoplay blocked", e); 
+                });
+            } else {
+                videoRef.current.pause();
+            }
+        }
+    }, [isVisible]);
 
     if (!currentUser) return null;
 
@@ -105,7 +123,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 
                 {post.image_url && (
                     <div className="my-4 rounded-lg overflow-hidden border border-zinc-700">
-                        <img src={post.image_url} alt="Post content" className="w-full h-auto object-cover"/>
+                        <img loading="lazy" src={post.image_url} alt="Post content" className="w-full h-auto object-cover"/>
                     </div>
                 )}
                 
@@ -113,9 +131,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {post.video_url && (
                     <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
                          <video
+                            ref={videoRef}
                             src={post.video_url}
                             controls
                             playsInline
+                            muted // Muted is often required for autoplay
                             className="w-full h-full object-contain"
                             poster={post.video_thumbnail_url}
                         />

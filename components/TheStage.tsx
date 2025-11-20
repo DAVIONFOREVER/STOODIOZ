@@ -9,6 +9,8 @@ import WhoToFollow from './WhoToFollow';
 import TrendingPost from './TrendingPost.tsx';
 import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
+import { fetchGlobalFeed } from '../services/apiService';
+import { useOnScreen } from '../hooks/useOnScreen';
 
 interface TheStageProps {
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
@@ -43,55 +45,78 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     } = props;
     const { currentUser, userRole, artists, engineers, stoodioz, producers } = useAppState();
 
-    const { feedPosts, authorsMap, suggestions, trendingPost, trendingPostAuthor } = useMemo(() => {
+    // Local state for the infinite feed
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+    const isBottomVisible = useOnScreen(loadMoreRef);
+
+    // Combine all users for author lookup
+    const authorsMap = useMemo(() => {
         const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-        const authorsMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
-        allUsers.forEach(u => authorsMap.set(u.id, u));
-        
-        const allPosts = allUsers.flatMap(user => user.posts || []);
+        const map = new Map<string, Artist | Engineer | Stoodio | Producer>();
+        allUsers.forEach(u => map.set(u.id, u));
+        return map;
+    }, [artists, engineers, stoodioz, producers]);
 
-        let feedPosts: Post[] = [];
-        let suggestions: (Artist | Engineer | Stoodio | Producer)[] = [];
-
-        const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
-        const ariaPosts = ariaProfile?.posts || [];
-
-        let otherPosts: Post[] = [];
-        let followedIds: Set<string> | null = null;
-        
+    // Suggestions logic
+    const suggestions = useMemo(() => {
+        const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
         if (currentUser && 'following' in currentUser) {
-            followedIds = new Set([
+            const followedIds = new Set([
                 ...currentUser.following.artists,
                 ...currentUser.following.engineers,
                 ...currentUser.following.stoodioz,
                 ...currentUser.following.producers,
                 currentUser.id
             ]);
-            
-            otherPosts = allPosts.filter(post => followedIds!.has(post.authorId));
-                
-            suggestions = allUsers.filter(u => !followedIds!.has(u.id) && u.id !== currentUser.id && u.id !== 'artist-aria-cantata').slice(0, 4);
-        } else {
-            // Guest view: show all posts
-            otherPosts = allPosts;
-            suggestions = allUsers.filter(u => u.id !== 'artist-aria-cantata').slice(0, 4);
+            return allUsers.filter(u => !followedIds.has(u.id) && u.id !== 'artist-aria-cantata').slice(0, 4);
         }
-        
-        // Combine Aria's posts with others, ensuring no duplicates if user follows Aria
-        const combinedPosts = [...ariaPosts, ...otherPosts];
-        const postMap = new Map<string, Post>();
-        combinedPosts.forEach(post => postMap.set(post.id, post));
-        
-        feedPosts = Array.from(postMap.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-        const trendingPost = [...allPosts]
-            .sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0] || null;
-            
-        const trendingPostAuthor = trendingPost ? authorsMap.get(trendingPost.authorId) : null;
-
-        return { feedPosts, authorsMap, suggestions, trendingPost, trendingPostAuthor };
+        return allUsers.filter(u => u.id !== 'artist-aria-cantata').slice(0, 4);
     }, [currentUser, artists, engineers, stoodioz, producers]);
 
+    // Trending Logic (simplified for performance)
+    const { trendingPost, trendingPostAuthor } = useMemo(() => {
+        if (posts.length === 0) return { trendingPost: null, trendingPostAuthor: null };
+        const trending = [...posts].sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0];
+        return { trendingPost: trending, trendingPostAuthor: authorsMap.get(trending.authorId) };
+    }, [posts, authorsMap]);
+
+    // Infinite Scroll Loader
+    const loadMorePosts = useCallback(async () => {
+        if (isLoading || !hasMore) return;
+        setIsLoading(true);
+
+        const lastPost = posts.length > 0 ? posts[posts.length - 1] : null;
+        const beforeTimestamp = lastPost ? lastPost.timestamp : undefined;
+
+        try {
+            const newPosts = await fetchGlobalFeed(10, beforeTimestamp);
+            if (newPosts.length < 10) {
+                setHasMore(false);
+            }
+            setPosts(prev => [...prev, ...newPosts]);
+        } catch (e) {
+            console.error("Failed to load feed:", e);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [posts, isLoading, hasMore]);
+
+    // Initial Load
+    useEffect(() => {
+        if (posts.length === 0) {
+            loadMorePosts();
+        }
+    }, []);
+
+    // Trigger load on scroll
+    useEffect(() => {
+        if (isBottomVisible && hasMore && !isLoading) {
+            loadMorePosts();
+        }
+    }, [isBottomVisible, hasMore, isLoading, loadMorePosts]);
 
     const handleSelectUser = (user: Artist | Engineer | Stoodio | Producer) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
@@ -99,6 +124,52 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
         else onSelectArtist(user as Artist);
     };
+
+    // Optimistic updates for likes/comments to keep UI snappy
+    const handleLocalLike = (postId: string) => {
+        onLikePost(postId); // Update server/global state
+        if (!currentUser) return;
+        setPosts(prev => prev.map(p => {
+            if (p.id === postId) {
+                const isLiked = p.likes.includes(currentUser.id);
+                return { 
+                    ...p, 
+                    likes: isLiked 
+                        ? p.likes.filter(id => id !== currentUser.id) 
+                        : [...p.likes, currentUser.id] 
+                };
+            }
+            return p;
+        }));
+    };
+
+    const handleLocalComment = (postId: string, text: string) => {
+        onCommentOnPost(postId, text); // Update server/global state
+        if (!currentUser) return;
+        setPosts(prev => prev.map(p => {
+            if (p.id === postId) {
+                 const newComment = {
+                    id: `temp-${Date.now()}`,
+                    authorId: currentUser.id,
+                    authorName: currentUser.name,
+                    author_image_url: currentUser.image_url,
+                    text: text,
+                    timestamp: new Date().toISOString()
+                };
+                return { ...p, comments: [...p.comments, newComment] };
+            }
+            return p;
+        }));
+    }
+
+    const handleNewPost = async (postData: any) => {
+        await onPost(postData);
+        // Reset feed to show new post immediately at top
+        const latest = await fetchGlobalFeed(1);
+        if (latest.length > 0) {
+             setPosts(prev => [latest[0], ...prev]);
+        }
+    }
 
     if (!currentUser) return null;
 
@@ -125,14 +196,30 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Main Content */}
                 <main className="col-span-12 lg:col-span-6">
                     <div className="space-y-8">
-                        <CreatePost currentUser={currentUser} onPost={onPost} />
+                        <CreatePost currentUser={currentUser} onPost={handleNewPost} />
+                        
                         <PostFeed 
-                            posts={feedPosts} 
+                            posts={posts} 
                             authors={authorsMap}
-                            onLikePost={onLikePost}
-                            onCommentOnPost={onCommentOnPost}
+                            onLikePost={handleLocalLike}
+                            onCommentOnPost={handleLocalComment}
                             onSelectAuthor={handleSelectUser}
                         />
+                        
+                        {/* Infinite Scroll Sentinel */}
+                        <div ref={loadMoreRef} className="py-8 text-center">
+                            {isLoading && (
+                                <div className="flex justify-center">
+                                     <svg className="animate-spin h-8 w-8 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
+                            )}
+                            {!hasMore && posts.length > 0 && (
+                                <p className="text-zinc-500 text-sm">You've reached the end of the stage.</p>
+                            )}
+                        </div>
                     </div>
                 </main>
 
@@ -150,8 +237,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                             <TrendingPost
                                 post={trendingPost}
                                 author={trendingPostAuthor}
-                                onLikePost={onLikePost}
-                                onCommentOnPost={onCommentOnPost}
+                                onLikePost={handleLocalLike}
+                                onCommentOnPost={handleLocalComment}
                                 onSelectUser={handleSelectUser}
                             />
                         )}

@@ -500,14 +500,52 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
 
 // --- SOCIAL ---
 
+// NEW: Fetch global feed from 'posts' table with pagination
+export const fetchGlobalFeed = async (limit: number = 10, beforeTimestamp?: string): Promise<Post[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    let query = supabase
+        .from('posts')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+
+    if (beforeTimestamp) {
+        query = query.lt('timestamp', beforeTimestamp);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+        console.error("Error fetching feed:", error);
+        return [];
+    }
+
+    // Map DB snake_case to camelCase expected by UI types
+    return (data || []).map((row: any) => ({
+        id: row.id,
+        authorId: row.author_id,
+        authorType: row.author_type,
+        text: row.text,
+        image_url: row.image_url,
+        video_url: row.video_url,
+        video_thumbnail_url: row.video_thumbnail_url,
+        link: row.link,
+        timestamp: row.timestamp,
+        likes: row.likes || [],
+        comments: row.comments || []
+    }));
+};
+
 export const createPost = async (postData: any, user: any, userRole: UserRole) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    const newPost: Post = {
+    // 1. Write to new 'posts' table (Global Feed)
+    const postForDb = {
         id: `post-${Date.now()}`,
-        authorId: user.id,
-        authorType: userRole,
+        author_id: user.id,
+        author_type: userRole,
         text: postData.text,
         image_url: postData.image_url,
         video_url: postData.video_url,
@@ -518,10 +556,26 @@ export const createPost = async (postData: any, user: any, userRole: UserRole) =
         comments: []
     };
 
+    const { error: dbError } = await supabase.from('posts').insert(postForDb);
+    if (dbError) console.error("Error inserting into posts table:", dbError);
+
+    // 2. Write to legacy JSONB column (User Profile) - Keeping this for backward compatibility with profiles
+    const newPost: Post = {
+        id: postForDb.id,
+        authorId: user.id,
+        authorType: userRole,
+        text: postData.text,
+        image_url: postData.image_url,
+        video_url: postData.video_url,
+        video_thumbnail_url: postData.video_thumbnail_url,
+        link: postData.link,
+        timestamp: postForDb.timestamp,
+        likes: [],
+        comments: []
+    };
+
     const currentPosts = user.posts || [];
     const updatedPosts = [newPost, ...currentPosts];
-
-    // Use explicit role to determine table, falling back to inference if needed (though role should be present)
     const table = getTableFromRole(userRole);
 
     const { data: updatedUser, error } = await supabase
@@ -539,6 +593,27 @@ export const likePost = async (postId: string, userId: string, author: any) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
+    // 1. Fetch current post from 'posts' table to get latest likes
+    const { data: postData, error: fetchError } = await supabase
+        .from('posts')
+        .select('likes')
+        .eq('id', postId)
+        .single();
+
+    let newLikes: string[] = [];
+    
+    // If post exists in global table, update it
+    if (postData) {
+        const currentLikes = postData.likes || [];
+        if (currentLikes.includes(userId)) {
+            newLikes = currentLikes.filter((id: string) => id !== userId);
+        } else {
+            newLikes = [...currentLikes, userId];
+        }
+        await supabase.from('posts').update({ likes: newLikes }).eq('id', postId);
+    }
+
+    // 2. Update legacy JSONB in user profile (optimistic fallback if global table fetch failed/didn't exist)
     const posts = author.posts || [];
     const postIndex = posts.findIndex((p: Post) => p.id === postId);
     
@@ -547,14 +622,14 @@ export const likePost = async (postId: string, userId: string, author: any) => {
     const post = posts[postIndex];
     const isLiked = post.likes.includes(userId);
     
-    let newLikes = [...post.likes];
+    let legacyLikes = [...post.likes];
     if (isLiked) {
-        newLikes = newLikes.filter((id: string) => id !== userId);
+        legacyLikes = legacyLikes.filter((id: string) => id !== userId);
     } else {
-        newLikes.push(userId);
+        legacyLikes.push(userId);
     }
 
-    const updatedPost = { ...post, likes: newLikes };
+    const updatedPost = { ...post, likes: legacyLikes };
     const updatedPosts = [...posts];
     updatedPosts[postIndex] = updatedPost;
 
@@ -574,11 +649,6 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
     const supabase = getSupabase();
     if (!supabase) throw new Error("No Supabase client");
 
-    const posts = author.posts || [];
-    const postIndex = posts.findIndex((p: Post) => p.id === postId);
-
-    if (postIndex === -1) return author;
-
     const newComment: Comment = {
         id: `comment-${Date.now()}`,
         authorId: commenter.id,
@@ -587,6 +657,19 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
         text: text,
         timestamp: new Date().toISOString()
     };
+
+    // 1. Update global posts table
+    const { data: postData } = await supabase.from('posts').select('comments').eq('id', postId).single();
+    if (postData) {
+        const currentComments = postData.comments || [];
+        await supabase.from('posts').update({ comments: [...currentComments, newComment] }).eq('id', postId);
+    }
+
+    // 2. Update legacy JSONB
+    const posts = author.posts || [];
+    const postIndex = posts.findIndex((p: Post) => p.id === postId);
+
+    if (postIndex === -1) return author;
 
     const post = posts[postIndex];
     const updatedPost = { ...post, comments: [...post.comments, newComment] };
