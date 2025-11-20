@@ -88,6 +88,9 @@ const ProducerProfile: React.FC = () => {
             navigate(AppView.LOGIN);
             return;
         }
+        if (currentUser.id === producer.id) {
+            return; // Prevent self-purchase
+        }
         setSelectedBeat(instrumental);
     };
 
@@ -109,6 +112,8 @@ const ProducerProfile: React.FC = () => {
             setIsPurchasing(false);
         }
     };
+    
+    const isSelf = currentUser?.id === producer.id;
 
     return (
         <div>
@@ -133,34 +138,36 @@ const ProducerProfile: React.FC = () => {
                                     </span>
                                 </div>
                             )}
-                            <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
-                                {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
-                                {producer.pull_up_price && currentUser && (
-                                     <button 
-                                        onClick={() => initiateBookingWithProducer(producer)}
-                                        className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                     >
-                                        <CalendarIcon className="w-5 h-5" />
-                                        Book Pull Up Session
+                            {!isSelf && (
+                                <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
+                                    {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
+                                    {producer.pull_up_price && currentUser && (
+                                         <button 
+                                            onClick={() => initiateBookingWithProducer(producer)}
+                                            className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                         >
+                                            <CalendarIcon className="w-5 h-5" />
+                                            Book Pull Up Session
+                                        </button>
+                                    )}
+                                    <button 
+                                        onClick={() => currentUser && startConversation(producer)}
+                                        disabled={!currentUser}
+                                        className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <MessageIcon className="w-5 h-5" />
+                                        Message
                                     </button>
-                                )}
-                                <button 
-                                    onClick={() => currentUser && startConversation(producer)}
-                                    disabled={!currentUser || currentUser.id === producer.id}
-                                    className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <MessageIcon className="w-5 h-5" />
-                                    Message
-                                </button>
-                                <button 
-                                    onClick={() => currentUser && toggleFollow('producer', producer.id)}
-                                    disabled={!currentUser || currentUser.id === producer.id}
-                                    className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-700 text-purple-400 border-2 border-purple-400 hover:bg-zinc-600'}`}
-                                >
-                                    {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
-                                    {isFollowing ? 'Following' : 'Follow'}
-                                </button>
-                            </div>
+                                    <button 
+                                        onClick={() => currentUser && toggleFollow('producer', producer.id)}
+                                        disabled={!currentUser}
+                                        className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-700 text-purple-400 border-2 border-purple-400 hover:bg-zinc-600'}`}
+                                    >
+                                        {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
+                                        {isFollowing ? 'Following' : 'Follow'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

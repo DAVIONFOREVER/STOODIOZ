@@ -380,14 +380,28 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookings: [...state.bookings, action.payload.booking] };
         
         case ActionTypes.UPDATE_USERS: {
+            // IMPORTANT: Use a Map to ensure uniqueness of users by ID. 
+            // This fixes the bug where "Find Producers" or other lists would show duplicates 
+            // if multiple updates were dispatched or if API returned redundant data.
             const newUsers = action.payload.users;
-            const findUser = (id: string | null | undefined) => id ? newUsers.find(u => u.id === id) : null;
+            const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
+            
+            // Add existing users to map first
+            [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz].forEach(u => allUsersMap.set(u.id, u));
+            
+            // Add/Overwrite with new users from payload
+            newUsers.forEach(u => allUsersMap.set(u.id, u));
+            
+            const uniqueUsers = Array.from(allUsersMap.values());
+
+            const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
+
             return {
                 ...state,
-                artists: newUsers.filter(u => 'bio' in u && !('specialties' in u) && !('instrumentals' in u)) as Artist[],
-                engineers: newUsers.filter(u => 'specialties' in u) as Engineer[],
-                producers: newUsers.filter(u => 'instrumentals' in u) as Producer[],
-                stoodioz: newUsers.filter(u => 'amenities' in u) as Stoodio[],
+                artists: uniqueUsers.filter(u => 'bio' in u && !('specialties' in u) && !('instrumentals' in u)) as Artist[],
+                engineers: uniqueUsers.filter(u => 'specialties' in u) as Engineer[],
+                producers: uniqueUsers.filter(u => 'instrumentals' in u) as Producer[],
+                stoodioz: uniqueUsers.filter(u => 'amenities' in u) as Stoodio[],
                 currentUser: findUser(state.currentUser?.id) as any || state.currentUser,
                 selectedArtist: findUser(state.selectedArtist?.id) as Artist || state.selectedArtist,
                 selectedEngineer: findUser(state.selectedEngineer?.id) as Engineer || state.selectedEngineer,
