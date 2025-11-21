@@ -199,13 +199,14 @@ const App: React.FC = () => {
                     const metaRole = session.user.user_metadata?.role;
                     if (metaRole) {
                         let targetTable = '';
+                        // FIX: Removed incorrect join syntax (*). JSONB columns are selected automatically with *.
                         let targetQuery = '*';
                         let identifiedRole: UserRole | undefined;
 
-                        if (metaRole === 'STOODIO') { targetTable = 'stoodioz'; targetQuery = '*, rooms(*), in_house_engineers(*)'; identifiedRole = UserRole.STOODIO; }
-                        else if (metaRole === 'ENGINEER') { targetTable = 'engineers'; targetQuery = '*, mixing_samples(*)'; identifiedRole = UserRole.ENGINEER; }
-                        else if (metaRole === 'PRODUCER') { targetTable = 'producers'; targetQuery = '*, instrumentals(*)'; identifiedRole = UserRole.PRODUCER; }
-                        else if (metaRole === 'ARTIST') { targetTable = 'artists'; targetQuery = '*'; identifiedRole = UserRole.ARTIST; }
+                        if (metaRole === 'STOODIO') { targetTable = 'stoodioz'; identifiedRole = UserRole.STOODIO; }
+                        else if (metaRole === 'ENGINEER') { targetTable = 'engineers'; identifiedRole = UserRole.ENGINEER; }
+                        else if (metaRole === 'PRODUCER') { targetTable = 'producers'; identifiedRole = UserRole.PRODUCER; }
+                        else if (metaRole === 'ARTIST') { targetTable = 'artists'; identifiedRole = UserRole.ARTIST; }
 
                         if (targetTable) {
                             const { data } = await supabase.from(targetTable).select(targetQuery).eq('id', userId).single();
@@ -214,10 +215,11 @@ const App: React.FC = () => {
                     }
 
                     // 2. Fallback: Check all tables.
+                    // FIX: Removed incorrect join syntax (*) for fallback queries as well.
                     const tableMap = {
-                        stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRole.STOODIO },
-                        producers: { query: '*, instrumentals(*)', role: UserRole.PRODUCER },
-                        engineers: { query: '*, mixing_samples(*)', role: UserRole.ENGINEER },
+                        stoodioz: { query: '*', role: UserRole.STOODIO },
+                        producers: { query: '*', role: UserRole.PRODUCER },
+                        engineers: { query: '*', role: UserRole.ENGINEER },
                         artists: { query: '*', role: UserRole.ARTIST },
                     };
                     
