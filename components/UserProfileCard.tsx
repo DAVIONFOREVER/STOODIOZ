@@ -5,12 +5,24 @@ import { AppView, UserRole } from '../types';
 
 interface UserProfileCardProps {
     user: Artist | Engineer | Stoodio | Producer;
+    userRole?: UserRole | null;
     onNavigate: (view: AppView) => void;
 }
 
-const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, onNavigate }) => {
+const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, userRole, onNavigate }) => {
     
     const handleNavigateToDashboard = () => {
+        // Priority 1: Use explicit role if provided (Robust)
+        if (userRole) {
+            switch (userRole) {
+                case UserRole.STOODIO: return onNavigate(AppView.STOODIO_DASHBOARD);
+                case UserRole.ENGINEER: return onNavigate(AppView.ENGINEER_DASHBOARD);
+                case UserRole.PRODUCER: return onNavigate(AppView.PRODUCER_DASHBOARD);
+                case UserRole.ARTIST: return onNavigate(AppView.ARTIST_DASHBOARD);
+            }
+        }
+
+        // Priority 2: Fallback to property checking (Legacy/Backup)
         if ('amenities' in user) onNavigate(AppView.STOODIO_DASHBOARD);
         else if ('specialties' in user) onNavigate(AppView.ENGINEER_DASHBOARD);
         else if ('instrumentals' in user) onNavigate(AppView.PRODUCER_DASHBOARD);

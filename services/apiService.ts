@@ -19,11 +19,11 @@ const uploadFile = async (file: File | Blob, bucket: string, path: string): Prom
     }
 
     try {
-        // Race the upload against a 15-second timeout to prevent freezing
+        // Race the upload against a 60-second timeout (increased from 15s) to prevent freezing on slow connections
         const uploadTask = supabase.storage.from(bucket).upload(path, file, { upsert: true });
         const result: any = await Promise.race([
             uploadTask,
-            timeoutPromise(15000) // 15 second hard timeout
+            timeoutPromise(60000) // 60 second hard timeout
         ]);
         
         if (result.error) throw result.error;
@@ -287,6 +287,36 @@ export const fetchGlobalFeed = async (limit = 20, beforeTimestamp?: string): Pro
     }
     
     // Map DB columns to Post type
+    return (data || []).map(row => ({
+        id: row.id,
+        authorId: row.author_id,
+        authorType: row.author_type,
+        text: row.text,
+        image_url: row.image_url,
+        video_url: row.video_url,
+        video_thumbnail_url: row.video_thumbnail_url,
+        link: row.link,
+        timestamp: row.timestamp,
+        likes: row.likes || [],
+        comments: row.comments || []
+    }));
+};
+
+export const fetchUserPosts = async (userId: string): Promise<Post[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('author_id', userId)
+        .order('timestamp', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching user posts:", error);
+        return [];
+    }
+
     return (data || []).map(row => ({
         id: row.id,
         authorId: row.author_id,

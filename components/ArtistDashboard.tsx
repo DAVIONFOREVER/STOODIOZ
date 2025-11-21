@@ -12,6 +12,7 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
+import { fetchUserPosts } from '../services/apiService';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -42,6 +43,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 const ArtistDashboard: React.FC = () => {
     const { currentUser, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
     
     if (!currentUser) {
         return (
@@ -68,6 +70,24 @@ const ArtistDashboard: React.FC = () => {
             dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } }); // Clear it after use
         }
     }, [dashboardInitialTab, dispatch]);
+
+    // Fetch user specific posts for personal feed
+    const refreshPosts = async () => {
+        if (artist.id) {
+            const posts = await fetchUserPosts(artist.id);
+            setMyPosts(posts);
+        }
+    };
+
+    useEffect(() => {
+        refreshPosts();
+    }, [artist.id]);
+
+    const handleNewPost = async (postData: any) => {
+        await createPost(postData);
+        // Refresh local feed after posting
+        refreshPosts();
+    };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const coverImageInputRef = useRef<HTMLInputElement>(null);
@@ -152,8 +172,8 @@ const ArtistDashboard: React.FC = () => {
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={artist} onPost={createPost} />
-                            <PostFeed posts={artist.posts || []} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={(author) => viewArtistProfile(author as Artist)} />
+                            <CreatePost currentUser={artist} onPost={handleNewPost} />
+                            <PostFeed posts={myPosts} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={(author) => viewArtistProfile(author as Artist)} />
                         </div>
                     </div>
                 );

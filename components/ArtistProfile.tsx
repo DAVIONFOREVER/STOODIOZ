@@ -1,12 +1,13 @@
 
-import React, { useMemo } from 'react';
-import type { Artist, Engineer, Stoodio, Producer } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon } from './icons';
+import React, { useMemo, useState, useEffect } from 'react';
+import type { Artist, Engineer, Stoodio, Producer, Post } from '../types';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, PhotoIcon, PlayIcon } from './icons';
 import PostFeed from './PostFeed';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
+import { fetchUserPosts } from '../services/apiService';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -56,6 +57,22 @@ const ArtistProfile: React.FC = () => {
     const { startConversation } = useMessaging(useNavigation().navigate);
 
     const artist = selectedArtist;
+    const [posts, setPosts] = useState<Post[]>([]);
+
+    useEffect(() => {
+        if (artist?.id) {
+            // Fetch fresh posts for the public profile
+            fetchUserPosts(artist.id).then(setPosts);
+        }
+    }, [artist?.id]);
+
+    const mediaItems = useMemo(() => {
+        return posts.filter(p => p.image_url || p.video_url).map(p => ({
+            id: p.id,
+            url: p.image_url || p.video_thumbnail_url || '',
+            type: p.video_url ? 'video' : 'image'
+        }));
+    }, [posts]);
 
     if (!artist) {
         return (
@@ -77,8 +94,6 @@ const ArtistProfile: React.FC = () => {
     const followedStoodioz = useMemo(() => stoodioz.filter(s => (artist.following?.stoodioz || []).includes(s.id)), [stoodioz, artist.following?.stoodioz]);
     const followedProducers = useMemo(() => producers.filter(p => (artist.following?.producers || []).includes(p.id)), [producers, artist.following?.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
-
-    const sortedPosts = useMemo(() => (artist.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [artist.posts]);
 
     return (
         <div>
@@ -126,10 +141,31 @@ const ArtistProfile: React.FC = () => {
 
                     <p className="text-slate-300 leading-relaxed mt-4 mb-8">{artist.bio}</p>
 
+                    {/* Recent Media Gallery */}
+                    {mediaItems.length > 0 && (
+                        <div className="mb-10">
+                            <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2">
+                                <PhotoIcon className="w-6 h-6 text-orange-400" /> Recent Media
+                            </h3>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                {mediaItems.slice(0, 8).map(item => (
+                                    <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700 group cursor-pointer">
+                                        <img src={item.url} alt="Media" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                        {item.type === 'video' && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
+                                                <PlayIcon className="w-8 h-8 text-white drop-shadow-lg" />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="mb-10">
                          <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts</h3>
                          <PostFeed 
-                            posts={sortedPosts}
+                            posts={posts}
                             authors={new Map([[artist.id, artist]])}
                             onLikePost={likePost}
                             onCommentOnPost={commentOnPost}

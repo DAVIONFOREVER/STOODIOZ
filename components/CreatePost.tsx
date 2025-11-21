@@ -67,7 +67,9 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
     const [isPosting, setIsPosting] = useState(false);
+    const [progress, setProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const progressIntervalRef = useRef<number | null>(null);
 
     const clearAttachments = () => {
         setImageUrl(null);
@@ -80,21 +82,51 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
         }
     };
 
+    const simulateProgress = () => {
+        setProgress(0);
+        progressIntervalRef.current = window.setInterval(() => {
+            setProgress((prev) => {
+                // Asymptotically approach 90%
+                if (prev >= 90) return prev;
+                const increment = Math.max(1, (90 - prev) / 20);
+                return prev + increment;
+            });
+        }, 300);
+    };
+
+    const stopProgress = () => {
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+        }
+        setProgress(100);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if ((text.trim() || imageFile || videoFile) && !isPosting) {
             setIsPosting(true);
-            await onPost({ 
-                text: text.trim(), 
-                imageFile: imageFile || undefined,
-                imageUrl: imageUrl || undefined,
-                videoFile: videoFile || undefined,
-                videoUrl: videoUrl || undefined,
-                videoThumbnailUrl: videoThumbnailUrl || undefined,
-            });
-            setText('');
-            clearAttachments();
-            setIsPosting(false);
+            simulateProgress();
+            
+            try {
+                await onPost({ 
+                    text: text.trim(), 
+                    imageFile: imageFile || undefined,
+                    imageUrl: imageUrl || undefined,
+                    videoFile: videoFile || undefined,
+                    videoUrl: videoUrl || undefined,
+                    videoThumbnailUrl: videoThumbnailUrl || undefined,
+                });
+                setText('');
+                clearAttachments();
+            } finally {
+                stopProgress();
+                // Delay unsetting isPosting slightly to let user see 100%
+                setTimeout(() => {
+                    setIsPosting(false);
+                    setProgress(0);
+                }, 500);
+            }
         }
     };
 
@@ -194,9 +226,20 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                                 <button
                                     type="submit"
                                     disabled={(!text.trim() && !imageFile && !videoFile) || isPosting}
-                                    className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 disabled:bg-zinc-600 disabled:cursor-not-allowed"
+                                    className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 disabled:bg-zinc-600 disabled:cursor-not-allowed relative overflow-hidden"
                                 >
-                                    {isPosting ? 'Posting...' : 'Post'}
+                                    {isPosting ? (
+                                        <div className="flex items-center gap-2">
+                                            <span>{Math.round(progress)}%</span>
+                                            {/* Minimal progress bar at the bottom of the button */}
+                                            <div className="absolute bottom-0 left-0 h-1 bg-white/30 w-full">
+                                                <div 
+                                                    className="h-full bg-white transition-all duration-300" 
+                                                    style={{ width: `${progress}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : 'Post'}
                                 </button>
                             </div>
                         </div>

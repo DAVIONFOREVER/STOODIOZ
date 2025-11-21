@@ -120,9 +120,11 @@ const ChatThread: React.FC<{
     const [newMessage, setNewMessage] = useState('');
     const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [activeTab, setActiveTab] = useState<'messages' | 'documents'>('messages');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const progressIntervalRef = useRef<number | null>(null);
     
     const participant = conversation.participants.find(p => p.id !== currentUser.id) || conversation.participants[0];
 
@@ -150,12 +152,32 @@ const ChatThread: React.FC<{
         }
     }
 
+    const simulateProgress = () => {
+        setUploadProgress(0);
+        progressIntervalRef.current = window.setInterval(() => {
+            setUploadProgress((prev) => {
+                if (prev >= 90) return prev;
+                const increment = Math.max(1, (90 - prev) / 15);
+                return prev + increment;
+            });
+        }, 400);
+    };
+
+    const stopProgress = () => {
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+        }
+        setUploadProgress(100);
+    };
+
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         setIsUploading(true);
         setIsAttachmentMenuOpen(false);
+        simulateProgress();
 
         try {
             const url = await apiService.uploadPostAttachment(file, currentUser.id);
@@ -186,7 +208,11 @@ const ChatThread: React.FC<{
             console.error("Upload failed", error);
             alert("Failed to upload file.");
         } finally {
-            setIsUploading(false);
+            stopProgress();
+            setTimeout(() => {
+                setIsUploading(false);
+                setUploadProgress(0);
+            }, 500);
             // Reset input
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
@@ -277,8 +303,9 @@ const ChatThread: React.FC<{
                         })}
                         {isUploading && (
                              <div className="flex justify-end">
-                                <div className="bg-orange-500 text-white rounded-l-lg rounded-tr-lg p-2 text-sm animate-pulse">
-                                    Uploading file...
+                                <div className="bg-orange-500 text-white rounded-l-lg rounded-tr-lg p-2 text-sm animate-pulse flex items-center gap-2">
+                                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Uploading {Math.round(uploadProgress)}%...
                                 </div>
                             </div>
                         )}

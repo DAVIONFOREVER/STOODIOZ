@@ -1,8 +1,8 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 // FIX: Import missing types
-import type { Producer, Artist, Stoodio, Engineer, Instrumental } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon, StarIcon } from './icons';
+import type { Producer, Artist, Stoodio, Engineer, Instrumental, Post } from '../types';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon, StarIcon, PhotoIcon, PlayIcon } from './icons';
 import PostFeed from './PostFeed';
 import InstrumentalPlayer from './InstrumentalPlayer';
 import PurchaseBeatModal from './PurchaseBeatModal';
@@ -13,6 +13,7 @@ import { useMessaging } from '../hooks/useMessaging';
 import { useBookings } from '../hooks/useBookings';
 import { AppView } from '../types';
 import * as apiService from '../services/apiService';
+import { fetchUserPosts } from '../services/apiService';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -57,8 +58,23 @@ const ProducerProfile: React.FC = () => {
 
     const [selectedBeat, setSelectedBeat] = useState<Instrumental | null>(null);
     const [isPurchasing, setIsPurchasing] = useState(false);
+    const [posts, setPosts] = useState<Post[]>([]);
 
     const producer = selectedProducer;
+
+    useEffect(() => {
+        if (producer?.id) {
+            fetchUserPosts(producer.id).then(setPosts);
+        }
+    }, [producer?.id]);
+
+    const mediaItems = useMemo(() => {
+        return posts.filter(p => p.image_url || p.video_url).map(p => ({
+            id: p.id,
+            url: p.image_url || p.video_thumbnail_url || '',
+            type: p.video_url ? 'video' : 'image'
+        }));
+    }, [posts]);
 
     if (!producer) {
         return (
@@ -79,8 +95,6 @@ const ProducerProfile: React.FC = () => {
     const followedStoodioz = useMemo(() => stoodioz.filter(s => (producer.following?.stoodioz || []).includes(s.id)), [stoodioz, producer.following?.stoodioz]);
     const followedProducers = useMemo(() => producers.filter(p => (producer.following?.producers || []).includes(p.id)), [producers, producer.following?.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
-
-    const sortedPosts = useMemo(() => (producer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [producer.posts]);
 
     const handlePurchaseClick = (instrumental: Instrumental) => {
         if (!currentUser) {
@@ -187,11 +201,32 @@ const ProducerProfile: React.FC = () => {
                     <div className="mb-10">
                          <InstrumentalPlayer instrumentals={producer.instrumentals || []} onPurchase={handlePurchaseClick} />
                     </div>
+
+                    {/* Recent Media Gallery */}
+                    {mediaItems.length > 0 && (
+                        <div className="mb-10">
+                            <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2">
+                                <PhotoIcon className="w-6 h-6 text-orange-400" /> Recent Media
+                            </h3>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                {mediaItems.slice(0, 8).map(item => (
+                                    <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700 group cursor-pointer">
+                                        <img src={item.url} alt="Media" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                        {item.type === 'video' && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
+                                                <PlayIcon className="w-8 h-8 text-white drop-shadow-lg" />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     
                      <div className="mb-10">
                          <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts & Updates</h3>
                          <PostFeed 
-                            posts={sortedPosts}
+                            posts={posts}
                             authors={new Map([[producer.id, producer]])}
                             onLikePost={likePost}
                             onCommentOnPost={commentOnPost}
@@ -242,9 +277,9 @@ const ProducerProfile: React.FC = () => {
                         {followingCount > 0 ? (
                             <div className="grid grid-cols-1 gap-3">
                                 {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
+                                {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
                                 {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
                                 {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
-                                {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
                             </div>
                         ) : <p className="text-slate-400">Not following anyone yet.</p>}
                     </div>

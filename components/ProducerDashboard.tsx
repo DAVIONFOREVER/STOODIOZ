@@ -16,6 +16,7 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { useNavigation } from '../hooks/useNavigation.ts';
 import { useSocial } from '../hooks/useSocial.ts';
 import { useProfile } from '../hooks/useProfile.ts';
+import { fetchUserPosts } from '../services/apiService';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -62,6 +63,7 @@ const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onN
 const ProducerDashboard: React.FC = () => {
     const { currentUser, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations } = useAppState();
     const dispatch = useAppDispatch();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
 
     if (!currentUser) {
         return (
@@ -88,6 +90,23 @@ const ProducerDashboard: React.FC = () => {
             dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } }); // Clear it after use
         }
     }, [dashboardInitialTab, dispatch]);
+
+    // Fetch user specific posts
+    const refreshPosts = async () => {
+        if (producer.id) {
+            const posts = await fetchUserPosts(producer.id);
+            setMyPosts(posts);
+        }
+    };
+
+    useEffect(() => {
+        refreshPosts();
+    }, [producer.id]);
+
+    const handleNewPost = async (postData: any) => {
+        await createPost(postData);
+        refreshPosts();
+    };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const coverImageInputRef = useRef<HTMLInputElement>(null);
@@ -166,8 +185,8 @@ const ProducerDashboard: React.FC = () => {
             default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        <CreatePost currentUser={producer} onPost={createPost} />
-                        <PostFeed posts={producer.posts || []} authors={new Map([[producer.id, producer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewProducerProfile(producer)} />
+                        <CreatePost currentUser={producer} onPost={handleNewPost} />
+                        <PostFeed posts={myPosts} authors={new Map([[producer.id, producer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewProducerProfile(producer)} />
                     </div>
                      <div className="lg:col-span-1 space-y-6">
                         {!isProPlan && <UpgradeProCard onNavigate={navigate} />}
@@ -227,28 +246,19 @@ const ProducerDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Producer Dashboard</p>
                             </div>
                         </div>
-                        <div className="flex flex-col gap-2 items-end">
-                             <button
-                                onClick={() => viewProducerProfile(producer)}
-                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md w-full sm:w-auto justify-center"
-                            >
-                                <EyeIcon className="w-4 h-4" />
-                                View Public Profile
-                            </button>
-                            <label className="flex items-center cursor-pointer self-center sm:self-auto mt-1">
-                                <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
-                                <div className="relative">
-                                    <input 
-                                        type="checkbox" 
-                                        className="sr-only" 
-                                        checked={producer.is_available} 
-                                        onChange={(e) => updateProfile({ is_available: e.target.checked })} 
-                                    />
-                                    <div className={`block w-12 h-6 rounded-full transition-colors ${producer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.is_available ? 'translate-x-6' : ''}`}></div>
-                                </div>
-                            </label>
-                        </div>
+                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                            <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
+                            <div className="relative">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only" 
+                                    checked={producer.is_available} 
+                                    onChange={(e) => updateProfile({ is_available: e.target.checked })} 
+                                />
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${producer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${producer.is_available ? 'translate-x-6' : ''}`}></div>
+                            </div>
+                        </label>
                     </div>
                 </div>
             </div>

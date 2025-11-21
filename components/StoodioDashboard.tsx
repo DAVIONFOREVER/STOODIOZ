@@ -17,6 +17,7 @@ import * as apiService from '../services/apiService';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
+import { fetchUserPosts } from '../services/apiService';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -227,6 +228,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 const StoodioDashboard: React.FC = () => {
     const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations } = useAppState();
     const dispatch = useAppDispatch();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
     
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
@@ -257,6 +259,23 @@ const StoodioDashboard: React.FC = () => {
             dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } });
         }
     }, [dashboardInitialTab, dispatch]);
+
+    // Fetch user specific posts
+    const refreshPosts = async () => {
+        if (stoodio.id) {
+            const posts = await fetchUserPosts(stoodio.id);
+            setMyPosts(posts);
+        }
+    };
+
+    useEffect(() => {
+        refreshPosts();
+    }, [stoodio.id]);
+
+    const handleNewPost = async (postData: any) => {
+        await createPost(postData);
+        refreshPosts();
+    };
 
     // --- Profile & Cover Photo Handlers ---
     const handleImageUploadClick = () => fileInputRef.current?.click();
@@ -460,8 +479,8 @@ const StoodioDashboard: React.FC = () => {
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={currentUser!} onPost={createPost} />
-                            <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
+                            <CreatePost currentUser={currentUser!} onPost={handleNewPost} />
+                            <PostFeed posts={myPosts} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
                             {!isProPlan && <UpgradeProCard onNavigate={navigate} />}

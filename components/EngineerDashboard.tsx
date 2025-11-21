@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 // FIX: Import missing types
-import type { Engineer, Artist, Stoodio, Producer, Conversation } from '../types';
+import type { Engineer, Artist, Stoodio, Producer, Conversation, Post } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
 import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon, EyeIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
@@ -17,6 +17,7 @@ import { useProfile } from '../hooks/useProfile.ts';
 import MixingSampleManager from './MixingSampleManager.tsx';
 import Following from './Following.tsx';
 import FollowersList from './FollowersList.tsx';
+import { fetchUserPosts } from '../services/apiService';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -63,6 +64,7 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 const EngineerDashboard: React.FC = () => {
     const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers, conversations } = useAppState();
     const dispatch = useAppDispatch();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
     
     const { navigate, viewBooking, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
@@ -86,6 +88,23 @@ const EngineerDashboard: React.FC = () => {
             dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } }); // Clear it after use
         }
     }, [dashboardInitialTab, dispatch]);
+
+    // Fetch user specific posts
+    const refreshPosts = async () => {
+        if (engineer.id) {
+            const posts = await fetchUserPosts(engineer.id);
+            setMyPosts(posts);
+        }
+    };
+
+    useEffect(() => {
+        refreshPosts();
+    }, [engineer.id]);
+
+    const handleNewPost = async (postData: any) => {
+        await createPost(postData);
+        refreshPosts();
+    };
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const coverImageInputRef = useRef<HTMLInputElement>(null);
@@ -176,8 +195,8 @@ const EngineerDashboard: React.FC = () => {
              default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        <CreatePost currentUser={engineer} onPost={createPost} />
-                        <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewEngineerProfile(engineer)} />
+                        <CreatePost currentUser={engineer} onPost={handleNewPost} />
+                        <PostFeed posts={myPosts} authors={new Map([[engineer.id, engineer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewEngineerProfile(engineer)} />
                     </div>
                     <div className="lg:col-span-1 space-y-6">
                         {!isProPlan && <UpgradePlusCard onNavigate={navigate} />}

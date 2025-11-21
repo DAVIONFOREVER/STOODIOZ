@@ -1,16 +1,17 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
-import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon, SmokingIcon, NoSmokingIcon } from './icons';
+import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon, SmokingIcon, NoSmokingIcon, PlayIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useBookings } from '../hooks/useBookings';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { AppView } from '../types';
+import { fetchUserPosts } from '../services/apiService';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -54,9 +55,27 @@ const StoodioDetail: React.FC = () => {
     const { startConversation } = useMessaging(navigate);
     
     const stoodio = selectedStoodio;
+    const [posts, setPosts] = useState<Post[]>([]);
 
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ date: string, time: string } | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio?.rooms?.[0] || null);
+
+    useEffect(() => {
+        if (stoodio?.id) {
+            fetchUserPosts(stoodio.id).then(setPosts);
+        }
+    }, [stoodio?.id]);
+
+    const galleryImages = useMemo(() => {
+        if (!stoodio) return [];
+        const staticPhotos = (stoodio.photos || []).map((url, i) => ({ id: `static-${i}`, url, type: 'image' }));
+        const postMedia = posts.filter(p => p.image_url || p.video_url).map(p => ({
+            id: p.id,
+            url: p.image_url || p.video_thumbnail_url || '',
+            type: p.video_url ? 'video' : 'image'
+        }));
+        return [...staticPhotos, ...postMedia];
+    }, [stoodio?.photos, posts]);
     
     if (!stoodio) {
          return (
@@ -182,10 +201,28 @@ const StoodioDetail: React.FC = () => {
                         )}
                     </div>
 
+                    {/* Combined Media Gallery */}
+                    <div className="mb-8">
+                        <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><PhotoIcon className="w-6 h-6" /> Media Gallery</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {galleryImages.map((item, index) => (
+                                <div key={item.id || index} className="relative group aspect-video rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700">
+                                    <img src={item.url} alt="Gallery" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                    {item.type === 'video' && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
+                                            <PlayIcon className="w-10 h-10 text-white drop-shadow-lg" />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            {galleryImages.length === 0 && <p className="text-zinc-500 col-span-full">No media to display.</p>}
+                        </div>
+                    </div>
+
                     {/* Posts & Updates */}
                     <div className="mb-10">
                         <h3 className="text-2xl font-bold mb-4 text-orange-400">Posts & Updates</h3>
-                        <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewStoodioDetails} />
+                        <PostFeed posts={posts} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewStoodioDetails} />
                     </div>
 
                      {/* Recently Hosted Artists */}
@@ -275,15 +312,6 @@ const StoodioDetail: React.FC = () => {
                         ) : (
                             <p className="text-slate-400">No reviews yet for this stoodio.</p>
                         )}
-                    </div>
-                    
-                    <div className="mb-8">
-                        <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><PhotoIcon className="w-6 h-6" /> Photo Gallery</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {(stoodio.photos || []).map((photo, index) => (
-                                <img key={index} src={photo} alt={`${stoodio.name} gallery image ${index + 1}`} className="w-full h-32 object-cover rounded-lg shadow-md transition-transform duration-300" />
-                            ))}
-                        </div>
                     </div>
                 </div>
 
