@@ -26,6 +26,10 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, 5);
 
+    const strengthTags = Array.isArray(user.strength_tags) ? user.strength_tags : [];
+    // Safe access for location property which might not exist on all user types
+    const location = (user as any).location || 'Remote';
+
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
@@ -40,8 +44,8 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                         <img src={user.image_url} alt={user.name} className="w-20 h-20 rounded-xl object-cover" />
                         <div>
                             <h3 className="text-2xl font-bold text-orange-400">{user.name}</h3>
-                            <p className="text-zinc-400">{'location' in user ? user.location : 'Remote'}</p>
-                            <div className="mt-2"><RankingBadge tier={user.ranking_tier || RankingTier.Provisional} isOnStreak={user.is_on_streak} /></div>
+                            <p className="text-zinc-400">{location}</p>
+                            <div className="mt-2"><RankingBadge tier={user.ranking_tier || RankingTier.Provisional} isOnStreak={!!user.is_on_streak} /></div>
                         </div>
                     </div>
 
@@ -60,7 +64,11 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                      <div className="p-4 cardSurface">
                         <h4 className="font-bold text-zinc-100 mb-2">Top Skills</h4>
                         <div className="flex flex-wrap gap-2">
-                            {(user.strength_tags || []).map(tag => <span key={tag} className="bg-zinc-700 text-zinc-300 text-xs font-semibold px-2 py-1 rounded-full">{tag}</span>)}
+                            {strengthTags.length > 0 ? (
+                                strengthTags.map(tag => <span key={tag} className="bg-zinc-700 text-zinc-300 text-xs font-semibold px-2 py-1 rounded-full">{tag}</span>)
+                            ) : (
+                                <span className="text-zinc-500 text-sm">No skills listed.</span>
+                            )}
                         </div>
                         <p className="text-xs text-center text-zinc-500 mt-3">{user.local_rank_text || ''}</p>
                     </div>
@@ -139,8 +147,8 @@ const AdminRankings: React.FC = () => {
                 bValue = tierOrder[b.ranking_tier || RankingTier.Provisional];
             }
              if (sortConfig.key === 'location') {
-                aValue = 'location' in a ? a.location : 'zzzz'; // sort remote to bottom
-                bValue = 'location' in b ? b.location : 'zzzz';
+                aValue = 'location' in a ? (a as any).location : 'zzzz'; // sort remote to bottom
+                bValue = 'location' in b ? (b as any).location : 'zzzz';
             }
 
             // Handle potential undefined values for sort keys
@@ -243,7 +251,7 @@ const AdminRankings: React.FC = () => {
                                         <td className="px-6 py-4 font-semibold text-zinc-200">{user.sessions_completed || 0}</td>
                                         <td className="px-6 py-4 font-semibold text-zinc-200">{(user.rating_overall || 0).toFixed(1)}</td>
                                         <td className="px-6 py-4 font-semibold text-zinc-200">{user.on_time_rate || 0}%</td>
-                                        <td className="px-6 py-4">{'location' in user ? user.location : 'N/A'}</td>
+                                        <td className="px-6 py-4">{'location' in user ? (user as any).location : 'N/A'}</td>
                                         <td className="px-6 py-4 text-right">
                                             <button onClick={() => setSelectedUser(user)} className="font-medium text-orange-400 hover:underline">Details</button>
                                         </td>
