@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { CalendarIcon, StarIcon, CheckCircleIcon, UserGroupIcon, SearchIcon, CloseIcon, ChevronUpDownIcon } from './icons';
@@ -40,7 +41,7 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                         <div>
                             <h3 className="text-2xl font-bold text-orange-400">{user.name}</h3>
                             <p className="text-zinc-400">{'location' in user ? user.location : 'Remote'}</p>
-                            <div className="mt-2"><RankingBadge tier={user.ranking_tier} isOnStreak={user.is_on_streak} /></div>
+                            <div className="mt-2"><RankingBadge tier={user.ranking_tier || RankingTier.Provisional} isOnStreak={user.is_on_streak} /></div>
                         </div>
                     </div>
 
@@ -48,10 +49,10 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                         <h4 className="font-bold text-zinc-100 mb-3">Performance Breakdown</h4>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div className="flex flex-col"><span className="text-zinc-400">Overall Rating</span><span className="font-bold text-xl text-zinc-100">{(user.rating_overall ?? 0).toFixed(1)} / 5.0</span></div>
-                            <div className="flex flex-col"><span className="text-zinc-400">Sessions</span><span className="font-bold text-xl text-zinc-100">{user.sessions_completed}</span></div>
-                            <div className="flex flex-col"><span className="text-zinc-400">On-Time Rate</span><span className="font-bold text-xl text-zinc-100">{user.on_time_rate}%</span></div>
-                            <div className="flex flex-col"><span className="text-zinc-400">Completion Rate</span><span className="font-bold text-xl text-zinc-100">{user.completion_rate}%</span></div>
-                            <div className="flex flex-col"><span className="text-zinc-400">Repeat Hire Rate</span><span className="font-bold text-xl text-zinc-100">{user.repeat_hire_rate}%</span></div>
+                            <div className="flex flex-col"><span className="text-zinc-400">Sessions</span><span className="font-bold text-xl text-zinc-100">{user.sessions_completed || 0}</span></div>
+                            <div className="flex flex-col"><span className="text-zinc-400">On-Time Rate</span><span className="font-bold text-xl text-zinc-100">{user.on_time_rate || 0}%</span></div>
+                            <div className="flex flex-col"><span className="text-zinc-400">Completion Rate</span><span className="font-bold text-xl text-zinc-100">{user.completion_rate || 0}%</span></div>
+                            <div className="flex flex-col"><span className="text-zinc-400">Repeat Hire Rate</span><span className="font-bold text-xl text-zinc-100">{user.repeat_hire_rate || 0}%</span></div>
                             <div className="flex flex-col"><span className="text-zinc-400">Streak</span><span className={`font-bold text-xl ${user.is_on_streak ? 'text-orange-400' : 'text-zinc-100'}`}>{user.is_on_streak ? 'Active' : 'Inactive'}</span></div>
                         </div>
                     </div>
@@ -59,9 +60,9 @@ const UserDetailDrawer: React.FC<{ user: AllUsers; feedback: SessionFeedback[]; 
                      <div className="p-4 cardSurface">
                         <h4 className="font-bold text-zinc-100 mb-2">Top Skills</h4>
                         <div className="flex flex-wrap gap-2">
-                            {user.strength_tags.map(tag => <span key={tag} className="bg-zinc-700 text-zinc-300 text-xs font-semibold px-2 py-1 rounded-full">{tag}</span>)}
+                            {(user.strength_tags || []).map(tag => <span key={tag} className="bg-zinc-700 text-zinc-300 text-xs font-semibold px-2 py-1 rounded-full">{tag}</span>)}
                         </div>
-                        <p className="text-xs text-center text-zinc-500 mt-3">{user.local_rank_text}</p>
+                        <p className="text-xs text-center text-zinc-500 mt-3">{user.local_rank_text || ''}</p>
                     </div>
 
                     <div className="p-4 cardSurface">
@@ -106,9 +107,9 @@ const AdminRankings: React.FC = () => {
         const activeUsers = allUsers.filter(u => u.sessions_completed > 0);
         if (activeUsers.length === 0) return { totalSessions: 0, avgRating: '0.0', avgOnTimeRate: '0%' };
         
-        const totalSessions = allUsers.reduce((sum, u) => sum + u.sessions_completed, 0);
-        const totalRating = activeUsers.reduce((sum, u) => sum + u.rating_overall, 0);
-        const totalOnTime = activeUsers.reduce((sum, u) => sum + u.on_time_rate, 0);
+        const totalSessions = allUsers.reduce((sum, u) => sum + (u.sessions_completed || 0), 0);
+        const totalRating = activeUsers.reduce((sum, u) => sum + (u.rating_overall || 0), 0);
+        const totalOnTime = activeUsers.reduce((sum, u) => sum + (u.on_time_rate || 0), 0);
 
         return {
             totalSessions,
@@ -134,13 +135,17 @@ const AdminRankings: React.FC = () => {
             let bValue: string | number = b[sortConfig.key as keyof BaseUser] as any;
 
             if (sortConfig.key === 'tier') {
-                aValue = tierOrder[a.ranking_tier];
-                bValue = tierOrder[b.ranking_tier];
+                aValue = tierOrder[a.ranking_tier || RankingTier.Provisional];
+                bValue = tierOrder[b.ranking_tier || RankingTier.Provisional];
             }
              if (sortConfig.key === 'location') {
                 aValue = 'location' in a ? a.location : 'zzzz'; // sort remote to bottom
                 bValue = 'location' in b ? b.location : 'zzzz';
             }
+
+            // Handle potential undefined values for sort keys
+            if (aValue === undefined) aValue = 0;
+            if (bValue === undefined) bValue = 0;
 
             if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -234,10 +239,10 @@ const AdminRankings: React.FC = () => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4"><RankingBadge tier={user.ranking_tier} isOnStreak={user.is_on_streak} /></td>
-                                        <td className="px-6 py-4 font-semibold text-zinc-200">{user.sessions_completed}</td>
-                                        <td className="px-6 py-4 font-semibold text-zinc-200">{user.rating_overall.toFixed(1)}</td>
-                                        <td className="px-6 py-4 font-semibold text-zinc-200">{user.on_time_rate}%</td>
+                                        <td className="px-6 py-4"><RankingBadge tier={user.ranking_tier || RankingTier.Provisional} isOnStreak={user.is_on_streak} /></td>
+                                        <td className="px-6 py-4 font-semibold text-zinc-200">{user.sessions_completed || 0}</td>
+                                        <td className="px-6 py-4 font-semibold text-zinc-200">{(user.rating_overall || 0).toFixed(1)}</td>
+                                        <td className="px-6 py-4 font-semibold text-zinc-200">{user.on_time_rate || 0}%</td>
                                         <td className="px-6 py-4">{'location' in user ? user.location : 'N/A'}</td>
                                         <td className="px-6 py-4 text-right">
                                             <button onClick={() => setSelectedUser(user)} className="font-medium text-orange-400 hover:underline">Details</button>

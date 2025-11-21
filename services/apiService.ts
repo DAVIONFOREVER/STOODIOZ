@@ -795,28 +795,88 @@ export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | '
 
 // --- ANALYTICS ---
 export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number): Promise<AnalyticsData> => {
-    // Mock data generator
+    const supabase = getSupabase();
+    if (!supabase) {
+        // Fallback to empty structure if no supabase
+        return {
+            kpis: { totalRevenue: 0, profileViews: 0, newFollowers: 0, bookings: 0 },
+            revenueOverTime: [],
+            engagementOverTime: [],
+            revenueSources: []
+        };
+    }
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Determine table
+    let tableName = 'artists';
+    if (userRole === 'ENGINEER') tableName = 'engineers';
+    else if (userRole === 'PRODUCER') tableName = 'producers';
+    else if (userRole === 'STOODIO') tableName = 'stoodioz';
+
+    // Fetch user profile for transactions
+    const { data: userData, error } = await supabase
+        .from(tableName)
+        .select('wallet_transactions, followers')
+        .eq('id', userId)
+        .single();
+
+    if (error || !userData) {
+        console.error("Analytics fetch error:", error);
+        return {
+            kpis: { totalRevenue: 0, profileViews: 0, newFollowers: 0, bookings: 0 },
+            revenueOverTime: [],
+            engagementOverTime: [],
+            revenueSources: []
+        };
+    }
+
+    const transactions: Transaction[] = userData.wallet_transactions || [];
+    
+    // Filter relevant transactions
+    const periodTransactions = transactions.filter(t => new Date(t.date) >= startDate);
+
+    // Calculate Total Revenue (Sum of positive amounts in period)
+    // For Artists, this is spending (negative), so we sum all amounts.
+    // Dashboard handles positive/negative display.
+    const netFlow = periodTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    // Count Bookings/Sales
+    // Proxied by transaction categories that imply a sale/booking
+    const bookingCount = periodTransactions.filter(t => 
+        ['SESSION_PAYMENT', 'BEAT_SALE', 'MASTERCLASS_PURCHASE', 'SESSION_PAYOUT', 'MASTERCLASS_PAYOUT'].includes(t.category)
+    ).length;
+
+    // Revenue Over Time
+    const revenueMap = new Map<string, number>();
+    periodTransactions.forEach(t => {
+        const isoDate = new Date(t.date).toISOString().split('T')[0];
+        revenueMap.set(isoDate, (revenueMap.get(isoDate) || 0) + t.amount);
+    });
+
+    const revenueOverTime = Array.from(revenueMap.entries())
+        .map(([date, revenue]) => ({ date, revenue }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Revenue Sources
+    const sourcesMap = new Map<string, number>();
+    periodTransactions.forEach(t => {
+        const cat = t.category;
+        // We want absolute value for the pie chart breakdown usually
+        sourcesMap.set(cat, (sourcesMap.get(cat) || 0) + Math.abs(t.amount));
+    });
+    const revenueSources = Array.from(sourcesMap.entries()).map(([name, revenue]) => ({ name, revenue }));
+
     return {
         kpis: {
-            totalRevenue: Math.floor(Math.random() * 5000) + 1000,
-            profileViews: Math.floor(Math.random() * 1000) + 200,
-            newFollowers: Math.floor(Math.random() * 50) + 5,
-            bookings: Math.floor(Math.random() * 20) + 2,
+            totalRevenue: netFlow,
+            profileViews: 0, // Not tracked
+            newFollowers: 0, // Not tracked historically
+            bookings: bookingCount
         },
-        revenueOverTime: Array.from({ length: 10 }, (_, i) => ({
-            date: new Date(Date.now() - (9 - i) * 24 * 60 * 60 * 1000).toISOString(),
-            revenue: Math.floor(Math.random() * 500)
-        })),
-        engagementOverTime: Array.from({ length: 10 }, (_, i) => ({
-            date: new Date(Date.now() - (9 - i) * 24 * 60 * 60 * 1000).toISOString(),
-            views: Math.floor(Math.random() * 100),
-            followers: Math.floor(Math.random() * 10),
-            likes: Math.floor(Math.random() * 20)
-        })),
-        revenueSources: [
-            { name: 'Bookings', revenue: 3500 },
-            { name: 'Beat Sales', revenue: 1200 },
-            { name: 'Tips', revenue: 300 }
-        ]
+        revenueOverTime,
+        engagementOverTime: [], // Not tracked historically
+        revenueSources
     };
 };

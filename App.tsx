@@ -200,30 +200,35 @@ const App: React.FC = () => {
                     if (metaRole) {
                         let targetTable = '';
                         let targetQuery = '*';
-                        if (metaRole === 'STOODIO') { targetTable = 'stoodioz'; targetQuery = '*, rooms(*), in_house_engineers(*)'; }
-                        else if (metaRole === 'ENGINEER') { targetTable = 'engineers'; targetQuery = '*, mixing_samples(*)'; }
-                        else if (metaRole === 'PRODUCER') { targetTable = 'producers'; targetQuery = '*, instrumentals(*)'; }
-                        else if (metaRole === 'ARTIST') { targetTable = 'artists'; targetQuery = '*'; }
+                        let identifiedRole: UserRole | undefined;
+
+                        if (metaRole === 'STOODIO') { targetTable = 'stoodioz'; targetQuery = '*, rooms(*), in_house_engineers(*)'; identifiedRole = UserRole.STOODIO; }
+                        else if (metaRole === 'ENGINEER') { targetTable = 'engineers'; targetQuery = '*, mixing_samples(*)'; identifiedRole = UserRole.ENGINEER; }
+                        else if (metaRole === 'PRODUCER') { targetTable = 'producers'; targetQuery = '*, instrumentals(*)'; identifiedRole = UserRole.PRODUCER; }
+                        else if (metaRole === 'ARTIST') { targetTable = 'artists'; targetQuery = '*'; identifiedRole = UserRole.ARTIST; }
 
                         if (targetTable) {
                             const { data } = await supabase.from(targetTable).select(targetQuery).eq('id', userId).single();
-                            if (data) return { data };
+                            if (data) return { data, role: identifiedRole };
                         }
                     }
 
                     // 2. Fallback: Check all tables.
                     const tableMap = {
-                        stoodioz: '*, rooms(*), in_house_engineers(*)',
-                        producers: '*, instrumentals(*)',
-                        engineers: '*, mixing_samples(*)',
-                        artists: '*',
+                        stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRole.STOODIO },
+                        producers: { query: '*, instrumentals(*)', role: UserRole.PRODUCER },
+                        engineers: { query: '*, mixing_samples(*)', role: UserRole.ENGINEER },
+                        artists: { query: '*', role: UserRole.ARTIST },
                     };
-                    const idPromises = Object.entries(tableMap).map(([tableName, selectQuery]) => 
-                        supabase.from(tableName).select(selectQuery).eq('id', userId).single()
-                    );
+                    
+                    const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
+                        const { data } = await supabase.from(tableName).select(config.query).eq('id', userId).single();
+                        return data ? { data, role: config.role } : null;
+                    });
+                    
                     const idResults = await Promise.all(idPromises);
-                    const foundById = idResults.find(result => result.data);
-                    if (foundById) return foundById;
+                    const found = idResults.find(result => result !== null);
+                    if (found) return found;
 
                     return null;
                 };
@@ -238,7 +243,13 @@ const App: React.FC = () => {
                     }
 
                     if (userProfileResult && userProfileResult.data) {
-                        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfileResult.data as any } });
+                        dispatch({ 
+                            type: ActionTypes.LOGIN_SUCCESS, 
+                            payload: { 
+                                user: userProfileResult.data as any,
+                                role: userProfileResult.role // Explicitly pass the role
+                            } 
+                        });
                     } else {
                         // If we have a session but no profile, send to setup
                          navigate(AppView.CHOOSE_PROFILE);
