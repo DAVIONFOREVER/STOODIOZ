@@ -242,7 +242,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                         </div>
                     </div>
                 </nav>
-                {/* The new glowing line effect */}
+                {/* The glowing line effect */}
                 <div 
                     className="absolute -bottom-px left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-indigo-500 to-sky-500 opacity-50" 
                     style={{ filter: 'blur(12px)' }}

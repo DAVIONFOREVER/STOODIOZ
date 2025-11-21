@@ -88,38 +88,45 @@ const ArtistProfile: React.FC = () => {
             </button>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-                {/* Left Column */}
-                <div className="lg:col-span-3 space-y-12">
-                    <div className="cardSurface p-8">
-                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
-                            <img src={artist.image_url} alt={artist.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
-                            <div className="text-center sm:text-left flex-grow">
+                {/* Left Column: Info & Feed */}
+                <div className="lg:col-span-3">
+                     <img 
+                        src={artist.cover_image_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'} 
+                        alt={`${artist.name}'s cover`}
+                        className="w-full h-64 object-cover rounded-2xl mb-6 shadow-lg"
+                    />
+
+                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
+                        <div className="flex items-start gap-4">
+                             <img src={artist.image_url} alt={artist.name} className="w-24 h-24 rounded-full object-cover border-4 border-zinc-700 -mt-12 shadow-lg flex-shrink-0" />
+                             <div>
                                 <h1 className="text-4xl font-extrabold text-orange-500">{artist.name}</h1>
-                                <p className="text-slate-300 leading-relaxed mt-4">{artist.bio}</p>
-                                <div className="flex justify-center sm:justify-start gap-2 mt-6">
-                                    <button 
-                                        onClick={() => currentUser && startConversation(artist)}
-                                        disabled={!currentUser || currentUser.id === artist.id}
-                                        className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <MessageIcon className="w-5 h-5" />
-                                        Message
-                                    </button>
-                                    <button 
-                                        onClick={() => currentUser && toggleFollow('artist', artist.id)}
-                                        disabled={!currentUser || currentUser.id === artist.id || artist.id === 'artist-aria-cantata'}
-                                        className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
-                                    >
-                                        {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
-                                        {isFollowing ? 'Following' : 'Follow'}
-                                    </button>
-                                </div>
+                                <p className="text-zinc-400 mt-1">Remote</p>
                             </div>
+                        </div>
+                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                            <button 
+                                onClick={() => currentUser && startConversation(artist)}
+                                disabled={!currentUser || currentUser.id === artist.id}
+                                className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <MessageIcon className="w-5 h-5" />
+                                Message
+                            </button>
+                            <button 
+                                onClick={() => currentUser && toggleFollow('artist', artist.id)}
+                                disabled={!currentUser || currentUser.id === artist.id || artist.id === 'artist-aria-cantata'}
+                                className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
+                            >
+                                {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
+                                {isFollowing ? 'Following' : 'Follow'}
+                            </button>
                         </div>
                     </div>
 
-                    <div>
+                    <p className="text-slate-300 leading-relaxed mt-4 mb-8">{artist.bio}</p>
+
+                    <div className="mb-10">
                          <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts</h3>
                          <PostFeed 
                             posts={sortedPosts}
@@ -131,7 +138,7 @@ const ArtistProfile: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Right Column */}
+                {/* Right Column: Sidebar */}
                 <div className="lg:col-span-2 space-y-8">
                      {artist.links && artist.links.length > 0 && (
                         <div>
@@ -153,7 +160,7 @@ const ArtistProfile: React.FC = () => {
                     <div>
                         <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UsersIcon className="w-5 h-5" /> Followers ({followers.length})</h3>
                         {followers.length > 0 ? (
-                            <div className="space-y-3">
+                            <div className="grid grid-cols-1 gap-3">
                                 {followers.slice(0, 5).map(f => {
                                     const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
                                     const onClick = () => {

@@ -31,12 +31,14 @@ const PlanCard: React.FC<{
     disabled?: boolean;
     isCurrentPlan?: boolean;
 }> = ({ icon, title, price, pricePeriod = '/month', features, tagline, buttonText, isFeatured, badge, onClick, disabled = false, isCurrentPlan }) => (
-    <div className={`relative p-8 flex flex-col cardSurface ${isFeatured ? 'border-2 border-orange-500' : ''} ${disabled && !isCurrentPlan && title !== 'Artist' ? 'opacity-60' : ''} ${isCurrentPlan ? 'ring-4 ring-green-500/50' : ''}`}>
+    <div className={`relative p-8 flex flex-col cardSurface ${isFeatured ? 'border-2 border-orange-500' : ''} ${disabled && !isCurrentPlan && title !== 'Artist' ? 'opacity-60' : ''} ${isCurrentPlan ? 'ring-2 ring-green-500 shadow-[0_0_20px_rgba(34,197,94,0.3)]' : ''}`}>
         {badge && (
             <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">{badge}</div>
         )}
         {isCurrentPlan && (
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white text-sm font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">Current Plan</div>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white text-sm font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-1">
+                <CheckCircleIcon className="w-4 h-4" /> Active Plan
+            </div>
         )}
         <div className="flex-grow">
             <div className="flex items-center gap-3 mb-4">
@@ -62,11 +64,13 @@ const PlanCard: React.FC<{
                 disabled={disabled || isCurrentPlan}
                 className={`w-full py-3 rounded-lg font-bold text-lg transition-all ${
                     isFeatured && !disabled && !isCurrentPlan ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' 
-                    : 'bg-zinc-700 text-white'} ${
-                    (disabled || isCurrentPlan) ? 'cursor-not-allowed bg-zinc-600 text-zinc-400' : 'hover:bg-zinc-600'
+                    : isCurrentPlan ? 'bg-green-500/20 text-green-400 border border-green-500/50 cursor-default'
+                    : 'bg-zinc-700 text-white hover:bg-zinc-600'
+                } ${
+                    (disabled && !isCurrentPlan) ? 'cursor-not-allowed bg-zinc-600 text-zinc-400' : ''
                 }`}
             >
-                {isCurrentPlan ? "Active" : buttonText}
+                {isCurrentPlan ? "Current Plan" : buttonText}
             </button>
         </div>
     </div>

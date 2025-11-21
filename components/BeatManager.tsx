@@ -65,7 +65,7 @@ const BeatFormModal: React.FC<{
     const inputClasses = "w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="w-full max-w-lg cardSurface">
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-zinc-100">{instrumental?.id ? 'Edit Instrumental' : 'Upload New Instrumental'}</h2>
@@ -128,8 +128,8 @@ const BeatFormModal: React.FC<{
                         </div>
                     </div>
                     <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-end gap-2">
-                        <button type="button" onClick={onClose} disabled={isUploading} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600">Cancel</button>
-                        <button type="submit" disabled={isUploading} className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600 disabled:bg-zinc-600 flex items-center gap-2">
+                        <button type="button" onClick={onClose} disabled={isUploading} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600 transition-colors">Cancel</button>
+                        <button type="submit" disabled={isUploading} className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600 disabled:bg-zinc-600 flex items-center gap-2 transition-colors">
                             {isUploading && (
                                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -166,12 +166,12 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
             }
 
             await upsertInstrumental(finalInstrumental, producer.id);
-            await onRefresh(); // Ensure we wait for refresh
+            onRefresh(); 
             setIsModalOpen(false);
             setEditingInstrumental(null);
         } catch (error) {
             console.error("Failed to save instrumental:", error);
-            alert("Error saving beat. Please check the console for details.");
+            alert("Error saving beat. Please check your connection.");
         } finally {
             setIsUploading(false);
         }
@@ -201,7 +201,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
             
             <div className="space-y-4">
                 {(producer.instrumentals || []).length > 0 ? producer.instrumentals.map(inst => (
-                    <div key={inst.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div key={inst.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-purple-500/30 transition-colors">
                         <img src={inst.cover_art_url} alt={inst.title} className="w-16 h-16 rounded-md object-cover flex-shrink-0" />
                         <div className="flex-grow">
                             <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2"><MusicNoteIcon className="w-5 h-5 text-purple-400"/> {inst.title}</h3>
@@ -215,12 +215,16 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
                             </div>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-2">
-                             <button onClick={() => handleOpenModal(inst)} className="p-2 text-zinc-400 hover:text-orange-400 rounded-full bg-zinc-800 hover:bg-orange-500/10"><EditIcon className="w-5 h-5"/></button>
-                             <button onClick={() => handleDeleteInstrumental(inst.id)} className="p-2 text-zinc-400 hover:text-red-400 rounded-full bg-zinc-800 hover:bg-red-500/10"><TrashIcon className="w-5 h-5"/></button>
+                             <button onClick={() => handleOpenModal(inst)} className="p-2 text-zinc-400 hover:text-orange-400 rounded-full bg-zinc-800 hover:bg-orange-500/10 transition-colors"><EditIcon className="w-5 h-5"/></button>
+                             <button onClick={() => handleDeleteInstrumental(inst.id)} className="p-2 text-zinc-400 hover:text-red-400 rounded-full bg-zinc-800 hover:bg-red-500/10 transition-colors"><TrashIcon className="w-5 h-5"/></button>
                         </div>
                     </div>
                 )) : (
-                    <p className="text-center py-8 text-zinc-500">You haven't uploaded any beats yet. Upload your first beat to start selling!</p>
+                    <div className="text-center py-12 bg-zinc-800/50 rounded-xl border border-zinc-700 border-dashed">
+                        <MusicNoteIcon className="w-12 h-12 mx-auto text-zinc-600 mb-2" />
+                        <p className="text-zinc-400">You haven't uploaded any beats yet.</p>
+                         <p className="text-sm text-zinc-500 mt-1">Upload your first beat to start selling!</p>
+                    </div>
                 )}
             </div>
             

@@ -34,7 +34,6 @@ const RoomFormModal: React.FC<{
             const fileList = Array.from(files);
             setNewPhotoFiles(prev => [...prev, ...fileList]);
             
-            // Create local preview URLs
             const newPreviews = fileList.map(file => URL.createObjectURL(file));
             setPreviewUrls(prev => [...prev, ...newPreviews]);
         }
@@ -68,7 +67,7 @@ const RoomFormModal: React.FC<{
     const inputClasses = "w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
             <div className="w-full max-w-lg cardSurface max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center sticky top-0 bg-zinc-900 z-10">
                     <h2 className="text-xl font-bold text-zinc-100">{room?.id ? 'Edit Room' : 'Add New Room'}</h2>
@@ -98,7 +97,6 @@ const RoomFormModal: React.FC<{
                             </div>
                         </div>
 
-                        {/* Photo Upload Section */}
                         <div>
                             <label className="block text-sm font-medium text-zinc-300 mb-2">Room Photos</label>
                             <div className="grid grid-cols-3 gap-3 mb-3">
@@ -146,8 +144,8 @@ const RoomFormModal: React.FC<{
                         </div>
                     </div>
                     <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-end gap-2 sticky bottom-0">
-                        <button type="button" onClick={onClose} disabled={isUploading} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600">Cancel</button>
-                        <button type="submit" disabled={isUploading} className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600 disabled:bg-zinc-600 flex items-center gap-2">
+                        <button type="button" onClick={onClose} disabled={isUploading} className="px-4 py-2 text-sm rounded bg-zinc-700 text-zinc-200 hover:bg-zinc-600 transition-colors">Cancel</button>
+                        <button type="submit" disabled={isUploading} className="px-4 py-2 text-sm rounded bg-orange-500 text-white hover:bg-orange-600 disabled:bg-zinc-600 flex items-center gap-2 transition-colors">
                             {isUploading && (
                                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -188,7 +186,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
             };
 
             await upsertRoom(finalRoom, stoodio.id);
-            await onRefresh(); // Wait for refresh to complete
+            onRefresh(); 
             setIsModalOpen(false);
             setEditingRoom(null);
         } catch (error: any) {
@@ -223,7 +221,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
             
             <div className="space-y-4">
                 {(stoodio.rooms || []).length > 0 ? stoodio.rooms.map(room => (
-                    <div key={room.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div key={room.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-orange-500/30 transition-colors">
                         <div className="flex items-start gap-4 flex-grow">
                             {room.photos && room.photos.length > 0 ? (
                                 <img src={room.photos[0]} alt={room.name} className="w-20 h-20 object-cover rounded-lg border border-zinc-700" />
@@ -234,7 +232,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
                             )}
                             <div>
                                 <h3 className="font-bold text-lg text-zinc-200 flex items-center gap-2">{room.name}</h3>
-                                <p className="text-sm text-zinc-400 mt-1 mb-2">{room.description}</p>
+                                <p className="text-sm text-zinc-400 mt-1 mb-2 line-clamp-2">{room.description}</p>
                                 <div className="flex items-center gap-4">
                                     <div className="text-sm font-semibold text-green-400 flex items-center gap-1">
                                         <DollarSignIcon className="w-4 h-4" /> ${room.hourly_rate}/hr
@@ -246,12 +244,16 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
                             </div>
                         </div>
                         <div className="flex-shrink-0 flex items-center gap-2">
-                             <button onClick={() => handleOpenModal(room)} className="p-2 text-zinc-400 hover:text-orange-400 rounded-full bg-zinc-800 hover:bg-orange-500/10"><EditIcon className="w-5 h-5"/></button>
-                             <button onClick={() => handleDeleteRoom(room.id)} className="p-2 text-zinc-400 hover:text-red-400 rounded-full bg-zinc-800 hover:bg-red-500/10"><TrashIcon className="w-5 h-5"/></button>
+                             <button onClick={() => handleOpenModal(room)} className="p-2 text-zinc-400 hover:text-orange-400 rounded-full bg-zinc-800 hover:bg-orange-500/10 transition-colors"><EditIcon className="w-5 h-5"/></button>
+                             <button onClick={() => handleDeleteRoom(room.id)} className="p-2 text-zinc-400 hover:text-red-400 rounded-full bg-zinc-800 hover:bg-red-500/10 transition-colors"><TrashIcon className="w-5 h-5"/></button>
                         </div>
                     </div>
                 )) : (
-                    <p className="text-center py-8 text-zinc-500">You haven't added any rooms yet.</p>
+                    <div className="text-center py-12 bg-zinc-800/50 rounded-xl border border-zinc-700 border-dashed">
+                        <HouseIcon className="w-12 h-12 mx-auto text-zinc-600 mb-2" />
+                        <p className="text-zinc-400">You haven't added any rooms yet.</p>
+                        <p className="text-sm text-zinc-500 mt-1">Start by adding a room to accept bookings.</p>
+                    </div>
                 )}
             </div>
             

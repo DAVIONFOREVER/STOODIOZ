@@ -11,6 +11,7 @@ import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon }
 import { useAppState } from '../contexts/AppContext.tsx';
 import { fetchGlobalFeed } from '../services/apiService';
 import { useOnScreen } from '../hooks/useOnScreen';
+import { getSupabase } from '../lib/supabase';
 
 interface TheStageProps {
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
@@ -123,6 +124,41 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         }
     }, [isBottomVisible, hasMore, isLoading, loadMorePosts]);
 
+    // Realtime Feed Updates
+    useEffect(() => {
+        const supabase = getSupabase();
+        if (!supabase) return;
+
+        const channel = supabase.channel('public:posts')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'posts' },
+                async (payload) => {
+                    const newPost = payload.new as any;
+                    // Format correctly
+                    const formattedPost: Post = {
+                         id: newPost.id,
+                         authorId: newPost.author_id,
+                         authorType: newPost.author_type,
+                         text: newPost.text,
+                         image_url: newPost.image_url,
+                         video_url: newPost.video_url,
+                         video_thumbnail_url: newPost.video_thumbnail_url,
+                         link: newPost.link,
+                         timestamp: newPost.timestamp,
+                         likes: newPost.likes || [],
+                         comments: newPost.comments || []
+                    };
+                    setPosts(prev => [formattedPost, ...prev]);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
     const handleSelectUser = (user: Artist | Engineer | Stoodio | Producer) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
@@ -168,16 +204,9 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     }
 
     const handleNewPost = async (postData: any) => {
+        // Optimistically add to feed (Realtime will also catch it, but this is instant)
+        // The API call will handle the DB insert.
         await onPost(postData);
-        // Refresh feed to show new post immediately
-        const latest = await fetchGlobalFeed(1);
-        if (latest.length > 0) {
-             // Prepend and ensure no duplicate keys
-             setPosts(prev => {
-                 if (prev.some(p => p.id === latest[0].id)) return prev;
-                 return [latest[0], ...prev];
-             });
-        }
     }
 
     if (!currentUser) return null;

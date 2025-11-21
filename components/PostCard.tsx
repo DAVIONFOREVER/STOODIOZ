@@ -39,6 +39,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     useEffect(() => {
         if (videoRef.current) {
             if (isVisible) {
+                // Only attempt play if user hasn't paused it manually (logic simplified here)
                 const playPromise = videoRef.current.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
@@ -75,13 +76,15 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
 
     const handleShare = async () => {
         const url = `${window.location.origin}/post/${post.id}`;
+        const shareData = {
+            title: `Post by ${author.name}`,
+            text: post.text,
+            url: url
+        };
+
         try {
             if (navigator.share) {
-                await navigator.share({
-                    title: `Post by ${author.name}`,
-                    text: post.text,
-                    url: url
-                });
+                await navigator.share(shareData);
             } else {
                 await navigator.clipboard.writeText(url);
                 alert('Link copied to clipboard!');
@@ -156,9 +159,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                          <video
                             ref={videoRef}
                             src={post.video_url}
-                            controls
+                            controls // Explicitly enable controls
                             playsInline
-                            muted // Muted is often required for autoplay
+                            muted // Muted is often required for autoplay, but user can unmute
                             className="w-full h-full object-contain"
                             poster={post.video_thumbnail_url}
                         />

@@ -541,10 +541,12 @@ export const createPost = async (postData: any, user: any, userRole: UserRole) =
         comments: []
     };
 
+    // Primary Insert to POSTS table
     const { error: dbError } = await supabase.from('posts').insert(postForDb);
     if (dbError) console.error("Error inserting into posts table:", dbError);
 
     // Update user profile posts for backward compatibility
+    // This ensures older logic or profile-specific views still work until fully refactored
     const newPost: Post = {
         id: postForDb.id,
         authorId: user.id,
@@ -563,7 +565,6 @@ export const createPost = async (postData: any, user: any, userRole: UserRole) =
     const updatedPosts = [newPost, ...currentPosts];
     const table = getTableFromRole(userRole);
 
-    // Update the user profile for local cache / backward compat
     const { data: updatedUser, error } = await supabase
         .from(table)
         .update({ posts: updatedPosts })
@@ -571,10 +572,9 @@ export const createPost = async (postData: any, user: any, userRole: UserRole) =
         .select()
         .single();
 
-    // If the update fails (maybe due to row locking or something else), we still return the updated user object structure 
-    // so the UI can update optimistically, since the main 'posts' table insertion succeeded.
     if (error) {
-        console.error("Warning: Failed to update user profile with new post, but post was likely created.", error);
+        console.error("Warning: Failed to update user profile with new post, but post was likely created in global feed.", error);
+        // Return updated structure for optimistic UI update even if profile sync failed
         return { ...user, posts: updatedPosts }; 
     }
     
@@ -611,7 +611,8 @@ export const likePost = async (postId: string, userId: string, author: any) => {
     updatedPosts[postIndex] = updatedPost;
 
     const table = inferUserTable(author);
-    // Fire and forget update to user profile to keep sync, but don't block UI
+    
+    // Fire and forget update to user profile to keep sync
     supabase.from(table).update({ posts: updatedPosts }).eq('id', author.id).then(() => {});
 
     return { ...author, posts: updatedPosts };
