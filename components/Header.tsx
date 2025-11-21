@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer } from '../types';
+import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer, UserRole } from '../types';
 import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon, DollarSignIcon, EyeIcon } from './icons.tsx';
 import NotificationPanel from './NotificationPanel.tsx';
 import UniversalSearch from './UniversalSearch.tsx';
@@ -69,27 +69,26 @@ const Header: React.FC<HeaderProps> = (props) => {
     const handleDashboardNavigate = () => {
         if (!userRole) return;
         switch (userRole) {
-            case 'ARTIST':
-                onNavigate(AppView.ARTIST_DASHBOARD);
-                break;
-            case 'ENGINEER':
-                onNavigate(AppView.ENGINEER_DASHBOARD);
-                break;
-            case 'PRODUCER':
-                onNavigate(AppView.PRODUCER_DASHBOARD);
-                break;
-            case 'STOODIO':
-                onNavigate(AppView.STOODIO_DASHBOARD);
-                break;
+            case UserRole.ARTIST: onNavigate(AppView.ARTIST_DASHBOARD); break;
+            case UserRole.ENGINEER: onNavigate(AppView.ENGINEER_DASHBOARD); break;
+            case UserRole.PRODUCER: onNavigate(AppView.PRODUCER_DASHBOARD); break;
+            case UserRole.STOODIO: onNavigate(AppView.STOODIO_DASHBOARD); break;
         }
     };
 
     const handleViewProfile = () => {
-        if (!currentUser) return;
-        if ('amenities' in currentUser) onSelectStoodio(currentUser as Stoodio);
-        else if ('specialties' in currentUser) onSelectEngineer(currentUser as Engineer);
-        else if ('instrumentals' in currentUser) onSelectProducer(currentUser as Producer);
-        else onSelectArtist(currentUser as Artist);
+        if (!currentUser || !userRole) return;
+        
+        // Strict role checking to ensure correct profile view
+        if (userRole === UserRole.STOODIO) {
+            onSelectStoodio(currentUser as Stoodio);
+        } else if (userRole === UserRole.ENGINEER) {
+            onSelectEngineer(currentUser as Engineer);
+        } else if (userRole === UserRole.PRODUCER) {
+            onSelectProducer(currentUser as Producer);
+        } else if (userRole === UserRole.ARTIST) {
+            onSelectArtist(currentUser as Artist);
+        }
         setIsMobileMenuOpen(false);
     };
     

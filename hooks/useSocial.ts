@@ -85,7 +85,7 @@ export const useSocial = () => {
                 }
             }
 
-            const updatedAuthor = await apiService.createPost(finalPostData, currentUser, userRole);
+            const { updatedAuthor } = await apiService.createPost(finalPostData, currentUser, userRole);
             const updatedUsers = allUsers.map(u => u.id === updatedAuthor.id ? { ...u, ...updatedAuthor } : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {

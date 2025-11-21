@@ -201,294 +201,72 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
                 engineer_pay_rate: 50, 
                 amenities: [], 
                 availability: [], 
-                photos: [avatarUrl], 
                 rooms: [], 
-                verification_status: 'UNVERIFIED', 
-                show_on_map: true 
+                verification_status: VerificationStatus.UNVERIFIED, 
+                photos: [], 
+                in_house_engineers: [],
+                show_on_map: true
             };
             break;
     }
 
-    // CRITICAL: Check if profile already exists to avoid unique constraint errors on retry
-    const { data: existingProfile } = await supabase.from(tableName).select('id').eq('id', authUser.id).single();
+    const { data, error } = await supabase.from(tableName).insert([{ ...baseData, ...specificData }]).select().single();
     
-    if (existingProfile) {
-        console.log("Profile already exists, updating instead of inserting.");
-        const { data: updatedProfile, error: updateError } = await supabase
-            .from(tableName)
-            .update({ ...baseData, ...specificData })
-            .eq('id', authUser.id)
-            .select()
-            .single();
-        if (updateError) throw updateError;
-        return updatedProfile as any;
-    }
-
-    const { data: newProfile, error: profileError } = await supabase
-        .from(tableName)
-        .insert({ ...baseData, ...specificData })
-        .select()
-        .single();
-
-    if (profileError) {
-        console.error("Error inserting profile:", profileError);
-        throw profileError;
-    }
-
-    return newProfile as any;
+    if (error) throw error;
+    return data as Artist | Engineer | Stoodio | Producer;
 };
 
-export const updateUser = async (userId: string, table: string, updates: any) => {
+export const updateUser = async (userId: string, table: string, updates: Partial<any>) => {
     const supabase = getSupabase();
     if (!supabase) return null;
-
-    const { data, error } = await supabase
-        .from(table)
-        .update(updates)
-        .eq('id', userId)
-        .select()
-        .single();
-
+    const { data, error } = await supabase.from(table).update(updates).eq('id', userId).select().single();
     if (error) throw error;
     return data;
 };
 
-export const toggleFollow = async (currentUser: any, targetUser: any, targetType: string, isFollowing: boolean) => {
+// --- POSTS & FEEDS ---
+
+export const createPost = async (postData: any, user: any, userRole: UserRole) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) throw new Error("Supabase not initialized");
 
-    const currentFollowing = { ...currentUser.following };
-    const listKey = `${targetType}s` as keyof typeof currentFollowing;
-    
-    let newList = currentFollowing[listKey] || [];
-    if (isFollowing) {
-        newList = newList.filter((id: string) => id !== targetUser.id);
-    } else {
-        newList = [...newList, targetUser.id];
-    }
-    currentFollowing[listKey] = newList;
-
-    let targetFollowers = targetUser.follower_ids || [];
-    if (isFollowing) {
-        targetFollowers = targetFollowers.filter((id: string) => id !== currentUser.id);
-    } else {
-        targetFollowers = [...targetFollowers, currentUser.id];
-    }
-
-    const { data: updatedCurrent } = await supabase
-        .from(inferUserTable(currentUser))
-        .update({ following: currentFollowing })
-        .eq('id', currentUser.id)
-        .select()
-        .single();
-
-    const { data: updatedTarget } = await supabase
-        .from(inferUserTable(targetUser))
-        .update({ 
-            follower_ids: targetFollowers,
-            followers: targetFollowers.length
-        })
-        .eq('id', targetUser.id)
-        .select()
-        .single();
-
-    return { updatedCurrentUser: updatedCurrent, updatedTargetUser: updatedTarget };
-};
-
-export const submitForVerification = async (stoodioId: string, data: { googleBusinessProfileUrl: string, websiteUrl: string }) => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-
-    const { data: updatedStoodio, error } = await supabase
-        .from('stoodioz')
-        .update({ verification_status: VerificationStatus.PENDING })
-        .eq('id', stoodioId)
-        .select()
-        .single();
-
-    if (error) throw error;
-    return updatedStoodio;
-};
-
-// --- BOOKINGS ---
-
-export const createBooking = async (request: BookingRequest, stoodio: Stoodio, user: any, userRole: UserRole): Promise<Booking> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
-
-    const bookingId = `bk-${Date.now()}`;
-    const newBooking: Booking = {
-        id: bookingId,
-        ...request,
-        status: userRole === UserRoleEnum.STOODIO ? BookingStatus.PENDING : BookingStatus.PENDING_APPROVAL,
-        booked_by_id: user.id,
-        booked_by_role: userRole,
-        stoodio: stoodio,
-        posted_by: userRole,
+    const newPost = {
+        id: `post-${Date.now()}`,
+        author_id: user.id,
+        author_type: userRole,
+        text: postData.text || '',
+        image_url: postData.image_url || null,
+        video_url: postData.video_url || null,
+        video_thumbnail_url: postData.video_thumbnail_url || null,
+        link: postData.link || null,
+        timestamp: new Date().toISOString(),
+        likes: [],
+        comments: []
     };
 
-    const { data, error } = await supabase
-        .from('bookings')
-        .insert(newBooking)
-        .select()
-        .single();
-        
-    if (error) throw error;
-    return data as Booking;
-};
-
-export const cancelBooking = async (booking: Booking): Promise<Booking> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
-
-    const { data, error } = await supabase
-        .from('bookings')
-        .update({ status: BookingStatus.CANCELLED })
-        .eq('id', booking.id)
-        .select()
-        .single();
-
-    if (error) throw error;
-    return data as Booking;
-};
-
-export const respondToBooking = async (booking: Booking, response: 'accept' | 'deny', responder: Engineer): Promise<Booking> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
-
-    const status = response === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
-
-    const { data, error } = await supabase
-        .from('bookings')
-        .update({ 
-            status,
-            engineer: response === 'accept' ? responder : booking.engineer
-        })
-        .eq('id', booking.id)
-        .select()
-        .single();
-
-    if (error) throw error;
-    return data as Booking;
-};
-
-export const acceptJob = async (booking: Booking, engineer: Engineer): Promise<Booking> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
-
-    const { data, error } = await supabase
-        .from('bookings')
-        .update({ 
-            status: BookingStatus.CONFIRMED,
-            engineer: engineer,
-            requested_engineer_id: engineer.id
-        })
-        .eq('id', booking.id)
-        .select()
-        .single();
-
-    if (error) throw error;
-
-    if (data && booking.stoodio) {
-        await generateAndStoreInvoice(data, booking.stoodio, engineer);
+    // 1. Insert into global feed table
+    // Using 'select' to ensure we get the return data, which helps confirm the insert worked
+    const { error: insertError } = await supabase.from('posts').insert([newPost]).select();
+    
+    if (insertError) {
+        console.error("Error creating post in public.posts:", insertError);
+        // Fallback: Continue to update profile so at least the user sees it
     }
 
-    return data as Booking;
-};
-
-export const endSession = async (booking: Booking): Promise<{ updatedBooking: Booking }> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
-
-    const { data, error } = await supabase
-        .from('bookings')
-        .update({ status: BookingStatus.COMPLETED })
-        .eq('id', booking.id)
-        .select()
-        .single();
-
-    if (error) throw error;
-    return { updatedBooking: data as Booking };
-};
-
-// --- FINANCIALS (MOCKED STRIPE) ---
-
-export const createCheckoutSessionForBooking = async (bookingRequest: BookingRequest, stoodioId: string | undefined, userId: string, userRole: UserRole) => {
-    return { sessionId: 'mock_session_id_' + Date.now() };
-};
-
-export const createCheckoutSessionForWallet = async (amount: number, userId: string) => {
-    return { sessionId: 'mock_wallet_session_' + Date.now() };
-};
-
-export const createCheckoutSessionForSubscription = async (planId: SubscriptionPlan, userId: string) => {
-    return { sessionId: 'mock_sub_session_' + Date.now() };
-};
-
-export const initiatePayout = async (amount: number, userId: string) => {
-    return { success: true };
-};
-
-export const addTip = async (booking: Booking, amount: number) => {
-    return { sessionId: 'mock_tip_session_' + Date.now() };
-};
-
-export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | 'exclusive', buyer: any, producer: Producer, userRole: UserRole) => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    // 2. Update user's profile posts array (legacy support/dashboard view)
+    const currentPosts = user.posts || [];
+    const updatedPosts = [newPost, ...currentPosts];
+    const table = getTableFromRole(userRole);
     
-    const price = type === 'lease' ? instrumental.price_lease : instrumental.price_exclusive;
-    
-    const transaction: Transaction = {
-        id: `txn-${Date.now()}`,
-        date: new Date().toISOString(),
-        description: `Beat Purchase: ${instrumental.title} (${type})`,
-        amount: -price,
-        category: TransactionCategory.BEAT_PURCHASE,
-        status: TransactionStatus.COMPLETED,
-        related_user_name: producer.name
-    };
-
-    const booking: Booking = {
-        id: `bk-beat-${Date.now()}`,
-        date: new Date().toISOString().split('T')[0],
-        start_time: 'N/A',
-        duration: 0,
-        total_cost: price,
-        status: BookingStatus.COMPLETED,
-        booked_by_id: buyer.id,
-        booked_by_role: userRole,
-        request_type: BookingRequestType.BEAT_PURCHASE,
-        engineer_pay_rate: 0,
-        producer: producer,
-        instrumentals_purchased: [instrumental]
-    };
-
-    const { data: newBooking, error: bookingError } = await supabase.from('bookings').insert(booking).select().single();
-    if (bookingError) throw bookingError;
-
-    const currentTransactions = buyer.wallet_transactions || [];
-    const updatedTransactions = [...currentTransactions, transaction];
-
-    const { error: userError } = await updateUser(buyer.id, inferUserTable(buyer), { 
-        wallet_balance: buyer.wallet_balance - price,
-        wallet_transactions: updatedTransactions
-    });
-
-    if (userError) throw userError;
-
-    if (newBooking) {
-        await generateAndStoreInvoice(newBooking, buyer, producer);
-        const { data: finalBooking } = await supabase.from('bookings').select('*').eq('id', newBooking.id).single();
-        return { updatedBooking: finalBooking as Booking };
+    const { error: profileError } = await supabase.from(table).update({ posts: updatedPosts }).eq('id', user.id);
+    if (profileError) {
+        console.error("Error updating user profile with post:", profileError);
     }
 
-    return { updatedBooking: newBooking as Booking };
+    return { updatedAuthor: { ...user, posts: updatedPosts }, newPost };
 };
 
-// --- SOCIAL ---
-
-export const fetchGlobalFeed = async (limit: number = 10, beforeTimestamp?: string): Promise<Post[]> => {
+export const fetchGlobalFeed = async (limit = 20, beforeTimestamp?: string): Promise<Post[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
@@ -507,8 +285,9 @@ export const fetchGlobalFeed = async (limit: number = 10, beforeTimestamp?: stri
         console.error("Error fetching feed:", error);
         return [];
     }
-
-    return (data || []).map((row: any) => ({
+    
+    // Map DB columns to Post type
+    return (data || []).map(row => ({
         id: row.id,
         authorId: row.author_id,
         authorType: row.author_type,
@@ -523,260 +302,491 @@ export const fetchGlobalFeed = async (limit: number = 10, beforeTimestamp?: stri
     }));
 };
 
-export const createPost = async (postData: any, user: any, userRole: UserRole) => {
+export const likePost = async (postId: string, userId: string, postAuthor: any) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) throw new Error("Supabase not initialized");
 
-    const postForDb = {
-        id: `post-${Date.now()}`,
-        author_id: user.id,
-        author_type: userRole,
-        text: postData.text,
-        image_url: postData.image_url,
-        video_url: postData.video_url,
-        video_thumbnail_url: postData.video_thumbnail_url,
-        link: postData.link,
-        timestamp: new Date().toISOString(),
-        likes: [],
-        comments: []
-    };
-
-    // Primary Insert to POSTS table
-    const { error: dbError } = await supabase.from('posts').insert(postForDb);
-    if (dbError) console.error("Error inserting into posts table:", dbError);
-
-    // Update user profile posts for backward compatibility
-    // This ensures older logic or profile-specific views still work until fully refactored
-    const newPost: Post = {
-        id: postForDb.id,
-        authorId: user.id,
-        authorType: userRole,
-        text: postData.text,
-        image_url: postData.image_url,
-        video_url: postData.video_url,
-        video_thumbnail_url: postData.video_thumbnail_url,
-        link: postData.link,
-        timestamp: postForDb.timestamp,
-        likes: [],
-        comments: []
-    };
-
-    const currentPosts = user.posts || [];
-    const updatedPosts = [newPost, ...currentPosts];
-    const table = getTableFromRole(userRole);
-
-    const { data: updatedUser, error } = await supabase
-        .from(table)
-        .update({ posts: updatedPosts })
-        .eq('id', user.id)
-        .select()
+    // 1. Fetch the post to get current likes
+    const { data: postData, error: fetchError } = await supabase
+        .from('posts')
+        .select('likes')
+        .eq('id', postId)
         .single();
 
-    if (error) {
-        console.error("Warning: Failed to update user profile with new post, but post was likely created in global feed.", error);
-        // Return updated structure for optimistic UI update even if profile sync failed
-        return { ...user, posts: updatedPosts }; 
-    }
-    
-    return updatedUser;
-};
+    if (fetchError) throw fetchError;
 
-export const likePost = async (postId: string, userId: string, author: any) => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
-
-    const { data: postData } = await supabase.from('posts').select('likes').eq('id', postId).single();
-
-    if (postData) {
-        let newLikes = postData.likes || [];
-        if (newLikes.includes(userId)) {
-            newLikes = newLikes.filter((id: string) => id !== userId);
-        } else {
-            newLikes = [...newLikes, userId];
-        }
-        await supabase.from('posts').update({ likes: newLikes }).eq('id', postId);
+    let likes = postData.likes || [];
+    if (likes.includes(userId)) {
+        likes = likes.filter((id: string) => id !== userId);
+    } else {
+        likes.push(userId);
     }
 
-    // Legacy update logic for profile compatibility
-    const posts = author.posts || [];
-    const postIndex = posts.findIndex((p: Post) => p.id === postId);
-    if (postIndex === -1) return author;
+    // 2. Update global posts table
+    await supabase.from('posts').update({ likes }).eq('id', postId);
 
-    const post = posts[postIndex];
-    const isLiked = post.likes.includes(userId);
-    let legacyLikes = isLiked ? post.likes.filter((id: string) => id !== userId) : [...post.likes, userId];
+    // 3. Update author's profile posts array (legacy support)
+    const table = inferUserTable(postAuthor);
+    const currentPosts = postAuthor.posts || [];
+    const updatedPosts = currentPosts.map((p: Post) => 
+        p.id === postId ? { ...p, likes } : p
+    );
+    await supabase.from(table).update({ posts: updatedPosts }).eq('id', postAuthor.id);
 
-    const updatedPost = { ...post, likes: legacyLikes };
-    const updatedPosts = [...posts];
-    updatedPosts[postIndex] = updatedPost;
-
-    const table = inferUserTable(author);
-    
-    // Fire and forget update to user profile to keep sync
-    supabase.from(table).update({ posts: updatedPosts }).eq('id', author.id).then(() => {});
-
-    return { ...author, posts: updatedPosts };
+    return { ...postAuthor, posts: updatedPosts };
 };
 
-export const commentOnPost = async (postId: string, text: string, commenter: any, author: any) => {
+export const commentOnPost = async (postId: string, text: string, commenter: any, postAuthor: any) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) throw new Error("Supabase not initialized");
 
     const newComment: Comment = {
         id: `comment-${Date.now()}`,
         authorId: commenter.id,
         authorName: commenter.name,
         author_image_url: commenter.image_url,
-        text: text,
+        text,
         timestamp: new Date().toISOString()
     };
 
-    const { data: postData } = await supabase.from('posts').select('comments').eq('id', postId).single();
-    if (postData) {
-        const currentComments = postData.comments || [];
-        await supabase.from('posts').update({ comments: [...currentComments, newComment] }).eq('id', postId);
+    // 1. Fetch current comments
+    const { data: postData, error: fetchError } = await supabase
+        .from('posts')
+        .select('comments')
+        .eq('id', postId)
+        .single();
+
+    if (fetchError) throw fetchError;
+
+    const comments = postData.comments || [];
+    comments.push(newComment); // JSONB column stores array of objects
+
+    // 2. Update global posts table
+    await supabase.from('posts').update({ comments }).eq('id', postId);
+
+    // 3. Update author's profile (legacy)
+    const table = inferUserTable(postAuthor);
+    const currentPosts = postAuthor.posts || [];
+    const updatedPosts = currentPosts.map((p: Post) => 
+        p.id === postId ? { ...p, comments } : p
+    );
+    await supabase.from(table).update({ posts: updatedPosts }).eq('id', postAuthor.id);
+
+    return { ...postAuthor, posts: updatedPosts };
+};
+
+// --- SPECIFIC UPDATES ---
+
+export const toggleFollow = async (currentUser: any, targetUser: any, targetType: string, isFollowing: boolean) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const currentTable = inferUserTable(currentUser);
+    const targetTable = inferUserTable(targetUser);
+
+    // 1. Update Current User's "following" list (User owns this row, standard RLS applies)
+    let newFollowing = { ...currentUser.following };
+    const targetListKey = `${targetType}s` as keyof typeof newFollowing; // e.g., 'artists', 'engineers'
+    let list = newFollowing[targetListKey] || [];
+
+    if (isFollowing) {
+        list = list.filter((id: string) => id !== targetUser.id);
+    } else {
+        list.push(targetUser.id);
+    }
+    newFollowing[targetListKey] = list;
+
+    await supabase.from(currentTable).update({ following: newFollowing }).eq('id', currentUser.id);
+
+    // 2. Update Target User's "followers" count and "follower_ids" list
+    // We use an RPC function to bypass RLS on the target table, as users cannot update other users' rows directly.
+    let newFollowerIds = targetUser.follower_ids || [];
+    if (isFollowing) {
+        newFollowerIds = newFollowerIds.filter((id: string) => id !== currentUser.id);
+    } else {
+        newFollowerIds.push(currentUser.id);
+    }
+    const newFollowersCount = newFollowerIds.length;
+
+    // Call RPC to update target securely
+    const { error: rpcError } = await supabase.rpc('update_target_followers', {
+        table_name: targetTable,
+        target_id: targetUser.id,
+        new_follower_ids: newFollowerIds,
+        new_count: newFollowersCount
+    });
+
+    if (rpcError) {
+        console.error("RPC update_target_followers failed:", rpcError);
+        // If RPC fails, UI might be out of sync for the target user's count, but main functionality (following) works for current user.
     }
 
-    const posts = author.posts || [];
-    const postIndex = posts.findIndex((p: Post) => p.id === postId);
-    if (postIndex === -1) return author;
-
-    const post = posts[postIndex];
-    const updatedPost = { ...post, comments: [...post.comments, newComment] };
-    const updatedPosts = [...posts];
-    updatedPosts[postIndex] = updatedPost;
-
-    const table = inferUserTable(author);
-    
-    // Fire and forget update to user profile
-    supabase.from(table).update({ posts: updatedPosts }).eq('id', author.id).then(() => {});
-
-    return { ...author, posts: updatedPosts };
-};
-
-// --- CONTENT MANAGEMENT ---
-
-export const upsertRoom = async (room: Room, stoodioId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
-
-    const { data: studio } = await supabase.from('stoodioz').select('rooms').eq('id', stoodioId).single();
-    const currentRooms: Room[] = studio?.rooms || [];
-    const roomIndex = currentRooms.findIndex(r => r.id === room.id);
-    let updatedRooms = [...currentRooms];
-
-    if (roomIndex >= 0) updatedRooms[roomIndex] = room;
-    else updatedRooms.push(room);
-
-    const { data: updatedStudio, error } = await supabase.from('stoodioz').update({ rooms: updatedRooms }).eq('id', stoodioId).select().single();
-    if (error) throw error;
-    return updatedStudio;
-};
-
-export const deleteRoom = async (roomId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
-
-    const { data: studio } = await supabase.from('stoodioz').select('rooms').eq('id', user.id).single();
-    const updatedRooms = (studio?.rooms || []).filter((r: Room) => r.id !== roomId);
-
-    const { error } = await supabase.from('stoodioz').update({ rooms: updatedRooms }).eq('id', user.id);
-    if (error) throw error;
+    return {
+        updatedCurrentUser: { ...currentUser, following: newFollowing },
+        updatedTargetUser: { ...targetUser, followers: newFollowersCount, follower_ids: newFollowerIds }
+    };
 };
 
 export const upsertInstrumental = async (instrumental: Instrumental, producerId: string) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) throw new Error("Supabase not initialized");
 
-    const { data: producer } = await supabase.from('producers').select('instrumentals').eq('id', producerId).single();
-    const currentBeats: Instrumental[] = producer?.instrumentals || [];
-    const index = currentBeats.findIndex(i => i.id === instrumental.id);
-    let updatedBeats = [...currentBeats];
+    // 1. Fetch current producer to get the existing array
+    const { data: producer, error: fetchError } = await supabase
+        .from('producers')
+        .select('instrumentals')
+        .eq('id', producerId)
+        .single();
 
-    if (index >= 0) updatedBeats[index] = instrumental;
-    else updatedBeats.push(instrumental);
+    if (fetchError) throw fetchError;
 
-    const { error } = await supabase.from('producers').update({ instrumentals: updatedBeats }).eq('id', producerId);
-    if (error) throw error;
+    let instrumentals = (producer.instrumentals as Instrumental[]) || [];
+    
+    // 2. Check if updating existing or adding new
+    const existingIndex = instrumentals.findIndex(i => i.id === instrumental.id);
+    
+    if (existingIndex >= 0) {
+        // Update existing
+        instrumentals[existingIndex] = instrumental;
+    } else {
+        // Add new
+        instrumentals.push(instrumental);
+    }
+
+    // 3. Save the entire array back to the JSONB column
+    const { error: updateError } = await supabase
+        .from('producers')
+        .update({ instrumentals })
+        .eq('id', producerId);
+
+    if (updateError) throw updateError;
+    return instrumentals;
 };
 
 export const deleteInstrumental = async (instrumentalId: string) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) throw new Error("Supabase not initialized");
+    
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
-    const { data: producer } = await supabase.from('producers').select('instrumentals').eq('id', user.id).single();
-    const updatedBeats = (producer?.instrumentals || []).filter((i: Instrumental) => i.id !== instrumentalId);
+    // 1. Fetch current
+    const { data: producer, error: fetchError } = await supabase
+        .from('producers')
+        .select('instrumentals')
+        .eq('id', user.id)
+        .single();
 
-    const { error } = await supabase.from('producers').update({ instrumentals: updatedBeats }).eq('id', user.id);
-    if (error) throw error;
+    if (fetchError) throw fetchError;
+
+    let instrumentals = (producer.instrumentals as Instrumental[]) || [];
+    const filtered = instrumentals.filter(i => i.id !== instrumentalId);
+
+    // 2. Update
+    const { error: updateError } = await supabase
+        .from('producers')
+        .update({ instrumentals: filtered })
+        .eq('id', user.id);
+
+    if (updateError) throw updateError;
 };
 
 export const upsertMixingSample = async (sample: MixingSample, engineerId: string) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) throw new Error("Supabase not initialized");
 
-    const { data: engineer } = await supabase.from('engineers').select('mixing_samples').eq('id', engineerId).single();
-    const currentSamples: MixingSample[] = engineer?.mixing_samples || [];
-    const index = currentSamples.findIndex(s => s.id === sample.id);
-    let updatedSamples = [...currentSamples];
+    // 1. Fetch current
+    const { data: engineer, error: fetchError } = await supabase
+        .from('engineers')
+        .select('mixing_samples')
+        .eq('id', engineerId)
+        .single();
 
-    if (index >= 0) updatedSamples[index] = sample;
-    else updatedSamples.push(sample);
+    if (fetchError) throw fetchError;
 
-    const { error } = await supabase.from('engineers').update({ mixing_samples: updatedSamples }).eq('id', engineerId);
-    if (error) throw error;
+    let samples = (engineer.mixing_samples as MixingSample[]) || [];
+    const existingIndex = samples.findIndex(s => s.id === sample.id);
+
+    if (existingIndex >= 0) {
+        samples[existingIndex] = sample;
+    } else {
+        samples.push(sample);
+    }
+
+    // 2. Update
+    const { error: updateError } = await supabase
+        .from('engineers')
+        .update({ mixing_samples: samples })
+        .eq('id', engineerId);
+
+    if (updateError) throw updateError;
 };
 
 export const deleteMixingSample = async (sampleId: string) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    if (!supabase) throw new Error("Supabase not initialized");
+    
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
-    const { data: engineer } = await supabase.from('engineers').select('mixing_samples').eq('id', user.id).single();
-    const updatedSamples = (engineer?.mixing_samples || []).filter((s: MixingSample) => s.id !== sampleId);
+    const { data: engineer, error: fetchError } = await supabase
+        .from('engineers')
+        .select('mixing_samples')
+        .eq('id', user.id)
+        .single();
 
-    const { error } = await supabase.from('engineers').update({ mixing_samples: updatedSamples }).eq('id', user.id);
-    if (error) throw error;
+    if (fetchError) throw fetchError;
+
+    let samples = (engineer.mixing_samples as MixingSample[]) || [];
+    const filtered = samples.filter(s => s.id !== sampleId);
+
+    const { error: updateError } = await supabase
+        .from('engineers')
+        .update({ mixing_samples: filtered })
+        .eq('id', user.id);
+
+    if (updateError) throw updateError;
+};
+
+export const upsertRoom = async (room: Room, stoodioId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const { data: stoodio } = await supabase.from('stoodioz').select('rooms').eq('id', stoodioId).single();
+    let rooms = (stoodio?.rooms as Room[]) || [];
+    
+    const index = rooms.findIndex(r => r.id === room.id);
+    if (index >= 0) rooms[index] = room;
+    else rooms.push(room);
+
+    await supabase.from('stoodioz').update({ rooms }).eq('id', stoodioId);
+};
+
+export const deleteRoom = async (roomId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: stoodio } = await supabase.from('stoodioz').select('rooms').eq('id', user.id).single();
+    let rooms = (stoodio?.rooms as Room[]) || [];
+    rooms = rooms.filter(r => r.id !== roomId);
+
+    await supabase.from('stoodioz').update({ rooms }).eq('id', user.id);
 };
 
 export const upsertInHouseEngineer = async (info: InHouseEngineerInfo, stoodioId: string) => {
-     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
 
-    const { data: studio } = await supabase.from('stoodioz').select('in_house_engineers').eq('id', stoodioId).single();
-    const currentEngineers: InHouseEngineerInfo[] = studio?.in_house_engineers || [];
-    const index = currentEngineers.findIndex(e => e.engineer_id === info.engineer_id);
-    let updatedEngineers = [...currentEngineers];
+    const { data: stoodio } = await supabase.from('stoodioz').select('in_house_engineers').eq('id', stoodioId).single();
+    let engineers = (stoodio?.in_house_engineers as InHouseEngineerInfo[]) || [];
+    
+    // Check if exists to update rate, or push new
+    const index = engineers.findIndex(e => e.engineer_id === info.engineer_id);
+    if (index >= 0) engineers[index] = info;
+    else engineers.push(info);
 
-    if (index >= 0) updatedEngineers[index] = info;
-    else updatedEngineers.push(info);
-
-    const { error } = await supabase.from('stoodioz').update({ in_house_engineers: updatedEngineers }).eq('id', stoodioId);
-    if (error) throw error;
+    await supabase.from('stoodioz').update({ in_house_engineers: engineers }).eq('id', stoodioId);
 };
 
 export const deleteInHouseEngineer = async (engineerId: string, stoodioId: string) => {
-     const supabase = getSupabase();
-    if (!supabase) throw new Error("No Supabase client");
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
 
-    const { data: studio } = await supabase.from('stoodioz').select('in_house_engineers').eq('id', stoodioId).single();
-    const updatedEngineers = (studio?.in_house_engineers || []).filter((e: InHouseEngineerInfo) => e.engineer_id !== engineerId);
+    const { data: stoodio } = await supabase.from('stoodioz').select('in_house_engineers').eq('id', stoodioId).single();
+    let engineers = (stoodio?.in_house_engineers as InHouseEngineerInfo[]) || [];
+    
+    engineers = engineers.filter(e => e.engineer_id !== engineerId);
 
-    const { error } = await supabase.from('stoodioz').update({ in_house_engineers: updatedEngineers }).eq('id', stoodioId);
-    if (error) throw error;
+    await supabase.from('stoodioz').update({ in_house_engineers: engineers }).eq('id', stoodioId);
 };
 
-export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number): Promise<AnalyticsData> => {
-    const emptyData: AnalyticsData = {
-        kpis: { totalRevenue: 0, profileViews: 0, newFollowers: 0, bookings: 0 },
-        revenueOverTime: Array.from({ length: 10 }, (_, i) => ({ date: new Date(Date.now() - i * 86400000).toISOString(), revenue: 0 })).reverse(),
-        engagementOverTime: Array.from({ length: 10 }, (_, i) => ({ date: new Date(Date.now() - i * 86400000).toISOString(), views: 0, followers: 0, likes: 0 })).reverse(),
-        revenueSources: [{ name: 'Bookings', revenue: 0 }, { name: 'Tips', revenue: 0 }, { name: 'Mixing', revenue: 0 }]
+export const submitForVerification = async (stoodioId: string, data: any) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+    
+    await supabase.from('stoodioz').update({ 
+        verification_status: VerificationStatus.PENDING,
+        // In a real app, store the proof URLs in a separate admin table or private column
+    }).eq('id', stoodioId);
+    
+    return { verification_status: VerificationStatus.PENDING };
+};
+
+// --- BOOKING & PAYMENTS ---
+
+export const createBooking = async (request: BookingRequest, stoodio: Stoodio, bookedBy: BaseUser, bookedByRole: UserRole) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const booking: Booking = {
+        id: `bk-${Date.now()}`,
+        date: request.date,
+        start_time: request.start_time,
+        duration: request.duration,
+        total_cost: request.total_cost,
+        status: BookingStatus.PENDING,
+        booked_by_id: bookedBy.id,
+        booked_by_role: bookedByRole,
+        request_type: request.request_type,
+        engineer_pay_rate: request.engineer_pay_rate,
+        stoodio: stoodio,
+        mixing_details: request.mixing_details,
+        requested_engineer_id: request.requested_engineer_id,
+        posted_by: bookedByRole // Track if this was posted by a Studio (Job) or requested by an Artist
     };
-    return emptyData;
+
+    await supabase.from('bookings').insert([booking]);
+    return booking;
+};
+
+export const respondToBooking = async (booking: Booking, action: 'accept' | 'deny', responder: Engineer) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const newStatus = action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED;
+    
+    // If accepting, assign the engineer
+    const updates: any = { status: newStatus };
+    if (action === 'accept') {
+        updates.engineer = responder;
+    }
+
+    await supabase.from('bookings').update(updates).eq('id', booking.id);
+    return { ...booking, ...updates };
+};
+
+export const acceptJob = async (booking: Booking, engineer: Engineer) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const updates = { 
+        status: BookingStatus.CONFIRMED,
+        engineer: engineer // Assign the engineer to the booking
+    };
+
+    await supabase.from('bookings').update(updates).eq('id', booking.id);
+    return { ...booking, ...updates };
+};
+
+export const cancelBooking = async (booking: Booking) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+    await supabase.from('bookings').update({ status: BookingStatus.CANCELLED }).eq('id', booking.id);
+    return { ...booking, status: BookingStatus.CANCELLED };
+};
+
+export const endSession = async (booking: Booking) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+    
+    // Update status and increment completed sessions for ranking
+    await supabase.from('bookings').update({ status: BookingStatus.COMPLETED }).eq('id', booking.id);
+    
+    // In a real backend, this would trigger a cloud function to payout the engineer/studio
+    
+    return { updatedBooking: { ...booking, status: BookingStatus.COMPLETED } };
+};
+
+// --- MOCK STRIPE INTEGRATION ---
+export const createCheckoutSessionForBooking = async (bookingRequest: BookingRequest, stoodioId: string | undefined, userId: string, userRole: UserRole) => {
+    console.log("Creating Stripe Session for:", bookingRequest);
+    return { sessionId: 'mock_stripe_session_id' };
+};
+
+export const createCheckoutSessionForSubscription = async (planId: string, userId: string) => {
+    return { sessionId: 'mock_sub_session_id' };
+};
+
+export const createCheckoutSessionForWallet = async (amount: number, userId: string) => {
+    return { sessionId: 'mock_wallet_session_id' };
+};
+
+export const initiatePayout = async (amount: number, userId: string) => {
+    console.log(`Payout of $${amount} requested for ${userId}`);
+    return { success: true };
+};
+
+export const addTip = async (booking: Booking, amount: number) => {
+    return { sessionId: 'mock_tip_session_id' };
+};
+
+export const purchaseBeat = async (instrumental: Instrumental, type: 'lease' | 'exclusive', buyer: BaseUser, producer: Producer, buyerRole: UserRole) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not initialized");
+
+    const price = type === 'lease' ? instrumental.price_lease : instrumental.price_exclusive;
+
+    // 1. Create Booking Record (Beat Purchase is treated as a booking type)
+    const purchaseRecord: Booking = {
+        id: `pur-${Date.now()}`,
+        date: new Date().toISOString(),
+        start_time: 'N/A',
+        duration: 0,
+        total_cost: price,
+        status: BookingStatus.COMPLETED,
+        booked_by_id: buyer.id,
+        booked_by_role: buyerRole,
+        request_type: BookingRequestType.BEAT_PURCHASE,
+        engineer_pay_rate: 0,
+        producer: producer,
+        instrumentals_purchased: [instrumental]
+    };
+
+    await supabase.from('bookings').insert([purchaseRecord]);
+
+    // 2. Generate Transaction for Producer
+    const transaction: Transaction = {
+        id: `txn-${Date.now()}`,
+        date: new Date().toISOString(),
+        description: `Beat Sale (${type}): ${instrumental.title}`,
+        amount: price * 0.9, // 10% platform fee
+        category: TransactionCategory.BEAT_SALE,
+        status: TransactionStatus.COMPLETED,
+        related_user_name: buyer.name
+    };
+
+    // Update Producer Wallet (Need to fetch current first to be safe, but simplified here)
+    // Ideally this is a database function or trigger.
+    // For client-side simulation:
+    const { data: currentProducer } = await supabase.from('producers').select('wallet_balance, wallet_transactions').eq('id', producer.id).single();
+    if (currentProducer) {
+        const newTxns = [...(currentProducer.wallet_transactions || []), transaction];
+        const newBalance = (currentProducer.wallet_balance || 0) + transaction.amount;
+        await supabase.from('producers').update({ 
+            wallet_balance: newBalance, 
+            wallet_transactions: newTxns 
+        }).eq('id', producer.id);
+    }
+
+    return { updatedBooking: purchaseRecord };
+};
+
+// --- ANALYTICS ---
+export const fetchAnalyticsData = async (userId: string, userRole: UserRole, days: number): Promise<AnalyticsData> => {
+    // Mock data generator
+    return {
+        kpis: {
+            totalRevenue: Math.floor(Math.random() * 5000) + 1000,
+            profileViews: Math.floor(Math.random() * 1000) + 200,
+            newFollowers: Math.floor(Math.random() * 50) + 5,
+            bookings: Math.floor(Math.random() * 20) + 2,
+        },
+        revenueOverTime: Array.from({ length: 10 }, (_, i) => ({
+            date: new Date(Date.now() - (9 - i) * 24 * 60 * 60 * 1000).toISOString(),
+            revenue: Math.floor(Math.random() * 500)
+        })),
+        engagementOverTime: Array.from({ length: 10 }, (_, i) => ({
+            date: new Date(Date.now() - (9 - i) * 24 * 60 * 60 * 1000).toISOString(),
+            views: Math.floor(Math.random() * 100),
+            followers: Math.floor(Math.random() * 10),
+            likes: Math.floor(Math.random() * 20)
+        })),
+        revenueSources: [
+            { name: 'Bookings', revenue: 3500 },
+            { name: 'Beat Sales', revenue: 1200 },
+            { name: 'Tips', revenue: 300 }
+        ]
+    };
 };

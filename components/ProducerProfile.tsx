@@ -236,6 +236,18 @@ const ProducerProfile: React.FC = () => {
                             </div>
                         ) : <p className="text-slate-400">No followers yet.</p>}
                     </div>
+
+                    <div>
+                        <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-5 h-5" /> Following ({followingCount})</h3>
+                        {followingCount > 0 ? (
+                            <div className="grid grid-cols-1 gap-3">
+                                {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
+                                {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
+                                {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
+                                {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
+                            </div>
+                        ) : <p className="text-slate-400">Not following anyone yet.</p>}
+                    </div>
                 </div>
             </div>
 

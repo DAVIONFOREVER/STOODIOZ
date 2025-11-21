@@ -149,7 +149,12 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                          likes: newPost.likes || [],
                          comments: newPost.comments || []
                     };
-                    setPosts(prev => [formattedPost, ...prev]);
+                    
+                    // Avoid duplicate optimistic updates
+                    setPosts(prev => {
+                        if (prev.some(p => p.id === formattedPost.id)) return prev;
+                        return [formattedPost, ...prev];
+                    });
                 }
             )
             .subscribe();
@@ -204,8 +209,27 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     }
 
     const handleNewPost = async (postData: any) => {
-        // Optimistically add to feed (Realtime will also catch it, but this is instant)
-        // The API call will handle the DB insert.
+        // 1. Create temp post object for immediate feedback
+        if (currentUser && userRole) {
+            const tempPost: Post = {
+                id: `temp-${Date.now()}`,
+                authorId: currentUser.id,
+                authorType: userRole,
+                text: postData.text,
+                image_url: postData.imageUrl,
+                video_url: postData.videoUrl,
+                video_thumbnail_url: postData.videoThumbnailUrl,
+                link: postData.link,
+                timestamp: new Date().toISOString(),
+                likes: [],
+                comments: []
+            };
+            
+            // 2. Update local state immediately (Optimistic Update)
+            setPosts(prev => [tempPost, ...prev]);
+        }
+
+        // 3. Trigger API call
         await onPost(postData);
     }
 
