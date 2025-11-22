@@ -47,7 +47,7 @@ const EngineerSetup: React.FC<EngineerSetupProps> = ({ onCompleteSetup, onNaviga
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
             <h1 className="text-4xl font-extrabold text-center mb-2 text-zinc-100">Create Your <span className="text-orange-400">Engineer Profile</span></h1>
             <p className="text-center text-zinc-400 mb-8">Showcase your skills, experience, and create your account.</p>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                 <div>
                     <label className="block text-sm font-medium text-zinc-300 mb-2">Profile Picture</label>
                     <div className="mt-2 flex items-center gap-4">
@@ -84,6 +84,7 @@ const EngineerSetup: React.FC<EngineerSetupProps> = ({ onCompleteSetup, onNaviga
                         className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="e.g., Alex Robinson"
                         required
+                        autoComplete="off"
                     />
                 </div>
                 <div>
@@ -109,6 +110,7 @@ const EngineerSetup: React.FC<EngineerSetupProps> = ({ onCompleteSetup, onNaviga
                              className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="you@example.com"
                             required
+                            autoComplete="off"
                         />
                     </div>
                     <div>
@@ -121,6 +123,7 @@ const EngineerSetup: React.FC<EngineerSetupProps> = ({ onCompleteSetup, onNaviga
                              className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="••••••••"
                             required
+                            autoComplete="new-password"
                         />
                     </div>
                 </div>

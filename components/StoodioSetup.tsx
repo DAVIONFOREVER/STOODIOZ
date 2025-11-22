@@ -59,7 +59,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
             <h1 className="text-4xl font-extrabold text-center mb-2 text-zinc-100">Create Your <span className="text-orange-400">Stoodio Profile</span></h1>
             <p className="text-center text-zinc-400 mb-8">List your space for artists to discover and create your account.</p>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                  <div>
                     <label className="block text-sm font-medium text-zinc-300 mb-2">Stoodio Logo/Photo</label>
                     <div className="mt-2 flex items-center gap-4">
@@ -96,6 +96,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
                         className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="e.g., Echo Chamber Stoodioz"
                         required
+                        autoComplete="off"
                     />
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -109,6 +110,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
                             className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="e.g., Atlanta, GA"
                             required
+                            autoComplete="off"
                         />
                     </div>
                     <div>
@@ -120,6 +122,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
                             onChange={(e) => setBusinessAddress(e.target.value)}
                             className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="123 Music Row, Nashville, TN"
+                            autoComplete="off"
                         />
                     </div>
                 </div>
@@ -146,6 +149,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
                             className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="you@example.com"
                             required
+                            autoComplete="off"
                         />
                     </div>
                     <div>
@@ -158,6 +162,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
                             className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="••••••••"
                             required
+                            autoComplete="new-password"
                         />
                     </div>
                 </div>

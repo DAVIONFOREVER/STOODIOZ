@@ -53,13 +53,15 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const isBottomVisible = useOnScreen(loadMoreRef);
 
-    // Combine all users for author lookup
+    // Combine all users for author lookup, INCLUDING the current user to ensure immediate availability
     const authorsMap = useMemo(() => {
         const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+        if (currentUser) allUsers.push(currentUser); 
+        
         const map = new Map<string, Artist | Engineer | Stoodio | Producer>();
         allUsers.forEach(u => map.set(u.id, u));
         return map;
-    }, [artists, engineers, stoodioz, producers]);
+    }, [artists, engineers, stoodioz, producers, currentUser]);
 
     // Suggestions logic
     const suggestions = useMemo(() => {
@@ -135,7 +137,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 { event: 'INSERT', schema: 'public', table: 'posts' },
                 async (payload) => {
                     const newPost = payload.new as any;
-                    // Format correctly
+                    // Format correctly matching DB columns to Post interface
                     const formattedPost: Post = {
                          id: newPost.id,
                          authorId: newPost.author_id,
@@ -150,10 +152,17 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                          comments: newPost.comments || []
                     };
                     
-                    // Avoid duplicate optimistic updates
                     setPosts(prev => {
+                        // If we already have this exact ID, ignore (dupe prevention)
                         if (prev.some(p => p.id === formattedPost.id)) return prev;
-                        return [formattedPost, ...prev];
+
+                        // Remove any 'temp-' optimistic posts from this author to prevent duplication
+                        // This swaps the optimistic "temp" post for the real DB confirmed post
+                        const filteredPrev = prev.filter(p => 
+                            !(p.id.startsWith('temp-') && p.authorId === formattedPost.authorId && p.text === formattedPost.text)
+                        );
+                        
+                        return [formattedPost, ...filteredPrev];
                     });
                 }
             )
@@ -209,7 +218,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     }
 
     const handleNewPost = async (postData: any) => {
-        // 1. Create temp post object for immediate feedback
+        // 1. Create temp post object for immediate feedback (Optimistic UI)
         if (currentUser && userRole) {
             const tempPost: Post = {
                 id: `temp-${Date.now()}`,
@@ -225,11 +234,12 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 comments: []
             };
             
-            // 2. Update local state immediately (Optimistic Update)
             setPosts(prev => [tempPost, ...prev]);
         }
 
-        // 3. Trigger API call
+        // 2. Trigger API call
+        // The Realtime subscription defined in useEffect above will handle the "real" post arrival
+        // and replace this temp post.
         await onPost(postData);
     }
 

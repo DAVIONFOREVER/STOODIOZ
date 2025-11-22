@@ -119,6 +119,9 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                 });
                 setText('');
                 clearAttachments();
+            } catch (e) {
+                console.error("Error posting:", e);
+                // Error handling is done in parent, but we ensure state resets here
             } finally {
                 stopProgress();
                 // Delay unsetting isPosting slightly to let user see 100%

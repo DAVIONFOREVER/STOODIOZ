@@ -250,7 +250,7 @@ export const createPost = async (postData: any, user: any, userRole: UserRole) =
     
     if (insertError) {
         console.error("Error creating post in public.posts:", insertError);
-        // Fallback: Continue to update profile so at least the user sees it
+        // This likely means the table doesn't exist or RLS denied it.
     }
 
     // 2. Update user's profile posts array (legacy support/dashboard view)
