@@ -377,7 +377,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookings: [...state.bookings, action.payload.booking] };
         
         case ActionTypes.UPDATE_USERS: {
-            // Fix for Issue #6: Use Map to ensure unique IDs when merging new users with existing state
+            // Fix for Duplicate Profiles: Use Map to ensure unique IDs when merging new users with existing state
             const newUsers = action.payload.users;
             const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
             

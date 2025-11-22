@@ -162,12 +162,13 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio, b
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
 
+    // Use crypto.randomUUID() if ID is required client-side, but best to let DB handle it or use strict UUID
     const bookingData = {
         date: request.date,
         start_time: request.start_time,
         duration: request.duration,
         total_cost: request.total_cost,
-        status: BookingStatus.CONFIRMED, // For MVP, auto-confirm
+        status: BookingStatus.CONFIRMED, 
         booked_by_id: booker.id,
         booked_by_role: bookerRole,
         request_type: request.request_type,
@@ -175,19 +176,16 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio, b
         stoodio_id: stoodio.id,
         room_id: request.room?.id,
         artist_id: bookerRole === 'ARTIST' ? booker.id : undefined,
-        // Map other fields...
         created_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase.from('bookings').insert(bookingData).select().single();
     if (error) throw error;
     
-    // If PDF generation is needed, it typically happens here or in a trigger
     return data;
 };
 
 export const createCheckoutSessionForBooking = async (bookingRequest: BookingRequest, stoodioId: string | undefined, userId: string, userRole: UserRole) => {
-    // Mock Stripe Session
     return { sessionId: 'mock_session_id' };
 };
 
@@ -253,6 +251,7 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     if (!supabase) throw new Error("No DB");
     
     const newPost = {
+        // Ensure ID is not passed as text-timestamp if DB expects UUID. Let DB generate it.
         author_id: author.id,
         author_type: authorType,
         text: postData.text,
@@ -261,11 +260,10 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
         video_thumbnail_url: postData.video_thumbnail_url,
         link: postData.link,
         likes: [],
-        comments: [], // This field might not exist in SQL if we use a separate table, but assuming for now based on schema prompt
+        comments: [], 
         created_at: new Date().toISOString()
     };
 
-    // FIX: We must return the ACTUAL created post, not just the author, so the UI can update with the real ID.
     const { data, error } = await supabase.from('posts').insert(newPost).select().single();
     if (error) throw error;
     return { updatedAuthor: author, createdPost: data }; 
@@ -275,7 +273,6 @@ export const likePost = async (postId: string, userId: string, author: any) => {
     const supabase = getSupabase();
     if (!supabase) return { updatedAuthor: author };
     
-    // Fetch current likes
     const { data: post } = await supabase.from('posts').select('likes').eq('id', postId).single();
     if (!post) return { updatedAuthor: author };
 
@@ -291,18 +288,26 @@ export const likePost = async (postId: string, userId: string, author: any) => {
 };
 
 export const commentOnPost = async (postId: string, text: string, commenter: any, postAuthor: any) => {
-    // Since comments are a separate table in schema but app uses embedded for optimistic UI...
-    // Implementation assumes we insert into comments table
     const supabase = getSupabase();
     if (!supabase) return { updatedAuthor: postAuthor };
 
-    await supabase.from('comments').insert({
-        post_id: postId,
-        author_id: commenter.id,
-        author_name: commenter.name,
+    // Assuming simple structure where comments are array in posts for now to match type definition
+    // In real app, use 'comments' table. Here updating post jsonb/array column
+    const { data: post } = await supabase.from('posts').select('comments').eq('id', postId).single();
+    if (!post) return { updatedAuthor: postAuthor };
+
+    const newComment = {
+        id: crypto.randomUUID(),
+        authorId: commenter.id,
+        authorName: commenter.name,
         author_image_url: commenter.image_url,
-        text
-    });
+        text,
+        timestamp: new Date().toISOString()
+    };
+
+    const updatedComments = [...(post.comments || []), newComment];
+    await supabase.from('posts').update({ comments: updatedComments }).eq('id', postId);
+
     return { updatedAuthor: postAuthor };
 };
 
@@ -310,10 +315,81 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     const supabase = getSupabase();
     if (!supabase) return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
 
-    // Logic to update 'following' array on currentUser and 'followers' count/array on targetUser
-    // This requires complex array manipulation in SQL or 2 reads + 2 writes.
-    // Simplified: assume success
-    return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
+    const currentUserId = currentUser.id;
+    const targetUserId = targetUser.id;
+    
+    const followerTableMap: Record<string, string> = {
+        'ARTIST': 'artists',
+        'ENGINEER': 'engineers',
+        'PRODUCER': 'producers',
+        'STOODIO': 'stoodioz'
+    };
+    // Need to know current user's role/table to update their 'following' column
+    let followerTable = '';
+    if ('amenities' in currentUser) followerTable = 'stoodioz';
+    else if ('specialties' in currentUser) followerTable = 'engineers';
+    else if ('instrumentals' in currentUser) followerTable = 'producers';
+    else followerTable = 'artists';
+
+    const targetTableMap: Record<string, string> = {
+        'artist': 'artists',
+        'engineer': 'engineers',
+        'producer': 'producers',
+        'stoodio': 'stoodioz'
+    };
+    const targetTable = targetTableMap[type];
+    const followingKey = `${type}s` === 'stoodios' ? 'stoodioz' : `${type}s`; // handle pluralization quirks
+
+    // 1. Update Follower's 'following' JSONB
+    let newFollowing = { ...currentUser.following };
+    let targetList = newFollowing[followingKey] || [];
+
+    if (isFollowing) {
+        targetList = targetList.filter((id: string) => id !== targetUserId);
+    } else {
+        if (!targetList.includes(targetUserId)) targetList.push(targetUserId);
+    }
+    newFollowing[followingKey] = targetList;
+
+    const { data: updatedFollower, error: err1 } = await supabase
+        .from(followerTable)
+        .update({ following: newFollowing })
+        .eq('id', currentUserId)
+        .select()
+        .single();
+    
+    if (err1) console.error("Error updating following:", err1);
+
+    // 2. Update Target's 'follower_ids' Array and 'followers' Count
+    let newFollowerIds = targetUser.follower_ids || [];
+    let newFollowerCount = targetUser.followers || 0;
+
+    if (isFollowing) {
+        // Unfollow
+        newFollowerIds = newFollowerIds.filter((id: string) => id !== currentUserId);
+        newFollowerCount = Math.max(0, newFollowerCount - 1);
+    } else {
+        // Follow
+        if (!newFollowerIds.includes(currentUserId)) {
+            newFollowerIds.push(currentUserId);
+            newFollowerCount++;
+        }
+    }
+
+    const { data: updatedTarget, error: err2 } = await supabase
+        .from(targetTable)
+        .update({ follower_ids: newFollowerIds, followers: newFollowerCount })
+        .eq('id', targetUserId)
+        .select()
+        .single();
+
+    if (err2) console.error("Error updating followers:", err2);
+
+    // Return combined updated objects so UI reflects changes immediately
+    return { 
+        updatedCurrentUser: updatedFollower ? { ...currentUser, ...updatedFollower } : currentUser, 
+        updatedTargetUser: updatedTarget ? { ...targetUser, ...updatedTarget } : targetUser 
+    };
 };
 
 // --- OTHER ---
@@ -346,7 +422,7 @@ export const purchaseBeat = async (beat: Instrumental, type: 'lease' | 'exclusiv
     };
     
     // Mock DB insertion
-    const booking = { id: `bk-beat-${Date.now()}`, ...bookingData };
+    const booking = { id: `bk-beat-${crypto.randomUUID()}`, ...bookingData };
     return { updatedBooking: booking as unknown as Booking };
 };
 
