@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 // FIX: Import missing types
 import type { Engineer, Artist, Stoodio, Producer, Conversation, Post } from '../types';
 import { AppView, SubscriptionPlan, UserRole } from '../types';
-import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon, EyeIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import AvailabilityManager from './AvailabilityManager.tsx';
@@ -23,10 +23,8 @@ const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
 // FIX: Corrected import path
 const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
-const MyCourses = lazy(() => import('./MyCourses.tsx'));
-const JobBoard = lazy(() => import('./JobBoard.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass' | 'myCourses';
+type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -64,11 +62,11 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 const EngineerDashboard: React.FC = () => {
     const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers, conversations } = useAppState();
     const dispatch = useAppDispatch();
-    const [myPosts, setMyPosts] = useState<Post[]>([]);
     
     const { navigate, viewBooking, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
     const { updateProfile, refreshCurrentUser } = useProfile();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
 
     if (!currentUser) {
         return (
@@ -182,12 +180,6 @@ const EngineerDashboard: React.FC = () => {
                         <AnalyticsDashboard user={engineer} userRole={UserRole.ENGINEER} />
                     </Suspense>
                 );
-             case 'jobBoard':
-                return (
-                    <Suspense fallback={<div>Loading Jobs...</div>}>
-                        <JobBoard />
-                    </Suspense>
-                );
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
              case 'mixingSamples': return <MixingSampleManager engineer={engineer} onRefresh={refreshCurrentUser} />;
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
@@ -200,12 +192,6 @@ const EngineerDashboard: React.FC = () => {
                 return (
                     <Suspense fallback={<div>Loading Documents...</div>}>
                         <Documents conversations={conversations} />
-                    </Suspense>
-                );
-             case 'myCourses':
-                return (
-                    <Suspense fallback={<div>Loading Courses...</div>}>
-                        <MyCourses />
                     </Suspense>
                 );
              default: return (
@@ -272,39 +258,23 @@ const EngineerDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Engineer Dashboard</p>
                             </div>
                         </div>
-                        <div className="flex-shrink-0 flex flex-col gap-y-2 items-center sm:items-end">
-                             <button
-                                onClick={() => viewEngineerProfile(engineer)}
-                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md w-full sm:w-auto justify-center"
-                            >
-                                <EyeIcon className="w-4 h-4" />
-                                View Public Profile
-                            </button>
-                            <button
-                                onClick={() => navigate(AppView.STOODIO_LIST)}
-                                className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2 w-full sm:w-auto"
-                            >
-                                <CalendarIcon className="w-5 h-5"/>
-                                Book a New Session
-                            </button>
-                            <label className="flex items-center cursor-pointer self-center sm:self-auto mt-2">
-                                <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
-                                <div className="relative">
-                                    <input 
-                                        type="checkbox" 
-                                        className="sr-only" 
-                                        // FIX: Corrected property name from 'isAvailable' to 'is_available'
-                                        checked={engineer.is_available} 
-                                        // FIX: Corrected property name from 'isAvailable' to 'is_available'
-                                        onChange={(e) => updateProfile({ is_available: e.target.checked })} 
-                                    />
-                                    {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
-                                    <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                    {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
-                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.is_available ? 'translate-x-6' : ''}`}></div>
-                                </div>
-                            </label>
-                        </div>
+                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                            <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
+                            <div className="relative">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only" 
+                                    // FIX: Corrected property name from 'isAvailable' to 'is_available'
+                                    checked={engineer.is_available} 
+                                    // FIX: Corrected property name from 'isAvailable' to 'is_available'
+                                    onChange={(e) => updateProfile({ is_available: e.target.checked })} 
+                                />
+                                {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.is_available ? 'translate-x-6' : ''}`}></div>
+                            </div>
+                        </label>
                     </div>
                 </div>
             </div>

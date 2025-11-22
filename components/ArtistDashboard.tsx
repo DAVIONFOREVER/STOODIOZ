@@ -100,6 +100,7 @@ const ArtistDashboard: React.FC = () => {
         };
         setMyPosts(prev => [tempPost, ...prev]);
 
+        // Explicitly pass role to ensure correct posting
         await createPost(postData, UserRole.ARTIST);
         refreshPosts();
     };

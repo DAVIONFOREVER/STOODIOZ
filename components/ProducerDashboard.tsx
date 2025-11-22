@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 // FIX: Import missing types
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, MagicWandIcon, EditIcon, PhotoIcon, EyeIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, MagicWandIcon, EditIcon, PhotoIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import Following from './Following.tsx';
