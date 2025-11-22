@@ -17,13 +17,6 @@ type MapUser = Artist | Engineer | Producer | Stoodio;
 type MapJob = Booking & { itemType: 'JOB' };
 type MapItem = MapUser | MapJob;
 type FilterType = 'ALL' | 'STOODIO' | 'ENGINEER' | 'PRODUCER' | 'ARTIST' | 'JOB';
-type RealtimeLocationPayload = {
-    event: 'location_update',
-    payload: {
-        userId: string,
-        coordinates: Location
-    }
-}
 
 // --- MAP CONFIGURATION ---
 const mapContainerStyle = {
@@ -135,7 +128,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const [directions, setDirections] = useState<any | null>(null);
     const [directionsOrigin, setDirectionsOrigin] = useState<Location | null>(null);
     const [directionsDestination, setDirectionsDestination] = useState<Location | null>(null);
-    const [navigatingUserPosition, setNavigatingUserPosition] = useState<Location | null>(null);
     const [realtimeLocations, setRealtimeLocations] = useState<Map<string, Location>>(new Map());
     const channelRef = useRef<RealtimeChannel | null>(null);
 
@@ -192,7 +184,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             if (booking?.stoodio?.coordinates) {
                 setDirectionsOrigin(userLocation);
                 setDirectionsDestination(booking.stoodio.coordinates);
-                setNavigatingUserPosition(userLocation); // Start navigation from current position
+                // Note: Removed setNavigatingUserPosition simulation loop
             }
         }
         
@@ -203,23 +195,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             }
         }
     }, [directionsIntent, userLocation, bookings, dispatch]);
-
-    useEffect(() => {
-        if (!directions) return;
-
-        const route = directions.routes[0].overview_path;
-        let step = 0;
-        const interval = setInterval(() => {
-            if (step < route.length) {
-                setNavigatingUserPosition({ lat: route[step].lat(), lon: route[step].lng() });
-                step++;
-            } else {
-                clearInterval(interval);
-            }
-        }, 1000); // Simulate movement every second
-
-        return () => clearInterval(interval);
-    }, [directions]);
 
     const mapItems = useMemo((): MapItem[] => {
         const jobs = bookings
@@ -245,23 +220,15 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             return user;
         });
 
-        // CRITICAL FIX: Force Current User Visibility
-        // If the current user has "Show on Map" enabled, we must ensure they are in the list,
-        // using their local device location if realtime hasn't synced yet.
+        // Force Current User Visibility if enabled, bridging the gap between local state and DB broadcast
         if (currentUser && currentUser.show_on_map && userLocation) {
-            // Check if they are already in the list (e.g., from realtime or initial DB fetch)
             const exists = liveUpdatedUsers.some(u => u.id === currentUser.id);
-            
             if (!exists) {
-                // If they aren't in the list but should be, add them with local coords
-                // This bridges the gap between "Toggle On" and "Database Update"
                 liveUpdatedUsers.push({
                     ...currentUser,
                     coordinates: userLocation 
                 });
             } else {
-                // If they are in the list, update their position to local userLocation 
-                // to ensure the user sees *themselves* move instantly.
                 const userIndex = liveUpdatedUsers.findIndex(u => u.id === currentUser.id);
                 if (userIndex !== -1) {
                     liveUpdatedUsers[userIndex] = { ...liveUpdatedUsers[userIndex], coordinates: userLocation };
@@ -322,27 +289,12 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
                 {directions && <DirectionsRenderer options={{ directions, suppressMarkers: true, polylineOptions: { strokeColor: '#f97316', strokeWeight: 6 } }} />}
 
-                {navigatingUserPosition ? (
-                    <MarkerF 
-                        position={{ lat: navigatingUserPosition.lat, lng: navigatingUserPosition.lon }}
-                        title="Your Location"
-                        icon={{
-                            // FIX: Cast window to any to access google.maps properties.
-                            path: (window as any).google.maps.SymbolPath.CIRCLE,
-                            scale: 8,
-                            fillColor: '#3b82f6',
-                            fillOpacity: 1,
-                            strokeColor: 'white',
-                            strokeWeight: 2,
-                        }}
-                    />
-                // Show the blue dot if the user is NOT sharing location publically (private view)
-                ) : userLocation && (!currentUser || !currentUser.show_on_map) && (
+                {/* Show blue dot for self when not broadcasting publicly, or when navigating */}
+                {userLocation && (
                     <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={getPixelPositionOffset}>
                         <UserMarker />
                     </OverlayViewF>
                 )}
-
 
                 {mapItems.map(item => (
                     item.coordinates && (

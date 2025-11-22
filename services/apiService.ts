@@ -1,6 +1,6 @@
 
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails } from '../types';
-import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier } from '../types';
+import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
 import { generateInvoicePDF } from '../lib/pdf';
@@ -401,6 +401,20 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         }
     }
 
+    // Create a notification for the target user
+    if (!isFollowing) {
+        const notification = {
+            id: crypto.randomUUID(),
+            recipient_id: targetUserId,
+            type: NotificationType.NEW_FOLLOWER,
+            message: `${currentUser.name} started following you.`,
+            read: false,
+            actor_id: currentUserId,
+            timestamp: new Date().toISOString()
+        };
+        await supabase.from('notifications').insert(notification);
+    }
+
     const { data: updatedTarget, error: err2 } = await supabase
         .from(targetTable)
         .update({ follower_ids: newFollowerIds, followers: newFollowerCount })
@@ -491,12 +505,86 @@ export const addTip = async (booking: Booking, amount: number) => {
 };
 
 export const fetchAnalyticsData = async (userId: string, role: UserRole, days: number): Promise<AnalyticsData> => {
-    // Mock data
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not connected");
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const startDateStr = startDate.toISOString();
+
+    // 1. Revenue (from wallet_transactions JSONB column)
+    // Determine table name based on role
+    const tableMap: Record<string, string> = {
+        'ARTIST': 'artists',
+        'ENGINEER': 'engineers',
+        'PRODUCER': 'producers',
+        'STOODIO': 'stoodioz'
+    };
+    
+    const tableName = tableMap[role];
+    if (!tableName) throw new Error("Invalid role");
+
+    const { data: user, error: userError } = await supabase
+        .from(tableName)
+        .select('wallet_transactions')
+        .eq('id', userId)
+        .single();
+
+    if (userError) throw userError;
+
+    const transactions: Transaction[] = user?.wallet_transactions || [];
+    
+    const relevantTransactions = transactions.filter(t => 
+        new Date(t.date) >= startDate && t.amount > 0
+    );
+    
+    const totalRevenue = relevantTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+    // Group revenue by date for the chart
+    const revenueMap = new Map<string, number>();
+    relevantTransactions.forEach(t => {
+        const dateKey = t.date.split('T')[0]; // YYYY-MM-DD
+        revenueMap.set(dateKey, (revenueMap.get(dateKey) || 0) + t.amount);
+    });
+    const revenueOverTime = Array.from(revenueMap.entries())
+        .map(([date, revenue]) => ({ date, revenue }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Group revenue by source category
+    const sourceMap = new Map<string, number>();
+    relevantTransactions.forEach(t => {
+        const category = t.category || 'Other';
+        sourceMap.set(category, (sourceMap.get(category) || 0) + t.amount);
+    });
+    const revenueSources = Array.from(sourceMap.entries()).map(([name, revenue]) => ({ name, revenue }));
+
+    // 2. Bookings (from real bookings table)
+    const { count: bookingsCount } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .or(`engineer_id.eq.${userId},producer_id.eq.${userId},stoodio_id.eq.${userId}`)
+        .gte('date', startDateStr)
+        .eq('status', BookingStatus.CONFIRMED);
+    
+    // 3. New Followers (from notifications table)
+    // Count notifications of type 'NEW_FOLLOWER' for this user within the date range
+    const { count: newFollowersCount } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_id', userId)
+        .eq('type', NotificationType.NEW_FOLLOWER)
+        .gte('timestamp', startDateStr);
+
     return {
-        kpis: { totalRevenue: 1500, profileViews: 300, newFollowers: 12, bookings: 5 },
-        revenueOverTime: [],
-        engagementOverTime: [],
-        revenueSources: []
+        kpis: {
+            totalRevenue,
+            profileViews: 0, // Profile views require a separate tracking table, remaining 0 for now.
+            newFollowers: newFollowersCount || 0,
+            bookings: bookingsCount || 0,
+        },
+        revenueOverTime,
+        engagementOverTime: [], // Placeholder
+        revenueSources
     };
 };
 

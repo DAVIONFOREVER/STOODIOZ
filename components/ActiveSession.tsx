@@ -1,17 +1,11 @@
 
-
-
-
-
-
-// FIX: Removed reference to @types/google.maps as it is not available in the environment.
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
 import type { Artist, Location } from '../types';
 import { LocationIcon, NavigationArrowIcon, ClockIcon, DollarSignIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
-// FIX: Import AppState type from AppContext to resolve a type error.
 import type { AppState } from '../contexts/AppContext.tsx';
+import { getSupabase } from '../lib/supabase.ts';
 
 const mapContainerStyle = {
     width: '100%',
@@ -54,8 +48,42 @@ const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession'
     const engineer = session.engineer;
     const artist = session.artist;
     
-    // Simulate engineer starting from a nearby location
-    const engineerStartLocation = studioLocation ? { lat: studioLocation.lat - 0.1, lon: studioLocation.lon - 0.1 } : null;
+    // Initialize engineer position from profile if available, otherwise null (wait for update)
+    useEffect(() => {
+        if (engineer?.coordinates && !engineerPosition) {
+             setEngineerPosition(engineer.coordinates);
+        }
+    }, [engineer]);
+
+    // Listen for Realtime Location Updates from the Engineer
+    useEffect(() => {
+        if (!engineer) return;
+        const supabase = getSupabase();
+        if (!supabase) return;
+
+        const channel = supabase.channel('public:locations');
+        
+        channel
+            .on('broadcast', { event: 'location_update' }, (message) => {
+                if (message.payload.userId === engineer.id) {
+                    setEngineerPosition(message.payload.coordinates);
+                    
+                    // Calculate distance to auto-update status
+                    // (Simplified check: if within ~0.001 deg lat/lon, assume arrived)
+                    if (studioLocation && 
+                        Math.abs(message.payload.coordinates.lat - studioLocation.lat) < 0.001 &&
+                        Math.abs(message.payload.coordinates.lon - studioLocation.lon) < 0.001
+                    ) {
+                        setProgress('IN_SESSION');
+                    }
+                }
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [engineer, studioLocation]);
 
     const directionsCallback = (
         // FIX: Replaced google.maps.DirectionsResult with any.
@@ -65,36 +93,10 @@ const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession'
     ) => {
         if (status === 'OK' && response) {
             setDirections(response);
-            if (engineerStartLocation) {
-                setEngineerPosition(engineerStartLocation);
-            }
         } else {
             console.error(`Directions request failed due to ${status}`);
         }
     };
-
-    useEffect(() => {
-        if (!directions || progress !== 'EN_ROUTE' || !engineer) return;
-
-        const route = directions.routes[0].overview_path;
-        let step = 0;
-
-        const interval = setInterval(() => {
-            if (step < route.length) {
-                const newPos = { lat: route[step].lat(), lon: route[step].lng() };
-                setEngineerPosition(newPos);
-                step++;
-            } else {
-                clearInterval(interval);
-                // Snap to final destination
-                if (studioLocation) setEngineerPosition(studioLocation);
-                // Optionally auto-start session
-                setTimeout(() => setProgress('IN_SESSION'), 1000);
-            }
-        }, 1000); // Update position every second for simulation
-
-        return () => clearInterval(interval);
-    }, [directions, progress, engineer, studioLocation]);
 
     if (!isLoaded || !studioLocation) {
         return <div className="w-full h-64 md:h-80 bg-zinc-900 flex items-center justify-center text-zinc-400">Loading Map...</div>;
@@ -102,11 +104,11 @@ const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession'
 
     return (
         <GoogleMap mapContainerStyle={mapContainerStyle} center={{ lat: studioLocation.lat, lng: studioLocation.lon }} zoom={12} options={mapOptions}>
-            {engineerStartLocation && (
+            {engineerPosition && (
                 <DirectionsService
                     options={{
                         destination: { lat: studioLocation.lat, lng: studioLocation.lon },
-                        origin: { lat: engineerStartLocation.lat, lng: engineerStartLocation.lon },
+                        origin: { lat: engineerPosition.lat, lng: engineerPosition.lon },
                         // FIX: Replaced google.maps.TravelMode.DRIVING with string 'DRIVING' and cast to any.
                         travelMode: 'DRIVING' as any
                     }}
@@ -200,9 +202,8 @@ const ActiveSession: React.FC<ActiveSessionProps> = ({ onEndSession, onSelectArt
                         <p className="text-slate-300 flex items-center gap-2 mt-1"><LocationIcon className="w-5 h-5" /> {session.stoodio?.location}</p>
                     </div>
                      <div className="absolute bottom-4 right-4 bg-zinc-800/80 backdrop-blur-sm p-3 rounded-lg shadow-lg text-center">
-                        <p className="text-sm text-slate-400">ETA</p>
-                        <p className="text-2xl font-bold text-orange-400">12 min</p>
-                        <p className="text-xs text-slate-400">3.4 miles</p>
+                        <p className="text-sm text-slate-400">Status</p>
+                        <p className="text-xl font-bold text-orange-400">{progress === 'EN_ROUTE' ? 'Tracking Engineer...' : 'Session Live'}</p>
                     </div>
                 </div>
 
