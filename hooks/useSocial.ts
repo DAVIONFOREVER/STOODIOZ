@@ -4,6 +4,7 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { moderatePostContent, fetchLinkMetadata } from '../services/geminiService';
 import * as apiService from '../services/apiService';
 import type { LinkAttachment } from '../types';
+import { UserRole } from '../types';
 
 export const useSocial = () => {
     const dispatch = useAppDispatch();
@@ -32,8 +33,13 @@ export const useSocial = () => {
         }
     }, [currentUser, allUsers, dispatch]);
 
-    const createPost = useCallback(async (postData: { text: string; imageFile?: File; imageUrl?: string; videoFile?: File; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => {
-        if (!currentUser || !userRole) return;
+    const createPost = useCallback(async (postData: { text: string; imageFile?: File; imageUrl?: string; videoFile?: File; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }, roleOverride?: UserRole) => {
+        const roleToUse = roleOverride || userRole;
+        if (!currentUser || !roleToUse) {
+            console.error("createPost failed: Missing user or role", { currentUser, roleToUse });
+            return;
+        }
+
         try {
             const moderationResult = await moderatePostContent(postData.text);
             if (!moderationResult.isSafe) {
@@ -85,7 +91,7 @@ export const useSocial = () => {
                 }
             }
 
-            const { updatedAuthor } = await apiService.createPost(finalPostData, currentUser, userRole);
+            const { updatedAuthor } = await apiService.createPost(finalPostData, currentUser, roleToUse);
             const updatedUsers = allUsers.map(u => u.id === updatedAuthor.id ? { ...u, ...updatedAuthor } : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {

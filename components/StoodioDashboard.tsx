@@ -273,7 +273,23 @@ const StoodioDashboard: React.FC = () => {
     }, [stoodio.id]);
 
     const handleNewPost = async (postData: any) => {
-        await createPost(postData);
+        // Optimistic update
+        const tempPost: Post = {
+            id: `temp-${Date.now()}`,
+            authorId: stoodio.id,
+            authorType: UserRole.STOODIO,
+            text: postData.text,
+            image_url: postData.imageUrl,
+            video_url: postData.videoUrl,
+            video_thumbnail_url: postData.videoThumbnailUrl,
+            link: postData.link,
+            timestamp: new Date().toISOString(),
+            likes: [],
+            comments: []
+        };
+        setMyPosts(prev => [tempPost, ...prev]);
+
+        await createPost(postData, UserRole.STOODIO);
         refreshPosts();
     };
 

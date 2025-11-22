@@ -84,8 +84,23 @@ const ArtistDashboard: React.FC = () => {
     }, [artist.id]);
 
     const handleNewPost = async (postData: any) => {
-        await createPost(postData);
-        // Refresh local feed after posting
+        // Optimistic update for immediate feedback
+        const tempPost: Post = {
+            id: `temp-${Date.now()}`,
+            authorId: artist.id,
+            authorType: UserRole.ARTIST,
+            text: postData.text,
+            image_url: postData.imageUrl,
+            video_url: postData.videoUrl,
+            video_thumbnail_url: postData.videoThumbnailUrl,
+            link: postData.link,
+            timestamp: new Date().toISOString(),
+            likes: [],
+            comments: []
+        };
+        setMyPosts(prev => [tempPost, ...prev]);
+
+        await createPost(postData, UserRole.ARTIST);
         refreshPosts();
     };
 

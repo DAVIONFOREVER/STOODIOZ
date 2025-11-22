@@ -1,10 +1,10 @@
 
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
-import type { VibeMatchResult, Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaNudgeData } from './types';
-import { AppView, UserRole, RankingTier } from './types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData } from './types';
+import { AppView, UserRole } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
-import type { User, Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 
 // Import Custom Hooks
 import { useNavigation } from './hooks/useNavigation.ts';
@@ -21,7 +21,6 @@ import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 import { getSupabase } from './lib/supabase.ts';
-import { USER_SILHOUETTE_URL } from './constants.ts';
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
@@ -33,7 +32,6 @@ import BookingCancellationModal from './components/BookingCancellationModal.tsx'
 import AddFundsModal from './components/AddFundsModal.tsx';
 import RequestPayoutModal from './components/RequestPayoutModal.tsx';
 import MixingRequestModal from './components/MixingRequestModal.tsx';
-import { MagicWandIcon } from './components/icons.tsx';
 import AriaNudge from './components/AriaNudge.tsx';
 import AriaFAB from './components/AriaFAB.tsx';
 import Footer from './components/Footer.tsx';
@@ -110,7 +108,7 @@ const App: React.FC = () => {
     const canGoForward = historyIndex < history.length - 1;
     
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
-    const { login, logout, selectRoleToSetup, completeSetup: originalCompleteSetup } = useAuth(navigate);
+    const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         const supabase = getSupabase();
@@ -124,14 +122,9 @@ const App: React.FC = () => {
             await supabase.auth.signOut();
         }
         
-        // Use existing user if session active, otherwise it will be created in apiService.createUser
-        const { data: { user: existingUser } } = await supabase.auth.getUser();
-
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
         try {
-            // Call the consolidated apiService function which handles both auth creation AND profile insertion
-            // AND robustly handles avatar uploads failure.
             const newUser = await apiService.createUser(userData, role);
 
             if (newUser) {
@@ -182,7 +175,11 @@ const App: React.FC = () => {
 
         // Helper to fetch and hydrate user profile data
         const fetchAndHydrateUser = async (userId: string, session: Session) => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            // Ensure we don't set loading if we already have data (avoids flicker on some re-renders)
+            // but do set it if we are coming from a cold start.
+            if (!currentUser) {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            }
 
             const fetchProfiles = async () => {
                 // 1. Attempt to identify role quickly via metadata if available (optimization)
@@ -196,17 +193,31 @@ const App: React.FC = () => {
                     else if (metaRole === 'PRODUCER') { targetTable = 'producers'; identifiedRole = UserRole.PRODUCER; }
                     else if (metaRole === 'ARTIST') { targetTable = 'artists'; identifiedRole = UserRole.ARTIST; }
 
-                    if (targetTable) {
+                    if (targetTable && identifiedRole) {
                         const { data } = await supabase.from(targetTable).select('*').eq('id', userId).single();
+                        // If detailed queries are needed:
+                        if (targetTable === 'stoodioz') {
+                             const { data: fullData } = await supabase.from(targetTable).select('*, rooms(*), in_house_engineers(*)').eq('id', userId).single();
+                             if (fullData) return { data: fullData, role: identifiedRole };
+                        }
+                        else if (targetTable === 'engineers') {
+                             const { data: fullData } = await supabase.from(targetTable).select('*, mixing_samples(*)').eq('id', userId).single();
+                             if (fullData) return { data: fullData, role: identifiedRole };
+                        }
+                        else if (targetTable === 'producers') {
+                             const { data: fullData } = await supabase.from(targetTable).select('*, instrumentals(*)').eq('id', userId).single();
+                             if (fullData) return { data: fullData, role: identifiedRole };
+                        }
+                        
                         if (data) return { data, role: identifiedRole };
                     }
                 }
                 
                 // 2. Fallback: Check all tables to find where this user exists
                 const tableMap = {
-                    stoodioz: { query: '*', role: UserRole.STOODIO },
-                    producers: { query: '*', role: UserRole.PRODUCER },
-                    engineers: { query: '*', role: UserRole.ENGINEER },
+                    stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRole.STOODIO },
+                    producers: { query: '*, instrumentals(*)', role: UserRole.PRODUCER },
+                    engineers: { query: '*, mixing_samples(*)', role: UserRole.ENGINEER },
                     artists: { query: '*', role: UserRole.ARTIST },
                 };
                 
@@ -224,7 +235,7 @@ const App: React.FC = () => {
             try {
                 let userProfileResult = await fetchProfiles();
                 
-                // Retry logic for race conditions on signup (DB trigger might lag slightly)
+                // Retry logic for race conditions on signup (DB trigger might lag slightly behind Auth creation)
                 if (!userProfileResult) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         userProfileResult = await fetchProfiles();
@@ -240,8 +251,9 @@ const App: React.FC = () => {
                     });
                 } else {
                     // Valid session but no profile? Route to setup.
-                    // This handles edge cases where auth exists but profile creation failed.
-                    navigate(AppView.CHOOSE_PROFILE);
+                    // This handles edge cases where auth exists but profile creation failed or hasn't happened.
+                    console.log("Session found but no profile data. Redirecting to profile selection.");
+                    // We don't navigate here automatically to avoid loops, relying on the user to click "Get Started" or logic in Login.
                 }
             } catch (error) {
                 console.error("Error hydrating user profile:", error);
@@ -269,16 +281,18 @@ const App: React.FC = () => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
             } else if (event === 'SIGNED_IN' && session?.user) {
-                // Only fetch if we aren't already loaded (prevents double fetch on some hot reloads)
-                // But allow it if switching accounts is suspected
-                await fetchAndHydrateUser(session.user.id, session);
+                // Only fetch if we don't already have a current user (to prevent double fetching with initSession)
+                // unless the IDs don't match (switching accounts)
+                if (!currentUser || currentUser.id !== session.user.id) {
+                    await fetchAndHydrateUser(session.user.id, session);
+                }
             }
         });
 
         return () => {
             subscription?.unsubscribe();
         };
-    }, [dispatch, navigate]); 
+    }, [dispatch]); // Dependency array minimal to prevent loops. Removed 'navigate' to avoid re-running on route change.
 
     useEffect(() => {
         let timerId: number;
