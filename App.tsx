@@ -175,102 +175,110 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
+    // --- AUTHENTICATION & SESSION MANAGEMENT ---
     useEffect(() => {
         const supabase = getSupabase();
         if (!supabase) return;
 
-        const handleAuthStateChange = async (event: string, session: Session | null) => {
-            if (event === 'SIGNED_OUT' || !session) {
-                dispatch({ type: ActionTypes.LOGOUT });
-                return;
-            }
-            
-            if (session?.user) {
-                const userId = session.user.id;
-                const userEmail = session.user.email;
-                
-                // Optimization: If we already have the correct user in state, don't refetch
-                if (currentUser && currentUser.id === userId) return;
+        // Helper to fetch and hydrate user profile data
+        const fetchAndHydrateUser = async (userId: string, session: Session) => {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            const fetchProfiles = async () => {
+                // 1. Attempt to identify role quickly via metadata if available (optimization)
+                const metaRole = session.user.user_metadata?.role;
+                if (metaRole) {
+                    let targetTable = '';
+                    let identifiedRole: UserRole | undefined;
 
-                const fetchProfiles = async () => {
-                    // 1. Strict Role Check
-                    const metaRole = session.user.user_metadata?.role;
-                    if (metaRole) {
-                        let targetTable = '';
-                        // FIX: Removed incorrect join syntax (*). JSONB columns are selected automatically with *.
-                        let targetQuery = '*';
-                        let identifiedRole: UserRole | undefined;
+                    if (metaRole === 'STOODIO') { targetTable = 'stoodioz'; identifiedRole = UserRole.STOODIO; }
+                    else if (metaRole === 'ENGINEER') { targetTable = 'engineers'; identifiedRole = UserRole.ENGINEER; }
+                    else if (metaRole === 'PRODUCER') { targetTable = 'producers'; identifiedRole = UserRole.PRODUCER; }
+                    else if (metaRole === 'ARTIST') { targetTable = 'artists'; identifiedRole = UserRole.ARTIST; }
 
-                        if (metaRole === 'STOODIO') { targetTable = 'stoodioz'; identifiedRole = UserRole.STOODIO; }
-                        else if (metaRole === 'ENGINEER') { targetTable = 'engineers'; identifiedRole = UserRole.ENGINEER; }
-                        else if (metaRole === 'PRODUCER') { targetTable = 'producers'; identifiedRole = UserRole.PRODUCER; }
-                        else if (metaRole === 'ARTIST') { targetTable = 'artists'; identifiedRole = UserRole.ARTIST; }
-
-                        if (targetTable) {
-                            const { data } = await supabase.from(targetTable).select(targetQuery).eq('id', userId).single();
-                            if (data) return { data, role: identifiedRole };
-                        }
+                    if (targetTable) {
+                        const { data } = await supabase.from(targetTable).select('*').eq('id', userId).single();
+                        if (data) return { data, role: identifiedRole };
                     }
-
-                    // 2. Fallback: Check all tables.
-                    // FIX: Removed incorrect join syntax (*) for fallback queries as well.
-                    const tableMap = {
-                        stoodioz: { query: '*', role: UserRole.STOODIO },
-                        producers: { query: '*', role: UserRole.PRODUCER },
-                        engineers: { query: '*', role: UserRole.ENGINEER },
-                        artists: { query: '*', role: UserRole.ARTIST },
-                    };
-                    
-                    const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
-                        const { data } = await supabase.from(tableName).select(config.query).eq('id', userId).single();
-                        return data ? { data, role: config.role } : null;
-                    });
-                    
-                    const idResults = await Promise.all(idPromises);
-                    const found = idResults.find(result => result !== null);
-                    if (found) return found;
-
-                    return null;
+                }
+                
+                // 2. Fallback: Check all tables to find where this user exists
+                const tableMap = {
+                    stoodioz: { query: '*', role: UserRole.STOODIO },
+                    producers: { query: '*', role: UserRole.PRODUCER },
+                    engineers: { query: '*', role: UserRole.ENGINEER },
+                    artists: { query: '*', role: UserRole.ARTIST },
                 };
                 
-                try {
-                    let userProfileResult = await fetchProfiles();
-                    
-                    // Retry logic for race conditions on signup
-                    if (!userProfileResult) {
-                         await new Promise(resolve => setTimeout(resolve, 1000));
-                         userProfileResult = await fetchProfiles();
-                    }
-
-                    if (userProfileResult && userProfileResult.data) {
-                        dispatch({ 
-                            type: ActionTypes.LOGIN_SUCCESS, 
-                            payload: { 
-                                user: userProfileResult.data as any,
-                                role: userProfileResult.role // Explicitly pass the role
-                            } 
-                        });
-                    } else {
-                        // If we have a session but no profile, send to setup
-                         navigate(AppView.CHOOSE_PROFILE);
-                    }
-                } catch (error) {
-                    console.error("Error fetching user profiles:", error);
-                    dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
-                } finally {
-                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
+                    const { data } = await supabase.from(tableName).select(config.query).eq('id', userId).single();
+                    return data ? { data, role: config.role } : null;
+                });
+                
+                const idResults = await Promise.all(idPromises);
+                const found = idResults.find(result => result !== null);
+                
+                return found;
+            };
+            
+            try {
+                let userProfileResult = await fetchProfiles();
+                
+                // Retry logic for race conditions on signup (DB trigger might lag slightly)
+                if (!userProfileResult) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        userProfileResult = await fetchProfiles();
                 }
+
+                if (userProfileResult && userProfileResult.data) {
+                    dispatch({ 
+                        type: ActionTypes.LOGIN_SUCCESS, 
+                        payload: { 
+                            user: userProfileResult.data as any,
+                            role: userProfileResult.role 
+                        } 
+                    });
+                } else {
+                    // Valid session but no profile? Route to setup.
+                    // This handles edge cases where auth exists but profile creation failed.
+                    navigate(AppView.CHOOSE_PROFILE);
+                }
+            } catch (error) {
+                console.error("Error hydrating user profile:", error);
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
+            } finally {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
+        // 1. Immediate Session Check on Mount (Fixes Refresh Logout)
+        const initSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                await fetchAndHydrateUser(session.user.id, session);
+            } else {
+                // No session found, ensure we stop loading so Login/Landing renders
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            }
+        };
+        
+        initSession();
+
+        // 2. Listen for Auth Changes (Login, Logout, etc.)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_OUT') {
+                dispatch({ type: ActionTypes.LOGOUT });
+            } else if (event === 'SIGNED_IN' && session?.user) {
+                // Only fetch if we aren't already loaded (prevents double fetch on some hot reloads)
+                // But allow it if switching accounts is suspected
+                await fetchAndHydrateUser(session.user.id, session);
+            }
+        });
 
         return () => {
             subscription?.unsubscribe();
         };
-    }, [dispatch, navigate, currentUser]); // Dependencies critical for stability
+    }, [dispatch, navigate]); 
 
     useEffect(() => {
         let timerId: number;
