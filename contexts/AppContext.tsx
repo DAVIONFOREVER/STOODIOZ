@@ -377,20 +377,27 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookings: [...state.bookings, action.payload.booking] };
         
         case ActionTypes.UPDATE_USERS: {
-            // Fix for Duplicate Profiles: Use Map to ensure unique IDs when merging new users with existing state
+            // REINFORCED DEDUPLICATION LOGIC
             const newUsers = action.payload.users;
             const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
             
-            // Add existing users to map first to preserve current state
-            [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz].forEach(u => allUsersMap.set(u.id, u));
+            // 1. Populate map with EXISTING state to preserve what we have
+            // This ensures we don't lose users not present in the update
+            [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz].forEach(u => {
+                if(u.id) allUsersMap.set(u.id, u);
+            });
             
-            // Add/Overwrite with new users from payload
-            newUsers.forEach(u => allUsersMap.set(u.id, u));
+            // 2. Add/Overwrite with NEW users from the payload
+            // Using a Map guarantees that if an ID exists, it gets overwritten, preventing duplicates.
+            newUsers.forEach(u => {
+                if(u.id) allUsersMap.set(u.id, u);
+            });
             
             const uniqueUsers = Array.from(allUsersMap.values());
 
             const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
 
+            // 3. Re-distribute unique users into their respective arrays based on type guards
             return {
                 ...state,
                 artists: uniqueUsers.filter(u => 'bio' in u && !('specialties' in u) && !('instrumentals' in u)) as Artist[],

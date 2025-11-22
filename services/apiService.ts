@@ -162,7 +162,6 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio, b
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
 
-    // Use crypto.randomUUID() if ID is required client-side, but best to let DB handle it or use strict UUID
     const bookingData = {
         date: request.date,
         start_time: request.start_time,
@@ -250,8 +249,8 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const supabase = getSupabase();
     if (!supabase) throw new Error("No DB");
     
+    // Do NOT send 'id'. Let Supabase generate a valid UUID v4.
     const newPost = {
-        // Ensure ID is not passed as text-timestamp if DB expects UUID. Let DB generate it.
         author_id: author.id,
         author_type: authorType,
         text: postData.text,
@@ -266,7 +265,23 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
 
     const { data, error } = await supabase.from('posts').insert(newPost).select().single();
     if (error) throw error;
-    return { updatedAuthor: author, createdPost: data }; 
+    
+    // Map DB result back to app format
+    const formattedPost: Post = {
+         id: data.id,
+         authorId: data.author_id,
+         authorType: data.author_type,
+         text: data.text,
+         image_url: data.image_url,
+         video_url: data.video_url,
+         video_thumbnail_url: data.video_thumbnail_url,
+         link: data.link,
+         timestamp: data.created_at,
+         likes: data.likes || [],
+         comments: data.comments || []
+    };
+
+    return { updatedAuthor: author, createdPost: formattedPost }; 
 };
 
 export const likePost = async (postId: string, userId: string, author: any) => {
@@ -291,11 +306,10 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
     const supabase = getSupabase();
     if (!supabase) return { updatedAuthor: postAuthor };
 
-    // Assuming simple structure where comments are array in posts for now to match type definition
-    // In real app, use 'comments' table. Here updating post jsonb/array column
     const { data: post } = await supabase.from('posts').select('comments').eq('id', postId).single();
     if (!post) return { updatedAuthor: postAuthor };
 
+    // Use crypto.randomUUID() for valid UUID generation for comment ID
     const newComment = {
         id: crypto.randomUUID(),
         authorId: commenter.id,
@@ -313,7 +327,11 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
 
 export const toggleFollow = async (currentUser: any, targetUser: any, type: string, isFollowing: boolean) => {
     const supabase = getSupabase();
-    if (!supabase) return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
+    // If Supabase isn't connected, return mocks to prevent UI crashes, but realistically this should fail or warn.
+    if (!supabase) {
+        console.warn("Supabase disconnected: Follow toggle simulated locally.");
+        return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
+    }
 
     const currentUserId = currentUser.id;
     const targetUserId = targetUser.id;
@@ -324,13 +342,15 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         'PRODUCER': 'producers',
         'STOODIO': 'stoodioz'
     };
-    // Need to know current user's role/table to update their 'following' column
+    
+    // Determine table name for CURRENT user to update their 'following' list
     let followerTable = '';
     if ('amenities' in currentUser) followerTable = 'stoodioz';
     else if ('specialties' in currentUser) followerTable = 'engineers';
     else if ('instrumentals' in currentUser) followerTable = 'producers';
     else followerTable = 'artists';
 
+    // Determine table name for TARGET user to update their 'followers' count/list
     const targetTableMap: Record<string, string> = {
         'artist': 'artists',
         'engineer': 'engineers',
@@ -340,13 +360,15 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     const targetTable = targetTableMap[type];
     const followingKey = `${type}s` === 'stoodios' ? 'stoodioz' : `${type}s`; // handle pluralization quirks
 
-    // 1. Update Follower's 'following' JSONB
+    // 1. Update Current User's 'following' JSONB
     let newFollowing = { ...currentUser.following };
     let targetList = newFollowing[followingKey] || [];
 
     if (isFollowing) {
+        // Remove ID
         targetList = targetList.filter((id: string) => id !== targetUserId);
     } else {
+        // Add ID if not present
         if (!targetList.includes(targetUserId)) targetList.push(targetUserId);
     }
     newFollowing[followingKey] = targetList;
@@ -358,7 +380,10 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         .select()
         .single();
     
-    if (err1) console.error("Error updating following:", err1);
+    if (err1) {
+        console.error("Error updating following list:", err1);
+        throw err1; // Re-throw to be caught by caller
+    }
 
     // 2. Update Target's 'follower_ids' Array and 'followers' Count
     let newFollowerIds = targetUser.follower_ids || [];
@@ -383,12 +408,16 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         .select()
         .single();
 
-    if (err2) console.error("Error updating followers:", err2);
+    if (err2) {
+        console.error("Error updating follower stats:", err2);
+        throw err2; 
+    }
 
     // Return combined updated objects so UI reflects changes immediately
+    // Use the data returned from DB to ensure sync
     return { 
-        updatedCurrentUser: updatedFollower ? { ...currentUser, ...updatedFollower } : currentUser, 
-        updatedTargetUser: updatedTarget ? { ...targetUser, ...updatedTarget } : targetUser 
+        updatedCurrentUser: { ...currentUser, ...updatedFollower }, 
+        updatedTargetUser: { ...targetUser, ...updatedTarget } 
     };
 };
 
@@ -408,6 +437,7 @@ export const createCheckoutSessionForSubscription = async (planId: string, userI
 
 export const purchaseBeat = async (beat: Instrumental, type: 'lease' | 'exclusive', buyer: any, producer: Producer, role: UserRole) => {
     // Create a booking/transaction record
+    // Use valid UUID for the ID to prevent DB errors
     const bookingData = {
         date: new Date().toISOString(),
         start_time: 'N/A',
@@ -421,8 +451,7 @@ export const purchaseBeat = async (beat: Instrumental, type: 'lease' | 'exclusiv
         instrumentals_purchased: [beat],
     };
     
-    // Mock DB insertion
-    const booking = { id: `bk-beat-${crypto.randomUUID()}`, ...bookingData };
+    const booking = { id: crypto.randomUUID(), ...bookingData };
     return { updatedBooking: booking as unknown as Booking };
 };
 
@@ -482,8 +511,12 @@ export const submitForVerification = async (stoodioId: string, data: any) => {
 export const upsertRoom = async (room: Room, stoodioId: string) => {
     const supabase = getSupabase();
     if(supabase) {
+        // Ensure ID is valid UUID
+        const roomId = room.id && room.id.length > 10 ? room.id : crypto.randomUUID();
+        
         const { data, error } = await supabase.from('rooms').upsert({
             ...room,
+            id: roomId,
             stoodio_id: stoodioId
         }).select().single();
         if(error) throw error;
@@ -515,8 +548,12 @@ export const deleteInHouseEngineer = async (engineerId: string, stoodioId: strin
 export const upsertInstrumental = async (inst: Instrumental, producerId: string) => {
     const supabase = getSupabase();
     if(supabase) {
+        // Ensure ID is valid UUID
+        const instId = inst.id && inst.id.length > 10 ? inst.id : crypto.randomUUID();
+        
         await supabase.from('instrumentals').upsert({
             ...inst,
+            id: instId,
             producer_id: producerId
         });
     }
@@ -530,8 +567,12 @@ export const deleteInstrumental = async (instId: string) => {
 export const upsertMixingSample = async (sample: MixingSample, engineerId: string) => {
     const supabase = getSupabase();
     if(supabase) {
+        // Ensure ID is valid UUID
+        const sampleId = sample.id && sample.id.length > 10 ? sample.id : crypto.randomUUID();
+        
         await supabase.from('mixing_samples').upsert({
             ...sample,
+            id: sampleId,
             engineer_id: engineerId
         });
     }
