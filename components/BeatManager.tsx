@@ -9,6 +9,9 @@ interface BeatManagerProps {
     onRefresh: () => void;
 }
 
+// A professional, dark-themed placeholder image for beats (SVG Data URI)
+const DEFAULT_BEAT_COVER = "data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='%2318181b'%3e%3crect width='200' height='200'/%3e%3cpath fill='%233f3f46' d='M127.5 52.5L127.5 110.625C124.062 108.688 119.938 107.5 115.5 107.5C104.438 107.5 95.5 116.438 95.5 127.5C95.5 138.562 104.438 147.5 115.5 147.5C126.562 147.5 135.5 138.562 135.5 127.5V70.375L87.5 82.375V123.125C84.0625 121.188 79.9375 120 75.5 120C64.4375 120 55.5 128.938 55.5 140C55.5 151.062 64.4375 160 75.5 160C86.5625 160 95.5 151.062 95.5 140V60L127.5 52.5Z'/%3e%3c/svg%3e";
+
 const BeatFormModal: React.FC<{
     instrumental: Partial<Instrumental> | null;
     onSave: (instrumental: Instrumental, audioFile: File | null, coverArtUrl: string) => void;
@@ -40,7 +43,8 @@ const BeatFormModal: React.FC<{
             price_exclusive: priceExclusive,
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
             audio_url: instrumental?.audio_url || '', 
-            cover_art_url: coverArtPreview || `https://picsum.photos/seed/${title.replace(/\s+/g, '')}/200/200`,
+            // Use the uploaded preview or fall back to the system default placeholder (no random picsum images)
+            cover_art_url: coverArtPreview || DEFAULT_BEAT_COVER,
         };
         onSave(finalInstrumental, audioFile, coverArtPreview);
     };
