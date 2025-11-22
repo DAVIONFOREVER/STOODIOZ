@@ -1,14 +1,15 @@
 import React from 'react';
 import { CloseIcon, ChatBubbleLeftRightIcon } from './icons';
 import { ARIA_CANTATA_IMAGE_URL } from '../constants';
+import type { AriaNudgeData } from '../types';
 
 interface AriaNudgeProps {
-    message: string;
+    nudge: AriaNudgeData;
     onDismiss: () => void;
     onClick: () => void;
 }
 
-const AriaNudge: React.FC<AriaNudgeProps> = ({ message, onDismiss, onClick }) => {
+const AriaNudge: React.FC<AriaNudgeProps> = ({ nudge, onDismiss, onClick }) => {
     return (
         <div 
             className="fixed bottom-24 right-6 z-50 w-[calc(100%-3rem)] max-w-sm animate-fade-in-up"
@@ -21,7 +22,7 @@ const AriaNudge: React.FC<AriaNudgeProps> = ({ message, onDismiss, onClick }) =>
                         onClick={onClick} 
                         className="text-left text-zinc-200 text-sm hover:text-orange-300 transition-colors"
                     >
-                        {message}
+                        {nudge.text}
                     </button>
                     <button 
                         onClick={onDismiss} 

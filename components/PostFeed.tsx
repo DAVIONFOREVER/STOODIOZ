@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Post, Artist, Engineer, Stoodio, Producer } from '../types';
-import PostCard from './PostCard';
-import { useAppState } from '../contexts/AppContext';
+import PostCard from './PostCard.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface PostFeedProps {
     posts: Post[];

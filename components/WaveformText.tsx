@@ -1,77 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
-
-// --- Start of useWaveform hook logic ---
-const pathCache = new Map<string, string>();
-
-/**
- * Generates a plausible-looking, symmetrical waveform path string mathematically.
- * This avoids fetching and processing a real audio file, which can fail due to CORS or network issues.
- * @param width The conceptual width of the waveform.
- * @param height The conceptual height of the waveform.
- * @param points The number of data points to generate.
- * @returns An SVG path data string.
- */
-const generateFakePath = (width: number, height: number, points: number): string => {
-    const middle = height / 2;
-    const dataPoints = [];
-
-    for (let i = 0; i < points; i++) {
-        // A combination of sine waves to make it look less uniform and more organic
-        const highFreq = Math.sin(i * 0.4) * 0.15;
-        const midFreq = Math.sin(i * 0.1) * 0.3;
-        const lowFreq = Math.sin(i * 0.02 + 1) * 0.4;
-        const noise = (Math.random() - 0.5) * 0.1;
-        
-        // Envelope to make it fade in and out at the edges
-        const envelope = Math.sin((i / (points - 1)) * Math.PI);
-        
-        const amplitude = Math.abs(highFreq + midFreq + lowFreq + noise) * envelope;
-        dataPoints.push(amplitude);
-    }
-    
-    let path = `M 0 ${middle} `;
-    dataPoints.forEach((amp, i) => {
-        const x = (i / (points - 1)) * width;
-        const y = amp * middle * 0.95; // Use 95% of height to avoid clipping
-        path += `L ${x.toFixed(2)} ${middle - y} `;
-    });
-
-    for (let i = dataPoints.length - 1; i >= 0; i--) {
-        const x = (i / (points - 1)) * width;
-        const y = dataPoints[i] * middle * 0.95;
-        path += `L ${x.toFixed(2)} ${middle + y} `;
-    }
-
-    path += 'Z';
-    return path;
-};
-
-const useWaveform = (audioUrl: string) => {
-    const [path, setPath] = useState<string | null>(pathCache.get(audioUrl) || null);
-
-    useEffect(() => {
-        // If a path is already cached for this 'URL', use it.
-        if (pathCache.has(audioUrl)) {
-            setPath(pathCache.get(audioUrl)!);
-            return;
-        }
-
-        // Generate a new fake path, cache it, and set it in state.
-        // This is deterministic for a given session but looks random.
-        const generatedPath = generateFakePath(1000, 100, 200);
-        pathCache.set(audioUrl, generatedPath);
-        setPath(generatedPath);
-    }, [audioUrl]);
-
-    const isLoading = !path;
-
-    return { path, isLoading };
-};
-// --- End of useWaveform hook logic ---
-
-
-const DEFAULT_AUDIO_URL = 'https://storage.googleapis.com/studiogena-assets/SoundHelix-Song-1-short.mp3';
+import React, { useMemo } from 'react';
 
 interface WaveformTextProps {
     text: string;
@@ -79,16 +7,49 @@ interface WaveformTextProps {
     as?: keyof React.JSX.IntrinsicElements;
 }
 
+/**
+ * Generates a deterministic waveform path based on the input text string.
+ * This creates a unique visual signature for the text without needing an audio file.
+ */
+const generateTextWaveform = (text: string, width: number, height: number, bars: number) => {
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+        hash = ((hash << 5) - hash) + text.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+    }
+
+    const seededRandom = (seed: number) => {
+        const x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+    };
+
+    const middle = height / 2;
+    const barWidth = width / bars;
+    let d = `M 0 ${middle} `;
+
+    for (let i = 0; i < bars; i++) {
+        // Use the hash and index to generate consistent "random" height
+        const rand = seededRandom(hash + i);
+        // Height varies between 20% and 100% of available height
+        const amplitude = (rand * 0.8 + 0.2) * (height / 2);
+        
+        const x = i * barWidth;
+        const yTop = middle - amplitude;
+        const yBottom = middle + amplitude;
+
+        // Draw a vertical bar
+        d += `M ${x} ${middle} L ${x} ${yTop} L ${x + barWidth * 0.6} ${yTop} L ${x + barWidth * 0.6} ${yBottom} L ${x} ${yBottom} Z `;
+    }
+
+    return d;
+};
+
 const WaveformText: React.FC<WaveformTextProps> = ({ text, className = '', as: Component = 'h1' }) => {
-    const { path: waveformPath, isLoading } = useWaveform(DEFAULT_AUDIO_URL);
     const uniqueId = React.useId();
     const patternId = `waveform-pattern-${uniqueId}`;
     const gradientId = `waveform-gradient-${uniqueId}`;
     
-    // Fallback while loading or in non-browser environment
-    if (isLoading || !waveformPath) {
-        return <Component className={className}>{text}</Component>;
-    }
+    const waveformPath = useMemo(() => generateTextWaveform(text, 1000, 100, 80), [text]);
 
     return (
         <Component className={className}>
@@ -103,8 +64,9 @@ const WaveformText: React.FC<WaveformTextProps> = ({ text, className = '', as: C
                         <path
                             d={waveformPath}
                             fill={`url(#${gradientId})`}
+                            opacity="0.8"
                         >
-                            <animate attributeName="x" from="-1000" to="0" dur="10s" repeatCount="indefinite" />
+                            <animate attributeName="x" from="-1000" to="0" dur="20s" repeatCount="indefinite" />
                         </path>
                     </pattern>
                 </defs>

@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-// FIX: Import Booking type and useAppState hook to get booking data.
 import type { Stoodio, Engineer, Producer, Booking } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, PlusCircleIcon, CloseIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
@@ -10,7 +9,6 @@ interface AvailabilityManagerProps {
 }
 
 const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdateUser }) => {
-    // FIX: Get bookings from app context to determine which slots are already booked.
     const { bookings } = useAppState();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -18,17 +16,14 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
     
     const userAvailability = user.availability || [];
 
-    // FIX: Explicitly type the Map to ensure type safety for `get`, `add`, and `delete` operations.
-    // FIX: Add explicit Map type to resolve type inference issues.
     const availabilityMap = useMemo(() => new Map<string, Set<string>>(userAvailability.map(item => [item.date, new Set(item.times)])), [userAvailability]);
     
-    // FIX: This now works as `bookings` is available from the app state.
     const bookingsForDay = useMemo(() => {
         if (!selectedDate) return new Set();
         return new Set(
             bookings
                 .filter(b => b.date === selectedDate)
-                .map(b => b.startTime)
+                .map(b => b.start_time)
         );
     }, [bookings, selectedDate]);
 
@@ -59,7 +54,6 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
         setSelectedDate(dateString);
     };
 
-    // FIX: Implement logic to update the user's availability.
     const updateAvailability = (newAvailabilityMap: Map<string, Set<string>>) => {
         const newAvailability = Array.from(newAvailabilityMap.entries())
             .map(([date, times]) => ({ date, times: Array.from(times).sort() }))
@@ -67,13 +61,10 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
         onUpdateUser({ availability: newAvailability });
     };
 
-    // FIX: Implement handler to add a new time slot.
     const handleAddTime = (e: React.FormEvent) => {
         e.preventDefault();
         if (selectedDate && newTime) {
-            // FIX: Add explicit Map type to resolve type inference issues.
             const newAvailabilityMap = new Map<string, Set<string>>(availabilityMap);
-            // FIX: Explicitly type new Set to ensure type safety.
             const times = newAvailabilityMap.get(selectedDate) || new Set<string>();
             times.add(newTime);
             newAvailabilityMap.set(selectedDate, times);
@@ -82,10 +73,8 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
         }
     };
 
-    // FIX: Implement handler to remove a time slot.
     const handleRemoveTime = (timeToRemove: string) => {
         if (selectedDate) {
-            // FIX: Add explicit Map type to resolve type inference issues.
             const newAvailabilityMap = new Map<string, Set<string>>(availabilityMap);
             const times = newAvailabilityMap.get(selectedDate);
             if (times) {
@@ -100,7 +89,6 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
         }
     };
 
-    // FIX: Replaced `Array.from` with spread syntax `[...]` to ensure correct type inference.
     const availableTimesForSelectedDate = selectedDate ? [...(availabilityMap.get(selectedDate) || [])].sort() : [];
 
     return (
@@ -184,7 +172,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
                             type="time"
                             value={newTime}
                             onChange={(e) => setNewTime(e.target.value)}
-                            className="w-full bg-zinc-900/50 border-zinc-700 rounded-md p-2 text-sm"
+                            className="w-full bg-zinc-700 border-zinc-600 rounded-md p-2 text-sm"
                             required
                         />
                         <button type="submit" className="p-2 rounded-md bg-orange-500 text-white hover:bg-orange-600">
@@ -197,5 +185,4 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
     );
 };
 
-// FIX: Correctly export the AvailabilityManager component.
 export default AvailabilityManager;

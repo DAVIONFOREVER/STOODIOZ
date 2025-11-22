@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef } from 'react';
 import type { MixingSample } from '../types';
 import { PlayIcon, PauseIcon } from './icons';
@@ -16,8 +18,11 @@ const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples }
             setPlayingId(null);
         } else {
             if (audioRef.current) {
-                audioRef.current.src = sample.audioUrl;
-                audioRef.current.play().catch(e => console.error("Audio play failed:", e));
+                const audio = audioRef.current;
+                // FIX: Corrected property 'audioUrl' to 'audio_url' to match the 'MixingSample' type definition.
+                audio.src = sample.audio_url;
+                audio.load(); // Explicitly load the new source
+                audio.play().catch(e => console.error("Audio play failed:", e));
                 setPlayingId(sample.id);
             }
         }

@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useMemo } from 'react';
 import type { Booking } from '../types';
 import { CloseIcon } from './icons';
@@ -12,10 +15,16 @@ interface TipModalProps {
 const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) => {
     const [tipPercentage, setTipPercentage] = useState<number | null>(20);
     const [customAmount, setCustomAmount] = useState<string>('');
+
+    if (!booking.engineer) {
+        // This is an invalid state, but we handle it gracefully by not rendering the modal.
+        return null;
+    }
     
     const tipOptions = [15, 20, 25];
 
-    const engineerPayout = booking.engineer ? booking.engineerPayRate * booking.duration : 0;
+    // FIX: Corrected property 'engineerPayRate' to 'engineer_pay_rate' to match the 'Booking' type definition.
+    const engineerPayout = booking.engineer_pay_rate * booking.duration;
 
     const finalTipAmount = useMemo(() => {
         if (customAmount) return parseFloat(customAmount) || 0;
@@ -39,10 +48,6 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
         }
     };
 
-    if (!booking.engineer) {
-        return null; // Should not be able to tip if there's no engineer
-    }
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
             <div className="w-full max-w-md transform transition-all cardSurface">
@@ -54,7 +59,8 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
                 </div>
 
                 <div className="p-6 text-center">
-                    <img src={booking.engineer.imageUrl} alt={booking.engineer.name} className="w-24 h-24 rounded-xl object-cover mx-auto mb-4 border-4 border-zinc-700 shadow-lg" />
+                    {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
+                    <img src={booking.engineer.image_url} alt={booking.engineer.name} className="w-24 h-24 rounded-xl object-cover mx-auto mb-4 border-4 border-zinc-700 shadow-lg" />
                     <p className="text-xl font-semibold text-slate-100">Enjoyed your session with {booking.engineer.name}?</p>
                     <p className="text-slate-400 mt-1">Show your appreciation by leaving a tip on their payout of ${engineerPayout.toFixed(2)}.</p>
 
@@ -111,4 +117,3 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
 };
 
 export default TipModal;
-      

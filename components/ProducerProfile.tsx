@@ -1,14 +1,19 @@
 
-import React, { useMemo } from 'react';
-import type { Producer, Artist, Stoodio, Engineer } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon } from './icons';
+import React, { useMemo, useState, useEffect } from 'react';
+// FIX: Import missing types
+import type { Producer, Artist, Stoodio, Engineer, Instrumental, Post } from '../types';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon, StarIcon, PhotoIcon, PlayIcon } from './icons';
 import PostFeed from './PostFeed';
 import InstrumentalPlayer from './InstrumentalPlayer';
-import { useAppState } from '../contexts/AppContext';
+import PurchaseBeatModal from './PurchaseBeatModal';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { useBookings } from '../hooks/useBookings';
+import { AppView } from '../types';
+import * as apiService from '../services/apiService';
+import { fetchUserPosts } from '../services/apiService';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -22,18 +27,18 @@ const ProfileCard: React.FC<{
         details = (profile as Stoodio).location;
     } else if (type === 'engineer') {
         icon = <SoundWaveIcon className="w-4 h-4" />;
-        details = (profile as Engineer).specialties.join(', ');
+        details = (profile as Engineer).specialties?.join(', ');
     } else if (type === 'producer') {
         icon = <MusicNoteIcon className="w-4 h-4" />;
-        details = (profile as Producer).genres.join(', ');
+        details = (profile as Producer).genres?.join(', ');
     } else { // artist
         icon = <MicrophoneIcon className="w-4 h-4" />;
         details = (profile as Artist).bio;
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-700 transition-colors text-left cardSurface">
-            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
+            <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
@@ -43,14 +48,33 @@ const ProfileCard: React.FC<{
 };
 
 const ProducerProfile: React.FC = () => {
-    const { selectedProducer, currentUser, artists, engineers, stoodioz, producers } = useAppState();
+    const { selectedProducer, currentUser, artists, engineers, stoodioz, producers, userRole } = useAppState();
+    const dispatch = useAppDispatch();
     
-    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, navigate } = useNavigation();
     const { toggleFollow, likePost, commentOnPost } = useSocial();
-    const { startConversation } = useMessaging(useNavigation().navigate);
-    const { initiateBookingWithProducer } = useBookings(useNavigation().navigate);
+    const { startConversation } = useMessaging(navigate);
+    const { initiateBookingWithProducer } = useBookings(navigate);
+
+    const [selectedBeat, setSelectedBeat] = useState<Instrumental | null>(null);
+    const [isPurchasing, setIsPurchasing] = useState(false);
+    const [posts, setPosts] = useState<Post[]>([]);
 
     const producer = selectedProducer;
+
+    useEffect(() => {
+        if (producer?.id) {
+            fetchUserPosts(producer.id).then(setPosts);
+        }
+    }, [producer?.id]);
+
+    const mediaItems = useMemo(() => {
+        return posts.filter(p => p.image_url || p.video_url).map(p => ({
+            id: p.id,
+            url: p.image_url || p.video_thumbnail_url || '',
+            type: p.video_url ? 'video' : 'image'
+        }));
+    }, [posts]);
 
     if (!producer) {
         return (
@@ -64,15 +88,44 @@ const ProducerProfile: React.FC = () => {
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.producers || []).includes(producer.id)) : false;
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => producer.followerIds.includes(u.id)), [allUsers, producer.followerIds]);
+    const followers = useMemo(() => allUsers.filter(u => (producer.follower_ids || []).includes(u.id)), [allUsers, producer.follower_ids]);
 
-    const followedArtists = useMemo(() => artists.filter(a => producer.following.artists.includes(a.id)), [artists, producer.following.artists]);
-    const followedEngineers = useMemo(() => engineers.filter(e => producer.following.engineers.includes(e.id)), [engineers, producer.following.engineers]);
-    const followedStoodioz = useMemo(() => stoodioz.filter(s => producer.following.stoodioz.includes(s.id)), [stoodioz, producer.following.stoodioz]);
-    const followedProducers = useMemo(() => producers.filter(p => producer.following.producers.includes(p.id)), [producers, producer.following.producers]);
+    const followedArtists = useMemo(() => artists.filter(a => (producer.following?.artists || []).includes(a.id)), [artists, producer.following?.artists]);
+    const followedEngineers = useMemo(() => engineers.filter(e => (producer.following?.engineers || []).includes(e.id)), [engineers, producer.following?.engineers]);
+    const followedStoodioz = useMemo(() => stoodioz.filter(s => (producer.following?.stoodioz || []).includes(s.id)), [stoodioz, producer.following?.stoodioz]);
+    const followedProducers = useMemo(() => producers.filter(p => (producer.following?.producers || []).includes(p.id)), [producers, producer.following?.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
-    const sortedPosts = useMemo(() => (producer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [producer.posts]);
+    const handlePurchaseClick = (instrumental: Instrumental) => {
+        if (!currentUser) {
+            navigate(AppView.LOGIN);
+            return;
+        }
+        if (currentUser.id === producer.id) {
+            alert("You cannot purchase your own beat.");
+            return; 
+        }
+        setSelectedBeat(instrumental);
+    };
+
+    const confirmPurchase = async (type: 'lease' | 'exclusive') => {
+        if (!currentUser || !selectedBeat || !userRole) return;
+
+        setIsPurchasing(true);
+        try {
+            const { updatedBooking } = await apiService.purchaseBeat(selectedBeat, type, currentUser, producer, userRole);
+            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: updatedBooking } });
+            alert(`Purchase successful! "${selectedBeat.title}" has been added to 'My Bookings' where you can download the file.`);
+            setSelectedBeat(null);
+        } catch (error) {
+            console.error("Purchase failed:", error);
+            alert("Purchase failed. Please try again.");
+        } finally {
+            setIsPurchasing(false);
+        }
+    };
+    
+    const isSelf = currentUser?.id === producer.id;
 
     return (
         <div>
@@ -80,115 +133,170 @@ const ProducerProfile: React.FC = () => {
                 <ChevronLeftIcon className="w-5 h-5" />
                 Back to Producers
             </button>
-            <div className="max-w-4xl mx-auto space-y-12">
-                <div className="p-8 cardSurface">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                        <img src={producer.imageUrl} alt={producer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
-                        <div className="text-center sm:text-left flex-grow">
-                            <h1 className="text-4xl font-extrabold text-purple-400">{producer.name}</h1>
-                            <p className="text-slate-300 leading-relaxed mt-4">{producer.bio}</p>
-                             {producer.pullUpPrice && (
-                                <div className="mt-4 inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
-                                    <span className="flex items-center gap-2">
-                                        <DollarSignIcon className="w-5 h-5"/>
-                                        <span>"Pull Up" Session Fee: ${producer.pullUpPrice}</span>
-                                    </span>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+                {/* Left Column: Info & Beats */}
+                <div className="lg:col-span-3">
+                     <img 
+                        src={producer.cover_image_url || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'} 
+                        alt={`${producer.name}'s cover`}
+                        className="w-full h-64 object-cover rounded-2xl mb-6 shadow-lg"
+                    />
+
+                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
+                        <div className="flex items-start gap-4">
+                            <img src={producer.image_url} alt={producer.name} className="w-24 h-24 rounded-full object-cover border-4 border-zinc-700 -mt-12 shadow-lg flex-shrink-0" />
+                             <div>
+                                <h1 className="text-4xl font-extrabold text-purple-400">{producer.name}</h1>
+                                 <div className="flex items-center gap-2 mt-1">
+                                     <div className="flex items-center gap-1 text-yellow-400">
+                                        <StarIcon className="w-4 h-4" />
+                                        <span className="font-bold text-slate-200">{(producer.rating_overall ?? 0).toFixed(1)}</span>
+                                    </div>
                                 </div>
-                            )}
-                            <div className="flex justify-center sm:justify-start flex-wrap gap-2 mt-6">
-                                {producer.pullUpPrice && currentUser && (
+                            </div>
+                        </div>
+                        {!isSelf && (
+                             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                {producer.pull_up_price && currentUser && (
                                      <button 
                                         onClick={() => initiateBookingWithProducer(producer)}
-                                        className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                      >
                                         <CalendarIcon className="w-5 h-5" />
-                                        Book Pull Up Session
+                                        Book Pull Up
                                     </button>
                                 )}
                                 <button 
                                     onClick={() => currentUser && startConversation(producer)}
-                                    disabled={!currentUser || currentUser.id === producer.id}
-                                    className="px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!currentUser}
+                                    className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <MessageIcon className="w-5 h-5" />
                                     Message
                                 </button>
                                 <button 
                                     onClick={() => currentUser && toggleFollow('producer', producer.id)}
-                                    disabled={!currentUser || currentUser.id === producer.id}
-                                    className={`flex-shrink-0 px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-700 text-purple-400 border-2 border-purple-400 hover:bg-zinc-600'}`}
+                                    disabled={!currentUser}
+                                    className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-purple-500 text-white' : 'bg-zinc-700 text-purple-400 border-2 border-purple-400 hover:bg-zinc-600'}`}
                                 >
                                     {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
                                     {isFollowing ? 'Following' : 'Follow'}
                                 </button>
                             </div>
-                        </div>
+                        )}
                     </div>
-                </div>
 
-                <InstrumentalPlayer instrumentals={producer.instrumentals} onInquire={(instrumental) => { /* TODO: Implement inbox inquiry */ }} />
-                
-                 {producer.links && producer.links.length > 0 && (
-                    <div>
-                        <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-6 h-6" /> Links</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {producer.links.map(link => (
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="p-3 transition-colors flex items-center gap-3 cardSurface">
-                                    <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
-                                    <div className="overflow-hidden">
-                                        <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>
-                                        <p className="text-xs text-slate-400 truncate">{link.url}</p>
+                    <p className="text-slate-300 leading-relaxed mb-8 mt-4">{producer.bio}</p>
+                    
+                     {producer.pull_up_price && (
+                        <div className="mb-8 inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
+                            <span className="flex items-center gap-2">
+                                <DollarSignIcon className="w-5 h-5"/>
+                                <span>"Pull Up" Session Fee: ${producer.pull_up_price}</span>
+                            </span>
+                        </div>
+                    )}
+
+                    <div className="mb-10">
+                         <InstrumentalPlayer instrumentals={producer.instrumentals || []} onPurchase={handlePurchaseClick} />
+                    </div>
+
+                    {/* Recent Media Gallery */}
+                    {mediaItems.length > 0 && (
+                        <div className="mb-10">
+                            <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2">
+                                <PhotoIcon className="w-6 h-6 text-orange-400" /> Recent Media
+                            </h3>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                {mediaItems.slice(0, 8).map(item => (
+                                    <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700 group cursor-pointer">
+                                        <img src={item.url} alt="Media" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                        {item.type === 'video' && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
+                                                <PlayIcon className="w-8 h-8 text-white drop-shadow-lg" />
+                                            </div>
+                                        )}
                                     </div>
-                                </a>
-                            ))}
+                                ))}
+                            </div>
                         </div>
+                    )}
+                    
+                     <div className="mb-10">
+                         <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts & Updates</h3>
+                         <PostFeed 
+                            posts={posts}
+                            authors={new Map([[producer.id, producer]])}
+                            onLikePost={likePost}
+                            onCommentOnPost={commentOnPost}
+                            onSelectAuthor={() => viewProducerProfile(producer)}
+                         />
                     </div>
-                )}
-
-                <div>
-                    <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UsersIcon className="w-6 h-6" /> Followers ({followers.length})</h3>
-                    {followers.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {followers.map(f => {
-                                const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
-                                const onClick = () => {
-                                    if (type === 'artist') viewArtistProfile(f as Artist);
-                                    else if (type === 'engineer') viewEngineerProfile(f as Engineer);
-                                    else if (type === 'stoodio') viewStoodioDetails(f as Stoodio);
-                                    else if (type === 'producer') viewProducerProfile(f as Producer);
-                                }
-                                return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
-                            })}
-                        </div>
-                    ) : <p className="text-slate-400">No followers yet.</p>}
                 </div>
 
-                <div>
-                    <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-6 h-6" /> Following ({followingCount})</h3>
-                    {followingCount > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
-                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
-                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
-                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
+                {/* Right Column: Sidebar */}
+                <div className="lg:col-span-2 space-y-8">
+                     {producer.links && producer.links.length > 0 && (
+                        <div>
+                            <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-5 h-5" /> Links</h3>
+                            <div className="space-y-3">
+                                {producer.links.map(link => (
+                                    <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="p-3 transition-colors flex items-center gap-3 cardSurface hover:bg-zinc-800">
+                                        <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
+                                        <div className="overflow-hidden">
+                                            <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>
+                                            <p className="text-xs text-slate-400 truncate">{link.url}</p>
+                                        </div>
+                                    </a>
+                                ))}
+                            </div>
                         </div>
-                    ) : <p className="text-slate-400">Not following anyone yet.</p>}
-                </div>
-                
-                <div>
-                     <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts</h3>
-                     <PostFeed 
-                        posts={sortedPosts}
-                        authors={new Map([[producer.id, producer]])}
-                        onLikePost={likePost}
-                        onCommentOnPost={commentOnPost}
-                        onSelectAuthor={() => viewProducerProfile(producer)}
-                     />
+                    )}
+
+                    <div>
+                        <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UsersIcon className="w-5 h-5" /> Followers ({followers.length})</h3>
+                        {followers.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-3">
+                                {followers.slice(0, 5).map(f => {
+                                    const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
+                                    const onClick = () => {
+                                        if (type === 'artist') viewArtistProfile(f as Artist);
+                                        else if (type === 'engineer') viewEngineerProfile(f as Engineer);
+                                        else if (type === 'stoodio') viewStoodioDetails(f as Stoodio);
+                                        else if (type === 'producer') viewProducerProfile(f as Producer);
+                                    }
+                                    return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
+                                })}
+                            </div>
+                        ) : <p className="text-slate-400">No followers yet.</p>}
+                    </div>
+
+                    <div>
+                        <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-5 h-5" /> Following ({followingCount})</h3>
+                        {followingCount > 0 ? (
+                            <div className="grid grid-cols-1 gap-3">
+                                {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
+                                {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
+                                {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
+                                {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
+                            </div>
+                        ) : <p className="text-slate-400">Not following anyone yet.</p>}
+                    </div>
                 </div>
             </div>
+
+            {selectedBeat && (
+                <PurchaseBeatModal 
+                    instrumental={selectedBeat}
+                    producer={producer}
+                    onClose={() => setSelectedBeat(null)}
+                    onConfirm={confirmPurchase}
+                    isLoading={isPurchasing}
+                />
+            )}
         </div>
     );
 };
 
 export default ProducerProfile;
-      

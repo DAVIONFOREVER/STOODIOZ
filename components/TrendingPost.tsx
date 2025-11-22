@@ -19,9 +19,10 @@ const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onSelectUser 
     return (
         <div className="p-4 cardSurface">
             <h3 className="font-bold text-slate-100 px-1 mb-2">Trending on Stoodioz</h3>
-            <div className="bg-zinc-700/50 rounded-lg p-3 border border-zinc-600">
+            <div className="cardSurface p-3">
                 <button onClick={() => onSelectUser(author)} className="flex items-center gap-3 mb-2 text-left">
-                     <img loading="lazy" src={author.imageUrl} alt={author.name} className="w-8 h-8 rounded-lg object-cover" />
+                     {/* FIX: Changed `imageUrl` to `image_url` to match the author type definition. */}
+                     <img loading="lazy" src={author.image_url} alt={author.name} className="w-8 h-8 rounded-lg object-cover" />
                     <div>
                         <p className="font-semibold text-sm text-slate-200">{author.name}</p>
                     </div>
@@ -41,4 +42,3 @@ const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onSelectUser 
 };
 
 export default TrendingPost;
-      

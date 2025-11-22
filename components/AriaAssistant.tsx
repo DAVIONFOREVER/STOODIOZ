@@ -1,22 +1,17 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole, AriaActionResponse, FileAttachment } from '../types';
 import { askAriaCantata } from '../services/geminiService';
-import { CloseIcon, PaperAirplaneIcon, MagicWandIcon } from './icons';
+import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
+import { useNavigation } from '../hooks/useNavigation';
+import { createPdfBytes } from '../lib/pdf';
+import * as apiService from '../services/apiService';
 
 interface AriaCantataAssistantProps {
     isOpen: boolean;
     onClose: () => void;
-    onStartConversation: (participant: Artist | Engineer | Stoodio | Producer) => void;
-    onStartGroupConversation: (participants: (Artist | Engineer | Stoodio | Producer)[], title: string) => void;
-    onUpdateProfile: (updates: Partial<Artist | Engineer | Stoodio | Producer>) => void;
-    onBookStudio: (details: Omit<Booking, 'id' | 'status'>) => void;
-    onShowVibeMatchResults: (results: VibeMatchResult) => void;
-    onNavigateRequest: (view: AppView, entityName?: string) => void;
-    onStartSetupRequest: (role: UserRole) => void;
-    onSendMessageRequest: (recipientName: string, messageText: string) => void;
-    onSendDocument: (recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => void;
-    onGetDirectionsRequest: (entityName: string) => void;
+    onExecuteCommand: (command: AriaActionResponse, onClose: () => void) => Promise<void>;
     history: AriaCantataMessage[];
     setHistory: (history: AriaCantataMessage[]) => void;
     initialPrompt: string | null;
@@ -31,22 +26,60 @@ const TypingIndicator: React.FC = () => (
     </div>
 );
 
+const FileAttachmentDisplay: React.FC<{ file: FileAttachment }> = ({ file }) => {
+    const handleDownload = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        if (!file.url || file.url === '#') {
+            e.preventDefault();
+            if (file.rawContent) {
+                const blobType = file.name.endsWith('.pdf') ? 'application/pdf' : 'text/plain;charset=utf-8';
+                const blob = new Blob([file.rawContent], { type: blobType });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = file.name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+            return;
+        }
+    };
+
+    return (
+        <div className="mt-2 bg-black/20 p-3 rounded-lg flex items-center gap-3">
+            <PaperclipIcon className="w-6 h-6 text-zinc-400 flex-shrink-0" />
+            <div className="flex-grow overflow-hidden">
+                <p className="text-sm font-semibold truncate">{file.name}</p>
+                <p className="text-xs text-zinc-300">{file.size}</p>
+            </div>
+            <a 
+                href={file.url} 
+                onClick={handleDownload} 
+                download={file.name} 
+                className="bg-zinc-600 hover:bg-zinc-500 p-2 rounded-full transition-colors" 
+                aria-label={`Download ${file.name}`}
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <DownloadIcon className="w-5 h-5" />
+            </a>
+        </div>
+    );
+};
+
 const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     const { 
-        isOpen, onClose, onStartConversation, onStartGroupConversation, onUpdateProfile,
-        onBookStudio, onShowVibeMatchResults, onNavigateRequest, onStartSetupRequest, onSendMessageRequest,
-        onGetDirectionsRequest, onSendDocument, history, setHistory, initialPrompt, clearInitialPrompt 
+        isOpen, onClose, onExecuteCommand, history, setHistory, initialPrompt, clearInitialPrompt 
     } = props;
     const { currentUser, artists, engineers, producers, stoodioz, bookings } = useAppState();
+    const { viewArtistProfile } = useNavigation();
     
     const getInitialMessage = () => {
         const greetings = [
             `Welcome back, ${currentUser?.name || 'superstar'}. Let’s create something worth remembering.`,
             `Hey, ${currentUser?.name || 'gorgeous'}. Ready to make the world listen?`,
             `Your sound is waiting, ${currentUser?.name || 'creative'}. Let’s make it timeless.`,
-            `Back in the studio? That’s power. Let’s get to work, ${currentUser?.name || 'superstar'}.`,
-            `Welcome home to Stoodioz, ${currentUser?.name || 'creative'}. The stage is yours.`,
-            `Oh, you’re back. Let’s turn creativity into luxury, ${currentUser?.name || 'darling'}.`
         ];
         const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
         return {
@@ -58,6 +91,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const isProcessingInitialPrompt = useRef(false);
 
     useEffect(() => {
@@ -69,6 +103,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
     useEffect(() => {
         if (isOpen) {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            inputRef.current?.focus();
         }
     }, [history, isOpen]);
 
@@ -80,6 +115,14 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
             setTimeout(() => { isProcessingInitialPrompt.current = false; }, 1000);
         }
     }, [isOpen, initialPrompt]);
+
+    const handleViewProfile = () => {
+        const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
+        if (ariaProfile) {
+            viewArtistProfile(ariaProfile);
+            onClose();
+        }
+    };
     
     const handleSendMessage = async (e: React.FormEvent | null, promptOverride?: string) => {
         e?.preventDefault();
@@ -87,77 +130,102 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
         if (!question || isLoading) return;
 
         const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text: question }] };
-        const historyBeforeSend = history; // Capture history before optimistic update
+        const historyWithUserMessage = [...history, userMessage];
         
-        setHistory([...historyBeforeSend, userMessage]); // Optimistic UI update
+        setHistory(historyWithUserMessage);
         setInputValue('');
         setIsLoading(true);
 
         try {
-            // Pass the OLD history and the new question string to the service
-            const response = await askAriaCantata(historyBeforeSend, question, currentUser, { artists, engineers, producers, stoodioz, bookings });
+            const command = await askAriaCantata(history, question, currentUser, { artists, engineers, producers, stoodioz, bookings });
             
-            const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
+            const responseText = command.text || (command.type === 'error' ? command.value : "Done.");
+            const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: responseText }] };
             
-            // Final state update with the model's response
-            setHistory([...historyBeforeSend, userMessage, ariaResponse]);
+            if (command.type === 'sendDocumentMessage' && command.value?.documentContent && command.value?.fileName) {
+                const { documentContent, fileName } = command.value;
+                
+                // Use try/catch block for PDF generation to prevent crash
+                try {
+                    const pdfBytes = await createPdfBytes(documentContent);
+                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                    
+                    // Auto-save to Supabase Documents bucket
+                    let publicUrl = '#';
+                    if (currentUser) {
+                        const finalFileName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+                        try {
+                             publicUrl = await apiService.uploadDocument(blob, finalFileName, currentUser.id);
+                        } catch (uploadErr) {
+                            console.error("Failed to upload document to Supabase:", uploadErr);
+                            // Fallback to blob URL if upload fails
+                            publicUrl = URL.createObjectURL(blob);
+                        }
 
-            if (response.type === 'function') {
-                setTimeout(() => {
-                    if (response.action === 'assistAccountSetup') {
-                        onStartSetupRequest(response.payload.role);
-                        onClose();
-                    } else if (response.action === 'navigateApp') {
-                        onNavigateRequest(response.payload.view, response.payload.entityName);
-                        onClose();
-                    } else if (response.action === 'getDirections') {
-                        onGetDirectionsRequest(response.payload.entityName);
-                    } else if (response.action === 'startConversation') {
-                        onStartConversation(response.payload.participant);
-                    } else if (response.action === 'startGroupConversation') {
-                        onStartGroupConversation(response.payload.participants, response.payload.conversationTitle);
-                    } else if (response.action === 'updateProfile') {
-                        onUpdateProfile(response.payload.updates);
-                    } else if (response.action === 'bookStudio') {
-                        onBookStudio(response.payload.bookingDetails);
-                    } else if (response.action === 'showVibeMatchResults') {
-                        onShowVibeMatchResults(response.payload.results);
-                        onClose();
-                    } else if (response.action === 'sendMessage') {
-                        onSendMessageRequest(response.payload.recipientName, response.payload.messageText);
-                    } else if (response.action === 'sendDocumentMessage') {
-                        onSendDocument(response.payload.recipient, response.payload.documentContent, response.payload.fileName);
+                        const fileAttachment: FileAttachment = { 
+                            name: finalFileName, 
+                            url: publicUrl,
+                            size: `${(pdfBytes.length / 1024).toFixed(1)} KB`,
+                            rawContent: pdfBytes, 
+                        };
+                        ariaResponse.files = [fileAttachment];
                     }
-                }, 1500);
+                } catch (pdfError) {
+                    console.error("Failed to create PDF:", pdfError);
+                    // Fallback: Send the content as text if PDF fails
+                    ariaResponse.parts[0].text += "\n\n(Note: I tried to generate the document file, but encountered an error. Here is the text content instead:)\n\n" + documentContent;
+                }
+            }
+
+            setHistory([...historyWithUserMessage, ariaResponse]);
+
+            if (command.type !== 'speak' && command.type !== 'error' && command.type !== 'sendDocumentMessage') {
+                 setTimeout(async () => {
+                    await onExecuteCommand(command, onClose);
+                }, 500); // Give a small delay for user to see the response before action
             }
 
         } catch (error) {
-            const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I encountered an error. Please try again." }] };
-            // On error, also update the history correctly
-            setHistory([...historyBeforeSend, userMessage, errorResponse]);
+            console.error("Aria parsing error:", error);
+            const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I'm having trouble responding right now. Please try again in a moment." }] };
+            setHistory([...historyWithUserMessage, errorResponse]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    if (!isOpen) return null;
-
     return (
         <div 
-            className="fixed bottom-6 right-6 z-[60] w-[calc(100%-3rem)] max-w-sm h-[70vh] max-h-[600px] bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-zinc-700/50 flex flex-col animate-slide-up"
+            className={`
+                fixed bottom-6 right-6 z-[60] w-[calc(100%-3rem)] max-w-sm h-[70vh] max-h-[600px] 
+                bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-zinc-700/50 
+                flex flex-col transition-all duration-300 ease-in-out
+                ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}
+            `}
             role="dialog"
             aria-modal="true"
             aria-labelledby="aria-heading"
+            aria-hidden={!isOpen}
         >
             {/* Header */}
             <header className="flex items-center justify-between p-4 border-b border-zinc-700/50 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-orange-500 to-purple-600 p-2 rounded-lg">
+                <button 
+                    onClick={handleViewProfile}
+                    className="flex items-center gap-3 group"
+                    tabIndex={isOpen ? 0 : -1}
+                    aria-label="View Aria Cantata's profile"
+                >
+                    <div className="bg-gradient-to-br from-orange-500 to-purple-600 p-2 rounded-lg group-hover:scale-105 transition-transform">
                         <MagicWandIcon className="w-5 h-5 text-white" />
                     </div>
-                    <h2 id="aria-heading" className="text-lg font-bold text-zinc-100">Aria Cantata</h2>
-                </div>
-                <button onClick={onClose} className="text-zinc-400 hover:text-zinc-100 transition-colors">
+                    <h2 id="aria-heading" className="text-lg font-bold text-zinc-100 group-hover:text-orange-400 transition-colors">Aria Cantata</h2>
+                </button>
+                <button 
+                    onClick={onClose} 
+                    className="text-zinc-400 hover:text-zinc-100 transition-colors"
+                    tabIndex={isOpen ? 0 : -1}
+                    aria-label="Close chat"
+                >
                     <CloseIcon className="w-6 h-6" />
                 </button>
             </header>
@@ -174,7 +242,10 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
                                 </div>
                             )}
                             <div className={`max-w-[80%] p-3 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-zinc-200 rounded-bl-lg'}`}>
-                                <p className="text-sm">{msg.parts[0].text}</p>
+                                <p className="text-sm whitespace-pre-wrap">{msg.parts[0].text}</p>
+                                {msg.files && msg.files.map((file, fileIndex) => (
+                                    <FileAttachmentDisplay key={fileIndex} file={file} />
+                                ))}
                             </div>
                         </div>
                     );
@@ -196,14 +267,21 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
             <footer className="p-4 border-t border-zinc-700/50 flex-shrink-0">
                 <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                     <input
+                        ref={inputRef}
                         type="text"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder="Ask Aria Cantata anything..."
                         className="w-full bg-zinc-800 border-zinc-700 text-zinc-100 rounded-full py-2.5 px-4 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         aria-label="Your message to Aria Cantata"
+                        tabIndex={isOpen ? 0 : -1}
                     />
-                    <button type="submit" disabled={!inputValue.trim() || isLoading} className="bg-orange-500 text-white p-2.5 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-zinc-600 disabled:cursor-not-allowed">
+                    <button 
+                        type="submit" 
+                        disabled={!inputValue.trim() || isLoading} 
+                        className="bg-orange-500 text-white p-2.5 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-zinc-600 disabled:cursor-not-allowed"
+                        tabIndex={isOpen ? 0 : -1}
+                    >
                         <PaperAirplaneIcon className="w-5 h-5" />
                     </button>
                 </form>

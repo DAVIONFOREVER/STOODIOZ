@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Engineer, MixingServices } from '../types';
-import { EditIcon } from './icons';
+import { DollarSignIcon, EditIcon } from './icons';
 
 interface MixingServicesManagerProps {
     engineer: Engineer;
@@ -10,31 +11,34 @@ interface MixingServicesManagerProps {
 const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer, onUpdateEngineer }) => {
     
     const defaultServices: MixingServices = {
-        isEnabled: false,
-        pricePerTrack: 0,
+        is_enabled: false,
+        price_per_track: 0,
         description: "",
-        turnaroundTime: ""
+        turnaround_time: ""
     };
 
-    const initialServices = engineer.mixingServices || defaultServices;
+    // FIX: Corrected property name from 'mixingServices' to 'mixing_services'
+    const initialServices = engineer.mixing_services || defaultServices;
     
     const [services, setServices] = useState<MixingServices>(initialServices);
 
     useEffect(() => {
-        setServices(engineer.mixingServices || defaultServices);
-    }, [engineer.mixingServices]);
+        // FIX: Corrected property name from 'mixingServices' to 'mixing_services'
+        setServices(engineer.mixing_services || defaultServices);
+    }, [engineer.mixing_services]);
 
     const handleChange = (field: keyof MixingServices, value: any) => {
         setServices(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSave = () => {
-        onUpdateEngineer({ mixingServices: services });
+        // FIX: Corrected property name from 'mixingServices' to 'mixing_services'
+        onUpdateEngineer({ mixing_services: services });
     };
 
     const hasChanges = JSON.stringify(services) !== JSON.stringify(initialServices);
     
-    const inputClasses = "w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+    const inputClasses = "w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
 
 
@@ -50,7 +54,7 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
             
             <div className="space-y-6">
                 {/* Enable/Disable Toggle */}
-                <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
+                <div className="cardSurface p-4 flex items-center justify-between">
                     <div>
                         <h3 className="font-semibold text-zinc-200">Offer Remote Mixing Services</h3>
                         <p className="text-sm text-zinc-400">Allow artists to book you for remote mixing jobs.</p>
@@ -60,16 +64,21 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
                             <input
                                 type="checkbox"
                                 className="sr-only"
-                                checked={services.isEnabled}
-                                onChange={(e) => handleChange('isEnabled', e.target.checked)}
+                                // FIX: Corrected property name from 'isEnabled' to 'is_enabled'
+                                checked={services.is_enabled}
+                                // FIX: Corrected property name from 'isEnabled' to 'is_enabled'
+                                onChange={(e) => handleChange('is_enabled', e.target.checked)}
                             />
-                            <div className={`block w-12 h-6 rounded-full transition-colors ${services.isEnabled ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                            <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${services.isEnabled ? 'translate-x-6' : ''}`}></div>
+                            {/* FIX: Corrected property name from 'isEnabled' to 'is_enabled' */}
+                            <div className={`block w-12 h-6 rounded-full transition-colors ${services.is_enabled ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                            {/* FIX: Corrected property name from 'isEnabled' to 'is_enabled' */}
+                            <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${services.is_enabled ? 'translate-x-6' : ''}`}></div>
                         </div>
                     </label>
                 </div>
                 
-                <div className={`transition-opacity ${services.isEnabled ? 'opacity-100' : 'opacity-50'}`}>
+                {/* FIX: Corrected property name from 'isEnabled' to 'is_enabled' */}
+                <div className={`transition-opacity ${services.is_enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label htmlFor="price-per-track" className={labelClasses}>Price Per Track</label>
@@ -80,9 +89,12 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
                                 <input
                                     type="number"
                                     id="price-per-track"
-                                    value={services.pricePerTrack}
-                                    onChange={(e) => handleChange('pricePerTrack', Number(e.target.value))}
-                                    disabled={!services.isEnabled}
+                                    // FIX: Corrected property name from 'pricePerTrack' to 'price_per_track'
+                                    value={services.price_per_track}
+                                    // FIX: Corrected property name from 'pricePerTrack' to 'price_per_track'
+                                    onChange={(e) => handleChange('price_per_track', Number(e.target.value))}
+                                    // FIX: Corrected property name from 'isEnabled' to 'is_enabled'
+                                    disabled={!services.is_enabled}
                                     className={`${inputClasses} pl-7`}
                                 />
                             </div>
@@ -92,9 +104,12 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
                             <input
                                 type="text"
                                 id="turnaround-time"
-                                value={services.turnaroundTime}
-                                onChange={(e) => handleChange('turnaroundTime', e.target.value)}
-                                disabled={!services.isEnabled}
+                                // FIX: Corrected property name from 'turnaroundTime' to 'turnaround_time'
+                                value={services.turnaround_time}
+                                // FIX: Corrected property name from 'turnaroundTime' to 'turnaround_time'
+                                onChange={(e) => handleChange('turnaround_time', e.target.value)}
+                                // FIX: Corrected property name from 'isEnabled' to 'is_enabled'
+                                disabled={!services.is_enabled}
                                 placeholder="e.g., 3-5 business days"
                                 className={inputClasses}
                             />
@@ -106,7 +121,8 @@ const MixingServicesManager: React.FC<MixingServicesManagerProps> = ({ engineer,
                             id="description"
                             value={services.description}
                             onChange={(e) => handleChange('description', e.target.value)}
-                            disabled={!services.isEnabled}
+                            // FIX: Corrected property name from 'isEnabled' to 'is_enabled'
+                            disabled={!services.is_enabled}
                             rows={3}
                             placeholder="e.g., Includes 2 revisions, up to 48 stems."
                             className={inputClasses}

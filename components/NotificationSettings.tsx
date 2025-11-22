@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Engineer } from '../types';
 import { BellIcon, RoadIcon, DollarSignIcon } from './icons';
@@ -8,19 +9,21 @@ interface NotificationSettingsProps {
 }
 
 const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, onUpdateEngineer }) => {
-    const prefs = engineer.notificationPreferences || { enabled: false, radius: 25 };
+    // FIX: Corrected property name from 'notificationPreferences' to 'notification_preferences'
+    const prefs = engineer.notification_preferences || { enabled: false, radius: 25 };
 
     const handleToggle = (enabled: boolean) => {
-        onUpdateEngineer({ notificationPreferences: { ...prefs, enabled } });
+        onUpdateEngineer({ notification_preferences: { ...prefs, enabled } });
     };
 
     const handleRadiusChange = (radius: number) => {
-        onUpdateEngineer({ notificationPreferences: { ...prefs, radius } });
+        onUpdateEngineer({ notification_preferences: { ...prefs, radius } });
     };
 
     const handlePayRateChange = (rate: number) => {
         // If input is cleared, send undefined to clear the value, otherwise send the number
-        onUpdateEngineer({ minimumPayRate: isNaN(rate) ? undefined : rate });
+        // FIX: Corrected property name from 'minimumPayRate' to 'minimum_pay_rate'
+        onUpdateEngineer({ minimum_pay_rate: isNaN(rate) ? undefined : rate });
     };
 
     return (
@@ -35,7 +38,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
 
             <div className="space-y-6">
                 {/* Enable/Disable Toggle */}
-                <div className="flex items-center justify-between bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
+                <div className="cardSurface p-4 flex items-center justify-between">
                     <div>
                         <h3 className="font-semibold text-zinc-200">Enable Job Alerts</h3>
                         <p className="text-sm text-zinc-400">Receive push notifications for new opportunities.</p>
@@ -55,7 +58,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
                 </div>
 
                 {/* Radius Slider */}
-                <div className={`bg-zinc-900/50 p-4 rounded-lg border border-zinc-700 transition-opacity ${prefs.enabled ? 'opacity-100' : 'opacity-50'}`}>
+                <div className={`cardSurface p-4 transition-opacity ${prefs.enabled ? 'opacity-100' : 'opacity-50'}`}>
                     <div className="flex justify-between items-center mb-2">
                         <label htmlFor="radius-slider" className="font-semibold text-zinc-200 flex items-center gap-2">
                            <RoadIcon className="w-5 h-5"/> Notification Radius
@@ -79,7 +82,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
                 </div>
 
                 {/* Minimum Pay Rate */}
-                 <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-700">
+                 <div className="cardSurface p-4">
                     <div className="flex justify-between items-center mb-2">
                         <label htmlFor="pay-rate-input" className="font-semibold text-zinc-200 flex items-center gap-2">
                            <DollarSignIcon className="w-5 h-5"/> Minimum Pay Rate
@@ -95,9 +98,10 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ engineer, o
                         <input
                             type="number"
                             id="pay-rate-input"
-                            value={engineer.minimumPayRate || ''}
+                            // FIX: Corrected property name from 'minimumPayRate' to 'minimum_pay_rate'
+                            value={engineer.minimum_pay_rate || ''}
                             onChange={(e) => handlePayRateChange(parseInt(e.target.value))}
-                            className="w-full pl-7 pr-12 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                            className="w-full pl-7 pr-12 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                             placeholder="e.g., 50"
                             min="0"
                         />

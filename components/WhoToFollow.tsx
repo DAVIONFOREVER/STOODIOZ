@@ -25,7 +25,8 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
                 {suggestions.map(user => (
                     <div key={user.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-700/50">
                         <button onClick={() => onSelectUser(user)} className="flex items-center gap-3 text-left">
-                            <img loading="lazy" src={user.imageUrl} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
+                            {/* FIX: Changed `imageUrl` to `image_url` to match the user type definition. */}
+                            <img loading="lazy" src={user.image_url} alt={user.name} className="w-10 h-10 rounded-lg object-cover" />
                             <div>
                                 <p className="font-semibold text-sm text-slate-200">{user.name}</p>
                                 <p className="text-xs text-slate-400 capitalize">{getRole(user)}</p>
@@ -36,7 +37,7 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
                             className="bg-zinc-700 text-slate-300 hover:bg-zinc-600 font-semibold p-2 rounded-full transition-colors"
                             aria-label={`Follow ${user.name}`}
                         >
-                           <UserPlusIcon className="w-5 h-5"/>
+                            <UserPlusIcon className="w-4 h-4" />
                         </button>
                     </div>
                 ))}
@@ -46,4 +47,3 @@ const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, 
 };
 
 export default WhoToFollow;
-      

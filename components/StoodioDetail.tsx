@@ -1,15 +1,17 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
-import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon, SmokingIcon, NoSmokingIcon } from './icons';
+import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon, SmokingIcon, NoSmokingIcon, PlayIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useBookings } from '../hooks/useBookings';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { AppView } from '../types';
+import { fetchUserPosts } from '../services/apiService';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -23,18 +25,18 @@ const ProfileCard: React.FC<{
         details = (profile as Stoodio).location;
     } else if (type === 'engineer') {
         icon = <SoundWaveIcon className="w-4 h-4" />;
-        details = (profile as Engineer).specialties.join(', ');
+        details = (profile as Engineer).specialties?.join(', ');
     } else if (type === 'producer') {
         icon = <MusicNoteIcon className="w-4 h-4" />;
-        details = (profile as Producer).genres.join(', ');
+        details = (profile as Producer).genres?.join(', ');
     } else { // artist
         icon = <MicrophoneIcon className="w-4 h-4" />;
         details = (profile as Artist).bio;
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left cardSurface">
-            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg text-left cardSurface">
+            <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
@@ -53,9 +55,27 @@ const StoodioDetail: React.FC = () => {
     const { startConversation } = useMessaging(navigate);
     
     const stoodio = selectedStoodio;
+    const [posts, setPosts] = useState<Post[]>([]);
 
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ date: string, time: string } | null>(null);
-    const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio?.rooms[0] || null);
+    const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio?.rooms?.[0] || null);
+
+    useEffect(() => {
+        if (stoodio?.id) {
+            fetchUserPosts(stoodio.id).then(setPosts);
+        }
+    }, [stoodio?.id]);
+
+    const galleryImages = useMemo(() => {
+        if (!stoodio) return [];
+        const staticPhotos = (stoodio.photos || []).map((url, i) => ({ id: `static-${i}`, url, type: 'image' }));
+        const postMedia = posts.filter(p => p.image_url || p.video_url).map(p => ({
+            id: p.id,
+            url: p.image_url || p.video_thumbnail_url || '',
+            type: p.video_url ? 'video' : 'image'
+        }));
+        return [...staticPhotos, ...postMedia];
+    }, [stoodio?.photos, posts]);
     
     if (!stoodio) {
          return (
@@ -66,9 +86,9 @@ const StoodioDetail: React.FC = () => {
         );
     }
 
-    const isFollowing = currentUser && 'following' in currentUser ? (currentUser.following.stoodioz || []).includes(stoodio.id) : false;
+    const isFollowing = currentUser && currentUser.following && currentUser.following.stoodioz ? currentUser.following.stoodioz.includes(stoodio.id) : false;
 
-    const stoodioReviews = reviews.filter(r => r.stoodioId === stoodio.id);
+    const stoodioReviews = reviews.filter(r => r.stoodio_id === stoodio.id);
     
     const hostedArtists = Array.from(new Set(bookings.filter(b => b.stoodio?.id === stoodio.id && b.artist).map(b => b.artist!.id)))
         .map(id => artists.find(a => a.id === id))
@@ -76,11 +96,11 @@ const StoodioDetail: React.FC = () => {
         .slice(0, 5);
 
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => stoodio.followerIds.includes(u.id)), [allUsers, stoodio.followerIds]);
-    const followedArtists = artists.filter(a => stoodio.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => stoodio.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => stoodio.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => stoodio.following.producers.includes(p.id));
+    const followers = useMemo(() => allUsers.filter(u => (stoodio.follower_ids || []).includes(u.id)), [allUsers, stoodio.follower_ids]);
+    const followedArtists = artists.filter(a => (stoodio.following?.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (stoodio.following?.producers || []).includes(p.id));
 
     const handleSelectTimeSlot = (date: string, time: string) => {
         if (selectedTimeSlot?.date === date && selectedTimeSlot?.time === time) {
@@ -104,7 +124,7 @@ const StoodioDetail: React.FC = () => {
 
     const getButtonText = (mobile: boolean = false) => {
         if (!currentUser) return 'Login to Book';
-        if (userRole === UserRole.STOODIO) return 'Cannot Book a Stoodio';
+        if (userRole === UserRole.STOODIO && currentUser.id === stoodio.id) return 'Cannot Book Your Own Stoodio';
         if (!selectedRoom) return 'Select a Room';
         if (!selectedTimeSlot) return 'Select a Time Slot';
         return mobile ? `Book for ${selectedTimeSlot.time}` : `Book ${selectedRoom.name}: ${selectedTimeSlot.time}`;
@@ -119,17 +139,17 @@ const StoodioDetail: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
                 {/* Left Column: Stoodio Info */}
                 <div className="lg:col-span-3">
-                    <img src={stoodio.imageUrl} alt={stoodio.name} className="w-full h-80 object-cover rounded-2xl mb-6 shadow-lg" />
+                    <img src={stoodio.image_url} alt={stoodio.name} className="w-full h-80 object-cover rounded-2xl mb-6 shadow-lg" />
                     
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
                         <div>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
-                                {stoodio.verificationStatus === VerificationStatus.VERIFIED && (
-                                    <VerifiedIcon className="w-10 h-10 text-blue-500" />
+                                <h1 className="text-4xl md:text-5xl font-extrabold text-orange-500">{stoodio.name}</h1>
+                                {stoodio.verification_status === VerificationStatus.VERIFIED && (
+                                    <VerifiedIcon className="w-10 h-10 text-blue-500"><title>Verified Stoodio</title></VerifiedIcon>
                                 )}
                             </div>
-                            <p className="text-slate-400 mt-2">{stoodio.location} &middot; {stoodio.followers.toLocaleString()} followers</p>
+                            <p className="text-slate-400 mt-2">{stoodio.location} &middot; {(stoodio.followers || 0).toLocaleString()} followers</p>
                         </div>
                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                             <button 
@@ -157,7 +177,7 @@ const StoodioDetail: React.FC = () => {
                         <div>
                             <h3 className="text-2xl font-bold mb-4 text-orange-400">Amenities</h3>
                             <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-slate-200 mb-10">
-                                {stoodio.amenities.map(amenity => (
+                                {(stoodio.amenities || []).map(amenity => (
                                     <li key={amenity} className="flex items-center">
                                         <svg className="w-5 h-5 mr-3 text-orange-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
                                         {amenity}
@@ -170,21 +190,39 @@ const StoodioDetail: React.FC = () => {
                                 <h3 className="text-2xl font-bold mb-4 text-orange-400">Policies for {selectedRoom.name}</h3>
                                 <ul className="grid grid-cols-1 gap-y-3 text-slate-200 mb-10">
                                     <li className="flex items-center">
-                                        {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED)
+                                        {(selectedRoom.smoking_policy === SmokingPolicy.SMOKING_ALLOWED)
                                             ? <SmokingIcon className="w-5 h-5 mr-3 text-green-400" />
                                             : <NoSmokingIcon className="w-5 h-5 mr-3 text-red-400" />
                                         }
-                                        {(selectedRoom.smokingPolicy === SmokingPolicy.SMOKING_ALLOWED) ? 'Smoking Allowed' : 'Non-Smoking'}
+                                        {(selectedRoom.smoking_policy === SmokingPolicy.SMOKING_ALLOWED) ? 'Smoking Allowed' : 'Non-Smoking'}
                                     </li>
                                 </ul>
                             </div>
                         )}
                     </div>
 
+                    {/* Combined Media Gallery */}
+                    <div className="mb-8">
+                        <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><PhotoIcon className="w-6 h-6" /> Media Gallery</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {galleryImages.map((item, index) => (
+                                <div key={item.id || index} className="relative group aspect-video rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700">
+                                    <img src={item.url} alt="Gallery" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                    {item.type === 'video' && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
+                                            <PlayIcon className="w-10 h-10 text-white drop-shadow-lg" />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            {galleryImages.length === 0 && <p className="text-zinc-500 col-span-full">No media to display.</p>}
+                        </div>
+                    </div>
+
                     {/* Posts & Updates */}
                     <div className="mb-10">
                         <h3 className="text-2xl font-bold mb-4 text-orange-400">Posts & Updates</h3>
-                        <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewStoodioDetails} />
+                        <PostFeed posts={posts} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewStoodioDetails} />
                     </div>
 
                      {/* Recently Hosted Artists */}
@@ -194,7 +232,7 @@ const StoodioDetail: React.FC = () => {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {hostedArtists.map(artist => (
                                     <button key={artist.id} onClick={() => viewArtistProfile(artist)} className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors">
-                                        <img src={artist.imageUrl} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
+                                        <img src={artist.image_url} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
                                         <span className="font-semibold text-sm text-slate-200">{artist.name}</span>
                                     </button>
                                 ))}
@@ -249,16 +287,16 @@ const StoodioDetail: React.FC = () => {
                         {stoodioReviews.length > 0 ? (
                             <ul className="space-y-5">
                                 {stoodioReviews.map(review => {
-                                    const artist = review.artistId ? artists.find(a => a.id === review.artistId) : null;
+                                    const artist = review.artist_id ? artists.find(a => a.id === review.artist_id) : null;
                                     return (
                                     <li key={review.id} className="border-b border-zinc-700 pb-4 last:border-b-0">
                                         <div className="flex justify-between items-center mb-1">
                                             {artist ? (
                                                 <button onClick={() => viewArtistProfile(artist)} className="font-semibold text-slate-200 text-left hover:text-orange-400 transition-colors">
-                                                    {review.reviewerName}
+                                                    {review.reviewer_name}
                                                 </button>
                                             ) : (
-                                                <p className="font-semibold text-slate-200">{review.reviewerName}</p>
+                                                <p className="font-semibold text-slate-200">{review.reviewer_name}</p>
                                             )}
                                             <div className="flex items-center gap-1 text-sm text-yellow-400">
                                                 <StarIcon className="w-4 h-4" />
@@ -275,15 +313,6 @@ const StoodioDetail: React.FC = () => {
                             <p className="text-slate-400">No reviews yet for this stoodio.</p>
                         )}
                     </div>
-                    
-                    <div className="mb-8">
-                        <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><PhotoIcon className="w-6 h-6" /> Photo Gallery</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {stoodio.photos.map((photo, index) => (
-                                <img key={index} src={photo} alt={`${stoodio.name} gallery image ${index + 1}`} className="w-full h-32 object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300" />
-                            ))}
-                        </div>
-                    </div>
                 </div>
 
                 {/* Right Column: Calendar and Booking */}
@@ -291,19 +320,20 @@ const StoodioDetail: React.FC = () => {
                     <div className="p-6 sticky top-28 cardSurface">
                         <h2 className="text-3xl font-bold mb-4 text-center text-slate-100">Book a Room</h2>
                         <div className="space-y-4 mb-6">
-                            {stoodio.rooms.map(room => (
+                            {(stoodio.rooms || []).map(room => (
                                 <button key={room.id} onClick={() => setSelectedRoom(room)} className={`w-full text-left p-4 rounded-xl border-2 transition-all ${selectedRoom?.id === room.id ? 'border-orange-500 bg-orange-500/10' : 'border-zinc-700 hover:border-zinc-600 bg-zinc-900/50'}`}>
                                     <div className="flex justify-between items-center">
                                         <span className="font-bold text-lg text-slate-100">{room.name}</span>
-                                        <span className="font-bold text-lg text-orange-400">${room.hourlyRate}/hr</span>
+                                        <span className="font-bold text-lg text-orange-400">${room.hourly_rate}/hr</span>
                                     </div>
                                     <p className="text-sm text-slate-400 mt-1">{room.description}</p>
                                 </button>
                             ))}
+                            {(stoodio.rooms || []).length === 0 && <p className="text-center text-zinc-500">No rooms available.</p>}
                         </div>
 
                         <Calendar 
-                            availability={stoodio.availability}
+                            availability={stoodio.availability || []}
                             bookings={bookings}
                             onSelectTimeSlot={handleSelectTimeSlot}
                             selectedTimeSlot={selectedTimeSlot}
@@ -312,7 +342,7 @@ const StoodioDetail: React.FC = () => {
                             <button 
                                 onClick={() => selectedTimeSlot && selectedRoom && onBook(selectedTimeSlot.date, selectedTimeSlot.time, selectedRoom)}
                                 disabled={isBookingDisabled}
-                                className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
+                                className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 disabled:bg-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed disabled:transform-none shadow-lg">
                                 {getButtonText()}
                             </button>
                         </div>

@@ -1,8 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
+import { useOnScreen } from '../hooks/useOnScreen.ts';
 
 interface PostCardProps {
     post: Post;
@@ -18,6 +20,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     const [commentText, setCommentText] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    
+    // Video optimization refs
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const isVisible = useOnScreen(videoRef as any, '0px');
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -28,6 +34,23 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Handle video auto-play/pause based on visibility
+    useEffect(() => {
+        if (videoRef.current) {
+            if (isVisible) {
+                // Only attempt play if user hasn't paused it manually (logic simplified here)
+                const playPromise = videoRef.current.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                         // Auto-play was prevented
+                    });
+                }
+            } else {
+                videoRef.current.pause();
+            }
+        }
+    }, [isVisible]);
 
     if (!currentUser) return null;
 
@@ -51,13 +74,56 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
         onSelectAuthor();
     };
 
+    const handleShare = async () => {
+        const url = `${window.location.origin}/post/${post.id}`;
+        const shareData = {
+            title: `Post by ${author.name}`,
+            text: post.text,
+            url: url
+        };
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(url);
+                alert('Link copied to clipboard!');
+            }
+        } catch (err) {
+            console.error("Error sharing:", err);
+            // Fallback
+            await navigator.clipboard.writeText(url);
+            alert('Link copied to clipboard!');
+        }
+    };
+
+    // Helper to detect video links
+    const getVideoEmbedUrl = (url: string): string | null => {
+        try {
+            const urlObj = new URL(url);
+            if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) {
+                const videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop();
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            if (urlObj.hostname.includes('vimeo.com')) {
+                const videoId = urlObj.pathname.split('/').pop();
+                return `https://player.vimeo.com/video/${videoId}`;
+            }
+        } catch (e) {
+            return null;
+        }
+        return null;
+    };
+
+    const externalVideoUrl = post.link ? getVideoEmbedUrl(post.link.url) : null;
+
     return (
-        <div className="rounded-2xl cardSurface">
+        <div className="rounded-2xl cardSurface overflow-hidden">
             <div className="p-6">
                 {/* Post Header */}
                 <div className="flex items-start justify-between gap-4 mb-4">
                     <button onClick={onSelectAuthor} className="flex items-center gap-4 group text-left">
-                        <img src={author.imageUrl} alt={author.name} className="w-12 h-12 rounded-xl object-cover" />
+                        <img src={author.image_url} alt={author.name} className="w-12 h-12 rounded-xl object-cover" />
                         <div>
                             <p className="font-bold text-slate-100 group-hover:text-orange-400 transition-colors">{author.name}</p>
                             <p className="text-sm text-slate-400">{formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}</p>
@@ -81,21 +147,52 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {/* Post Content */}
                 {post.text && <p className="text-slate-300 whitespace-pre-wrap mb-4">{post.text}</p>}
                 
-                {post.imageUrl && (
+                {post.image_url && (
                     <div className="my-4 rounded-lg overflow-hidden border border-zinc-700">
-                        <img src={post.imageUrl} alt="Post content" className="w-full h-auto object-cover"/>
+                        <img loading="lazy" src={post.image_url} alt="Post content" className="w-full h-auto object-cover"/>
                     </div>
                 )}
-                {post.videoUrl && post.videoThumbnailUrl && (
-                    <a href={post.videoUrl} target="_blank" rel="noopener noreferrer" className="block relative my-4 rounded-lg overflow-hidden group border border-zinc-700">
-                        <img src={post.videoThumbnailUrl} alt="Video thumbnail" className="w-full h-auto object-cover"/>
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity opacity-70 group-hover:opacity-100">
-                             <div className="bg-black/50 rounded-full p-4 transition-transform group-hover:scale-110">
-                                <PlayIcon className="w-10 h-10 text-white"/>
-                            </div>
+                
+                {/* Direct Video Upload */}
+                {post.video_url && (
+                    <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
+                         <video
+                            ref={videoRef}
+                            src={post.video_url}
+                            controls // Explicitly enable controls
+                            playsInline
+                            muted // Muted is often required for autoplay, but user can unmute
+                            className="w-full h-full object-contain"
+                            poster={post.video_thumbnail_url}
+                        />
+                    </div>
+                )}
+
+                {/* External Video Embed (YouTube/Vimeo) */}
+                {externalVideoUrl && (
+                     <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
+                        <iframe 
+                            src={externalVideoUrl} 
+                            className="w-full h-full" 
+                            frameBorder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowFullScreen
+                        ></iframe>
+                    </div>
+                )}
+                
+                {/* Standard Link Preview (if not a video) */}
+                {post.link && !externalVideoUrl && (
+                    <a href={post.link.url} target="_blank" rel="noopener noreferrer" className="block bg-zinc-800 rounded-lg overflow-hidden border border-zinc-700 hover:bg-zinc-700 transition-colors mt-2">
+                        {post.link.image_url && <img src={post.link.image_url} alt={post.link.title} className="w-full h-32 object-cover" />}
+                        <div className="p-3">
+                            <p className="font-bold text-zinc-200 truncate">{post.link.title}</p>
+                            <p className="text-xs text-zinc-400 truncate mt-1">{post.link.description}</p>
+                            <p className="text-xs text-orange-400 mt-2">{new URL(post.link.url).hostname}</p>
                         </div>
                     </a>
                 )}
+
             </div>
 
             {/* Contextual CTA */}
@@ -124,7 +221,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     <span className="hidden sm:inline">Comment</span>
                     <span>({post.comments.length})</span>
                 </button>
-                <button className="flex items-center gap-1.5 font-semibold hover:text-blue-400 transition-colors p-2 rounded-lg text-sm">
+                <button onClick={handleShare} className="flex items-center gap-1.5 font-semibold hover:text-blue-400 transition-colors p-2 rounded-lg text-sm">
                     <ShareIcon className="w-5 h-5" />
                     <span className="hidden sm:inline">Share</span>
                 </button>
@@ -132,13 +229,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
             
             {/* Comments Section */}
             {showComments && (
-                <div className="border-t border-zinc-700 p-6 space-y-4 bg-zinc-900/50 rounded-b-2xl">
+                <div className="border-t border-zinc-700 p-6 space-y-4 bg-zinc-800/50 rounded-b-2xl">
                     {post.comments.length > 0 ? (
                         post.comments.map(comment => (
                             <div key={comment.id} className="flex items-start gap-3">
-                                <img src={comment.authorImageUrl} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
+                                <img src={comment.author_image_url} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
                                 <div>
-                                    <div className="bg-zinc-800 rounded-xl p-3">
+                                    <div className="bg-zinc-700 rounded-xl p-3">
                                         <p className="font-semibold text-sm text-slate-200">{comment.authorName}</p>
                                         <p className="text-sm text-slate-300">{comment.text}</p>
                                     </div>
@@ -151,13 +248,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     )}
                      {/* Comment Form */}
                     <form onSubmit={handleCommentSubmit} className="flex items-center gap-2 pt-4">
-                        <img src={currentUser.imageUrl} alt="Your profile" className="w-8 h-8 rounded-lg object-cover"/>
+                        <img src={currentUser.image_url} alt="Your profile" className="w-8 h-8 rounded-lg object-cover"/>
                          <input
                             type="text"
                             value={commentText}
                             onChange={(e) => setCommentText(e.target.value)}
                             placeholder="Write a comment..."
-                            className="w-full bg-zinc-900/50 border-zinc-700 text-slate-200 placeholder:text-slate-400 rounded-full py-2 px-4 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                            className="w-full bg-zinc-700 border-zinc-600 text-slate-200 placeholder:text-slate-400 rounded-full py-2 px-4 focus:ring-orange-500 focus:border-orange-500 text-sm"
                         />
                         <button type="submit" disabled={!commentText.trim()} className="bg-orange-500 text-white p-2 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-slate-600">
                             <PaperAirplaneIcon className="w-5 h-5" />
@@ -169,4 +266,12 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     );
 };
 
-export default PostCard;
+// Use React.memo to prevent re-rendering if props haven't changed
+export default React.memo(PostCard, (prevProps, nextProps) => {
+    return (
+        prevProps.post.id === nextProps.post.id &&
+        prevProps.post.likes.length === nextProps.post.likes.length &&
+        prevProps.post.comments.length === nextProps.post.comments.length &&
+        prevProps.author.id === nextProps.author.id
+    );
+});

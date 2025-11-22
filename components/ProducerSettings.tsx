@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Producer } from '../types';
 import { EditIcon } from './icons';
@@ -11,32 +12,36 @@ const ProducerSettings: React.FC<ProducerSettingsProps> = ({ producer, onUpdateP
     const [name, setName] = useState(producer.name);
     const [bio, setBio] = useState(producer.bio);
     const [genres, setGenres] = useState((producer.genres || []).join(', '));
-    const [pullUpPrice, setPullUpPrice] = useState(producer.pullUpPrice || 0);
+    // FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price'
+    const [pullUpPrice, setPullUpPrice] = useState(producer.pull_up_price || 0);
 
     useEffect(() => {
         setName(producer.name);
         setBio(producer.bio);
         setGenres((producer.genres || []).join(', '));
-        setPullUpPrice(producer.pullUpPrice || 0);
+        // FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price'
+        setPullUpPrice(producer.pull_up_price || 0);
     }, [producer]);
     
     const hasChanges = 
         name !== producer.name ||
         bio !== producer.bio ||
         genres !== (producer.genres || []).join(', ') ||
-        pullUpPrice !== (producer.pullUpPrice || 0);
+        // FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price'
+        pullUpPrice !== (producer.pull_up_price || 0);
 
     const handleSave = () => {
         const updatedProfile: Partial<Producer> = {
             name,
             bio,
             genres: genres.split(',').map(g => g.trim()).filter(Boolean),
-            pullUpPrice,
+            // FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price'
+            pull_up_price: pullUpPrice,
         };
         onUpdateProducer(updatedProfile);
     };
     
-    const inputClasses = "w-full p-2 bg-zinc-900/50 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+    const inputClasses = "w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
     const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
 
     return (

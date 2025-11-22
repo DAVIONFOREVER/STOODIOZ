@@ -12,7 +12,6 @@ interface MapInfoPopupProps {
 }
 
 const MapInfoPopup: React.FC<MapInfoPopupProps> = ({ user, onClose, onSelect, onNavigate }) => {
-    
     const hasRating = 'rating_overall' in user;
 
     return (
@@ -20,13 +19,12 @@ const MapInfoPopup: React.FC<MapInfoPopupProps> = ({ user, onClose, onSelect, on
             <div className="p-4">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                        <img src={user.imageUrl} alt={user.name} className="w-12 h-12 rounded-lg object-cover" />
+                        <img src={user.image_url} alt={user.name} className="w-12 h-12 rounded-lg object-cover" />
                         <div>
                             <h3 className="font-bold text-slate-100">{user.name}</h3>
                             {hasRating && (
                                 <div className="flex items-center text-yellow-400 text-sm">
                                     <StarIcon className="w-4 h-4" />
-                                    
                                     <span className="font-bold ml-1">{user.rating_overall.toFixed(1)}</span>
                                 </div>
                             )}

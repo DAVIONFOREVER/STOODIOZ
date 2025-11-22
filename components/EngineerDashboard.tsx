@@ -1,59 +1,30 @@
 
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import type { Engineer, Artist, Stoodio, Producer, Booking } from '../types';
-import { AppView, SubscriptionPlan, UserRole, BookingStatus } from '../types';
-import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, ClockIcon } from './icons';
-import CreatePost from './CreatePost';
-import PostFeed from './PostFeed';
-import AvailabilityManager from './AvailabilityManager';
-import NotificationSettings from './NotificationSettings';
-import Wallet from './Wallet';
-import MixingServicesManager from './MixingServicesManager';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
-import { useSocial } from '../hooks/useSocial';
-import { useProfile } from '../hooks/useProfile';
-import { useBookings } from '../hooks/useBookings';
-import MixingSampleManager from './MixingSampleManager';
-import FollowersList from './FollowersList';
-import Following from './Following';
+// FIX: Import missing types
+import type { Engineer, Artist, Stoodio, Producer, Conversation, Post } from '../types';
+import { AppView, SubscriptionPlan, UserRole } from '../types';
+import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon } from './icons';
+import CreatePost from './CreatePost.tsx';
+import PostFeed from './PostFeed.tsx';
+import AvailabilityManager from './AvailabilityManager.tsx';
+import NotificationSettings from './NotificationSettings.tsx';
+import Wallet from './Wallet.tsx';
+import MixingServicesManager from './MixingServicesManager.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import { useNavigation } from '../hooks/useNavigation.ts';
+import { useSocial } from '../hooks/useSocial.ts';
+import { useProfile } from '../hooks/useProfile.ts';
+import MixingSampleManager from './MixingSampleManager.tsx';
+import Following from './Following.tsx';
+import FollowersList from './FollowersList.tsx';
+import { fetchUserPosts } from '../services/apiService';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
+const Documents = lazy(() => import('./Documents.tsx'));
+// FIX: Corrected import path
+const MasterclassManager = lazy(() => import('./MasterclassManager.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following';
-
-const JobBoard: React.FC<{ 
-    jobs: Booking[];
-    onAcceptJob: (booking: Booking) => void;
-}> = ({ jobs, onAcceptJob }) => {
-    return (
-        <div className="p-6 cardSurface">
-            <h1 className="text-2xl font-bold text-zinc-100 mb-6">Available Jobs</h1>
-            <div className="space-y-4">
-                {jobs.length > 0 ? jobs.map(job => (
-                    <div key={job.id} className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50 flex flex-col md:flex-row gap-4 justify-between items-start">
-                        <div>
-                            <p className="font-bold text-lg text-orange-400">{job.stoodio?.name}</p>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-300 mt-2">
-                                <span className="flex items-center gap-1.5"><CalendarIcon className="w-4 h-4 text-zinc-400"/> {new Date(job.date + 'T00:00:00').toLocaleDateString()}</span>
-                                <span className="flex items-center gap-1.5"><ClockIcon className="w-4 h-4 text-zinc-400"/> {job.startTime} for {job.duration} hours</span>
-                                <span className="flex items-center gap-1.5"><DollarSignIcon className="w-4 h-4 text-zinc-400"/> ${job.engineerPayRate}/hr</span>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={() => onAcceptJob(job)}
-                            className="w-full md:w-auto bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors text-sm"
-                        >
-                            Accept Job
-                        </button>
-                    </div>
-                )) : (
-                    <p className="text-center py-8 text-zinc-500">No jobs available right now. Check back later!</p>
-                )}
-            </div>
-        </div>
-    );
-};
+type DashboardTab = 'dashboard' | 'analytics' | 'jobBoard' | 'availability' | 'mixingSamples' | 'mixingServices' | 'notificationSettings' | 'wallet' | 'followers' | 'following' | 'documents' | 'masterclass';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -75,13 +46,13 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
-    <div className="p-6 text-white text-center cardSurface">
-        <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
+    <div className="cardSurface border-2 border-orange-500 p-6 text-zinc-100 text-center">
+        <StarIcon className="w-10 h-10 mx-auto text-orange-400/80 mb-2" />
         <h3 className="text-xl font-bold mb-2">Upgrade to Engineer Plus</h3>
-        <p className="text-sm opacity-90 mb-4">Unlock advanced job filters, lower service fees, and priority support to boost your career.</p>
+        <p className="text-sm text-zinc-400 mb-4">Unlock advanced job filters, lower service fees, and priority support to boost your career.</p>
         <button 
             onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
-            className="bg-white text-orange-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
+            className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all duration-300"
         >
             View Plans
         </button>
@@ -89,15 +60,24 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
 );
 
 const EngineerDashboard: React.FC = () => {
-    const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers } = useAppState();
+    const { currentUser, bookings, dashboardInitialTab, artists, engineers, stoodioz, producers, conversations } = useAppState();
     const dispatch = useAppDispatch();
-    const engineer = currentUser as Engineer;
     
     const { navigate, viewBooking, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
-    const { updateProfile } = useProfile();
-    const { acceptBooking } = useBookings(navigate);
+    const { updateProfile, refreshCurrentUser } = useProfile();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
 
+    if (!currentUser) {
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p className="text-zinc-400">Loading user data...</p>
+            </div>
+        );
+    }
+    
+    const engineer = currentUser as Engineer;
+    
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
     useEffect(() => {
@@ -107,60 +87,118 @@ const EngineerDashboard: React.FC = () => {
         }
     }, [dashboardInitialTab, dispatch]);
 
-    const profileFileInputRef = useRef<HTMLInputElement>(null);
-    const coverFileInputRef = useRef<HTMLInputElement>(null);
+    // Fetch user specific posts
+    const refreshPosts = async () => {
+        if (engineer.id) {
+            const posts = await fetchUserPosts(engineer.id);
+            setMyPosts(posts);
+        }
+    };
+
+    useEffect(() => {
+        refreshPosts();
+    }, [engineer.id]);
+
+    const handleNewPost = async (postData: any) => {
+        // Optimistic update
+        const tempPost: Post = {
+            id: `temp-${Date.now()}`,
+            authorId: engineer.id,
+            authorType: UserRole.ENGINEER,
+            text: postData.text,
+            image_url: postData.imageUrl,
+            video_url: postData.videoUrl,
+            video_thumbnail_url: postData.videoThumbnailUrl,
+            link: postData.link,
+            timestamp: new Date().toISOString(),
+            likes: [],
+            comments: []
+        };
+        setMyPosts(prev => [tempPost, ...prev]);
+
+        await createPost(postData, UserRole.ENGINEER);
+        refreshPosts();
+    };
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const coverImageInputRef = useRef<HTMLInputElement>(null);
 
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
     const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'cover') => {
+    const handleImageUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+    
+    const handleCoverImageUploadClick = () => {
+        coverImageInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                if (type === 'profile') {
-                    updateProfile({ imageUrl });
-                } else {
-                    updateProfile({ coverImageUrl: imageUrl });
-                }
+                // FIX: Corrected property name from `imageUrl` to `image_url` to match the type definition.
+                updateProfile({ image_url: imageUrl });
             };
             reader.readAsDataURL(file);
         }
     };
     
-    const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requestedEngineerId === engineer.id) && new Date(`${b.date}T${b.startTime}`) >= new Date());
+    const handleCoverFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const coverImageUrl = e.target?.result as string;
+                // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
+                updateProfile({ cover_image_url: coverImageUrl });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    // FIX: Corrected property name from 'requestedEngineerId' to 'requested_engineer_id' and 'startTime' to 'start_time'
+    const upcomingBookings = bookings.filter(b => (b.engineer?.id === engineer.id || b.requested_engineer_id === engineer.id) && new Date(`${b.date}T${b.start_time}`) >= new Date());
     const isProPlan = engineer.subscription?.plan === SubscriptionPlan.ENGINEER_PLUS;
-    const availableJobs = bookings.filter(b => b.postedBy === UserRole.STOODIO && b.status === BookingStatus.PENDING);
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => engineer.followerIds.includes(u.id));
-    const followedArtists = artists.filter(a => engineer.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => engineer.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => engineer.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => engineer.following.producers.includes(p.id));
-
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
+    const followers = allUsers.filter(u => (engineer.follower_ids || []).includes(u.id));
+    const followedArtists = artists.filter(a => (engineer.following?.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (engineer.following?.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (engineer.following?.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (engineer.following?.producers || []).includes(p.id));
+    
     const renderContent = () => {
          switch(activeTab) {
              case 'analytics':
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <AnalyticsDashboard user={engineer} />
+                        <AnalyticsDashboard user={engineer} userRole={UserRole.ENGINEER} />
                     </Suspense>
                 );
-             case 'jobBoard': return <JobBoard jobs={availableJobs} onAcceptJob={acceptBooking} />;
              case 'availability': return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
-             case 'mixingSamples': return <MixingSampleManager engineer={engineer} onUpdateEngineer={updateProfile} />;
+             case 'mixingSamples': return <MixingSampleManager engineer={engineer} onRefresh={refreshCurrentUser} />;
              case 'mixingServices': return <MixingServicesManager engineer={engineer} onUpdateEngineer={updateProfile} />;
+             case 'masterclass': return <Suspense fallback={<div/>}><MasterclassManager user={engineer} onUpdateUser={updateProfile} /></Suspense>;
              case 'notificationSettings': return <NotificationSettings engineer={engineer} onUpdateEngineer={updateProfile} />;
              case 'wallet': return <Wallet user={engineer} onAddFunds={onOpenAddFundsModal} onRequestPayout={onOpenPayoutModal} onViewBooking={viewBooking} userRole={UserRole.ENGINEER} />;
              case 'followers': return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
              case 'following': return <Following artists={followedArtists} engineers={followedEngineers} studios={followedStoodioz} producers={followedProducers} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStudio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
+             case 'documents':
+                return (
+                    <Suspense fallback={<div>Loading Documents...</div>}>
+                        <Documents conversations={conversations} />
+                    </Suspense>
+                );
              default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        <CreatePost currentUser={engineer} onPost={createPost} />
-                        <PostFeed posts={engineer.posts || []} authors={new Map([[engineer.id, engineer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => {}} />
+                        <CreatePost currentUser={engineer} onPost={handleNewPost} />
+                        <PostFeed posts={myPosts} authors={new Map([[engineer.id, engineer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewEngineerProfile(engineer)} />
                     </div>
                     <div className="lg:col-span-1 space-y-6">
                         {!isProPlan && <UpgradePlusCard onNavigate={navigate} />}
@@ -173,51 +211,81 @@ const EngineerDashboard: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="cardSurface overflow-hidden">
-                <div className="relative h-40 md:h-56 bg-zinc-700">
-                    <img src={engineer.coverImageUrl || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=800&auto=format&fit=crop'} alt="Cover" className="w-full h-full object-cover"/>
-                    <button 
-                        onClick={() => coverFileInputRef.current?.click()}
-                        className="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-black/70 transition-colors"
-                        aria-label="Change cover photo"
-                    >
-                        <EditIcon className="w-5 h-5" />
-                    </button>
-                    <input type="file" ref={coverFileInputRef} onChange={(e) => handleFileChange(e, 'cover')} className="hidden" accept="image/*"/>
-                </div>
-                <div className="p-6 pt-0">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-20 gap-4">
-                        <div className="relative group flex-shrink-0">
-                            <img src={engineer.imageUrl} alt={engineer.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-zinc-800" />
-                            <button 
-                                onClick={() => profileFileInputRef.current?.click()}
-                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                aria-label="Change profile photo"
-                            >
-                                <EditIcon className="w-8 h-8 text-white" />
-                            </button>
-                            <input type="file" ref={profileFileInputRef} onChange={(e) => handleFileChange(e, 'profile')} className="hidden" accept="image/*" />
+            <div className="relative rounded-2xl overflow-hidden cardSurface group">
+                <img 
+                    // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
+                    src={engineer.cover_image_url || 'https://images.unsplash.com/photo-1617886322207-6f504e7472c5?q=80&w=1200&auto=format&fit=crop'} 
+                    alt={`${engineer.name}'s cover photo`}
+                    className="w-full h-48 md:h-64 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                <button 
+                    onClick={handleCoverImageUploadClick}
+                    className="absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold py-1.5 px-3 rounded-full hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100 flex items-center gap-2"
+                >
+                    <PhotoIcon className="w-4 h-4" /> Edit Cover
+                </button>
+                <input
+                    type="file"
+                    ref={coverImageInputRef}
+                    onChange={handleCoverFileChange}
+                    className="hidden"
+                    accept="image/*"
+                />
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
+                        <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
+                            <div className="relative group/pfp flex-shrink-0">
+                                {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
+                                <img src={engineer.image_url} alt={engineer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <button 
+                                    onClick={handleImageUploadClick} 
+                                    className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
+                                    aria-label="Change profile photo"
+                                >
+                                    <EditIcon className="w-8 h-8 text-white" />
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept="image/*"
+                                />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{engineer.name}</h1>
+                                <p className="text-zinc-400 mt-1">Engineer Dashboard</p>
+                            </div>
                         </div>
-                        <div className="flex-grow text-center sm:text-left sm:pb-4">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{engineer.name}</h1>
-                            <p className="text-zinc-400 mt-1">Engineer Dashboard</p>
-                        </div>
-                        <label className="flex items-center cursor-pointer sm:pb-4">
+                        <label className="flex items-center cursor-pointer self-center sm:self-auto">
                             <span className="text-sm font-medium text-zinc-300 mr-3">Available for Hire</span>
                             <div className="relative">
-                                <input type="checkbox" className="sr-only" checked={engineer.isAvailable} onChange={(e) => updateProfile({ isAvailable: e.target.checked })} />
-                                <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.isAvailable ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
-                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.isAvailable ? 'translate-x-6' : ''}`}></div>
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only" 
+                                    // FIX: Corrected property name from 'isAvailable' to 'is_available'
+                                    checked={engineer.is_available} 
+                                    // FIX: Corrected property name from 'isAvailable' to 'is_available'
+                                    onChange={(e) => updateProfile({ is_available: e.target.checked })} 
+                                />
+                                {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
+                                <div className={`block w-12 h-6 rounded-full transition-colors ${engineer.is_available ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                {/* FIX: Corrected property name from 'isAvailable' to 'is_available' */}
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${engineer.is_available ? 'translate-x-6' : ''}`}></div>
                             </div>
                         </label>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-white/5">
-                    <StatCard label="Wallet Balance" value={`$${engineer.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                    <StatCard label="Upcoming Sessions" value={upcomingBookings.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
-                    <StatCard label="Overall Rating" value={engineer.rating_overall.toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
-                </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {/* FIX: Corrected property name from 'walletBalance' to 'wallet_balance' to match the type definition. */}
+                <StatCard label="Wallet Balance" value={`$${(engineer.wallet_balance || 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <StatCard label="Upcoming Sessions" value={upcomingBookings.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                <StatCard label="Overall Rating" value={(engineer.rating_overall || 0).toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
+            </div>
+
              <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
@@ -226,10 +294,12 @@ const EngineerDashboard: React.FC = () => {
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Mixing Samples" isActive={activeTab === 'mixingSamples'} onClick={() => setActiveTab('mixingSamples')} />
                     <TabButton label="Mixing Services" isActive={activeTab === 'mixingServices'} onClick={() => setActiveTab('mixingServices')} />
+                    <TabButton label="Masterclass" isActive={activeTab === 'masterclass'} onClick={() => setActiveTab('masterclass')} />
                     <TabButton label="Notifications" isActive={activeTab === 'notificationSettings'} onClick={() => setActiveTab('notificationSettings')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
                 </div>
                  <div className="p-6">
                     {renderContent()}

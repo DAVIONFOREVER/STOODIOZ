@@ -20,19 +20,23 @@ const DevNotificationButton: React.FC = () => {
         
         const randomNotification = newsAndTips[Math.floor(Math.random() * newsAndTips.length)];
 
-        navigator.serviceWorker.ready.then(registration => {
-            registration.showNotification(randomNotification.title, {
-                body: randomNotification.body,
-                tag: 'dev-notification' // Tag to prevent spamming notifications
-            });
+        navigator.serviceWorker.getRegistration().then(registration => {
+            if (registration) {
+                registration.showNotification(randomNotification.title, {
+                    body: randomNotification.body,
+                    tag: 'dev-notification'
+                });
+            } else {
+                alert('Service worker not registered. Cannot show notification.');
+            }
         });
     };
 
     return (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="fixed bottom-4 left-4 z-50">
             <button 
                 onClick={showDevNotification}
-                className="bg-orange-500 text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-orange-600 transition-all duration-300 flex items-center gap-2"
+                className="bg-zinc-800 text-zinc-300 font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-zinc-700 transition-all duration-300 flex items-center gap-2"
                 title="Simulate a notification from the developer"
             >
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
