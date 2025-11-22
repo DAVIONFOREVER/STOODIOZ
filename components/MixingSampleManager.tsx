@@ -90,8 +90,9 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onR
 
     const handleSaveSample = async (sampleData: Omit<MixingSample, 'id' | 'audio_url'>, audioFile: File | null) => {
         setIsUploading(true);
+        // FIX: Use crypto.randomUUID() to generate a valid UUID for the database
         let finalSample: MixingSample = { 
-            id: editingSample?.id || `sample-${Date.now()}`, 
+            id: editingSample?.id || crypto.randomUUID(), 
             ...sampleData, 
             audio_url: editingSample?.audio_url || '' 
         };

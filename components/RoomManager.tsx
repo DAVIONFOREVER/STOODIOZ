@@ -53,8 +53,9 @@ const RoomFormModal: React.FC<{
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        // FIX: Use crypto.randomUUID() to generate a valid UUID for the database
         const finalRoom: Room = {
-            id: room?.id || `room-${Date.now()}`,
+            id: room?.id || crypto.randomUUID(),
             name,
             description,
             hourly_rate: hourlyRate,

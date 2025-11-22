@@ -31,8 +31,9 @@ const BeatFormModal: React.FC<{
             alert('Please select an audio file for new instrumentals.');
             return;
         }
+        // FIX: Use crypto.randomUUID() to generate a valid UUID for the database
         const finalInstrumental: Instrumental = {
-            id: instrumental?.id || `inst-${Date.now()}`,
+            id: instrumental?.id || crypto.randomUUID(),
             title,
             genre,
             price_lease: priceLease,

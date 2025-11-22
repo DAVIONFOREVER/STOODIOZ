@@ -265,9 +265,10 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
         created_at: new Date().toISOString()
     };
 
+    // FIX: We must return the ACTUAL created post, not just the author, so the UI can update with the real ID.
     const { data, error } = await supabase.from('posts').insert(newPost).select().single();
     if (error) throw error;
-    return { updatedAuthor: author }; // Optimistic return
+    return { updatedAuthor: author, createdPost: data }; 
 };
 
 export const likePost = async (postId: string, userId: string, author: any) => {
