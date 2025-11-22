@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -93,26 +93,43 @@ export const getAllPublicUsers = async (): Promise<{
     };
 };
 
-export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | null> => {
+export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | { email_confirmation_required: boolean } | null> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
 
-    // 1. Sign Up
+    // 1. Sign Up - Store essential profile data in metadata so it survives if verification is needed
     const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
+        options: {
+            data: {
+                full_name: userData.name,
+                user_role: role,
+            }
+        }
     });
 
     if (authError) throw authError;
     if (!authData.user) throw new Error("No user returned from signup");
 
-    // 2. Upload Image if provided
-    let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
-    if (userData.imageFile) {
-        imageUrl = await uploadAvatar(userData.imageFile, authData.user.id);
+    // 2. Check if Email Verification is enabled and required
+    if (authData.user && !authData.session) {
+        // If confirm email is enabled, session will be null. 
+        // We cannot upload files or insert into public tables yet due to RLS policies.
+        return { email_confirmation_required: true };
     }
 
-    // 3. Create Profile Record
+    // 3. Upload Image if provided (Only if we have a session)
+    let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
+    if (userData.imageFile) {
+        try {
+            imageUrl = await uploadAvatar(userData.imageFile, authData.user.id);
+        } catch (e) {
+            console.warn("Avatar upload skipped due to network/auth issue", e);
+        }
+    }
+
+    // 4. Create Public Profile Record
     const profileData = {
         id: authData.user.id,
         email: userData.email,
@@ -327,7 +344,6 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
 
 export const toggleFollow = async (currentUser: any, targetUser: any, type: string, isFollowing: boolean) => {
     const supabase = getSupabase();
-    // If Supabase isn't connected, return mocks to prevent UI crashes, but realistically this should fail or warn.
     if (!supabase) {
         console.warn("Supabase disconnected: Follow toggle simulated locally.");
         return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
@@ -343,14 +359,12 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         'STOODIO': 'stoodioz'
     };
     
-    // Determine table name for CURRENT user to update their 'following' list
     let followerTable = '';
     if ('amenities' in currentUser) followerTable = 'stoodioz';
     else if ('specialties' in currentUser) followerTable = 'engineers';
     else if ('instrumentals' in currentUser) followerTable = 'producers';
     else followerTable = 'artists';
 
-    // Determine table name for TARGET user to update their 'followers' count/list
     const targetTableMap: Record<string, string> = {
         'artist': 'artists',
         'engineer': 'engineers',
@@ -358,17 +372,14 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         'stoodio': 'stoodioz'
     };
     const targetTable = targetTableMap[type];
-    const followingKey = `${type}s` === 'stoodios' ? 'stoodioz' : `${type}s`; // handle pluralization quirks
+    const followingKey = `${type}s` === 'stoodios' ? 'stoodioz' : `${type}s`;
 
-    // 1. Update Current User's 'following' JSONB
     let newFollowing = { ...currentUser.following };
     let targetList = newFollowing[followingKey] || [];
 
     if (isFollowing) {
-        // Remove ID
         targetList = targetList.filter((id: string) => id !== targetUserId);
     } else {
-        // Add ID if not present
         if (!targetList.includes(targetUserId)) targetList.push(targetUserId);
     }
     newFollowing[followingKey] = targetList;
@@ -380,31 +391,23 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         .select()
         .single();
     
-    if (err1) {
-        console.error("Error updating following list:", err1);
-        throw err1; // Re-throw to be caught by caller
-    }
+    if (err1) throw err1;
 
-    // 2. Update Target's 'follower_ids' Array and 'followers' Count
     let newFollowerIds = targetUser.follower_ids || [];
     let newFollowerCount = targetUser.followers || 0;
 
     if (isFollowing) {
-        // Unfollow
         newFollowerIds = newFollowerIds.filter((id: string) => id !== currentUserId);
         newFollowerCount = Math.max(0, newFollowerCount - 1);
     } else {
-        // Follow
         if (!newFollowerIds.includes(currentUserId)) {
             newFollowerIds.push(currentUserId);
             newFollowerCount++;
         }
     }
 
-    // Create a notification for the target user
     if (!isFollowing) {
         const notification = {
-            id: crypto.randomUUID(),
             recipient_id: targetUserId,
             type: NotificationType.NEW_FOLLOWER,
             message: `${currentUser.name} started following you.`,
@@ -422,17 +425,129 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         .select()
         .single();
 
-    if (err2) {
-        console.error("Error updating follower stats:", err2);
-        throw err2; 
-    }
+    if (err2) throw err2;
 
-    // Return combined updated objects so UI reflects changes immediately
-    // Use the data returned from DB to ensure sync
     return { 
         updatedCurrentUser: { ...currentUser, ...updatedFollower }, 
         updatedTargetUser: { ...targetUser, ...updatedTarget } 
     };
+};
+
+// --- MESSAGING & REVIEWS (NEW REAL IMPL) ---
+
+export const fetchConversations = async (userId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    
+    // Fetch conversations where user is a participant
+    const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .contains('participant_ids', [userId]);
+        
+    if (error) {
+        console.error("Error fetching conversations:", error);
+        return [];
+    }
+    
+    // For each conversation, fetch messages and participant details
+    const fullConversations = await Promise.all(data.map(async (convo: any) => {
+        // 1. Get messages
+        const { data: msgs } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', convo.id)
+            .order('created_at', { ascending: true });
+            
+        const formattedMessages = (msgs || []).map((m: any) => ({
+            id: m.id,
+            sender_id: m.sender_id,
+            timestamp: m.created_at,
+            type: m.message_type,
+            text: m.content,
+            image_url: m.media_url,
+            audio_url: m.message_type === 'audio' ? m.media_url : undefined,
+            files: m.file_attachments
+        }));
+
+        // 2. Get participants (other than self)
+        const otherIds = convo.participant_ids;
+        let participants: any[] = [];
+        
+        for (const pid of otherIds) {
+             const [a, e, p, s] = await Promise.all([
+                supabase.from('artists').select('id, name, image_url').eq('id', pid).single(),
+                supabase.from('engineers').select('id, name, image_url').eq('id', pid).single(),
+                supabase.from('producers').select('id, name, image_url').eq('id', pid).single(),
+                supabase.from('stoodioz').select('id, name, image_url').eq('id', pid).single()
+            ]);
+            if (a.data) participants.push(a.data);
+            else if (e.data) participants.push(e.data);
+            else if (p.data) participants.push(p.data);
+            else if (s.data) participants.push(s.data);
+        }
+
+        return {
+            id: convo.id,
+            participants,
+            messages: formattedMessages,
+            unread_count: 0 // TODO: Calc based on read_by array
+        };
+    }));
+    
+    return fullConversations;
+};
+
+export const sendMessage = async (conversationId: string, senderId: string, content: string, type: string = 'text', fileData?: any) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const msgData = {
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content: content,
+        message_type: type,
+        // Map fileData to media_url or file_attachments correctly
+        media_url: (type === 'image' || type === 'audio') ? fileData?.url : null,
+        file_attachments: type === 'files' ? fileData : null
+    };
+
+    const { data, error } = await supabase.from('messages').insert(msgData).select().single();
+    if (error) throw error;
+    return data;
+};
+
+export const createConversation = async (participantIds: string[]) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    
+    const { data, error } = await supabase
+        .from('conversations')
+        .insert({ participant_ids: participantIds })
+        .select()
+        .single();
+        
+    if (error) throw error;
+    return data;
+}
+
+export const fetchReviews = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    
+    const { data, error } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
+    if (error) return [];
+    
+    return data.map((r: any) => ({
+        id: r.id,
+        reviewer_name: 'Anonymous', // In real app, join with user table
+        rating: r.rating,
+        comment: r.comment,
+        date: r.created_at,
+        stoodio_id: r.target_user_id,
+        engineer_id: r.target_user_id,
+        producer_id: r.target_user_id,
+    }));
 };
 
 // --- OTHER ---
@@ -450,8 +565,6 @@ export const createCheckoutSessionForSubscription = async (planId: string, userI
 };
 
 export const purchaseBeat = async (beat: Instrumental, type: 'lease' | 'exclusive', buyer: any, producer: Producer, role: UserRole) => {
-    // Create a booking/transaction record
-    // Use valid UUID for the ID to prevent DB errors
     const bookingData = {
         date: new Date().toISOString(),
         start_time: 'N/A',
@@ -513,7 +626,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     const startDateStr = startDate.toISOString();
 
     // 1. Revenue (from wallet_transactions JSONB column)
-    // Determine table name based on role
     const tableMap: Record<string, string> = {
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
@@ -540,17 +652,15 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     
     const totalRevenue = relevantTransactions.reduce((sum, t) => sum + t.amount, 0);
 
-    // Group revenue by date for the chart
     const revenueMap = new Map<string, number>();
     relevantTransactions.forEach(t => {
-        const dateKey = t.date.split('T')[0]; // YYYY-MM-DD
+        const dateKey = t.date.split('T')[0];
         revenueMap.set(dateKey, (revenueMap.get(dateKey) || 0) + t.amount);
     });
     const revenueOverTime = Array.from(revenueMap.entries())
         .map(([date, revenue]) => ({ date, revenue }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Group revenue by source category
     const sourceMap = new Map<string, number>();
     relevantTransactions.forEach(t => {
         const category = t.category || 'Other';
@@ -558,7 +668,7 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     });
     const revenueSources = Array.from(sourceMap.entries()).map(([name, revenue]) => ({ name, revenue }));
 
-    // 2. Bookings (from real bookings table)
+    // 2. Bookings
     const { count: bookingsCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
@@ -566,8 +676,7 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
         .gte('date', startDateStr)
         .eq('status', BookingStatus.CONFIRMED);
     
-    // 3. New Followers (from notifications table)
-    // Count notifications of type 'NEW_FOLLOWER' for this user within the date range
+    // 3. New Followers
     const { count: newFollowersCount } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -578,12 +687,12 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     return {
         kpis: {
             totalRevenue,
-            profileViews: 0, // Profile views require a separate tracking table, remaining 0 for now.
+            profileViews: 0, 
             newFollowers: newFollowersCount || 0,
             bookings: bookingsCount || 0,
         },
         revenueOverTime,
-        engagementOverTime: [], // Placeholder
+        engagementOverTime: [], 
         revenueSources
     };
 };
@@ -599,9 +708,7 @@ export const submitForVerification = async (stoodioId: string, data: any) => {
 export const upsertRoom = async (room: Room, stoodioId: string) => {
     const supabase = getSupabase();
     if(supabase) {
-        // Ensure ID is valid UUID
         const roomId = room.id && room.id.length > 10 ? room.id : crypto.randomUUID();
-        
         const { data, error } = await supabase.from('rooms').upsert({
             ...room,
             id: roomId,
@@ -636,9 +743,7 @@ export const deleteInHouseEngineer = async (engineerId: string, stoodioId: strin
 export const upsertInstrumental = async (inst: Instrumental, producerId: string) => {
     const supabase = getSupabase();
     if(supabase) {
-        // Ensure ID is valid UUID
         const instId = inst.id && inst.id.length > 10 ? inst.id : crypto.randomUUID();
-        
         await supabase.from('instrumentals').upsert({
             ...inst,
             id: instId,
@@ -655,9 +760,7 @@ export const deleteInstrumental = async (instId: string) => {
 export const upsertMixingSample = async (sample: MixingSample, engineerId: string) => {
     const supabase = getSupabase();
     if(supabase) {
-        // Ensure ID is valid UUID
         const sampleId = sample.id && sample.id.length > 10 ? sample.id : crypto.randomUUID();
-        
         await supabase.from('mixing_samples').upsert({
             ...sample,
             id: sampleId,

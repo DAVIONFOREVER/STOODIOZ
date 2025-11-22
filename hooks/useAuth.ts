@@ -119,11 +119,25 @@ export const useAuth = (navigate: (view: any) => void) => {
     
     const completeSetup = async (userData: any, role: UserRole) => {
         try {
-            const newUser = await apiService.createUser(userData, role);
-            if (newUser) {
-                // Supabase automatically signs the user in after signUp,
+            const result = await apiService.createUser(userData, role);
+            
+            if (result && 'email_confirmation_required' in result) {
+                alert("Account created! Please check your email to verify your account before logging in.");
+                navigate(AppView.LOGIN);
+                return;
+            }
+
+            if (result) {
+                // Supabase automatically signs the user in after signUp if no verification required,
                 // so we just need to update the application state.
+                const newUser = result as Artist | Engineer | Stoodio | Producer;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
+                
+                // Force navigation based on role
+                if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
             } else {
                 alert("An unknown error occurred during signup.");
             }

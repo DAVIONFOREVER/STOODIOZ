@@ -1,6 +1,4 @@
 
-
-
 import React, { useState } from 'react';
 import { AppView } from '../types';
 
@@ -24,8 +22,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate }) => {
             <h1 className="text-4xl font-extrabold text-center mb-2 text-slate-100">Welcome Back</h1>
             <p className="text-center text-slate-400 mb-8">Log in to your Stoodioz account.</p>
             {error && (
-                <div className="bg-red-500/20 border border-red-500/30 text-red-300 text-sm p-3 rounded-lg mb-6 text-center">
-                    {error}
+                <div className={`border p-4 rounded-lg mb-6 text-sm ${
+                    error.toLowerCase().includes("email not confirmed") 
+                    ? "bg-yellow-500/20 border-yellow-500/30 text-yellow-200" 
+                    : "bg-red-500/20 border-red-500/30 text-red-300"
+                }`}>
+                    {error.toLowerCase().includes("email not confirmed") ? (
+                        <div className="text-center">
+                            <strong className="block text-lg mb-1">Email Verification Required</strong>
+                            <p>Please check your inbox (and spam folder) for a confirmation link from Stoodioz/Supabase before logging in.</p>
+                        </div>
+                    ) : (
+                        <div className="text-center font-semibold">{error}</div>
+                    )}
                 </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-6">
