@@ -117,7 +117,7 @@ const App: React.FC = () => {
             return;
         }
 
-        // If creating a new account, ensure we sign out previous session first
+        // Ensure previous session is cleared before setup to avoid conflicts
         if (userData.email && userData.password) {
             await supabase.auth.signOut();
         }
@@ -125,10 +125,17 @@ const App: React.FC = () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
         try {
-            const newUser = await apiService.createUser(userData, role);
+            const result = await apiService.createUser(userData, role);
 
-            if (newUser) {
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
+            if (result && 'email_confirmation_required' in result) {
+                alert("Account created! Please check your email to verify your account before logging in.");
+                navigate(AppView.LOGIN);
+                return;
+            }
+
+            if (result) {
+                const newUser = result as Artist | Engineer | Stoodio | Producer;
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 
                 // Force navigation based on role
                 if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
@@ -173,7 +180,7 @@ const App: React.FC = () => {
         const supabase = getSupabase();
         if (!supabase) return;
 
-        // Fetch Global Directory (Fixes missing users issue)
+        // Fetch Global Directory
         const fetchDirectory = async () => {
             const directory = await apiService.getAllPublicUsers();
             dispatch({ 
@@ -197,7 +204,8 @@ const App: React.FC = () => {
             }
 
             const fetchProfiles = async () => {
-                // Check all tables to find where this user exists
+                // Check all tables to find where this user exists.
+                // Note: We use maybeSingle() and detailed error checking now to be robust against partial missing data (like missing instrumentals table).
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
@@ -206,8 +214,21 @@ const App: React.FC = () => {
                 };
                 
                 const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
-                    const { data } = await supabase.from(tableName).select(config.query).eq('id', userId).single();
-                    return data ? { data, role: config.role } : null;
+                    try {
+                        const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
+                        if (error) {
+                             // If a specific relation is missing (e.g. instrumentals table not created yet), fallback to basic fetch
+                             if (error.code === 'PGRST200' || error.message.includes('relation')) {
+                                const { data: basicData } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
+                                return basicData ? { data: basicData, role: config.role } : null;
+                             }
+                             return null;
+                        }
+                        return data ? { data, role: config.role } : null;
+                    } catch (e) {
+                        console.warn(`Hydration error for ${tableName}:`, e);
+                        return null;
+                    }
                 });
                 
                 const idResults = await Promise.all(idPromises);
@@ -233,6 +254,10 @@ const App: React.FC = () => {
                             role: userProfileResult.role 
                         } 
                     });
+                } else {
+                    // Only dispatch failure if we truly can't find the profile after retries
+                    // This prevents flashing error screens on quick reloads
+                    console.warn("User authenticated but profile not found.");
                 }
             } catch (error) {
                 console.error("Error hydrating user profile:", error);
@@ -269,7 +294,7 @@ const App: React.FC = () => {
         return () => {
             subscription?.unsubscribe();
         };
-    }, [dispatch]); // Removed navigate to prevent loop
+    }, [dispatch]); 
 
     useEffect(() => {
         let timerId: number;

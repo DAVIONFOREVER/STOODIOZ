@@ -78,18 +78,37 @@ export const getAllPublicUsers = async (): Promise<{
     const supabase = getSupabase();
     if (!supabase) return { artists: [], engineers: [], producers: [], stoodioz: [] };
 
+    // Safely query each table individually to prevent one failure from blocking all
+    const safeSelect = async (table: string, select: string) => {
+        try {
+            const { data, error } = await supabase.from(table).select(select);
+            if (error) {
+                console.warn(`Error fetching ${table}:`, error.message);
+                // Fallback to basic select if relation select fails
+                if (error.code === 'PGRST200') {
+                     const { data: retry } = await supabase.from(table).select('*');
+                     return retry || [];
+                }
+                return [];
+            }
+            return data || [];
+        } catch {
+            return [];
+        }
+    };
+
     const [artists, engineers, producers, stoodioz] = await Promise.all([
-        supabase.from('artists').select('*'),
-        supabase.from('engineers').select('*, mixing_samples(*)'),
-        supabase.from('producers').select('*, instrumentals(*)'),
-        supabase.from('stoodioz').select('*, rooms(*), in_house_engineers(*)')
+        safeSelect('artists', '*'),
+        safeSelect('engineers', '*, mixing_samples(*)'),
+        safeSelect('producers', '*, instrumentals(*)'),
+        safeSelect('stoodioz', '*, rooms(*), in_house_engineers(*)')
     ]);
 
     return {
-        artists: (artists.data as Artist[]) || [],
-        engineers: (engineers.data as Engineer[]) || [],
-        producers: (producers.data as Producer[]) || [],
-        stoodioz: (stoodioz.data as Stoodio[]) || []
+        artists: (artists as Artist[]) || [],
+        engineers: (engineers as Engineer[]) || [],
+        producers: (producers as Producer[]) || [],
+        stoodioz: (stoodioz as Stoodio[]) || []
     };
 };
 
@@ -97,7 +116,10 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
 
-    // 1. Sign Up - Store essential profile data in metadata so it survives if verification is needed
+    let authUser = null;
+    let session = null;
+
+    // 1. Attempt Sign Up
     const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -109,29 +131,50 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }
     });
 
-    if (authError) throw authError;
-    if (!authData.user) throw new Error("No user returned from signup");
+    if (authError) {
+        // If user already registered, try signing in to recover
+        if (authError.message.includes("already registered") || authError.status === 400) {
+            console.log("User exists, attempting sign-in...");
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email: userData.email,
+                password: userData.password,
+            });
+            
+            if (signInError) {
+                throw new Error("Account already exists, but login failed. Please check your password.");
+            }
+            authUser = signInData.user;
+            session = signInData.session;
+        } else {
+            throw authError;
+        }
+    } else {
+        authUser = authData.user;
+        session = authData.session;
+    }
 
-    // 2. Check if Email Verification is enabled and required
-    if (authData.user && !authData.session) {
-        // If confirm email is enabled, session will be null. 
-        // We cannot upload files or insert into public tables yet due to RLS policies.
+    if (!authUser) throw new Error("No user returned from authentication service");
+
+    // 2. Check if Email Verification is blocking login
+    // If we have a user but no session, usually implies email confirmation is on and pending
+    if (!session && !authUser.email_confirmed_at) {
         return { email_confirmation_required: true };
     }
 
-    // 3. Upload Image if provided (Only if we have a session)
+    // 3. Upload Image if provided (Requires active session/RLS)
     let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
-    if (userData.imageFile) {
+    if (userData.imageFile && authUser) {
         try {
-            imageUrl = await uploadAvatar(userData.imageFile, authData.user.id);
+            imageUrl = await uploadAvatar(userData.imageFile, authUser.id);
         } catch (e) {
             console.warn("Avatar upload skipped due to network/auth issue", e);
         }
     }
 
-    // 4. Create Public Profile Record
+    // 4. Create/Update Public Profile Record
+    // Using Upsert ensures that if the auth user exists but profile was missing, we create it.
     const profileData = {
-        id: authData.user.id,
+        id: authUser.id,
         email: userData.email,
         name: userData.name,
         image_url: imageUrl,
@@ -157,7 +200,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     const { data, error } = await supabase
         .from(tableMap[role])
-        .insert(profileData)
+        .upsert(profileData)
         .select()
         .single();
 
@@ -475,16 +518,15 @@ export const fetchConversations = async (userId: string) => {
         let participants: any[] = [];
         
         for (const pid of otherIds) {
-             const [a, e, p, s] = await Promise.all([
-                supabase.from('artists').select('id, name, image_url').eq('id', pid).single(),
-                supabase.from('engineers').select('id, name, image_url').eq('id', pid).single(),
-                supabase.from('producers').select('id, name, image_url').eq('id', pid).single(),
-                supabase.from('stoodioz').select('id, name, image_url').eq('id', pid).single()
-            ]);
-            if (a.data) participants.push(a.data);
-            else if (e.data) participants.push(e.data);
-            else if (p.data) participants.push(p.data);
-            else if (s.data) participants.push(s.data);
+             // Try fetching from each table until found. Optimized with Promise.any equivalent logic.
+             const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
+             for(const t of tables) {
+                 const { data: pData } = await supabase.from(t).select('id, name, image_url').eq('id', pid).maybeSingle();
+                 if(pData) {
+                     participants.push(pData);
+                     break;
+                 }
+             }
         }
 
         return {

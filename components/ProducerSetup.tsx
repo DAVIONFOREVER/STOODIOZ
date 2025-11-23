@@ -37,7 +37,14 @@ const ProducerSetup: React.FC<ProducerSetupProps> = ({ onCompleteSetup, onNaviga
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isFormValid) {
-            onCompleteSetup(name, bio, email, password, imagePreview, imageFile);
+            onCompleteSetup(
+                name.trim(), 
+                bio.trim(), 
+                email.trim(), 
+                password, 
+                imagePreview, 
+                imageFile
+            );
         } else {
             alert("Please fill in all required fields and agree to the terms and conditions to continue.");
         }
