@@ -392,22 +392,15 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
     }
 
-    const currentUserId = currentUser.id;
-    const targetUserId = targetUser.id;
+    // 1. Determine Origin User Type (Uppercase for SQL) and Table
+    let originUserType = 'ARTIST';
+    let originTable = 'artists';
     
-    const followerTableMap: Record<string, string> = {
-        'ARTIST': 'artists',
-        'ENGINEER': 'engineers',
-        'PRODUCER': 'producers',
-        'STOODIO': 'stoodioz'
-    };
+    if ('amenities' in currentUser) { originUserType = 'STOODIO'; originTable = 'stoodioz'; }
+    else if ('specialties' in currentUser) { originUserType = 'ENGINEER'; originTable = 'engineers'; }
+    else if ('instrumentals' in currentUser) { originUserType = 'PRODUCER'; originTable = 'producers'; }
     
-    let followerTable = '';
-    if ('amenities' in currentUser) followerTable = 'stoodioz';
-    else if ('specialties' in currentUser) followerTable = 'engineers';
-    else if ('instrumentals' in currentUser) followerTable = 'producers';
-    else followerTable = 'artists';
-
+    // 2. Determine Target Table
     const targetTableMap: Record<string, string> = {
         'artist': 'artists',
         'engineer': 'engineers',
@@ -415,64 +408,55 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         'stoodio': 'stoodioz'
     };
     const targetTable = targetTableMap[type];
-    const followingKey = `${type}s` === 'stoodios' ? 'stoodioz' : `${type}s`;
 
-    let newFollowing = { ...currentUser.following };
-    let targetList = newFollowing[followingKey] || [];
+    // 3. Call the Secure Database Function (RPC)
+    const { error } = await supabase.rpc('toggle_follow', {
+        origin_user_type: originUserType,
+        target_user_id: targetUser.id,
+        target_user_type: type // e.g., 'artist', 'engineer'
+    });
 
-    if (isFollowing) {
-        targetList = targetList.filter((id: string) => id !== targetUserId);
-    } else {
-        if (!targetList.includes(targetUserId)) targetList.push(targetUserId);
-    }
-    newFollowing[followingKey] = targetList;
-
-    const { data: updatedFollower, error: err1 } = await supabase
-        .from(followerTable)
-        .update({ following: newFollowing })
-        .eq('id', currentUserId)
-        .select()
-        .single();
-    
-    if (err1) throw err1;
-
-    let newFollowerIds = targetUser.follower_ids || [];
-    let newFollowerCount = targetUser.followers || 0;
-
-    if (isFollowing) {
-        newFollowerIds = newFollowerIds.filter((id: string) => id !== currentUserId);
-        newFollowerCount = Math.max(0, newFollowerCount - 1);
-    } else {
-        if (!newFollowerIds.includes(currentUserId)) {
-            newFollowerIds.push(currentUserId);
-            newFollowerCount++;
-        }
+    if (error) {
+        console.error("RPC Error during follow:", error);
+        throw error;
     }
 
+    // 4. Send Notification (Only on follow)
     if (!isFollowing) {
         const notification = {
-            recipient_id: targetUserId,
+            recipient_id: targetUser.id,
             type: NotificationType.NEW_FOLLOWER,
             message: `${currentUser.name} started following you.`,
             read: false,
-            actor_id: currentUserId,
+            actor_id: currentUser.id,
             timestamp: new Date().toISOString()
         };
         await supabase.from('notifications').insert(notification);
     }
 
-    const { data: updatedTarget, error: err2 } = await supabase
-        .from(targetTable)
-        .update({ follower_ids: newFollowerIds, followers: newFollowerCount })
-        .eq('id', targetUserId)
-        .select()
+    // 5. Fetch latest data to update local state seamlessly
+    const getSelectQuery = (table: string) => {
+        if (table === 'stoodioz') return '*, rooms(*), in_house_engineers(*)';
+        if (table === 'engineers') return '*, mixing_samples(*)';
+        if (table === 'producers') return '*, instrumentals(*)';
+        return '*';
+    };
+
+    const { data: updatedCurrentUser } = await supabase
+        .from(originTable)
+        .select(getSelectQuery(originTable))
+        .eq('id', currentUser.id)
         .single();
 
-    if (err2) throw err2;
+    const { data: updatedTargetUser } = await supabase
+        .from(targetTable)
+        .select(getSelectQuery(targetTable))
+        .eq('id', targetUser.id)
+        .single();
 
     return { 
-        updatedCurrentUser: { ...currentUser, ...updatedFollower }, 
-        updatedTargetUser: { ...targetUser, ...updatedTarget } 
+        updatedCurrentUser: updatedCurrentUser || currentUser, 
+        updatedTargetUser: updatedTargetUser || targetUser 
     };
 };
 
