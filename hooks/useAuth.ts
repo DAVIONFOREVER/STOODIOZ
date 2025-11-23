@@ -53,11 +53,23 @@ export const useAuth = (navigate: (view: any) => void) => {
                 if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
                 if (table === 'producers') selectQuery = '*, instrumentals(*)';
 
-                const { data: profileData, error: profileError } = await supabase
+                let { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
                     .eq('email', email)
                     .limit(1);
+
+                // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
+                if (profileError) {
+                    console.warn(`Complex fetch failed for ${table}, retrying basic...`);
+                    const retry = await supabase
+                        .from(table)
+                        .select('*')
+                        .eq('email', email)
+                        .limit(1);
+                    profileData = retry.data;
+                    profileError = retry.error;
+                }
 
                 if (profileError) {
                     console.error(`Error finding user profile in ${table}:`, profileError);

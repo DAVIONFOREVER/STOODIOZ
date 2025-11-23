@@ -205,7 +205,7 @@ const App: React.FC = () => {
 
             const fetchProfiles = async () => {
                 // Check all tables to find where this user exists.
-                // Note: We use maybeSingle() and detailed error checking now to be robust against partial missing data (like missing instrumentals table).
+                // Note: We use maybeSingle() and detailed error checking now to be robust against partial missing data.
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
@@ -215,12 +215,17 @@ const App: React.FC = () => {
                 
                 const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
                     try {
+                        // Try fetching with full relational data
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
+                        
                         if (error) {
-                             // If a specific relation is missing (e.g. instrumentals table not created yet), fallback to basic fetch
-                             if (error.code === 'PGRST200' || error.message.includes('relation')) {
-                                const { data: basicData } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                                return basicData ? { data: basicData, role: config.role } : null;
+                             // FALLBACK: If a specific relation is missing/broken (e.g. instrumentals table locked), 
+                             // fallback to basic fetch so the user can still login.
+                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
+                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
+                             
+                             if (!basicError && basicData) {
+                                 return { data: basicData, role: config.role };
                              }
                              return null;
                         }
@@ -256,7 +261,6 @@ const App: React.FC = () => {
                     });
                 } else {
                     // Only dispatch failure if we truly can't find the profile after retries
-                    // This prevents flashing error screens on quick reloads
                     console.warn("User authenticated but profile not found.");
                 }
             } catch (error) {
