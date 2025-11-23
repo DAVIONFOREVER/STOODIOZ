@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
 import { useOnScreen } from '../hooks/useOnScreen.ts';
+import StageMediaFrame from './StageMediaFrame';
 
 interface PostCardProps {
     post: Post;
@@ -12,16 +13,17 @@ interface PostCardProps {
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
     onSelectAuthor: () => void;
+    useFixedFrame?: boolean;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onCommentOnPost, onSelectAuthor }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onCommentOnPost, onSelectAuthor, useFixedFrame = false }) => {
     const { currentUser } = useAppState();
     const [showComments, setShowComments] = useState(false);
     const [commentText, setCommentText] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     
-    // Video optimization refs
+    // Video optimization refs (for legacy view only)
     const videoRef = useRef<HTMLVideoElement>(null);
     const isVisible = useOnScreen(videoRef as any, '0px');
 
@@ -35,11 +37,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Handle video auto-play/pause based on visibility
+    // Handle video auto-play/pause based on visibility (Legacy View Logic)
     useEffect(() => {
-        if (videoRef.current) {
+        if (videoRef.current && !useFixedFrame) {
             if (isVisible) {
-                // Only attempt play if user hasn't paused it manually (logic simplified here)
                 const playPromise = videoRef.current.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
@@ -50,7 +51,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 videoRef.current.pause();
             }
         }
-    }, [isVisible]);
+    }, [isVisible, useFixedFrame]);
 
     if (!currentUser) return null;
 
@@ -118,7 +119,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     const externalVideoUrl = post.link ? getVideoEmbedUrl(post.link.url) : null;
 
     return (
-        <div className="rounded-2xl cardSurface overflow-hidden">
+        <div className={`cardSurface overflow-hidden ${useFixedFrame ? 'rounded-3xl' : 'rounded-2xl'}`}>
             <div className="p-6">
                 {/* Post Header */}
                 <div className="flex items-start justify-between gap-4 mb-4">
@@ -147,28 +148,53 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {/* Post Content */}
                 {post.text && <p className="text-slate-300 whitespace-pre-wrap mb-4">{post.text}</p>}
                 
-                {post.image_url && (
-                    <div className="my-4 rounded-lg overflow-hidden border border-zinc-700">
-                        <img loading="lazy" src={post.image_url} alt="Post content" className="w-full h-auto object-cover"/>
+                {useFixedFrame ? (
+                    // The Stage (Feed) View using Fixed Media Frame
+                    <div className="my-4">
+                        {post.image_url && (
+                            <StageMediaFrame 
+                                src={post.image_url} 
+                                type="image" 
+                                displayMode={post.display_mode}
+                                focusPoint={post.focus_point}
+                            />
+                        )}
+                        {post.video_url && (
+                            <StageMediaFrame 
+                                src={post.video_url} 
+                                type="video" 
+                                thumbnailUrl={post.video_thumbnail_url} 
+                                displayMode={post.display_mode}
+                                focusPoint={post.focus_point}
+                            />
+                        )}
                     </div>
-                )}
-                
-                {/* Direct Video Upload */}
-                {post.video_url && (
-                    <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
-                         <video
-                            ref={videoRef}
-                            src={post.video_url}
-                            controls // Explicitly enable controls
-                            playsInline
-                            muted // Muted is often required for autoplay, but user can unmute
-                            className="w-full h-full object-contain"
-                            poster={post.video_thumbnail_url}
-                        />
-                    </div>
+                ) : (
+                    // Legacy View (Profile/Standard)
+                    <>
+                        {post.image_url && (
+                            <div className="my-4 rounded-lg overflow-hidden border border-zinc-700">
+                                <img loading="lazy" src={post.image_url} alt="Post content" className="w-full h-auto object-cover"/>
+                            </div>
+                        )}
+                        
+                        {post.video_url && (
+                            <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
+                                <video
+                                    ref={videoRef}
+                                    src={post.video_url}
+                                    controls 
+                                    playsInline
+                                    muted 
+                                    className="w-full h-full object-contain"
+                                    poster={post.video_thumbnail_url}
+                                />
+                            </div>
+                        )}
+                    </>
                 )}
 
-                {/* External Video Embed (YouTube/Vimeo) */}
+                {/* External Video Embed (YouTube/Vimeo) - Not affected by Fixed Frame for now */}
                 {externalVideoUrl && (
                      <div className="my-4 rounded-lg overflow-hidden border border-zinc-700 aspect-video relative bg-black">
                         <iframe 
@@ -272,6 +298,7 @@ export default React.memo(PostCard, (prevProps, nextProps) => {
         prevProps.post.id === nextProps.post.id &&
         prevProps.post.likes.length === nextProps.post.likes.length &&
         prevProps.post.comments.length === nextProps.post.comments.length &&
-        prevProps.author.id === nextProps.author.id
+        prevProps.author.id === nextProps.author.id &&
+        prevProps.useFixedFrame === nextProps.useFixedFrame
     );
 });

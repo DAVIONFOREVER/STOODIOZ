@@ -281,7 +281,9 @@ export const fetchGlobalFeed = async (limit: number, beforeTimestamp?: string): 
         link: p.link,
         timestamp: p.created_at,
         likes: p.likes || [],
-        comments: p.comments || []
+        comments: p.comments || [],
+        display_mode: p.display_mode,
+        focus_point: p.focus_point
     }));
 };
 
@@ -301,7 +303,9 @@ export const fetchUserPosts = async (userId: string): Promise<Post[]> => {
         link: p.link,
         timestamp: p.created_at,
         likes: p.likes || [],
-        comments: p.comments || []
+        comments: p.comments || [],
+        display_mode: p.display_mode,
+        focus_point: p.focus_point
     }));
 };
 
@@ -338,7 +342,9 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
          link: data.link,
          timestamp: data.created_at,
          likes: data.likes || [],
-         comments: data.comments || []
+         comments: data.comments || [],
+         display_mode: data.display_mode,
+         focus_point: data.focus_point
     };
 
     return { updatedAuthor: author, createdPost: formattedPost }; 

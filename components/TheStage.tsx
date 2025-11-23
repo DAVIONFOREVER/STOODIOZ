@@ -149,7 +149,9 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                          link: newPost.link,
                          timestamp: newPost.timestamp,
                          likes: newPost.likes || [],
-                         comments: newPost.comments || []
+                         comments: newPost.comments || [],
+                         display_mode: newPost.display_mode,
+                         focus_point: newPost.focus_point
                     };
                     
                     setPosts(prev => {
@@ -276,6 +278,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                             onLikePost={handleLocalLike}
                             onCommentOnPost={handleLocalComment}
                             onSelectAuthor={handleSelectUser}
+                            useFixedFrame={true} // Enable new frame design only here
                         />
                         
                         {/* Infinite Scroll Sentinel */}

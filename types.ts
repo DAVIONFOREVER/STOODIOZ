@@ -159,6 +159,8 @@ export interface Post {
     link?: LinkAttachment;
     likes: string[];
     comments: Comment[];
+    display_mode?: 'fit' | 'fill';
+    focus_point?: { x: number; y: number };
 }
 
 export interface Transaction {
