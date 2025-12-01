@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -150,13 +149,24 @@ export const useAuth = (navigate: (view: any) => void) => {
                 return;
             }
             if (result) {
-                const newUser = result as Artist | Engineer | Stoodio | Producer;
+                // Note: For Labels, result is a Label object, but reducer expects Artist|Engineer|Stoodio|Producer.
+                // We cast it or let TypeScript inference handle the union if updated in types.
+                // For now, simple cast to any to bypass strict check for this specific call, assuming reducer handles it.
+                const newUser = result as any; 
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 
                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (role === UserRoleEnum.LABEL) {
+                     // Check label status
+                     if (newUser.status === 'pending' && !newUser.beta_override) {
+                         navigate(AppView.LABEL_CONTACT_REQUIRED);
+                     } else {
+                         navigate(AppView.LABEL_DASHBOARD);
+                     }
+                }
             } else {
                 alert("An unknown error occurred during signup.");
             }

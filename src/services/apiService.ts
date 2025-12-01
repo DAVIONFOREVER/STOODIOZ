@@ -168,6 +168,21 @@ export const removeFromRoster = async (labelId: string, entityId: string, role: 
     }
 };
 
+export const checkRosterMembership = async (labelId: string, userId: string): Promise<boolean> => {
+    const supabase = getSupabase();
+    if (!supabase) return false;
+
+    const checks = [
+        supabase.from('label_artists').select('id').match({ label_id: labelId, artist_id: userId }).maybeSingle(),
+        supabase.from('label_producers').select('id').match({ label_id: labelId, producer_id: userId }).maybeSingle(),
+        supabase.from('label_engineers').select('id').match({ label_id: labelId, engineer_id: userId }).maybeSingle(),
+        supabase.from('label_team_members').select('id').match({ label_id: labelId, user_id: userId }).maybeSingle(),
+    ];
+
+    const results = await Promise.all(checks);
+    return results.some(r => r.data !== null);
+};
+
 export const createLabelBooking = async (request: BookingRequest, stoodio: Stoodio, labelId: string, createdByUserId: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
@@ -207,30 +222,6 @@ export const fetchGlobalRankings = async () => {
     return rankings || [];
 };
 
-export const createLabel = async (labelData: any, userId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase not connected");
-
-    const newLabel = {
-        id: userId,
-        display_name: labelData.labelName,
-        company_name: labelData.companyName,
-        contact_email: labelData.contactEmail,
-        contact_phone: labelData.contactPhone,
-        website: labelData.website,
-        notes: labelData.notes,
-        status: 'pending',
-        requires_contact: true,
-        beta_override: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabase.from('labels').insert(newLabel).select().single();
-    if (error) throw error;
-    return data;
-};
-
 // --- USER MANAGEMENT ---
 
 export const getAllPublicUsers = async (): Promise<{
@@ -242,13 +233,11 @@ export const getAllPublicUsers = async (): Promise<{
     const supabase = getSupabase();
     if (!supabase) return { artists: [], engineers: [], producers: [], stoodioz: [] };
 
-    // Safely query each table individually to prevent one failure from blocking all
     const safeSelect = async (table: string, select: string) => {
         try {
             const { data, error } = await supabase.from(table).select(select);
             if (error) {
                 console.warn(`Error fetching ${table}:`, error.message);
-                // Fallback to basic select if relation select fails
                 if (error.code === 'PGRST200') {
                      const { data: retry } = await supabase.from(table).select('*');
                      return retry || [];
@@ -289,14 +278,13 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         password: userData.password,
         options: {
             data: {
-                full_name: userData.name,
+                full_name: userData.name || userData.labelName,
                 user_role: role,
             }
         }
     });
 
     if (authError) {
-        // If user already registered, try signing in to recover
         if (authError.message.includes("already registered") || authError.status === 400) {
             console.log("User exists, attempting sign-in...");
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -319,13 +307,10 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (!authUser) throw new Error("No user returned from authentication service");
 
-    // 2. Check if Email Verification is blocking login
-    // If we have a user but no session, usually implies email confirmation is on and pending
     if (!session && !authUser.email_confirmed_at) {
         return { email_confirmation_required: true };
     }
 
-    // 3. Upload Image if provided (Requires active session/RLS)
     let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
     if (userData.imageFile && authUser) {
         try {
@@ -335,44 +320,55 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }
     }
 
-    // 4. Create/Update Public Profile Record
-    if (role === UserRoleEnum.LABEL) {
-        // Label creation is handled separately in LabelSetup.tsx via createLabel
-        // This function might just return authUser for Label role if we want to separate the flow,
-        // but current flow calls createUser.
-        // For now, if role is label, we return null here and let LabelSetup handle the profile creation
-        // after auth is established. Or we can return a placeholder.
-        return { id: authUser.id, email: userData.email, name: userData.name, image_url: imageUrl } as any; 
-    }
-
-    const profileData = {
+    // Define profile data based on role
+    const profileData: any = {
         id: authUser.id,
         email: userData.email,
-        name: userData.name,
         image_url: imageUrl,
-        ...(role === UserRoleEnum.ARTIST && { bio: userData.bio }),
-        ...(role === UserRoleEnum.ENGINEER && { bio: userData.bio, specialties: [] }),
-        ...(role === UserRoleEnum.PRODUCER && { bio: userData.bio, genres: [] }),
-        ...(role === UserRoleEnum.STOODIO && { 
-            description: userData.description, 
-            location: userData.location, 
-            business_address: userData.businessAddress, 
-            amenities: [], 
-            rooms: [] 
-        }),
         created_at: new Date().toISOString(),
     };
 
-    const tableMap: any = {
-        [UserRoleEnum.ARTIST]: 'artists',
-        [UserRoleEnum.ENGINEER]: 'engineers',
-        [UserRoleEnum.PRODUCER]: 'producers',
-        [UserRoleEnum.STOODIO]: 'stoodioz'
-    };
+    let tableName = '';
 
-    if (tableMap[role]) {
+    if (role === UserRoleEnum.ARTIST) {
+        tableName = 'artists';
+        profileData.name = userData.name;
+        profileData.bio = userData.bio;
+    } else if (role === UserRoleEnum.ENGINEER) {
+        tableName = 'engineers';
+        profileData.name = userData.name;
+        profileData.bio = userData.bio;
+        profileData.specialties = [];
+    } else if (role === UserRoleEnum.PRODUCER) {
+        tableName = 'producers';
+        profileData.name = userData.name;
+        profileData.bio = userData.bio;
+        profileData.genres = [];
+    } else if (role === UserRoleEnum.STOODIO) {
+        tableName = 'stoodioz';
+        profileData.name = userData.name;
+        profileData.description = userData.description;
+        profileData.location = userData.location;
+        profileData.business_address = userData.businessAddress;
+        profileData.amenities = [];
+        profileData.rooms = [];
+    } else if (role === UserRoleEnum.LABEL) {
+        tableName = 'labels';
+        profileData.name = userData.labelName; // BaseUser name
+        profileData.display_name = userData.labelName;
+        profileData.company_name = userData.companyName;
+        profileData.contact_email = userData.contactEmail;
+        profileData.contact_phone = userData.contactPhone;
+        profileData.website = userData.website;
+        profileData.notes = userData.notes;
+        profileData.status = 'pending';
+        profileData.requires_contact = true;
+        profileData.beta_override = false;
+    }
+
+    if (tableName) {
         const { data, error } = await supabase
-            .from(tableMap[role])
+            .from(tableName)
             .upsert(profileData)
             .select()
             .single();
@@ -488,7 +484,6 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const supabase = getSupabase();
     if (!supabase) throw new Error("No DB");
     
-    // Do NOT send 'id'. Let Supabase generate a valid UUID v4.
     const newPost = {
         author_id: author.id,
         author_type: authorType,
@@ -505,7 +500,6 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const { data, error } = await supabase.from('posts').insert(newPost).select().single();
     if (error) throw error;
     
-    // Map DB result back to app format
     const formattedPost: Post = {
          id: data.id,
          authorId: data.author_id,
@@ -550,7 +544,6 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
     const { data: post } = await supabase.from('posts').select('comments').eq('id', postId).single();
     if (!post) return { updatedAuthor: postAuthor };
 
-    // Use crypto.randomUUID() for valid UUID generation for comment ID
     const newComment = {
         id: crypto.randomUUID(),
         authorId: commenter.id,
@@ -573,7 +566,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
     }
 
-    // 1. Determine Origin User Type (Uppercase for SQL) and Table
     let originUserType = 'ARTIST';
     let originTable = 'artists';
     
@@ -581,7 +573,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     else if ('specialties' in currentUser) { originUserType = 'ENGINEER'; originTable = 'engineers'; }
     else if ('instrumentals' in currentUser) { originUserType = 'PRODUCER'; originTable = 'producers'; }
     
-    // 2. Determine Target Table
     const targetTableMap: Record<string, string> = {
         'artist': 'artists',
         'engineer': 'engineers',
@@ -590,11 +581,10 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     };
     const targetTable = targetTableMap[type];
 
-    // 3. Call the Secure Database Function (RPC)
     const { error } = await supabase.rpc('toggle_follow', {
         origin_user_type: originUserType,
         target_user_id: targetUser.id,
-        target_user_type: type // e.g., 'artist', 'engineer'
+        target_user_type: type 
     });
 
     if (error) {
@@ -602,7 +592,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         throw error;
     }
 
-    // 4. Send Notification (Only on follow)
     if (!isFollowing) {
         const notification = {
             recipient_id: targetUser.id,
@@ -615,7 +604,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         await supabase.from('notifications').insert(notification);
     }
 
-    // 5. Fetch latest data to update local state seamlessly
     const getSelectQuery = (table: string) => {
         if (table === 'stoodioz') return '*, rooms(*), in_house_engineers(*)';
         if (table === 'engineers') return '*, mixing_samples(*)';
@@ -647,7 +635,6 @@ export const fetchConversations = async (userId: string) => {
     const supabase = getSupabase();
     if (!supabase) return [];
     
-    // Fetch conversations where user is a participant
     const { data, error } = await supabase
         .from('conversations')
         .select('*')
@@ -658,9 +645,7 @@ export const fetchConversations = async (userId: string) => {
         return [];
     }
     
-    // For each conversation, fetch messages and participant details
     const fullConversations = await Promise.all(data.map(async (convo: any) => {
-        // 1. Get messages
         const { data: msgs } = await supabase
             .from('messages')
             .select('*')
@@ -678,12 +663,10 @@ export const fetchConversations = async (userId: string) => {
             files: m.file_attachments
         }));
 
-        // 2. Get participants (other than self)
         const otherIds = convo.participant_ids;
         let participants: any[] = [];
         
         for (const pid of otherIds) {
-             // Try fetching from each table until found. Optimized with Promise.any equivalent logic.
              const tables = ['artists', 'engineers', 'producers', 'stoodioz', 'labels'];
              for(const t of tables) {
                  const { data: pData } = await supabase.from(t).select('id, name, image_url').eq('id', pid).maybeSingle();
@@ -698,7 +681,7 @@ export const fetchConversations = async (userId: string) => {
             id: convo.id,
             participants,
             messages: formattedMessages,
-            unread_count: 0 // TODO: Calc based on read_by array
+            unread_count: 0 
         };
     }));
     
@@ -714,7 +697,6 @@ export const sendMessage = async (conversationId: string, senderId: string, cont
         sender_id: senderId,
         content: content,
         message_type: type,
-        // Map fileData to media_url or file_attachments correctly
         media_url: (type === 'image' || type === 'audio') ? fileData?.url : null,
         file_attachments: type === 'files' ? fileData : null
     };
@@ -747,7 +729,7 @@ export const fetchReviews = async () => {
     
     return data.map((r: any) => ({
         id: r.id,
-        reviewer_name: 'Anonymous', // In real app, join with user table
+        reviewer_name: 'Anonymous', 
         rating: r.rating,
         comment: r.comment,
         date: r.created_at,
@@ -756,8 +738,6 @@ export const fetchReviews = async () => {
         producer_id: r.target_user_id,
     }));
 };
-
-// --- OTHER ---
 
 export const createCheckoutSessionForWallet = async (amount: number, userId: string) => {
     return { sessionId: 'mock_wallet_session' };
@@ -832,7 +812,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString();
 
-    // 1. Revenue (from wallet_transactions JSONB column)
     const tableMap: Record<string, string> = {
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
@@ -876,7 +855,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     });
     const revenueSources = Array.from(sourceMap.entries()).map(([name, revenue]) => ({ name, revenue }));
 
-    // 2. Bookings
     const { count: bookingsCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
@@ -884,7 +862,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
         .gte('date', startDateStr)
         .eq('status', BookingStatus.CONFIRMED);
     
-    // 3. New Followers
     const { count: newFollowersCount } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -980,41 +957,4 @@ export const upsertMixingSample = async (sample: MixingSample, engineerId: strin
 export const deleteMixingSample = async (sampleId: string) => {
     const supabase = getSupabase();
     if(supabase) await supabase.from('mixing_samples').delete().eq('id', sampleId);
-};
-
-// New: Fetch public label details for non-owners
-export const fetchPublicLabel = async (labelId: string): Promise<Label | null> => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-
-    const { data, error } = await supabase
-        .from('labels')
-        .select('*')
-        .eq('id', labelId)
-        .maybeSingle();
-    
-    if (error) {
-        console.error("Error fetching public label:", error);
-        return null;
-    }
-    return data as Label;
-};
-
-// Check if a user is part of a label's roster or team
-export const checkRosterMembership = async (labelId: string, userId: string): Promise<boolean> => {
-    const supabase = getSupabase();
-    if (!supabase) return false;
-
-    // Check all tables. Using Promise.any or Promise.all logic to fail fast would be efficient, 
-    // but here we just check sequentially or in parallel.
-    const checks = [
-        supabase.from('label_artists').select('id').match({ label_id: labelId, artist_id: userId }).maybeSingle(),
-        supabase.from('label_producers').select('id').match({ label_id: labelId, producer_id: userId }).maybeSingle(),
-        supabase.from('label_engineers').select('id').match({ label_id: labelId, engineer_id: userId }).maybeSingle(),
-        supabase.from('label_team_members').select('id').match({ label_id: labelId, user_id: userId }).maybeSingle(),
-    ];
-
-    const results = await Promise.all(checks);
-    // If any query returns data, user is authorized
-    return results.some(r => r.data !== null);
 };

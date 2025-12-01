@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BriefcaseIcon } from '../icons';
 
@@ -27,7 +26,7 @@ const ContactRequired: React.FC = () => {
             </div>
 
             <button 
-                onClick={() => console.log("Request Contact Clicked")}
+                onClick={() => window.location.href = "mailto:support@stoodioz.com?subject=Label%20Activation%20Request"}
                 className="bg-zinc-100 text-zinc-900 font-bold py-3 px-8 rounded-lg hover:bg-white transition-all shadow-lg hover:shadow-xl"
             >
                 Request Contact

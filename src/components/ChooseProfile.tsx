@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { UserRole } from '../types';
 import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon, BriefcaseIcon } from './icons';
@@ -15,7 +14,7 @@ const RoleCard: React.FC<{
 }> = ({ icon, title, description, onClick }) => (
     <button
         onClick={onClick}
-        className="p-8 transition-all duration-300 text-left w-full group cardSurface"
+        className="p-8 transition-all duration-300 text-left w-full group cardSurface hover:border-orange-500/50"
     >
         <div className="flex items-center gap-4 mb-4">
             {icon}
@@ -65,7 +64,7 @@ const ChooseProfile: React.FC<ChooseProfileProps> = ({ onSelectRole }) => {
                 <div className="md:col-span-2">
                      <RoleCard
                         icon={<BriefcaseIcon className="w-10 h-10 text-blue-400" />}
-                        title="Label / Management Company"
+                        title="Label / Management"
                         description="For record labels and management teams. Manage multiple artists, book sessions for your roster, and track expenses."
                         onClick={() => onSelectRole(UserRole.LABEL)}
                     />
