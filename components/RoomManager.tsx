@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import type { Stoodio, Room } from '../types';
 import { SmokingPolicy } from '../types';
@@ -31,10 +30,10 @@ const RoomFormModal: React.FC<{
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (files && files.length > 0) {
-            const fileList = Array.from(files);
+            const fileList = Array.from(files) as File[];
             setNewPhotoFiles(prev => [...prev, ...fileList]);
             
-            const newPreviews = fileList.map(file => URL.createObjectURL(file as any));
+            const newPreviews = fileList.map(file => URL.createObjectURL(file));
             setPreviewUrls(prev => [...prev, ...newPreviews]);
         }
     };

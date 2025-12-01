@@ -10,6 +10,9 @@ export enum AppView {
     PRODUCER_SETUP = 'PRODUCER_SETUP',
     STOODIO_SETUP = 'STOODIO_SETUP',
     LABEL_SETUP = 'LABEL_SETUP',
+    LABEL_DASHBOARD = 'LABEL_DASHBOARD',
+    LABEL_CONTACT_REQUIRED = 'LABEL_CONTACT_REQUIRED',
+    LABEL_PUBLIC_PROFILE = 'LABEL_PUBLIC_PROFILE',
     PRIVACY_POLICY = 'PRIVACY_POLICY',
     SUBSCRIPTION_PLANS = 'SUBSCRIPTION_PLANS',
     STOODIO_LIST = 'STOODIO_LIST',
@@ -35,17 +38,6 @@ export enum AppView {
     ADMIN_RANKINGS = 'ADMIN_RANKINGS',
     STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
     LEADERBOARD = 'LEADERBOARD',
-    // Label Routes
-    LABEL_DASHBOARD = 'LABEL_DASHBOARD',
-    LABEL_ROSTER = 'LABEL_ROSTER',
-    LABEL_BOOKINGS = 'LABEL_BOOKINGS',
-    LABEL_ANALYTICS = 'LABEL_ANALYTICS',
-    LABEL_TEAM = 'LABEL_TEAM',
-    LABEL_GLOBAL_RANKINGS = 'LABEL_GLOBAL_RANKINGS',
-    LABEL_SETTINGS = 'LABEL_SETTINGS',
-    LABEL_PUBLIC_PROFILE = 'LABEL_PUBLIC_PROFILE',
-    LABEL_CONTACT_REQUIRED = 'LABEL_CONTACT_REQUIRED',
-    LABEL_DISABLED = 'LABEL_DISABLED',
 }
 
 export enum UserRole {
@@ -110,8 +102,6 @@ export enum NotificationType {
     NEW_LIKE = 'NEW_LIKE',
     NEW_COMMENT = 'NEW_COMMENT',
     NEW_TIP = 'NEW_TIP',
-    ROSTER_INVITE = 'ROSTER_INVITE',
-    TEAM_INVITE = 'TEAM_INVITE',
 }
 
 export enum SubscriptionPlan {
@@ -237,6 +227,18 @@ export interface BaseUser {
     purchased_masterclass_ids?: string[];
 }
 
+export interface Label extends BaseUser {
+    company_name?: string;
+    contact_email?: string;
+    contact_phone?: string;
+    website?: string;
+    notes?: string;
+    status?: 'pending' | 'active' | 'disabled';
+    requires_contact?: boolean;
+    beta_override?: boolean;
+    roster?: string[]; // IDs of artists/engineers on roster
+}
+
 export interface Artist extends BaseUser {
     bio: string;
     is_seeking_session: boolean;
@@ -322,26 +324,6 @@ export interface Stoodio extends BaseUser {
     in_house_engineers?: InHouseEngineerInfo[];
 }
 
-export interface Label extends BaseUser {
-    display_name: string;
-    company_name?: string;
-    contact_phone?: string;
-    notes?: string;
-    status: 'pending' | 'active' | 'disabled';
-    requires_contact: boolean;
-    beta_override: boolean;
-    contact_email?: string;
-    website?: string;
-}
-
-export interface LabelMember {
-    id: string;
-    label_id: string;
-    user_id: string;
-    role: 'owner' | 'anr' | 'assistant' | 'finance';
-    invited_email?: string;
-}
-
 export interface MixingDetails {
     type: 'REMOTE' | 'IN_STUDIO';
     track_count: number;
@@ -370,10 +352,6 @@ export interface Booking {
     instrumentals_purchased?: Instrumental[];
     tip?: number;
     invoice_url?: string;
-    label_id?: string;
-    payer_type?: 'artist' | 'label' | 'split';
-    payer_notes?: string;
-    created_by_user?: string;
 }
 
 export interface BookingRequest {
@@ -390,9 +368,6 @@ export interface BookingRequest {
     pull_up_fee?: number;
     mixing_details?: MixingDetails;
     requiredSkills?: string[]; // For job posts
-    payer_type?: 'artist' | 'label' | 'split';
-    payer_notes?: string;
-    artist_id?: string; // For label bookings
 }
 
 export interface FileAttachment {
@@ -446,7 +421,7 @@ export interface VibeMatchResult {
 }
 
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'sendMessage' | 'sendDocumentMessage' | 'speak' | 'error' | 'rosterAction' | 'bookingAction' | 'teamAction' | 'analyticsAction' | 'rankingAction';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'sendMessage' | 'sendDocumentMessage' | 'speak' | 'error';
     target: string | null;
     value: any | null;
     text: string;

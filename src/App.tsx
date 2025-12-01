@@ -1,14 +1,14 @@
 
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData } from './types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
-import { useAuth as useSupabaseAuth } from './providers/AuthProvider.tsx'; 
+import type { Session } from '@supabase/supabase-js';
 
 // Import Custom Hooks
 import { useNavigation } from './hooks/useNavigation.ts';
-import { useAuth } from './hooks/useAuth.ts'; 
+import { useAuth } from './hooks/useAuth.ts';
 import { useBookings } from './hooks/useBookings.ts';
 import { useSocial } from './hooks/useSocial.ts';
 import { useSession } from './hooks/useSession.ts';
@@ -20,7 +20,7 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { supabase } from './lib/supabaseClient.ts'; 
+import { getSupabase } from './lib/supabase.ts';
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
@@ -35,7 +35,6 @@ import MixingRequestModal from './components/MixingRequestModal.tsx';
 import AriaNudge from './components/AriaNudge.tsx';
 import AriaFAB from './components/AriaFAB.tsx';
 import Footer from './components/Footer.tsx';
-import LoginForm from './components/auth/LoginForm.tsx';
 
 // --- Lazy Loaded Components ---
 const StoodioList = lazy(() => import('./components/StudioList.tsx'));
@@ -73,14 +72,12 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
 const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
-// New Label Dashboard & Profile
-const LabelDashboard = lazy(() => import('./components/LabelDashboard/index.tsx'));
-const PublicLabelProfile = lazy(() => import('./components/PublicLabelProfile/index.tsx'));
-const ContactRequired = lazy(() => import('./components/LabelDashboard/ContactRequired.tsx'));
 const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
-const LabelDisabled = lazy(() => import('./components/LabelDashboard/LabelDisabled.tsx'));
+const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
+const LabelContactRequired = lazy(() => import('./components/LabelContactRequired.tsx'));
+const LabelPublicProfile = lazy(() => import('./components/LabelPublicProfile.tsx'));
 
-const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
+const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | Label | null }> = ({ currentUser }) => {
     if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
         return (
             <div className="flex justify-center items-center py-20">
@@ -100,7 +97,6 @@ const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Prod
 };
 
 const App: React.FC = () => {
-    const { user: authUser, loading: authLoading } = useSupabaseAuth();
     const state = useAppState();
     const dispatch = useAppDispatch();
     const { 
@@ -116,48 +112,8 @@ const App: React.FC = () => {
     const canGoForward = historyIndex < history.length - 1;
     
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
-    const { login, logout, selectRoleToSetup } = useAuth(navigate);
+    const { login, logout, selectRoleToSetup, completeSetup } = useAuth(navigate);
     
-    const completeSetup = useCallback(async (userData: any, role: UserRole) => {
-        if (!supabase) {
-            alert("System error: Database connection unavailable.");
-            return;
-        }
-        if (userData.email && userData.password) {
-            await supabase.auth.signOut();
-        }
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-        try {
-            const result = await apiService.createUser(userData, role);
-            if (result && 'email_confirmation_required' in result) {
-                alert("Account created! Please check your email.");
-                navigate(AppView.LOGIN);
-                return;
-            }
-            if (result) {
-                const newUser = result as Artist | Engineer | Stoodio | Producer;
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
-                
-                if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
-                else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
-                else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
-                else if (role === UserRole.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-                else if (role === UserRole.LABEL) {
-                     if ((newUser as any).status === 'pending' && !(newUser as any).beta_override) {
-                         navigate(AppView.LABEL_CONTACT_REQUIRED);
-                     } else {
-                         navigate(AppView.LABEL_DASHBOARD);
-                     }
-                }
-            }
-        } catch (error: any) {
-            console.error("Complete setup failed:", error);
-            alert(`Setup failed: ${error.message}`);
-        } finally {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        }
-    }, [dispatch, navigate]);
-
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
@@ -180,9 +136,14 @@ const App: React.FC = () => {
         selectRoleToSetup,
     });
 
-    useRealtimeLocation({ currentUser });
+    useRealtimeLocation({ currentUser: currentUser as any });
 
+    // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
+        const supabase = getSupabase();
+        if (!supabase) return;
+
+        // Fetch Global Directory
         const fetchDirectory = async () => {
             const directory = await apiService.getAllPublicUsers();
             dispatch({ 
@@ -192,28 +153,21 @@ const App: React.FC = () => {
                     engineers: directory.engineers,
                     producers: directory.producers,
                     stoodioz: directory.stoodioz,
-                    reviews: []
+                    reviews: [] // Fetch reviews later if needed
                 }
             });
         };
+        
         fetchDirectory();
-    }, [dispatch]);
 
-    useEffect(() => {
-        if (!authUser) {
-            if (currentUser) {
-                dispatch({ type: ActionTypes.LOGOUT });
-            }
-            return;
-        }
-
+        // Helper to fetch and hydrate CURRENT logged-in user profile data
         const fetchAndHydrateUser = async (userId: string) => {
-            if (!currentUser || currentUser.id !== userId) {
+            if (!currentUser) {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             }
 
-            // Updated fetch profiles to include labels
             const fetchProfiles = async () => {
+                // Check all tables to find where this user exists.
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
@@ -224,27 +178,41 @@ const App: React.FC = () => {
                 
                 const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
                     try {
+                        // Try fetching with full relational data
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
-                        if (data) return { data, role: config.role };
                         
-                        // Special check for label team members
-                        if (tableName === 'labels' && !data) {
-                             const { data: memberData } = await supabase.from('label_team_members').select('label_id, labels(*)').eq('user_id', userId).maybeSingle();
-                             if(memberData && memberData.labels) return { data: memberData.labels, role: UserRoleEnum.LABEL };
+                        if (error) {
+                             // FALLBACK: If a specific relation is missing/broken, fallback to basic fetch
+                             console.warn(`Hydration warning for ${tableName}, retrying basic fetch...`, error.message);
+                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
+                             
+                             if (!basicError && basicData) {
+                                 return { data: basicData, role: config.role };
+                             }
+                             return null;
                         }
-                        
-                        return null;
+                        return data ? { data, role: config.role } : null;
                     } catch (e) {
+                        console.warn(`Hydration error for ${tableName}:`, e);
                         return null;
                     }
                 });
                 
                 const idResults = await Promise.all(idPromises);
-                return idResults.find(result => result !== null);
+                const found = idResults.find(result => result !== null);
+                
+                return found;
             };
             
             try {
                 let userProfileResult = await fetchProfiles();
+                
+                // Retry logic for race conditions on signup
+                if (!userProfileResult) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        userProfileResult = await fetchProfiles();
+                }
+
                 if (userProfileResult && userProfileResult.data) {
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
@@ -253,6 +221,8 @@ const App: React.FC = () => {
                             role: userProfileResult.role 
                         } 
                     });
+                } else {
+                    console.warn("User authenticated but profile not found.");
                 }
             } catch (error) {
                 console.error("Error hydrating user profile:", error);
@@ -262,13 +232,38 @@ const App: React.FC = () => {
             }
         };
 
-        fetchAndHydrateUser(authUser.id);
-    }, [authUser, dispatch]);
+        // 1. Immediate Session Check on Mount (Fixes Refresh Logout)
+        const initSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                await fetchAndHydrateUser(session.user.id);
+            } else {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            }
+        };
+        
+        initSession();
+
+        // 2. Listen for Auth Changes (Login, Logout, etc.)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_OUT') {
+                dispatch({ type: ActionTypes.LOGOUT });
+            } else if (event === 'SIGNED_IN' && session?.user) {
+                if (!currentUser || currentUser.id !== session.user.id) {
+                    await fetchAndHydrateUser(session.user.id);
+                }
+            }
+        });
+
+        return () => {
+            subscription?.unsubscribe();
+        };
+    }, [dispatch]); 
 
     useEffect(() => {
         let timerId: number;
-        if (currentUser && userRole) {
-            getAriaNudge(currentUser, userRole).then(nudge => {
+        if (currentUser && userRole && userRole !== UserRole.LABEL) {
+            getAriaNudge(currentUser as any, userRole).then(nudge => {
                 if (nudge) {
                     dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
                     timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
@@ -307,7 +302,7 @@ const App: React.FC = () => {
             case AppView.LANDING_PAGE:
                 return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
             case AppView.LOGIN:
-                return <div className="flex justify-center pt-10"><LoginForm /></div>;
+                return <Login onLogin={login} error={loginError} onNavigate={navigate} />;
             case AppView.CHOOSE_PROFILE:
                 return <ChooseProfile onSelectRole={selectRoleToSetup} />;
             case AppView.ARTIST_SETUP:
@@ -319,7 +314,13 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup onCompleteSetup={(data) => completeSetup(data, UserRole.LABEL)} onNavigate={navigate} />;
+                return <LabelSetup onCompleteSetup={(name, companyName, email, contactPhone, website, notes, password) => completeSetup({ name, company_name: companyName, email, contact_phone: contactPhone, website, notes, password }, UserRole.LABEL)} onNavigate={navigate} />;
+            case AppView.LABEL_DASHBOARD:
+                return <LabelDashboard />;
+            case AppView.LABEL_CONTACT_REQUIRED:
+                return <LabelContactRequired />;
+            case AppView.LABEL_PUBLIC_PROFILE:
+                return <LabelPublicProfile />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -386,30 +387,11 @@ const App: React.FC = () => {
                 return <StudioInsights />;
             case AppView.LEADERBOARD:
                 return <Leaderboard />;
-            // Enterprise Label Views
-            case AppView.LABEL_DASHBOARD:
-            case AppView.LABEL_ROSTER:
-            case AppView.LABEL_BOOKINGS:
-            case AppView.LABEL_ANALYTICS:
-            case AppView.LABEL_TEAM:
-            case AppView.LABEL_GLOBAL_RANKINGS:
-            case AppView.LABEL_SETTINGS:
-                return <LabelDashboard currentView={currentView} onNavigate={navigate} />;
-            case AppView.LABEL_PUBLIC_PROFILE:
-                return <PublicLabelProfile />;
-            case AppView.LABEL_CONTACT_REQUIRED:
-                return <ContactRequired />;
-            case AppView.LABEL_DISABLED:
-                return <LabelDisabled />;
             default:
                 return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
         }
     };
     
-    if (authLoading) {
-        return <LoadingSpinner currentUser={null} />;
-    }
-
 return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header
@@ -428,7 +410,7 @@ return (
             />
 
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                <Suspense fallback={<LoadingSpinner currentUser={currentUser as any} />}>
                     {renderView()}
                 </Suspense>
             </main>
@@ -492,7 +474,7 @@ return (
                 </Suspense>
             )}
 
-            {currentUser && !isAriaCantataOpen && (
+            {currentUser && !isAriaCantataOpen && userRole !== UserRole.LABEL && (
                 <AriaFAB onClick={handleOpenAriaFromFAB} />
             )}
 

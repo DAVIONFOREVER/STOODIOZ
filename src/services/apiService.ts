@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelMember } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -67,161 +67,6 @@ export const uploadMixingSampleFile = async (file: File, userId: string): Promis
     return uploadFile(file, 'audio', path);
 };
 
-// --- LABEL MANAGEMENT ---
-
-export const fetchLabelProfile = async (userId: string): Promise<{ label: Label, role: 'owner' | 'anr' | 'assistant' | 'finance' } | null> => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-
-    // Check if user IS the label owner
-    const { data: labelData, error: labelError } = await supabase
-        .from('labels')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-
-    if (labelData) {
-        return { label: labelData as Label, role: 'owner' };
-    }
-
-    // Check if user is a team member
-    const { data: memberData, error: memberError } = await supabase
-        .from('label_team_members')
-        .select('role, label_id, labels(*)')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-    if (memberData && memberData.labels) {
-        // Safe casting since we joined labels
-        return { label: memberData.labels as unknown as Label, role: memberData.role };
-    }
-
-    return null;
-};
-
-export const fetchLabelRoster = async (labelId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return { artists: [], producers: [], engineers: [] };
-
-    const [artists, producers, engineers] = await Promise.all([
-        supabase.from('label_artists').select('*, artists(*)').eq('label_id', labelId),
-        supabase.from('label_producers').select('*, producers(*)').eq('label_id', labelId),
-        supabase.from('label_engineers').select('*, engineers(*)').eq('label_id', labelId)
-    ]);
-
-    return {
-        artists: (artists.data || []).map((r: any) => ({ ...r.artists, relationship: r.relationship_type, linkId: r.id })),
-        producers: (producers.data || []).map((r: any) => ({ ...r.producers, relationship: r.relationship_type, linkId: r.id })),
-        engineers: (engineers.data || []).map((r: any) => ({ ...r.engineers, relationship: r.relationship_type, linkId: r.id }))
-    };
-};
-
-export const fetchLabelTeam = async (labelId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return [];
-    
-    const { data } = await supabase.from('label_team_members').select('*').eq('label_id', labelId);
-    return data || [];
-};
-
-export const addToRoster = async (labelId: string, entityId: string, role: UserRole, relationship: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return;
-
-    const tableMap: any = {
-        [UserRoleEnum.ARTIST]: 'label_artists',
-        [UserRoleEnum.PRODUCER]: 'label_producers',
-        [UserRoleEnum.ENGINEER]: 'label_engineers'
-    };
-    const idFieldMap: any = {
-        [UserRoleEnum.ARTIST]: 'artist_id',
-        [UserRoleEnum.PRODUCER]: 'producer_id',
-        [UserRoleEnum.ENGINEER]: 'engineer_id'
-    };
-
-    if (tableMap[role]) {
-        await supabase.from(tableMap[role]).insert({
-            label_id: labelId,
-            [idFieldMap[role]]: entityId,
-            relationship_type: relationship
-        });
-    }
-};
-
-export const removeFromRoster = async (labelId: string, entityId: string, role: UserRole) => {
-    const supabase = getSupabase();
-    if (!supabase) return;
-    
-    const tableMap: any = {
-        [UserRoleEnum.ARTIST]: 'label_artists',
-        [UserRoleEnum.PRODUCER]: 'label_producers',
-        [UserRoleEnum.ENGINEER]: 'label_engineers'
-    };
-    const idFieldMap: any = {
-        [UserRoleEnum.ARTIST]: 'artist_id',
-        [UserRoleEnum.PRODUCER]: 'producer_id',
-        [UserRoleEnum.ENGINEER]: 'engineer_id'
-    };
-
-    if (tableMap[role]) {
-        await supabase.from(tableMap[role]).delete().match({ label_id: labelId, [idFieldMap[role]]: entityId });
-    }
-};
-
-export const checkRosterMembership = async (labelId: string, userId: string): Promise<boolean> => {
-    const supabase = getSupabase();
-    if (!supabase) return false;
-
-    const checks = [
-        supabase.from('label_artists').select('id').match({ label_id: labelId, artist_id: userId }).maybeSingle(),
-        supabase.from('label_producers').select('id').match({ label_id: labelId, producer_id: userId }).maybeSingle(),
-        supabase.from('label_engineers').select('id').match({ label_id: labelId, engineer_id: userId }).maybeSingle(),
-        supabase.from('label_team_members').select('id').match({ label_id: labelId, user_id: userId }).maybeSingle(),
-    ];
-
-    const results = await Promise.all(checks);
-    return results.some(r => r.data !== null);
-};
-
-export const createLabelBooking = async (request: BookingRequest, stoodio: Stoodio, labelId: string, createdByUserId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase not connected");
-
-    const bookingData = {
-        date: request.date,
-        start_time: request.start_time,
-        duration: request.duration,
-        total_cost: request.total_cost,
-        status: BookingStatus.CONFIRMED, 
-        booked_by_id: request.artist_id, // The artist is technically the 'client' in the session
-        booked_by_role: UserRoleEnum.ARTIST,
-        request_type: request.request_type,
-        engineer_pay_rate: request.engineer_pay_rate,
-        stoodio_id: stoodio.id,
-        room_id: request.room?.id,
-        artist_id: request.artist_id,
-        created_at: new Date().toISOString(),
-        // Label specific fields
-        label_id: labelId,
-        payer_type: request.payer_type || 'label',
-        payer_notes: request.payer_notes,
-        created_by_user: createdByUserId
-    };
-
-    const { data, error } = await supabase.from('bookings').insert(bookingData).select().single();
-    if (error) throw error;
-    
-    return data;
-};
-
-export const fetchGlobalRankings = async () => {
-    const supabase = getSupabase();
-    if (!supabase) return [];
-    
-    const { data: rankings } = await supabase.from('global_rankings').select('*').order('ranking_position', { ascending: true }).limit(50);
-    return rankings || [];
-};
-
 // --- USER MANAGEMENT ---
 
 export const getAllPublicUsers = async (): Promise<{
@@ -233,11 +78,13 @@ export const getAllPublicUsers = async (): Promise<{
     const supabase = getSupabase();
     if (!supabase) return { artists: [], engineers: [], producers: [], stoodioz: [] };
 
+    // Safely query each table individually to prevent one failure from blocking all
     const safeSelect = async (table: string, select: string) => {
         try {
             const { data, error } = await supabase.from(table).select(select);
             if (error) {
                 console.warn(`Error fetching ${table}:`, error.message);
+                // Fallback to basic select if relation select fails
                 if (error.code === 'PGRST200') {
                      const { data: retry } = await supabase.from(table).select('*');
                      return retry || [];
@@ -278,13 +125,14 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         password: userData.password,
         options: {
             data: {
-                full_name: userData.name || userData.labelName,
+                full_name: userData.name,
                 user_role: role,
             }
         }
     });
 
     if (authError) {
+        // If user already registered, try signing in to recover
         if (authError.message.includes("already registered") || authError.status === 400) {
             console.log("User exists, attempting sign-in...");
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -307,10 +155,13 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (!authUser) throw new Error("No user returned from authentication service");
 
+    // 2. Check if Email Verification is blocking login
+    // If we have a user but no session, usually implies email confirmation is on and pending
     if (!session && !authUser.email_confirmed_at) {
         return { email_confirmation_required: true };
     }
 
+    // 3. Upload Image if provided (Requires active session/RLS)
     let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
     if (userData.imageFile && authUser) {
         try {
@@ -320,63 +171,50 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }
     }
 
-    // Define profile data based on role
-    const profileData: any = {
+    // 4. Create/Update Public Profile Record
+    const profileData = {
         id: authUser.id,
         email: userData.email,
+        name: userData.name,
         image_url: imageUrl,
+        ...(role === 'ARTIST' && { bio: userData.bio }),
+        ...(role === 'ENGINEER' && { bio: userData.bio, specialties: [] }),
+        ...(role === 'PRODUCER' && { bio: userData.bio, genres: [] }),
+        ...(role === 'STOODIO' && { 
+            description: userData.description, 
+            location: userData.location, 
+            business_address: userData.businessAddress, 
+            amenities: [], 
+            rooms: [] 
+        }),
+        ...(role === 'LABEL' && {
+            company_name: userData.company_name,
+            contact_phone: userData.contact_phone,
+            website: userData.website,
+            notes: userData.notes,
+            status: 'pending',
+            requires_contact: true,
+            beta_override: false
+        }),
         created_at: new Date().toISOString(),
     };
 
-    let tableName = '';
+    const tableMap = {
+        'ARTIST': 'artists',
+        'ENGINEER': 'engineers',
+        'PRODUCER': 'producers',
+        'STOODIO': 'stoodioz',
+        'LABEL': 'labels'
+    };
 
-    if (role === UserRoleEnum.ARTIST) {
-        tableName = 'artists';
-        profileData.name = userData.name;
-        profileData.bio = userData.bio;
-    } else if (role === UserRoleEnum.ENGINEER) {
-        tableName = 'engineers';
-        profileData.name = userData.name;
-        profileData.bio = userData.bio;
-        profileData.specialties = [];
-    } else if (role === UserRoleEnum.PRODUCER) {
-        tableName = 'producers';
-        profileData.name = userData.name;
-        profileData.bio = userData.bio;
-        profileData.genres = [];
-    } else if (role === UserRoleEnum.STOODIO) {
-        tableName = 'stoodioz';
-        profileData.name = userData.name;
-        profileData.description = userData.description;
-        profileData.location = userData.location;
-        profileData.business_address = userData.businessAddress;
-        profileData.amenities = [];
-        profileData.rooms = [];
-    } else if (role === UserRoleEnum.LABEL) {
-        tableName = 'labels';
-        profileData.name = userData.labelName; // BaseUser name
-        profileData.display_name = userData.labelName;
-        profileData.company_name = userData.companyName;
-        profileData.contact_email = userData.contactEmail;
-        profileData.contact_phone = userData.contactPhone;
-        profileData.website = userData.website;
-        profileData.notes = userData.notes;
-        profileData.status = 'pending';
-        profileData.requires_contact = true;
-        profileData.beta_override = false;
-    }
+    const { data, error } = await supabase
+        .from(tableMap[role])
+        .upsert(profileData)
+        .select()
+        .single();
 
-    if (tableName) {
-        const { data, error } = await supabase
-            .from(tableName)
-            .upsert(profileData)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
-    }
-    return null;
+    if (error) throw error;
+    return data;
 };
 
 export const updateUser = async (userId: string, table: string, updates: any) => {
@@ -405,7 +243,7 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio, b
         engineer_pay_rate: request.engineer_pay_rate,
         stoodio_id: stoodio.id,
         room_id: request.room?.id,
-        artist_id: bookerRole === UserRoleEnum.ARTIST ? booker.id : undefined,
+        artist_id: bookerRole === 'ARTIST' ? booker.id : undefined,
         created_at: new Date().toISOString(),
     };
 
@@ -484,6 +322,7 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const supabase = getSupabase();
     if (!supabase) throw new Error("No DB");
     
+    // Do NOT send 'id'. Let Supabase generate a valid UUID v4.
     const newPost = {
         author_id: author.id,
         author_type: authorType,
@@ -500,6 +339,7 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const { data, error } = await supabase.from('posts').insert(newPost).select().single();
     if (error) throw error;
     
+    // Map DB result back to app format
     const formattedPost: Post = {
          id: data.id,
          authorId: data.author_id,
@@ -544,6 +384,7 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
     const { data: post } = await supabase.from('posts').select('comments').eq('id', postId).single();
     if (!post) return { updatedAuthor: postAuthor };
 
+    // Use crypto.randomUUID() for valid UUID generation for comment ID
     const newComment = {
         id: crypto.randomUUID(),
         authorId: commenter.id,
@@ -566,6 +407,7 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
     }
 
+    // 1. Determine Origin User Type (Uppercase for SQL) and Table
     let originUserType = 'ARTIST';
     let originTable = 'artists';
     
@@ -573,6 +415,7 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     else if ('specialties' in currentUser) { originUserType = 'ENGINEER'; originTable = 'engineers'; }
     else if ('instrumentals' in currentUser) { originUserType = 'PRODUCER'; originTable = 'producers'; }
     
+    // 2. Determine Target Table
     const targetTableMap: Record<string, string> = {
         'artist': 'artists',
         'engineer': 'engineers',
@@ -581,10 +424,11 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     };
     const targetTable = targetTableMap[type];
 
+    // 3. Call the Secure Database Function (RPC)
     const { error } = await supabase.rpc('toggle_follow', {
         origin_user_type: originUserType,
         target_user_id: targetUser.id,
-        target_user_type: type 
+        target_user_type: type // e.g., 'artist', 'engineer'
     });
 
     if (error) {
@@ -592,6 +436,7 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         throw error;
     }
 
+    // 4. Send Notification (Only on follow)
     if (!isFollowing) {
         const notification = {
             recipient_id: targetUser.id,
@@ -604,6 +449,7 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         await supabase.from('notifications').insert(notification);
     }
 
+    // 5. Fetch latest data to update local state seamlessly
     const getSelectQuery = (table: string) => {
         if (table === 'stoodioz') return '*, rooms(*), in_house_engineers(*)';
         if (table === 'engineers') return '*, mixing_samples(*)';
@@ -635,6 +481,7 @@ export const fetchConversations = async (userId: string) => {
     const supabase = getSupabase();
     if (!supabase) return [];
     
+    // Fetch conversations where user is a participant
     const { data, error } = await supabase
         .from('conversations')
         .select('*')
@@ -645,7 +492,9 @@ export const fetchConversations = async (userId: string) => {
         return [];
     }
     
+    // For each conversation, fetch messages and participant details
     const fullConversations = await Promise.all(data.map(async (convo: any) => {
+        // 1. Get messages
         const { data: msgs } = await supabase
             .from('messages')
             .select('*')
@@ -663,11 +512,13 @@ export const fetchConversations = async (userId: string) => {
             files: m.file_attachments
         }));
 
+        // 2. Get participants (other than self)
         const otherIds = convo.participant_ids;
         let participants: any[] = [];
         
         for (const pid of otherIds) {
-             const tables = ['artists', 'engineers', 'producers', 'stoodioz', 'labels'];
+             // Try fetching from each table until found. Optimized with Promise.any equivalent logic.
+             const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
              for(const t of tables) {
                  const { data: pData } = await supabase.from(t).select('id, name, image_url').eq('id', pid).maybeSingle();
                  if(pData) {
@@ -681,7 +532,7 @@ export const fetchConversations = async (userId: string) => {
             id: convo.id,
             participants,
             messages: formattedMessages,
-            unread_count: 0 
+            unread_count: 0 // TODO: Calc based on read_by array
         };
     }));
     
@@ -697,6 +548,7 @@ export const sendMessage = async (conversationId: string, senderId: string, cont
         sender_id: senderId,
         content: content,
         message_type: type,
+        // Map fileData to media_url or file_attachments correctly
         media_url: (type === 'image' || type === 'audio') ? fileData?.url : null,
         file_attachments: type === 'files' ? fileData : null
     };
@@ -729,7 +581,7 @@ export const fetchReviews = async () => {
     
     return data.map((r: any) => ({
         id: r.id,
-        reviewer_name: 'Anonymous', 
+        reviewer_name: 'Anonymous', // In real app, join with user table
         rating: r.rating,
         comment: r.comment,
         date: r.created_at,
@@ -738,6 +590,8 @@ export const fetchReviews = async () => {
         producer_id: r.target_user_id,
     }));
 };
+
+// --- OTHER ---
 
 export const createCheckoutSessionForWallet = async (amount: number, userId: string) => {
     return { sessionId: 'mock_wallet_session' };
@@ -812,6 +666,7 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString();
 
+    // 1. Revenue (from wallet_transactions JSONB column)
     const tableMap: Record<string, string> = {
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
@@ -855,6 +710,7 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     });
     const revenueSources = Array.from(sourceMap.entries()).map(([name, revenue]) => ({ name, revenue }));
 
+    // 2. Bookings
     const { count: bookingsCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
@@ -862,6 +718,7 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
         .gte('date', startDateStr)
         .eq('status', BookingStatus.CONFIRMED);
     
+    // 3. New Followers
     const { count: newFollowersCount } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })

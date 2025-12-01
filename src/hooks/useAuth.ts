@@ -1,8 +1,8 @@
+
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
-// FIX: Import missing Stoodio type
 import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { UserRole as UserRoleEnum } from '../types';
 import { getSupabase } from '../lib/supabase';
@@ -36,14 +36,14 @@ export const useAuth = (navigate: (view: any) => void) => {
                 'engineers': UserRoleEnum.ENGINEER,
                 'producers': UserRoleEnum.PRODUCER,
                 'stoodioz': UserRoleEnum.STOODIO,
-                'labels': UserRoleEnum.LABEL,
+                'labels': UserRoleEnum.LABEL
             };
             
             // Prioritize finding specialized roles first. This fixes issues where a user might exist 
             // in multiple tables (rare but possible) or if the fallback logic was too broad.
-            const tables = ['labels', 'stoodioz', 'producers', 'engineers', 'artists'];
+            const tables = ['stoodioz', 'producers', 'engineers', 'artists', 'labels'];
             
-            let userProfile: Artist | Engineer | Stoodio | Producer | Label | any | null = null;
+            let userProfile: Artist | Engineer | Stoodio | Producer | Label | null = null;
             let detectedRole: UserRole | undefined;
     
             for (const table of tables) {
@@ -52,27 +52,16 @@ export const useAuth = (navigate: (view: any) => void) => {
                 if (table === 'stoodioz') selectQuery = '*, rooms(*), in_house_engineers(*)';
                 if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
                 if (table === 'producers') selectQuery = '*, instrumentals(*)';
-                if (table === 'labels') selectQuery = '*';
 
                 let { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
-                    .eq(table === 'labels' ? 'id' : 'email', table === 'labels' ? data.user.id : email) // Labels use ID check primarily
+                    .eq('email', email)
                     .limit(1);
 
-                // Special case for Label Team Members who log in but aren't in 'labels' table directly
-                if (table === 'labels' && (!profileData || profileData.length === 0)) {
-                     const { data: memberData } = await supabase
-                        .from('label_team_members')
-                        .select('label_id, labels(*)')
-                        .eq('user_id', data.user.id)
-                        .maybeSingle();
-                     
-                     if (memberData && memberData.labels) {
-                         profileData = [memberData.labels];
-                     }
-                } else if (profileError && table !== 'labels') {
-                    // Fallback for non-label tables if complex query fails
+                // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
+                if (profileError) {
+                    console.warn(`Complex fetch failed for ${table}, retrying basic...`);
                     const retry = await supabase
                         .from(table)
                         .select('*')
@@ -82,15 +71,21 @@ export const useAuth = (navigate: (view: any) => void) => {
                     profileError = retry.error;
                 }
 
+                if (profileError) {
+                    console.error(`Error finding user profile in ${table}:`, profileError);
+                    continue;
+                }
+
                 if (profileData && profileData.length > 0) {
-                    userProfile = profileData[0];
+                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
+                    userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer | Label;
                     detectedRole = roleMap[table];
                     break; // Stop searching once found
                 }
             }
     
             if (userProfile && detectedRole) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile, role: detectedRole } });
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile as any, role: detectedRole } });
                 if ('Notification' in window && Notification.permission !== 'denied') {
                     Notification.requestPermission();
                 }
@@ -101,13 +96,8 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.LABEL) {
                     const label = userProfile as Label;
-                    if (label.status === 'disabled') {
-                        navigate(AppView.LABEL_DISABLED);
-                    } else if (label.status === 'pending' && !label.beta_override) {
-                        navigate(AppView.LABEL_CONTACT_REQUIRED);
-                    } else {
-                        navigate(AppView.LABEL_DASHBOARD);
-                    }
+                    if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
+                    else navigate(AppView.LABEL_CONTACT_REQUIRED);
                 }
 
             } else {
@@ -120,7 +110,11 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
+        // FIX: Navigate away FIRST to unmount dashboard components that might depend on currentUser.
+        // This prevents "white screen" crashes where the UI tries to render data that just got deleted.
         navigate(AppView.LANDING_PAGE);
+
+        // Use a small timeout to ensure the navigation has processed and components unmounted
         setTimeout(async () => {
             try {
                 const supabase = getSupabase();
@@ -128,6 +122,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             } catch (e) {
                 console.warn("Supabase signout error (ignoring):", e);
             }
+            
             dispatch({ type: ActionTypes.LOGOUT });
         }, 100);
     }, [dispatch, navigate]);
@@ -143,29 +138,28 @@ export const useAuth = (navigate: (view: any) => void) => {
     const completeSetup = async (userData: any, role: UserRole) => {
         try {
             const result = await apiService.createUser(userData, role);
+            
             if (result && 'email_confirmation_required' in result) {
-                alert("Account created! Please check your email to verify.");
+                alert("Account created! Please check your email to verify your account before logging in.");
                 navigate(AppView.LOGIN);
                 return;
             }
+
             if (result) {
-                // Note: For Labels, result is a Label object, but reducer expects Artist|Engineer|Stoodio|Producer.
-                // We cast it or let TypeScript inference handle the union if updated in types.
-                // For now, simple cast to any to bypass strict check for this specific call, assuming reducer handles it.
-                const newUser = result as any; 
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
+                // Supabase automatically signs the user in after signUp if no verification required,
+                // so we just need to update the application state.
+                const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
                 
+                // Force navigation based on role
                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (role === UserRoleEnum.LABEL) {
-                     // Check label status
-                     if (newUser.status === 'pending' && !newUser.beta_override) {
-                         navigate(AppView.LABEL_CONTACT_REQUIRED);
-                     } else {
-                         navigate(AppView.LABEL_DASHBOARD);
-                     }
+                    const label = newUser as Label;
+                    if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
+                    else navigate(AppView.LABEL_CONTACT_REQUIRED);
                 }
             } else {
                 alert("An unknown error occurred during signup.");
