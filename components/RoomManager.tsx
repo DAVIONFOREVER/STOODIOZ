@@ -34,7 +34,7 @@ const RoomFormModal: React.FC<{
             const fileList = Array.from(files);
             setNewPhotoFiles(prev => [...prev, ...fileList]);
             
-            const newPreviews = fileList.map(file => URL.createObjectURL(file));
+            const newPreviews = fileList.map(file => URL.createObjectURL(file as any));
             setPreviewUrls(prev => [...prev, ...newPreviews]);
         }
     };

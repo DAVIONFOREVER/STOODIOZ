@@ -1,5 +1,4 @@
-
-import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
+import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode, type PropsWithChildren } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData } from '../types';
 import { AppView, UserRole } from '../types';
 
@@ -495,7 +494,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 const AppStateContext = createContext<AppState | undefined>(undefined);
 const AppDispatchContext = createContext<Dispatch<AppAction> | undefined>(undefined);
 
-export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AppProvider = ({ children }: PropsWithChildren) => {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
     return (

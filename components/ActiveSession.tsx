@@ -34,9 +34,10 @@ const mapOptions = {
 };
 
 const ActiveSessionMap: React.FC<{ session: NonNullable<AppState['activeSession']> }> = ({ session }) => {
+    const env = (import.meta as any).env || {};
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script-session',
-        googleMapsApiKey: (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY,
+        googleMapsApiKey: env.VITE_GOOGLE_MAPS_API_KEY || '',
     });
 
     // FIX: Replaced google.maps.DirectionsResult with any.

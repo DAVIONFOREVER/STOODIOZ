@@ -119,6 +119,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const dispatch = useAppDispatch();
     const { navigateToStudio } = useNavigation();
 
+    const env = (import.meta as any).env || {};
     // FIX: Replaced google.maps.Map with any.
     const [map, setMap] = useState<any | null>(null);
     const [userLocation, setUserLocation] = useState<Location | null>(null);
@@ -133,7 +134,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
-        googleMapsApiKey: (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY,
+        googleMapsApiKey: env.VITE_GOOGLE_MAPS_API_KEY || '',
     });
     
     // Effect for user's own location
