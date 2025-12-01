@@ -142,6 +142,13 @@ const App: React.FC = () => {
                 else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRole.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (role === UserRole.LABEL) {
+                     if ((newUser as any).status === 'pending' && !(newUser as any).beta_override) {
+                         navigate(AppView.LABEL_CONTACT_REQUIRED);
+                     } else {
+                         navigate(AppView.LABEL_DASHBOARD);
+                     }
+                }
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
@@ -312,7 +319,7 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup />;
+                return <LabelSetup onCompleteSetup={(data) => completeSetup(data, UserRole.LABEL)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:

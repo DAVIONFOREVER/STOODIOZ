@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { UserRole } from '../types';
 import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon, BriefcaseIcon } from './icons';

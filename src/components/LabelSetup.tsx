@@ -1,9 +1,9 @@
+
 import React, { useState, useRef } from 'react';
 import { AppView } from '../types';
 import { PhotoIcon } from './icons';
 
 interface LabelSetupProps {
-    // Matches signature of other setup components for App.tsx integration
     onCompleteSetup: (data: any) => void;
     onNavigate: (view: AppView) => void;
 }
