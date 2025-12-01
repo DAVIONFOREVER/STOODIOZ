@@ -36,14 +36,15 @@ export const useAuth = (navigate: (view: any) => void) => {
                 'artists': UserRoleEnum.ARTIST,
                 'engineers': UserRoleEnum.ENGINEER,
                 'producers': UserRoleEnum.PRODUCER,
-                'stoodioz': UserRoleEnum.STOODIO
+                'stoodioz': UserRoleEnum.STOODIO,
+                'labels': UserRoleEnum.LABEL,
             };
             
             // Prioritize finding specialized roles first. This fixes issues where a user might exist 
             // in multiple tables (rare but possible) or if the fallback logic was too broad.
-            const tables = ['stoodioz', 'producers', 'engineers', 'artists'];
+            const tables = ['labels', 'stoodioz', 'producers', 'engineers', 'artists'];
             
-            let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
+            let userProfile: Artist | Engineer | Stoodio | Producer | any | null = null;
             let detectedRole: UserRole | undefined;
     
             for (const table of tables) {
@@ -52,16 +53,27 @@ export const useAuth = (navigate: (view: any) => void) => {
                 if (table === 'stoodioz') selectQuery = '*, rooms(*), in_house_engineers(*)';
                 if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
                 if (table === 'producers') selectQuery = '*, instrumentals(*)';
+                if (table === 'labels') selectQuery = '*';
 
                 let { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
-                    .eq('email', email)
+                    .eq(table === 'labels' ? 'id' : 'email', table === 'labels' ? data.user.id : email) // Labels use ID check primarily
                     .limit(1);
 
-                // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
-                if (profileError) {
-                    console.warn(`Complex fetch failed for ${table}, retrying basic...`);
+                // Special case for Label Team Members who log in but aren't in 'labels' table directly
+                if (table === 'labels' && (!profileData || profileData.length === 0)) {
+                     const { data: memberData } = await supabase
+                        .from('label_team_members')
+                        .select('label_id, labels(*)')
+                        .eq('user_id', data.user.id)
+                        .maybeSingle();
+                     
+                     if (memberData && memberData.labels) {
+                         profileData = [memberData.labels];
+                     }
+                } else if (profileError && table !== 'labels') {
+                    // Fallback for non-label tables if complex query fails
                     const retry = await supabase
                         .from(table)
                         .select('*')
@@ -71,14 +83,8 @@ export const useAuth = (navigate: (view: any) => void) => {
                     profileError = retry.error;
                 }
 
-                if (profileError) {
-                    console.error(`Error finding user profile in ${table}:`, profileError);
-                    continue;
-                }
-
                 if (profileData && profileData.length > 0) {
-                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
-                    userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer;
+                    userProfile = profileData[0];
                     detectedRole = roleMap[table];
                     break; // Stop searching once found
                 }
@@ -94,6 +100,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
 
             } else {
                 console.warn(`Login successful, but no profile found for ${email}. Routing to profile setup.`);
@@ -105,11 +112,7 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // FIX: Navigate away FIRST to unmount dashboard components that might depend on currentUser.
-        // This prevents "white screen" crashes where the UI tries to render data that just got deleted.
         navigate(AppView.LANDING_PAGE);
-
-        // Use a small timeout to ensure the navigation has processed and components unmounted
         setTimeout(async () => {
             try {
                 const supabase = getSupabase();
@@ -117,7 +120,6 @@ export const useAuth = (navigate: (view: any) => void) => {
             } catch (e) {
                 console.warn("Supabase signout error (ignoring):", e);
             }
-            
             dispatch({ type: ActionTypes.LOGOUT });
         }, 100);
     }, [dispatch, navigate]);
@@ -127,25 +129,21 @@ export const useAuth = (navigate: (view: any) => void) => {
         else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
         else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
         else if (role === 'PRODUCER') navigate(AppView.PRODUCER_SETUP);
+        // Note: Label setup usually done via admin or specialized flow, not standard signup yet
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {
         try {
             const result = await apiService.createUser(userData, role);
-            
             if (result && 'email_confirmation_required' in result) {
-                alert("Account created! Please check your email to verify your account before logging in.");
+                alert("Account created! Please check your email to verify.");
                 navigate(AppView.LOGIN);
                 return;
             }
-
             if (result) {
-                // Supabase automatically signs the user in after signUp if no verification required,
-                // so we just need to update the application state.
                 const newUser = result as Artist | Engineer | Stoodio | Producer;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 
-                // Force navigation based on role
                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);

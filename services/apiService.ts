@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelMember } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -65,6 +65,146 @@ export const uploadMixingSampleFile = async (file: File, userId: string): Promis
     const ext = file.name.split('.').pop();
     const path = `${userId}/samples/${Date.now()}.${ext}`;
     return uploadFile(file, 'audio', path);
+};
+
+// --- LABEL MANAGEMENT ---
+
+export const fetchLabelProfile = async (userId: string): Promise<{ label: Label, role: 'owner' | 'anr' | 'assistant' | 'finance' } | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    // Check if user IS the label owner
+    const { data: labelData, error: labelError } = await supabase
+        .from('labels')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (labelData) {
+        return { label: labelData as Label, role: 'owner' };
+    }
+
+    // Check if user is a team member
+    const { data: memberData, error: memberError } = await supabase
+        .from('label_team_members')
+        .select('role, label_id, labels(*)')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (memberData && memberData.labels) {
+        // Safe casting since we joined labels
+        return { label: memberData.labels as unknown as Label, role: memberData.role };
+    }
+
+    return null;
+};
+
+export const fetchLabelRoster = async (labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return { artists: [], producers: [], engineers: [] };
+
+    const [artists, producers, engineers] = await Promise.all([
+        supabase.from('label_artists').select('*, artists(*)').eq('label_id', labelId),
+        supabase.from('label_producers').select('*, producers(*)').eq('label_id', labelId),
+        supabase.from('label_engineers').select('*, engineers(*)').eq('label_id', labelId)
+    ]);
+
+    return {
+        artists: (artists.data || []).map((r: any) => ({ ...r.artists, relationship: r.relationship_type, linkId: r.id })),
+        producers: (producers.data || []).map((r: any) => ({ ...r.producers, relationship: r.relationship_type, linkId: r.id })),
+        engineers: (engineers.data || []).map((r: any) => ({ ...r.engineers, relationship: r.relationship_type, linkId: r.id }))
+    };
+};
+
+export const fetchLabelTeam = async (labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    
+    const { data } = await supabase.from('label_team_members').select('*').eq('label_id', labelId);
+    return data || [];
+};
+
+export const addToRoster = async (labelId: string, entityId: string, role: UserRole, relationship: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    const tableMap: any = {
+        [UserRoleEnum.ARTIST]: 'label_artists',
+        [UserRoleEnum.PRODUCER]: 'label_producers',
+        [UserRoleEnum.ENGINEER]: 'label_engineers'
+    };
+    const idFieldMap: any = {
+        [UserRoleEnum.ARTIST]: 'artist_id',
+        [UserRoleEnum.PRODUCER]: 'producer_id',
+        [UserRoleEnum.ENGINEER]: 'engineer_id'
+    };
+
+    if (tableMap[role]) {
+        await supabase.from(tableMap[role]).insert({
+            label_id: labelId,
+            [idFieldMap[role]]: entityId,
+            relationship_type: relationship
+        });
+    }
+};
+
+export const removeFromRoster = async (labelId: string, entityId: string, role: UserRole) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    
+    const tableMap: any = {
+        [UserRoleEnum.ARTIST]: 'label_artists',
+        [UserRoleEnum.PRODUCER]: 'label_producers',
+        [UserRoleEnum.ENGINEER]: 'label_engineers'
+    };
+    const idFieldMap: any = {
+        [UserRoleEnum.ARTIST]: 'artist_id',
+        [UserRoleEnum.PRODUCER]: 'producer_id',
+        [UserRoleEnum.ENGINEER]: 'engineer_id'
+    };
+
+    if (tableMap[role]) {
+        await supabase.from(tableMap[role]).delete().match({ label_id: labelId, [idFieldMap[role]]: entityId });
+    }
+};
+
+export const createLabelBooking = async (request: BookingRequest, stoodio: Stoodio, labelId: string, createdByUserId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase not connected");
+
+    const bookingData = {
+        date: request.date,
+        start_time: request.start_time,
+        duration: request.duration,
+        total_cost: request.total_cost,
+        status: BookingStatus.CONFIRMED, 
+        booked_by_id: request.artist_id, // The artist is technically the 'client' in the session
+        booked_by_role: UserRoleEnum.ARTIST,
+        request_type: request.request_type,
+        engineer_pay_rate: request.engineer_pay_rate,
+        stoodio_id: stoodio.id,
+        room_id: request.room?.id,
+        artist_id: request.artist_id,
+        created_at: new Date().toISOString(),
+        // Label specific fields
+        label_id: labelId,
+        payer_type: request.payer_type || 'label',
+        payer_notes: request.payer_notes,
+        created_by_user: createdByUserId
+    };
+
+    const { data, error } = await supabase.from('bookings').insert(bookingData).select().single();
+    if (error) throw error;
+    
+    return data;
+};
+
+export const fetchGlobalRankings = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    
+    const { data: rankings } = await supabase.from('global_rankings').select('*').order('ranking_position', { ascending: true }).limit(50);
+    return rankings || [];
 };
 
 // --- USER MANAGEMENT ---
@@ -178,34 +318,38 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         email: userData.email,
         name: userData.name,
         image_url: imageUrl,
-        ...(role === 'ARTIST' && { bio: userData.bio }),
-        ...(role === 'ENGINEER' && { bio: userData.bio, specialties: [] }),
-        ...(role === 'PRODUCER' && { bio: userData.bio, genres: [] }),
-        ...(role === 'STOODIO' && { 
+        ...(role === UserRoleEnum.ARTIST && { bio: userData.bio }),
+        ...(role === UserRoleEnum.ENGINEER && { bio: userData.bio, specialties: [] }),
+        ...(role === UserRoleEnum.PRODUCER && { bio: userData.bio, genres: [] }),
+        ...(role === UserRoleEnum.STOODIO && { 
             description: userData.description, 
             location: userData.location, 
             business_address: userData.businessAddress, 
             amenities: [], 
             rooms: [] 
         }),
+        // Labels are typically created via admin or special flow, skipping here
         created_at: new Date().toISOString(),
     };
 
-    const tableMap = {
-        'ARTIST': 'artists',
-        'ENGINEER': 'engineers',
-        'PRODUCER': 'producers',
-        'STOODIO': 'stoodioz'
+    const tableMap: any = {
+        [UserRoleEnum.ARTIST]: 'artists',
+        [UserRoleEnum.ENGINEER]: 'engineers',
+        [UserRoleEnum.PRODUCER]: 'producers',
+        [UserRoleEnum.STOODIO]: 'stoodioz'
     };
 
-    const { data, error } = await supabase
-        .from(tableMap[role])
-        .upsert(profileData)
-        .select()
-        .single();
+    if (tableMap[role]) {
+        const { data, error } = await supabase
+            .from(tableMap[role])
+            .upsert(profileData)
+            .select()
+            .single();
 
-    if (error) throw error;
-    return data;
+        if (error) throw error;
+        return data;
+    }
+    return null;
 };
 
 export const updateUser = async (userId: string, table: string, updates: any) => {
@@ -234,7 +378,7 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio, b
         engineer_pay_rate: request.engineer_pay_rate,
         stoodio_id: stoodio.id,
         room_id: request.room?.id,
-        artist_id: bookerRole === 'ARTIST' ? booker.id : undefined,
+        artist_id: bookerRole === UserRoleEnum.ARTIST ? booker.id : undefined,
         created_at: new Date().toISOString(),
     };
 
@@ -509,7 +653,7 @@ export const fetchConversations = async (userId: string) => {
         
         for (const pid of otherIds) {
              // Try fetching from each table until found. Optimized with Promise.any equivalent logic.
-             const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
+             const tables = ['artists', 'engineers', 'producers', 'stoodioz', 'labels'];
              for(const t of tables) {
                  const { data: pData } = await supabase.from(t).select('id, name, image_url').eq('id', pid).maybeSingle();
                  if(pData) {
@@ -662,7 +806,8 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
         'PRODUCER': 'producers',
-        'STOODIO': 'stoodioz'
+        'STOODIO': 'stoodioz',
+        'LABEL': 'labels'
     };
     
     const tableName = tableMap[role];

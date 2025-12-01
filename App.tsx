@@ -4,11 +4,11 @@ import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData } from
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
-import { useAuth as useSupabaseAuth } from './providers/AuthProvider.tsx'; // Import from new provider
+import { useAuth as useSupabaseAuth } from './providers/AuthProvider.tsx'; 
 
 // Import Custom Hooks
 import { useNavigation } from './hooks/useNavigation.ts';
-import { useAuth } from './hooks/useAuth.ts'; // Renaming conflict handled below
+import { useAuth } from './hooks/useAuth.ts'; 
 import { useBookings } from './hooks/useBookings.ts';
 import { useSocial } from './hooks/useSocial.ts';
 import { useSession } from './hooks/useSession.ts';
@@ -20,7 +20,7 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { supabase } from './lib/supabaseClient.ts'; // Use new client
+import { supabase } from './lib/supabaseClient.ts'; 
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
@@ -73,6 +73,8 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
 const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
+// New Label Dashboard
+const LabelDashboard = lazy(() => import('./components/LabelDashboard/index.tsx'));
 
 const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
     if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
@@ -94,7 +96,7 @@ const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Prod
 };
 
 const App: React.FC = () => {
-    const { user: authUser, loading: authLoading } = useSupabaseAuth(); // Use context auth
+    const { user: authUser, loading: authLoading } = useSupabaseAuth();
     const state = useAppState();
     const dispatch = useAppDispatch();
     const { 
@@ -117,28 +119,21 @@ const App: React.FC = () => {
             alert("System error: Database connection unavailable.");
             return;
         }
-
-        // Ensure previous session is cleared before setup to avoid conflicts
         if (userData.email && userData.password) {
             await supabase.auth.signOut();
         }
-        
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-
         try {
             const result = await apiService.createUser(userData, role);
-
             if (result && 'email_confirmation_required' in result) {
-                alert("Account created! Please check your email to verify your account before logging in.");
+                alert("Account created! Please check your email.");
                 navigate(AppView.LOGIN);
                 return;
             }
-
             if (result) {
                 const newUser = result as Artist | Engineer | Stoodio | Producer;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 
-                // Force navigation based on role
                 if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
@@ -146,7 +141,7 @@ const App: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
-            alert(`Setup failed: ${error.message || "Unknown error"}`);
+            alert(`Setup failed: ${error.message}`);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
@@ -176,9 +171,7 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
-        // Fetch Global Directory
         const fetchDirectory = async () => {
             const directory = await apiService.getAllPublicUsers();
             dispatch({ 
@@ -188,17 +181,15 @@ const App: React.FC = () => {
                     engineers: directory.engineers,
                     producers: directory.producers,
                     stoodioz: directory.stoodioz,
-                    reviews: [] // Fetch reviews later if needed
+                    reviews: []
                 }
             });
         };
         fetchDirectory();
     }, [dispatch]);
 
-    // Hydrate User Profile when Auth User changes
     useEffect(() => {
         if (!authUser) {
-            // If logged out from provider, ensure app state reflects it
             if (currentUser) {
                 dispatch({ type: ActionTypes.LOGOUT });
             }
@@ -210,23 +201,28 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             }
 
+            // Updated fetch profiles to include labels
             const fetchProfiles = async () => {
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
                     engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
                     artists: { query: '*', role: UserRoleEnum.ARTIST },
+                    labels: { query: '*', role: UserRoleEnum.LABEL },
                 };
                 
                 const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
                     try {
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
-                        if (error) {
-                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                             if (!basicError && basicData) return { data: basicData, role: config.role };
-                             return null;
+                        if (data) return { data, role: config.role };
+                        
+                        // Special check for label team members
+                        if (tableName === 'labels' && !data) {
+                             const { data: memberData } = await supabase.from('label_team_members').select('label_id, labels(*)').eq('user_id', userId).maybeSingle();
+                             if(memberData && memberData.labels) return { data: memberData.labels, role: UserRoleEnum.LABEL };
                         }
-                        return data ? { data, role: config.role } : null;
+                        
+                        return null;
                     } catch (e) {
                         return null;
                     }
@@ -300,7 +296,6 @@ const App: React.FC = () => {
             case AppView.LANDING_PAGE:
                 return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
             case AppView.LOGIN:
-                // Use new LoginForm logic but keep structure
                 return <div className="flex justify-center pt-10"><LoginForm /></div>;
             case AppView.CHOOSE_PROFILE:
                 return <ChooseProfile onSelectRole={selectRoleToSetup} />;
@@ -378,12 +373,20 @@ const App: React.FC = () => {
                 return <StudioInsights />;
             case AppView.LEADERBOARD:
                 return <Leaderboard />;
+            // Enterprise Label Views
+            case AppView.LABEL_DASHBOARD:
+            case AppView.LABEL_ROSTER:
+            case AppView.LABEL_BOOKINGS:
+            case AppView.LABEL_ANALYTICS:
+            case AppView.LABEL_TEAM:
+            case AppView.LABEL_GLOBAL_RANKINGS:
+            case AppView.LABEL_SETTINGS:
+                return <LabelDashboard currentView={currentView} onNavigate={navigate} />;
             default:
                 return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
         }
     };
     
-    // Auth loading state takes precedence
     if (authLoading) {
         return <LoadingSpinner currentUser={null} />;
     }

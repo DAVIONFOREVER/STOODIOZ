@@ -34,6 +34,14 @@ export enum AppView {
     ADMIN_RANKINGS = 'ADMIN_RANKINGS',
     STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
     LEADERBOARD = 'LEADERBOARD',
+    // Label Routes
+    LABEL_DASHBOARD = 'LABEL_DASHBOARD',
+    LABEL_ROSTER = 'LABEL_ROSTER',
+    LABEL_BOOKINGS = 'LABEL_BOOKINGS',
+    LABEL_ANALYTICS = 'LABEL_ANALYTICS',
+    LABEL_TEAM = 'LABEL_TEAM',
+    LABEL_GLOBAL_RANKINGS = 'LABEL_GLOBAL_RANKINGS',
+    LABEL_SETTINGS = 'LABEL_SETTINGS',
 }
 
 export enum UserRole {
@@ -41,6 +49,7 @@ export enum UserRole {
     ENGINEER = 'ENGINEER',
     PRODUCER = 'PRODUCER',
     STOODIO = 'STOODIO',
+    LABEL = 'LABEL',
 }
 
 export enum VerificationStatus {
@@ -97,6 +106,8 @@ export enum NotificationType {
     NEW_LIKE = 'NEW_LIKE',
     NEW_COMMENT = 'NEW_COMMENT',
     NEW_TIP = 'NEW_TIP',
+    ROSTER_INVITE = 'ROSTER_INVITE',
+    TEAM_INVITE = 'TEAM_INVITE',
 }
 
 export enum SubscriptionPlan {
@@ -307,6 +318,21 @@ export interface Stoodio extends BaseUser {
     in_house_engineers?: InHouseEngineerInfo[];
 }
 
+export interface Label extends BaseUser {
+    display_name: string;
+    company_name?: string;
+    contact_phone?: string;
+    notes?: string;
+}
+
+export interface LabelMember {
+    id: string;
+    label_id: string;
+    user_id: string;
+    role: 'owner' | 'anr' | 'assistant' | 'finance';
+    invited_email?: string;
+}
+
 export interface MixingDetails {
     type: 'REMOTE' | 'IN_STUDIO';
     track_count: number;
@@ -335,6 +361,10 @@ export interface Booking {
     instrumentals_purchased?: Instrumental[];
     tip?: number;
     invoice_url?: string;
+    label_id?: string;
+    payer_type?: 'artist' | 'label' | 'split';
+    payer_notes?: string;
+    created_by_user?: string;
 }
 
 export interface BookingRequest {
@@ -351,6 +381,9 @@ export interface BookingRequest {
     pull_up_fee?: number;
     mixing_details?: MixingDetails;
     requiredSkills?: string[]; // For job posts
+    payer_type?: 'artist' | 'label' | 'split';
+    payer_notes?: string;
+    artist_id?: string; // For label bookings
 }
 
 export interface FileAttachment {
@@ -375,7 +408,7 @@ export interface Message {
 
 export interface Conversation {
     id: string;
-    participants: (Artist | Stoodio | Engineer | Producer)[];
+    participants: (Artist | Stoodio | Engineer | Producer | Label)[];
     messages: Message[];
     unread_count: number;
     title?: string;
@@ -404,7 +437,7 @@ export interface VibeMatchResult {
 }
 
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'sendMessage' | 'sendDocumentMessage' | 'speak' | 'error';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'sendMessage' | 'sendDocumentMessage' | 'speak' | 'error' | 'rosterAction' | 'bookingAction' | 'teamAction' | 'analyticsAction' | 'rankingAction';
     target: string | null;
     value: any | null;
     text: string;
