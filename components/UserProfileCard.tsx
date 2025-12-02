@@ -1,10 +1,10 @@
 
 import React from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Label } from '../types';
+import type { Artist, Engineer, Stoodio, Producer } from '../types';
 import { AppView, UserRole } from '../types';
 
 interface UserProfileCardProps {
-    user: Artist | Engineer | Stoodio | Producer | Label;
+    user: Artist | Engineer | Stoodio | Producer;
     userRole?: UserRole | null;
     onNavigate: (view: AppView) => void;
 }
@@ -19,7 +19,6 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, userRole, onNav
                 case UserRole.ENGINEER: return onNavigate(AppView.ENGINEER_DASHBOARD);
                 case UserRole.PRODUCER: return onNavigate(AppView.PRODUCER_DASHBOARD);
                 case UserRole.ARTIST: return onNavigate(AppView.ARTIST_DASHBOARD);
-                case UserRole.LABEL: return onNavigate(AppView.LABEL_DASHBOARD);
             }
         }
 
@@ -27,7 +26,6 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({ user, userRole, onNav
         if ('amenities' in user) onNavigate(AppView.STOODIO_DASHBOARD);
         else if ('specialties' in user) onNavigate(AppView.ENGINEER_DASHBOARD);
         else if ('instrumentals' in user) onNavigate(AppView.PRODUCER_DASHBOARD);
-        else if ('company_name' in user) onNavigate(AppView.LABEL_DASHBOARD);
         else onNavigate(AppView.ARTIST_DASHBOARD);
     };
 

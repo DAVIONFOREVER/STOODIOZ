@@ -1,227 +1,153 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AppView } from '../types';
-import { BriefcaseIcon, ChevronLeftIcon, ArrowRightIcon } from './icons';
+import { PhotoIcon } from './icons';
 
 interface LabelSetupProps {
-    onCompleteSetup: (
-        name: string, 
-        companyName: string, 
-        email: string, 
-        contactPhone: string, 
-        website: string, 
-        notes: string,
-        password: string
-    ) => Promise<void>; 
+    onCompleteSetup: (name: string, bio: string, email: string, password: string, imageUrl: string | null, imageFile: File | null) => void;
     onNavigate: (view: AppView) => void;
 }
 
 const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [setupSuccess, setSetupSuccess] = useState(false);
-    
     const [name, setName] = useState('');
-    const [companyName, setCompanyName] = useState('');
+    const [bio, setBio] = useState('');
     const [email, setEmail] = useState('');
-    const [contactPhone, setContactPhone] = useState('');
-    const [website, setWebsite] = useState('');
-    const [notes, setNotes] = useState('');
     const [password, setPassword] = useState('');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const isFormValid = name.trim() && email.trim() && contactPhone.trim() && password.trim() && agreedToTerms;
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        if (isFormValid) {
-            setIsSubmitting(true);
-            try {
-                await onCompleteSetup(name, companyName, email, contactPhone, website, notes, password);
-                // If successful, show success state (fallback if navigation is slow)
-                setSetupSuccess(true);
-            } catch (error: any) {
-                console.error("Submission error in component:", error);
-                setIsSubmitting(false); // Enable buttons again
-                alert(`Error creating account: ${error.message || "Unknown error"}`);
-            }
-        } else {
-            alert("Please fill in all required fields marked with * and agree to the terms.");
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
         }
     };
 
-    if (setupSuccess) {
-        return (
-            <div className="max-w-xl mx-auto p-8 mt-12 cardSurface text-center animate-fade-in">
-                <div className="bg-green-500/10 p-4 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center border border-green-500/30">
-                    <BriefcaseIcon className="w-10 h-10 text-green-400" />
-                </div>
-                <h1 className="text-3xl font-extrabold text-slate-100 mb-4">Account Ready</h1>
-                <p className="text-zinc-300 mb-8">
-                    Your Label account has been created successfully.
-                </p>
-                <button 
-                    onClick={() => onNavigate(AppView.LABEL_DASHBOARD)}
-                    className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
-                >
-                    Go to Dashboard <ArrowRightIcon className="w-5 h-5"/>
-                </button>
-            </div>
-        );
-    }
+    const triggerFileInput = () => fileInputRef.current?.click();
 
+    const isFormValid = name.trim() && bio.trim() && email.trim() && password.trim() && agreedToTerms;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isFormValid) {
+            onCompleteSetup(name, bio, email, password, imagePreview, imageFile);
+        } else {
+            alert("Please fill in all required fields and agree to the terms and conditions to continue.");
+        }
+    };
+    
     return (
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
-            <button onClick={() => onNavigate(AppView.CHOOSE_PROFILE)} className="flex items-center gap-2 text-zinc-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
-                <ChevronLeftIcon className="w-5 h-5" />
-                Back
-            </button>
-
-            <h1 className="text-4xl font-extrabold text-center mb-2 text-zinc-100">
-                Label / Management <span className="text-orange-400">Application</span>
-            </h1>
-            <p className="text-center text-zinc-400 mb-8">
-                Join Stoodioz to manage your roster and streamline bookings.
-            </p>
-            
+            <h1 className="text-4xl font-extrabold text-center mb-2 text-zinc-100">Create Your <span className="text-blue-400">Label Profile</span></h1>
+            <p className="text-center text-zinc-400 mb-8">Manage your talent and oversee projects efficiently.</p>
             <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-zinc-300 mb-2">Display / Brand Name *</label>
+                <div>
+                    <label className="block text-sm font-medium text-zinc-300 mb-2">Label/Management Logo</label>
+                    <div className="mt-2 flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden">
+                            {imagePreview ? (
+                                <img src={imagePreview} alt="Profile preview" className="w-full h-full object-cover" />
+                            ) : (
+                                <PhotoIcon className="w-10 h-10 text-zinc-500" />
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={triggerFileInput}
+                            className="px-4 py-2 text-sm font-semibold bg-zinc-700 text-zinc-200 rounded-lg hover:bg-zinc-600"
+                        >
+                            Upload Photo
+                        </button>
                         <input
-                            type="text"
-                            id="name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="e.g., Top Tier Management"
-                            required
-                            disabled={isSubmitting}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="companyName" className="block text-sm font-medium text-zinc-300 mb-2">Legal Company Name</label>
-                        <input
-                            type="text"
-                            id="companyName"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                            className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="e.g., Top Tier LLC"
-                            disabled={isSubmitting}
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImageChange}
+                            className="hidden"
+                            accept="image/*"
                         />
                     </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-zinc-300 mb-2">Label/Management Name</label>
+                    <input
+                        type="text"
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        placeholder="e.g., Summit Records"
+                        required
+                        autoComplete="off"
+                    />
+                </div>
+                <div>
+                    <label htmlFor="bio" className="block text-sm font-medium text-zinc-300 mb-2">Description</label>
+                    <textarea
+                        id="bio"
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        rows={4}
+                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        placeholder="Tell us about your roster and what you're looking for."
+                        required
+                    />
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-zinc-300 mb-2">Contact Email *</label>
+                        <label htmlFor="email" className="block text-sm font-medium text-zinc-300 mb-2">Email Address</label>
                         <input
                             type="email"
                             id="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="agent@toptier.com"
+                            placeholder="manager@example.com"
                             required
-                            disabled={isSubmitting}
+                            autoComplete="off"
                         />
                     </div>
                     <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-zinc-300 mb-2">Contact Phone *</label>
+                        <label htmlFor="password" aria-label="Password" className="block text-sm font-medium text-zinc-300 mb-2">Password</label>
                         <input
-                            type="tel"
-                            id="phone"
-                            value={contactPhone}
-                            onChange={(e) => setContactPhone(e.target.value)}
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            placeholder="+1 (555) 000-0000"
+                            placeholder="••••••••"
                             required
-                            disabled={isSubmitting}
+                            autoComplete="new-password"
                         />
                     </div>
                 </div>
-
-                <div>
-                    <label htmlFor="website" className="block text-sm font-medium text-zinc-300 mb-2">Website</label>
-                    <input
-                        type="url"
-                        id="website"
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        placeholder="https://"
-                        disabled={isSubmitting}
-                    />
-                </div>
-
-                <div>
-                    <label htmlFor="notes" className="block text-sm font-medium text-zinc-300 mb-2">Description / Roster Notes</label>
-                    <textarea
-                        id="notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows={3}
-                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        placeholder="Briefly describe your agency or the artists you represent."
-                        disabled={isSubmitting}
-                    />
-                </div>
-
-                <div>
-                    <label htmlFor="password" aria-label="Password" className="block text-sm font-medium text-zinc-300 mb-2">Create Password *</label>
-                    <input
-                        type="password"
-                        id="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        placeholder="••••••••"
-                        required
-                        autoComplete="new-password"
-                        disabled={isSubmitting}
-                    />
-                </div>
-
-                <div>
-                    <label htmlFor="terms" className="flex items-start cursor-pointer">
+                 <div>
+                    <label htmlFor="terms" className="flex items-start">
                         <input
-                            type="checkbox"
-                            id="terms"
-                            checked={agreedToTerms}
-                            onChange={(e) => setAgreedToTerms(e.target.checked)}
-                            className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500 mt-1"
-                            required
-                            disabled={isSubmitting}
+                        type="checkbox"
+                        id="terms"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500 mt-1"
+                        required
                         />
                         <span className="ml-3 text-sm text-zinc-400">
-                            I have read and agree to the{' '}
-                            <button type="button" onClick={() => onNavigate(AppView.PRIVACY_POLICY)} className="font-medium text-orange-400 hover:underline">
-                                User Agreement & Privacy Policy
-                            </button>.
+                        I have read and agree to the{' '}
+                        <button type="button" onClick={() => onNavigate(AppView.PRIVACY_POLICY)} className="font-medium text-orange-400 hover:underline">
+                            User Agreement &amp; Privacy Policy
+                        </button>
+                        .
                         </span>
                     </label>
                 </div>
-
-                <button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 disabled:bg-zinc-600 disabled:cursor-not-allowed"
-                >
-                    {isSubmitting ? (
-                        <>
-                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Creating Account...
-                        </>
-                    ) : (
-                        <>
-                            <BriefcaseIcon className="w-5 h-5" />
-                            Submit Application
-                        </>
-                    )}
+                <button type="submit" className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20">
+                    Complete Profile
                 </button>
             </form>
         </div>

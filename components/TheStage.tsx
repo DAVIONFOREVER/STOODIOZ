@@ -83,12 +83,13 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     const { trendingPost, trendingPostAuthor } = useMemo(() => {
         if (posts.length === 0) return { trendingPost: null, trendingPostAuthor: null };
         const trending = [...posts].sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0];
-        
+        // Cast author to specific types for compatibility with TrendingPost component prop
         const author = authorsMap.get(trending.authorId);
-        // Only show trending post if author isn't a Label (unless we want labels trending)
-        if (author && 'company_name' in author) return { trendingPost: null, trendingPostAuthor: null };
-
-        return { trendingPost: trending, trendingPostAuthor: author as Artist | Engineer | Stoodio | Producer };
+        if (author && 'bio' in author && !('is_seeking_session' in author) && !('specialties' in author) && !('instrumentals' in author) && !('amenities' in author)) {
+             // If label, exclude from trending post for now as TrendingPost expects Artist|Engineer|Stoodio|Producer
+             return { trendingPost: null, trendingPostAuthor: null };
+        }
+        return { trendingPost: trending, trendingPostAuthor: author as Artist | Engineer | Stoodio | Producer | undefined };
     }, [posts, authorsMap]);
 
     // Infinite Scroll Loader
@@ -184,7 +185,10 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
-        else if ('company_name' in user) { /* Do nothing or navigate to label profile if available */ }
+        else if ('bio' in user && !('is_seeking_session' in user)) {
+             // TODO: Add Label profile view
+             console.log("Selected Label:", user.name);
+        }
         else onSelectArtist(user as Artist);
     };
 
@@ -259,7 +263,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Left Sidebar */}
                 <aside className="hidden lg:block lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
-                       <UserProfileCard user={currentUser} userRole={userRole} onNavigate={onNavigate} />
+                       <UserProfileCard user={currentUser as Artist | Engineer | Stoodio | Producer} userRole={userRole} onNavigate={onNavigate} />
                        <div className="cardSurface p-4">
                            <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
                            <nav className="space-y-1">
@@ -276,14 +280,14 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Main Content */}
                 <main className="col-span-12 lg:col-span-6">
                     <div className="space-y-8">
-                        <CreatePost currentUser={currentUser} onPost={handleNewPost} />
+                        <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer} onPost={handleNewPost} />
                         
                         <PostFeed 
                             posts={posts} 
-                            authors={authorsMap}
+                            authors={authorsMap as Map<string, Artist | Engineer | Stoodio | Producer>}
                             onLikePost={handleLocalLike}
                             onCommentOnPost={handleLocalComment}
-                            onSelectAuthor={handleSelectUser}
+                            onSelectAuthor={(author) => handleSelectUser(author as Artist | Engineer | Stoodio | Producer | Label)}
                             useFixedFrame={true} // Enable new frame design only here
                         />
                         

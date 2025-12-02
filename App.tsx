@@ -60,6 +60,8 @@ const ArtistSetup = lazy(() => import('./components/ArtistSetup.tsx'));
 const EngineerSetup = lazy(() => import('./components/EngineerSetup.tsx'));
 const ProducerSetup = lazy(() => import('./components/ProducerSetup.tsx'));
 const StoodioSetup = lazy(() => import('./components/StoodioSetup.tsx'));
+const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
+const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const Login = lazy(() => import('./components/Login.tsx'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.tsx'));
 const TheStage = lazy(() => import('./components/TheStage.tsx'));
@@ -72,12 +74,8 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
 const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
-const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
-const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
-const LabelContactRequired = lazy(() => import('./components/LabelContactRequired.tsx'));
-const LabelPublicProfile = lazy(() => import('./components/LabelPublicProfile.tsx'));
 
-const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | Label | null }> = ({ currentUser }) => {
+const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
         return (
             <div className="flex justify-center items-center py-20">
@@ -112,8 +110,50 @@ const App: React.FC = () => {
     const canGoForward = historyIndex < history.length - 1;
     
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
-    const { login, logout, selectRoleToSetup, completeSetup } = useAuth(navigate);
+    const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
+    const completeSetup = useCallback(async (userData: any, role: UserRole) => {
+        const supabase = getSupabase();
+        if (!supabase) {
+            alert("System error: Database connection unavailable.");
+            return;
+        }
+
+        // Ensure previous session is cleared before setup to avoid conflicts
+        if (userData.email && userData.password) {
+            await supabase.auth.signOut();
+        }
+        
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+
+        try {
+            const result = await apiService.createUser(userData, role);
+
+            if (result && 'email_confirmation_required' in result) {
+                alert("Account created! Please check your email to verify your account before logging in.");
+                navigate(AppView.LOGIN);
+                return;
+            }
+
+            if (result) {
+                const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
+                
+                // Force navigation based on role
+                if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                else if (role === UserRole.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (role === UserRole.LABEL) navigate(AppView.LABEL_DASHBOARD);
+            }
+        } catch (error: any) {
+            console.error("Complete setup failed:", error);
+            alert(`Setup failed: ${error.message || "Unknown error"}`);
+        } finally {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        }
+    }, [dispatch, navigate]);
+
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
@@ -136,7 +176,7 @@ const App: React.FC = () => {
         selectRoleToSetup,
     });
 
-    useRealtimeLocation({ currentUser: currentUser as any });
+    useRealtimeLocation({ currentUser });
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
@@ -153,6 +193,7 @@ const App: React.FC = () => {
                     engineers: directory.engineers,
                     producers: directory.producers,
                     stoodioz: directory.stoodioz,
+                    labels: directory.labels,
                     reviews: [] // Fetch reviews later if needed
                 }
             });
@@ -167,11 +208,8 @@ const App: React.FC = () => {
             }
 
             const fetchProfiles = async () => {
-                // To avoid 500 errors from querying tables the user isn't in (especially stoodioz with deep relations),
-                // we first check the user_metadata to see if we know the role.
-                const { data: { session } } = await supabase.auth.getSession();
-                const userRoleMeta = session?.user?.user_metadata?.user_role;
-
+                // Check all tables to find where this user exists.
+                // Note: We use maybeSingle() and detailed error checking now to be robust against partial missing data.
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
@@ -179,25 +217,16 @@ const App: React.FC = () => {
                     artists: { query: '*', role: UserRoleEnum.ARTIST },
                     labels: { query: '*', role: UserRoleEnum.LABEL },
                 };
-
-                let targets = Object.entries(tableMap);
-
-                // OPTIMIZATION: If we know the role, ONLY query that table.
-                if (userRoleMeta) {
-                    const specificTarget = targets.find(([_, config]) => config.role === userRoleMeta);
-                    if (specificTarget) {
-                        targets = [specificTarget];
-                    }
-                }
                 
-                const idPromises = targets.map(async ([tableName, config]) => {
+                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
                     try {
                         // Try fetching with full relational data
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
                         
                         if (error) {
-                             // FALLBACK: If a specific relation is missing/broken, fallback to basic fetch
-                             console.warn(`Hydration warning for ${tableName}, retrying basic fetch...`, error.message);
+                             // FALLBACK: If a specific relation is missing/broken (e.g. instrumentals table locked), 
+                             // fallback to basic fetch so the user can still login.
+                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
                              const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
                              
                              if (!basicError && basicData) {
@@ -236,6 +265,7 @@ const App: React.FC = () => {
                         } 
                     });
                 } else {
+                    // Only dispatch failure if we truly can't find the profile after retries
                     console.warn("User authenticated but profile not found.");
                 }
             } catch (error) {
@@ -277,8 +307,8 @@ const App: React.FC = () => {
 
     useEffect(() => {
         let timerId: number;
-        if (currentUser && userRole && userRole !== UserRole.LABEL) {
-            getAriaNudge(currentUser as any, userRole).then(nudge => {
+        if (currentUser && userRole) {
+            getAriaNudge(currentUser, userRole).then(nudge => {
                 if (nudge) {
                     dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
                     timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
@@ -329,13 +359,7 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup onCompleteSetup={(name, companyName, email, contactPhone, website, notes, password) => completeSetup({ name, company_name: companyName, email, contact_phone: contactPhone, website, notes, password }, UserRole.LABEL)} onNavigate={navigate} />;
-            case AppView.LABEL_DASHBOARD:
-                return <LabelDashboard />;
-            case AppView.LABEL_CONTACT_REQUIRED:
-                return <LabelContactRequired />;
-            case AppView.LABEL_PUBLIC_PROFILE:
-                return <LabelPublicProfile />;
+                return <LabelSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.LABEL)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -394,6 +418,8 @@ const App: React.FC = () => {
                 return <EngineerDashboard />;
             case AppView.PRODUCER_DASHBOARD:
                 return <ProducerDashboard />;
+            case AppView.LABEL_DASHBOARD:
+                return <LabelDashboard />;
             case AppView.ACTIVE_SESSION:
                 return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
             case AppView.ADMIN_RANKINGS:
@@ -425,7 +451,7 @@ return (
             />
 
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner currentUser={currentUser as any} />}>
+                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
                     {renderView()}
                 </Suspense>
             </main>
@@ -489,7 +515,7 @@ return (
                 </Suspense>
             )}
 
-            {currentUser && !isAriaCantataOpen && userRole !== UserRole.LABEL && (
+            {currentUser && !isAriaCantataOpen && (
                 <AriaFAB onClick={handleOpenAriaFromFAB} />
             )}
 

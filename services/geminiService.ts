@@ -134,7 +134,7 @@ export const generateSmartReplies = async (messages: Message[], currentUserId: s
     }
 };
 
-export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Producer, userRole: UserRole): Promise<AriaNudgeData | null> => {
+export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Producer | Label, userRole: UserRole): Promise<AriaNudgeData | null> => {
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     switch(userRole) {
@@ -157,6 +157,11 @@ export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Pr
              return {
                 text: "Your calendar has some open slots this week. Maybe post on The Stage to attract some artists?",
                 action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'dashboard' }
+            };
+        case UserRole.LABEL:
+            return {
+                text: "Check your roster's recent activity on the dashboard.",
+                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'roster' }
             };
         default:
             return null;

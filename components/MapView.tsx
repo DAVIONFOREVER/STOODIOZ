@@ -6,7 +6,7 @@ import type { Stoodio, Artist, Engineer, Producer, Booking, Location, Label } fr
 import { UserRole, BookingStatus } from '../types';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 import { useNavigation } from '../hooks/useNavigation.ts';
-import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon, UsersIcon, BriefcaseIcon } from './icons.tsx';
+import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon, UsersIcon } from './icons.tsx';
 import MapJobPopup from './MapJobPopup.tsx';
 import MapInfoPopup from './MapInfoPopup.tsx';
 import { getSupabase } from '../lib/supabase.ts';
@@ -14,7 +14,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio | Label;
-type MapJob = Booking & { itemType: 'JOB' };
+type MapJob = Booking & { itemType: 'JOB'; coordinates: Location }; // Added explicit coordinates
 type MapItem = MapUser | MapJob;
 type FilterType = 'ALL' | 'STOODIO' | 'ENGINEER' | 'PRODUCER' | 'ARTIST' | 'JOB';
 
@@ -88,7 +88,6 @@ const MapMarker: React.FC<{
         if ('amenities' in item) return { icon: <HouseIcon className="w-5 h-5 text-red-400" />, bgColor: 'bg-red-900/50', borderColor: 'border-red-500' };
         if ('specialties' in item) return { icon: <SoundWaveIcon className="w-5 h-5 text-orange-400" />, bgColor: 'bg-orange-900/50', borderColor: 'border-orange-500' };
         if ('instrumentals' in item) return { icon: <MusicNoteIcon className="w-5 h-5 text-purple-400" />, bgColor: 'bg-purple-900/50', borderColor: 'border-purple-500' };
-        if ('company_name' in item) return { icon: <BriefcaseIcon className="w-5 h-5 text-blue-400" />, bgColor: 'bg-blue-900/50', borderColor: 'border-blue-500' };
         return { icon: <MicrophoneIcon className="w-5 h-5 text-blue-400" />, bgColor: 'bg-blue-900/50', borderColor: 'border-blue-500' };
     };
 
@@ -200,8 +199,12 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const mapItems = useMemo((): MapItem[] => {
         const jobs = bookings
             // FIX: Corrected property name from 'postedBy' to 'posted_by'
-            .filter(b => b.posted_by === UserRole.STOODIO && b.status === BookingStatus.PENDING)
-            .map(b => ({ ...b, itemType: 'JOB' as const }));
+            .filter(b => b.posted_by === UserRole.STOODIO && b.status === BookingStatus.PENDING && b.stoodio?.coordinates)
+            .map(b => ({
+                ...b,
+                itemType: 'JOB' as const,
+                coordinates: b.stoodio!.coordinates // Add this explicitly for MapJob
+            }));
 
         let items: MapUser[] = [];
 
@@ -211,7 +214,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') items.push(...producers);
 
         // Filter visible users based on DB flag
-        let visibleUsers: MapUser[] = items.filter(u => u.show_on_map && u.coordinates);
+        let visibleUsers = items.filter(u => u.show_on_map && u.coordinates);
 
         // Apply realtime updates overrides
         const liveUpdatedUsers = visibleUsers.map(user => {
@@ -225,20 +228,21 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if (currentUser && currentUser.show_on_map && userLocation) {
             const exists = liveUpdatedUsers.some(u => u.id === currentUser.id);
             if (!exists) {
+                // Since MapUser now includes Label, we can safely push currentUser
                 liveUpdatedUsers.push({
                     ...currentUser,
                     coordinates: userLocation 
-                } as MapUser);
+                });
             } else {
                 const userIndex = liveUpdatedUsers.findIndex(u => u.id === currentUser.id);
                 if (userIndex !== -1) {
-                    liveUpdatedUsers[userIndex] = { ...liveUpdatedUsers[userIndex], coordinates: userLocation } as MapUser;
+                    liveUpdatedUsers[userIndex] = { ...liveUpdatedUsers[userIndex], coordinates: userLocation };
                 }
             }
         }
         
         let allItems: MapItem[] = liveUpdatedUsers;
-        if (activeFilter === 'ALL' || activeFilter === 'JOB') allItems.push(...jobs.filter(j => j.coordinates));
+        if (activeFilter === 'ALL' || activeFilter === 'JOB') allItems.push(...jobs);
         
         return allItems;
     }, [stoodioz, artists, engineers, producers, bookings, activeFilter, realtimeLocations, currentUser, userLocation]);
@@ -254,11 +258,8 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
-        else if ('company_name' in user) { 
-            // Labels not currently handled in map selection callbacks in this component prop interface
-            console.log("Selected Label:", user.name);
-        }
-        else onSelectArtist(user as Artist);
+        else if ('bio' in user) onSelectArtist(user as Artist); // Basic heuristic for Artist vs Label
+        else onSelectArtist(user as Artist); // Default fallback
     };
     
     const onLoad = useCallback((mapInstance: any) => setMap(mapInstance), []);

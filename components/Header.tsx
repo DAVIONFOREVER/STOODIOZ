@@ -73,6 +73,7 @@ const Header: React.FC<HeaderProps> = (props) => {
             case UserRole.ENGINEER: onNavigate(AppView.ENGINEER_DASHBOARD); break;
             case UserRole.PRODUCER: onNavigate(AppView.PRODUCER_DASHBOARD); break;
             case UserRole.STOODIO: onNavigate(AppView.STOODIO_DASHBOARD); break;
+            case UserRole.LABEL: onNavigate(AppView.LABEL_DASHBOARD); break;
         }
     };
 
@@ -88,6 +89,9 @@ const Header: React.FC<HeaderProps> = (props) => {
             onSelectProducer(currentUser as Producer);
         } else if (userRole === UserRole.ARTIST) {
             onSelectArtist(currentUser as Artist);
+        } else if (userRole === UserRole.LABEL) {
+            // Label profile viewing is pending, route to dashboard for now
+            onNavigate(AppView.LABEL_DASHBOARD);
         }
         setIsMobileMenuOpen(false);
     };

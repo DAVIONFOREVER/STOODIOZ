@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import type { Post, Artist, Engineer, Stoodio, Comment, Producer, Label } from '../types';
+import type { Post, Artist, Engineer, Stoodio, Comment, Producer } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
@@ -9,7 +9,7 @@ import StageMediaFrame from './StageMediaFrame';
 
 interface PostCardProps {
     post: Post;
-    author: Artist | Engineer | Stoodio | Producer | Label;
+    author: Artist | Engineer | Stoodio | Producer;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
     onSelectAuthor: () => void;
@@ -222,7 +222,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
             </div>
 
             {/* Contextual CTA */}
-            {post.authorType !== 'ARTIST' && post.authorType !== 'LABEL' && currentUser.id !== author.id && (
+            {post.authorType !== 'ARTIST' && currentUser.id !== author.id && (
                 <div className="px-6 pb-4">
                     <button onClick={handleCTA} className="w-full bg-orange-500/10 text-orange-400 font-bold py-2 px-4 rounded-lg hover:bg-orange-500/20 transition-colors text-sm flex items-center justify-center gap-2">
                         {post.authorType === 'STOODIO' && <><CalendarIcon className="w-4 h-4"/> Book this Stoodio</>}

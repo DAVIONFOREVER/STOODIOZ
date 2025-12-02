@@ -12,6 +12,7 @@ export interface AppState {
     engineers: Engineer[];
     artists: Artist[];
     producers: Producer[];
+    labels: Label[];
     reviews: Review[];
     bookings: Booking[];
     conversations: Conversation[];
@@ -126,7 +127,7 @@ type Payload = {
     [ActionTypes.NAVIGATE]: { view: AppView };
     [ActionTypes.GO_BACK]: undefined;
     [ActionTypes.GO_FORWARD]: undefined;
-    [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; reviews: Review[] };
+    [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; labels: Label[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer | Label, role?: UserRole };
     [ActionTypes.LOGIN_FAILURE]: { error: string };
@@ -142,7 +143,7 @@ type Payload = {
     [ActionTypes.SET_LATEST_BOOKING]: { booking: Booking | null };
     [ActionTypes.SET_BOOKINGS]: { bookings: Booking[] };
     [ActionTypes.ADD_BOOKING]: { booking: Booking };
-    [ActionTypes.UPDATE_USERS]: { users: (Artist | Engineer | Stoodio | Producer)[] };
+    [ActionTypes.UPDATE_USERS]: { users: (Artist | Engineer | Stoodio | Producer | Label)[] };
     [ActionTypes.SET_CURRENT_USER]: { user: Artist | Engineer | Stoodio | Producer | Label | null };
     [ActionTypes.UPDATE_FOLLOWING]: { userId: string; newFollowing: Following };
     [ActionTypes.START_SESSION]: { booking: Booking };
@@ -192,6 +193,7 @@ const initialState: AppState = {
     engineers: [],
     artists: [],
     producers: [],
+    labels: [],
     reviews: [],
     bookings: [],
     conversations: [],
@@ -283,7 +285,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                     role = UserRole.ENGINEER;
                 } else if ('instrumentals' in user) {
                     role = UserRole.PRODUCER;
-                } else if ('company_name' in user) {
+                } else if ('bio' in user && !('is_seeking_session' in user)) {
                     role = UserRole.LABEL;
                 } else {
                     role = UserRole.ARTIST;
@@ -294,11 +296,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
+            else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
-            else if (role === UserRole.LABEL) {
-                // ALWAYS send label to dashboard, ignoring beta/contact requirements
-                landingView = AppView.LABEL_DASHBOARD;
-            }
             
             return {
                 ...state,
@@ -322,6 +321,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 engineers: state.engineers,
                 producers: state.producers,
                 stoodioz: state.stoodioz,
+                labels: state.labels,
                 reviews: state.reviews,
             };
         
@@ -334,6 +334,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.ENGINEER) updatedState.engineers = [...state.engineers, newUser as Engineer];
             else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];
             else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
+            else if (role === UserRole.LABEL) updatedState.labels = [...state.labels, newUser as Label];
 
             const aria = updatedState.artists.find(a => a.id === 'artist-aria-cantata');
             if (aria) {
@@ -342,6 +343,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 if (role === UserRole.ENGINEER && !newFollowing.engineers.includes(newUser.id)) newFollowing.engineers.push(newUser.id);
                 if (role === UserRole.PRODUCER && !newFollowing.producers.includes(newUser.id)) newFollowing.producers.push(newUser.id);
                 if (role === UserRole.STOODIO && !newFollowing.stoodioz.includes(newUser.id)) newFollowing.stoodioz.push(newUser.id);
+                if (role === UserRole.LABEL && !newFollowing.labels.includes(newUser.id)) newFollowing.labels.push(newUser.id);
 
                 const updatedAria = { ...aria, following: newFollowing };
                 updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
@@ -351,11 +353,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
+            else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
-            else if (role === UserRole.LABEL) {
-                // ALWAYS send label to dashboard
-                landingView = AppView.LABEL_DASHBOARD;
-            }
 
             return {
                 ...updatedState,
@@ -387,13 +386,18 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookings: [...state.bookings, action.payload.booking] };
         
         case ActionTypes.UPDATE_USERS: {
+            // REINFORCED DEDUPLICATION LOGIC
             const newUsers = action.payload.users;
-            const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
+            const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
             
-            [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz].forEach(u => {
+            // 1. Populate map with EXISTING state to preserve what we have
+            // This ensures we don't lose users not present in the update
+            [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz, ...state.labels].forEach(u => {
                 if(u.id) allUsersMap.set(u.id, u);
             });
             
+            // 2. Add/Overwrite with NEW users from the payload
+            // Using a Map guarantees that if an ID exists, it gets overwritten, preventing duplicates.
             newUsers.forEach(u => {
                 if(u.id) allUsersMap.set(u.id, u);
             });
@@ -402,12 +406,14 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
             const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
 
+            // 3. Re-distribute unique users into their respective arrays based on type guards
             return {
                 ...state,
-                artists: uniqueUsers.filter(u => 'bio' in u && !('specialties' in u) && !('instrumentals' in u)) as Artist[],
+                artists: uniqueUsers.filter(u => 'bio' in u && 'is_seeking_session' in u) as Artist[],
                 engineers: uniqueUsers.filter(u => 'specialties' in u) as Engineer[],
                 producers: uniqueUsers.filter(u => 'instrumentals' in u) as Producer[],
                 stoodioz: uniqueUsers.filter(u => 'amenities' in u) as Stoodio[],
+                labels: uniqueUsers.filter(u => 'bio' in u && !('is_seeking_session' in u) && !('specialties' in u) && !('instrumentals' in u) && !('amenities' in u)) as Label[],
                 currentUser: findUser(state.currentUser?.id) as any || state.currentUser,
                 selectedArtist: findUser(state.selectedArtist?.id) as Artist || state.selectedArtist,
                 selectedEngineer: findUser(state.selectedEngineer?.id) as Engineer || state.selectedEngineer,
@@ -418,9 +424,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.SET_CURRENT_USER:
             return { ...state, currentUser: action.payload.user };
         case ActionTypes.UPDATE_FOLLOWING: {
-            if (!state.currentUser || state.userRole === UserRole.LABEL) return state; 
+            if (!state.currentUser) return state;
             const updatedUser = { ...state.currentUser, following: action.payload.newFollowing };
-            return { ...state, currentUser: updatedUser as Artist | Engineer | Stoodio | Producer };
+            return { ...state, currentUser: updatedUser };
         }
         case ActionTypes.START_SESSION:
             return { ...state, activeSession: action.payload.booking };

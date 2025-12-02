@@ -4,14 +4,14 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import * as apiService from '../services/apiService';
 import { getSupabase } from '../lib/supabase';
 // FIX: Import missing Stoodio type
-import type { Artist, Engineer, Stoodio, Producer, UserRole } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, UserRole, Label } from '../types';
 
 export const useProfile = () => {
     const dispatch = useAppDispatch();
-    const { currentUser, artists, engineers, producers, stoodioz, userRole } = useAppState();
+    const { currentUser, artists, engineers, producers, stoodioz, labels, userRole } = useAppState();
     const [isSaved, setIsSaved] = useState(false);
     
-    const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
+    const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz, ...labels], [artists, engineers, producers, stoodioz, labels]);
 
     const getTableNameFromRole = (role: UserRole | null): string | null => {
         if (!role) return null;
@@ -20,11 +20,12 @@ export const useProfile = () => {
             case 'ENGINEER': return 'engineers';
             case 'PRODUCER': return 'producers';
             case 'STOODIO': return 'stoodioz';
+            case 'LABEL': return 'labels';
             default: return null;
         }
     }
 
-    const updateProfile = async (updates: Partial<Artist | Engineer | Stoodio | Producer>) => {
+    const updateProfile = async (updates: Partial<Artist | Engineer | Stoodio | Producer | Label>) => {
         if (!currentUser || !userRole) return;
         try {
             const tableName = getTableNameFromRole(userRole);
@@ -37,7 +38,7 @@ export const useProfile = () => {
             const fullUpdatedUser = { ...currentUser, ...updatedUser };
 
             const updatedUsers = allUsers.map(u => u.id === fullUpdatedUser.id ? fullUpdatedUser : u);
-            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as (Artist | Engineer | Stoodio | Producer)[] } });
+            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as (Artist | Engineer | Stoodio | Producer | Label)[] } });
             setIsSaved(true);
         } catch (error) {
             console.error("Failed to update profile:", error);
@@ -67,7 +68,7 @@ export const useProfile = () => {
             if (error) throw error;
             if (data) {
                 // Cast to correct type and update
-                const refreshedUser = data as Artist | Engineer | Stoodio | Producer;
+                const refreshedUser = data as Artist | Engineer | Stoodio | Producer | Label;
                 // We also need to update this user in the larger lists (engineers, stoodioz, etc)
                 const updatedUsers = allUsers.map(u => u.id === refreshedUser.id ? refreshedUser : u);
                 
@@ -92,7 +93,7 @@ export const useProfile = () => {
         try {
             const updatedStoodioPartial = await apiService.submitForVerification(stoodioId, data);
             const updatedUsers = allUsers.map(u => u.id === stoodioId ? { ...u, ...updatedStoodioPartial } : u);
-            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as (Artist | Engineer | Stoodio | Producer)[] } });
+            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as (Artist | Engineer | Stoodio | Producer | Label)[] } });
         } catch (error) {
             console.error("Verification submission failed:", error);
         }

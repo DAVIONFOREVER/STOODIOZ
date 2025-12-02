@@ -1,10 +1,10 @@
 
 import React, { useState, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, LinkAttachment, Producer, Label } from '../types';
+import type { Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
 import { PhotoIcon, VideoCameraIcon, CloseCircleIcon, PlayIcon } from './icons';
 
 interface CreatePostProps {
-    currentUser: Artist | Engineer | Stoodio | Producer | Label;
+    currentUser: Artist | Engineer | Stoodio | Producer;
     onPost: (postData: { text: string; imageFile?: File; imageUrl?: string; videoFile?: File; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
 }
 

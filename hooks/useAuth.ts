@@ -57,7 +57,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 let { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
-                    .eq('id', data.user.id)
+                    .eq('email', email)
                     .limit(1);
 
                 // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
@@ -66,14 +66,14 @@ export const useAuth = (navigate: (view: any) => void) => {
                     const retry = await supabase
                         .from(table)
                         .select('*')
-                        .eq('id', data.user.id)
+                        .eq('email', email)
                         .limit(1);
                     profileData = retry.data;
                     profileError = retry.error;
                 }
 
                 if (profileError) {
-                    // Ignore errors, just means user isn't in this table
+                    console.error(`Error finding user profile in ${table}:`, profileError);
                     continue;
                 }
 
@@ -86,7 +86,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
     
             if (userProfile && detectedRole) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile as any, role: detectedRole } });
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile, role: detectedRole } });
                 if ('Notification' in window && Notification.permission !== 'denied') {
                     Notification.requestPermission();
                 }
@@ -95,10 +95,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-                else if (detectedRole === UserRoleEnum.LABEL) {
-                    // Direct access to dashboard
-                    navigate(AppView.LABEL_DASHBOARD);
-                }
+                else if (detectedRole === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
 
             } else {
                 console.warn(`Login successful, but no profile found for ${email}. Routing to profile setup.`);
@@ -128,11 +125,11 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {
-        if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_SETUP);
-        else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_SETUP);
-        else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_SETUP);
-        else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_SETUP);
-        else if (role === UserRoleEnum.LABEL) navigate(AppView.LABEL_SETUP);
+        if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
+        else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
+        else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
+        else if (role === 'PRODUCER') navigate(AppView.PRODUCER_SETUP);
+        else if (role === 'LABEL') navigate(AppView.LABEL_SETUP);
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {
@@ -149,24 +146,20 @@ export const useAuth = (navigate: (view: any) => void) => {
                 // Supabase automatically signs the user in after signUp if no verification required,
                 // so we just need to update the application state.
                 const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 
                 // Force navigation based on role
                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-                else if (role === UserRoleEnum.LABEL) {
-                    // Direct access to dashboard
-                    navigate(AppView.LABEL_DASHBOARD);
-                }
+                else if (role === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
             } else {
                 alert("An unknown error occurred during signup.");
             }
         } catch(error: any) {
             console.error("Setup completion error:", error);
-            // Rethrow so the UI knows it failed
-            throw error;
+            alert(`Signup failed: ${error.message}`);
         }
     };
 

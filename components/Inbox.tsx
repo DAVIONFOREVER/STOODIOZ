@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import type { Conversation, Message, Artist, Stoodio, Engineer, Booking, Producer, FileAttachment, Label } from '../types';
+import type { Conversation, Message, Artist, Stoodio, Engineer, Booking, Producer, FileAttachment } from '../types';
 import { AppView } from '../types';
 import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon, PaperclipIcon, DownloadIcon } from './icons';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,7 +14,7 @@ const ConversationList: React.FC<{
     conversations: Conversation[];
     onSelect: (id: string) => void;
     selectedConversationId: string | null;
-    currentUser: Artist | Stoodio | Engineer | Producer | Label;
+    currentUser: Artist | Stoodio | Engineer | Producer;
 }> = ({ conversations, onSelect, selectedConversationId, currentUser }) => {
     return (
         <div className="border-r border-zinc-700/50 h-full overflow-y-auto">
@@ -110,7 +110,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 const ChatThread: React.FC<{
     conversation: Conversation;
     booking: Booking | null;
-    currentUser: Artist | Stoodio | Engineer | Producer | Label;
+    currentUser: Artist | Stoodio | Engineer | Producer;
     onSendMessage: (conversationId: string, messageContent: Omit<Message, 'id' | 'sender_id' | 'timestamp'>) => void;
     onBack: () => void;
     onNavigate: (view: AppView) => void;

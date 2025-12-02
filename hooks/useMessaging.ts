@@ -3,7 +3,7 @@ import { useCallback, useEffect } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { generateSmartReplies } from '../services/geminiService';
 import * as apiService from '../services/apiService';
-import type { Message, Artist, Engineer, Stoodio, Producer, Label } from '../types';
+import type { Message, Artist, Engineer, Stoodio, Producer } from '../types';
 import { AppView } from '../types';
 import { getSupabase } from '../lib/supabase';
 
@@ -54,7 +54,7 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
         }
     }, [currentUser, dispatch]);
 
-    const startConversation = useCallback(async (participant: Artist | Engineer | Stoodio | Producer | Label, initialMessageText?: string) => {
+    const startConversation = useCallback(async (participant: Artist | Engineer | Stoodio | Producer, initialMessageText?: string) => {
         if (!currentUser) return;
         
         // Check if conversation already exists locally first
