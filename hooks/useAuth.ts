@@ -96,9 +96,8 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.LABEL) {
-                    const label = userProfile as Label;
-                    if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
-                    else navigate(AppView.LABEL_CONTACT_REQUIRED);
+                    // Force navigation to Dashboard for now to unblock users
+                    navigate(AppView.LABEL_DASHBOARD);
                 }
 
             } else {
@@ -158,16 +157,15 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (role === UserRoleEnum.LABEL) {
-                    const label = newUser as Label;
-                    if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
-                    else navigate(AppView.LABEL_CONTACT_REQUIRED);
+                    // Directly navigate to dashboard to unblock user flow
+                    navigate(AppView.LABEL_DASHBOARD);
                 }
             } else {
-                throw new Error("Signup result is null.");
+                alert("An unknown error occurred during signup.");
             }
         } catch(error: any) {
             console.error("Setup completion error:", error);
-            // Re-throw so component can handle UI state
+            // Throw error so the UI can catch it and show feedback
             throw error;
         }
     };

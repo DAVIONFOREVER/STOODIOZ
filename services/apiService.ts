@@ -133,7 +133,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (authError) {
         // If user already registered, try signing in to recover
-        if (authError.message.includes("already registered") || authError.status === 400) {
+        if (authError.message.includes("already registered") || authError.status === 400 || authError.status === 422) {
             console.log("User exists, attempting sign-in...");
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: userData.email,
@@ -171,6 +171,18 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }
     }
 
+    // Determine Table Name
+    let tableName: string;
+    switch (role) {
+        case UserRoleEnum.ARTIST: tableName = 'artists'; break;
+        case UserRoleEnum.ENGINEER: tableName = 'engineers'; break;
+        case UserRoleEnum.PRODUCER: tableName = 'producers'; break;
+        case UserRoleEnum.STOODIO: tableName = 'stoodioz'; break;
+        case UserRoleEnum.LABEL: tableName = 'labels'; break;
+        default: 
+            throw new Error(`Invalid user role: ${role}`);
+    }
+
     // 4. Create/Update Public Profile Record
     const profileData = {
         id: authUser.id,
@@ -189,31 +201,18 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }),
         ...(role === 'LABEL' && {
             company_name: userData.company_name,
-            contact_email: userData.email,
+            contact_email: userData.email, // Ensure this matches schema
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
-            status: 'active',
+            status: 'pending',
             requires_contact: true,
-            beta_override: true // Automatically approved for dashboard
+            beta_override: true // FORCE dashboard access
         }),
-        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
     };
 
-    let tableName: string;
-    switch (role) {
-        case UserRoleEnum.ARTIST: tableName = 'artists'; break;
-        case UserRoleEnum.ENGINEER: tableName = 'engineers'; break;
-        case UserRoleEnum.PRODUCER: tableName = 'producers'; break;
-        case UserRoleEnum.STOODIO: tableName = 'stoodioz'; break;
-        case UserRoleEnum.LABEL: tableName = 'labels'; break;
-        default: 
-            console.error("Invalid role passed to createUser:", role);
-            throw new Error(`Invalid user role: ${role}`);
-    }
-
-    console.log(`Creating user in table: ${tableName}`, profileData);
-
+    // Use upsert to handle both creation and updates (if recovering account)
     const { data, error } = await supabase
         .from(tableName)
         .upsert(profileData)
@@ -225,6 +224,8 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         throw error;
     }
     
+    // IMPORTANT: If we recovered by logging in, the `data` returned here is the profile.
+    // We must return this profile, NOT the auth user, so the App can use it.
     return data;
 };
 
@@ -236,8 +237,8 @@ export const updateUser = async (userId: string, table: string, updates: any) =>
     return data;
 };
 
-// ... existing code for other services ...
-// (Rest of file kept intact, omitting for brevity as it is unchanged from your current version)
+// --- BOOKINGS ---
+
 export const createBooking = async (request: BookingRequest, stoodio: Stoodio, booker: any, bookerRole: UserRole): Promise<Booking> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");

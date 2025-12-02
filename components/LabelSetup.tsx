@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppView } from '../types';
-import { BriefcaseIcon, ChevronLeftIcon } from './icons';
+import { BriefcaseIcon, ChevronLeftIcon, UserCircleIcon, ArrowRightIcon } from './icons';
 
 interface LabelSetupProps {
     onCompleteSetup: (
@@ -12,12 +12,14 @@ interface LabelSetupProps {
         website: string, 
         notes: string,
         password: string
-    ) => Promise<void>; // Ensure this returns Promise<void>
+    ) => Promise<void>; 
     onNavigate: (view: AppView) => void;
 }
 
 const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [accountExistsError, setAccountExistsError] = useState(false);
+    const [setupSuccess, setSetupSuccess] = useState(false);
     
     const [name, setName] = useState('');
     const [companyName, setCompanyName] = useState('');
@@ -32,20 +34,48 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setAccountExistsError(false);
+        
         if (isFormValid) {
             setIsSubmitting(true);
             try {
                 await onCompleteSetup(name, companyName, email, contactPhone, website, notes, password);
-                // Navigation happens in useAuth hook upon success
+                // If successful, show success state (fallback if navigation is slow)
+                setSetupSuccess(true);
             } catch (error: any) {
                 console.error("Submission error in component:", error);
                 setIsSubmitting(false); // Enable buttons again
-                alert(`Error creating account: ${error.message || "Unknown error"}`);
+                
+                if (error.message === "ACCOUNT_EXISTS_LOGIN_FAILED" || error.message.includes("already registered")) {
+                    setAccountExistsError(true);
+                } else {
+                    alert(`Error creating account: ${error.message || "Unknown error"}`);
+                }
             }
         } else {
             alert("Please fill in all required fields marked with * and agree to the terms.");
         }
     };
+
+    if (setupSuccess) {
+        return (
+            <div className="max-w-xl mx-auto p-8 mt-12 cardSurface text-center animate-fade-in">
+                <div className="bg-green-500/10 p-4 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center border border-green-500/30">
+                    <BriefcaseIcon className="w-10 h-10 text-green-400" />
+                </div>
+                <h1 className="text-3xl font-extrabold text-slate-100 mb-4">Account Ready</h1>
+                <p className="text-zinc-300 mb-8">
+                    Your Label account has been created successfully.
+                </p>
+                <button 
+                    onClick={() => onNavigate(AppView.LABEL_DASHBOARD)}
+                    className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all flex items-center justify-center gap-2"
+                >
+                    Go to Dashboard <ArrowRightIcon className="w-5 h-5"/>
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
@@ -60,6 +90,25 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
             <p className="text-center text-zinc-400 mb-8">
                 Join Stoodioz to manage your roster and streamline bookings.
             </p>
+            
+            {accountExistsError && (
+                <div className="bg-red-500/10 border border-red-500/50 p-6 rounded-xl mb-8 text-center animate-fade-in-up">
+                    <h3 className="text-xl font-bold text-red-400 mb-2">Account Already Exists</h3>
+                    <p className="text-zinc-300 mb-6">
+                        An account with the email <strong>{email}</strong> already exists, but the password provided didn't match.
+                    </p>
+                    <div className="flex justify-center gap-4">
+                        <button 
+                            onClick={() => onNavigate(AppView.LOGIN)}
+                            className="bg-red-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-600 transition-all shadow-lg flex items-center gap-2"
+                        >
+                            <UserCircleIcon className="w-5 h-5"/>
+                            Log In Instead
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
