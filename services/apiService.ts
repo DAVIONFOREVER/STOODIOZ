@@ -193,9 +193,9 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
-            status: 'active', // Default to active for immediate access
+            status: 'active',
             requires_contact: true,
-            beta_override: true // Allow access to dashboard immediately
+            beta_override: true // Automatically approved for dashboard
         }),
         created_at: new Date().toISOString(),
     };
@@ -228,8 +228,7 @@ export const updateUser = async (userId: string, table: string, updates: any) =>
     return data;
 };
 
-// --- BOOKINGS ---
-
+// ... existing code for other services ...
 export const createBooking = async (request: BookingRequest, stoodio: Stoodio, booker: any, bookerRole: UserRole): Promise<Booking> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
