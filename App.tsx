@@ -167,7 +167,11 @@ const App: React.FC = () => {
             }
 
             const fetchProfiles = async () => {
-                // Check all tables to find where this user exists.
+                // To avoid 500 errors from querying tables the user isn't in (especially stoodioz with deep relations),
+                // we first check the user_metadata to see if we know the role.
+                const { data: { session } } = await supabase.auth.getSession();
+                const userRoleMeta = session?.user?.user_metadata?.user_role;
+
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
@@ -175,8 +179,18 @@ const App: React.FC = () => {
                     artists: { query: '*', role: UserRoleEnum.ARTIST },
                     labels: { query: '*', role: UserRoleEnum.LABEL },
                 };
+
+                let targets = Object.entries(tableMap);
+
+                // OPTIMIZATION: If we know the role, ONLY query that table.
+                if (userRoleMeta) {
+                    const specificTarget = targets.find(([_, config]) => config.role === userRoleMeta);
+                    if (specificTarget) {
+                        targets = [specificTarget];
+                    }
+                }
                 
-                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
+                const idPromises = targets.map(async ([tableName, config]) => {
                     try {
                         // Try fetching with full relational data
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
