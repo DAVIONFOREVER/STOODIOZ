@@ -132,16 +132,16 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     });
 
     if (authError) {
-        // If user already registered, try signing in to recover
+        // If user already registered, try signing in to recover and FORCE profile creation
         if (authError.message.includes("already registered") || authError.status === 400 || authError.status === 422) {
-            console.log("User exists, attempting sign-in...");
+            console.log("User exists, attempting sign-in to repair profile...");
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: userData.email,
                 password: userData.password,
             });
             
             if (signInError) {
-                throw new Error("Account already exists, but login failed. Please check your password.");
+                throw new Error("Account exists, but password was incorrect.");
             }
             authUser = signInData.user;
             session = signInData.session;
@@ -156,7 +156,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     if (!authUser) throw new Error("No user returned from authentication service");
 
     // 2. Check if Email Verification is blocking login
-    // If we have a user but no session, usually implies email confirmation is on and pending
     if (!session && !authUser.email_confirmed_at) {
         return { email_confirmation_required: true };
     }
@@ -172,6 +171,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     }
 
     // 4. Create/Update Public Profile Record
+    // NOTE: This runs even if the user logged in, ensuring the profile row exists.
     const profileData = {
         id: authUser.id,
         email: userData.email,
@@ -193,12 +193,12 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
-            status: 'active'
+            status: 'active' // FORCE ACTIVE immediately
         }),
         created_at: new Date().toISOString(),
     };
 
-    const tableMap = {
+    const tableMap: Record<string, string> = {
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
         'PRODUCER': 'producers',
@@ -206,13 +206,20 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         'LABEL': 'labels'
     };
 
+    const tableName = tableMap[role];
+    if (!tableName) throw new Error(`Unknown role: ${role}`);
+
     const { data, error } = await supabase
-        .from(tableMap[role])
+        .from(tableName)
         .upsert(profileData)
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Profile creation error:", error);
+        throw error;
+    }
+    
     return data;
 };
 

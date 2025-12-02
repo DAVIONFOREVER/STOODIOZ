@@ -96,7 +96,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.LABEL) {
-                    // Direct access to dashboard, bypassing waitlist check
+                    // Direct access to dashboard
                     navigate(AppView.LABEL_DASHBOARD);
                 }
 
@@ -157,7 +157,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (role === UserRoleEnum.LABEL) {
-                    // Direct access to dashboard, bypassing waitlist check
+                    // Direct access to dashboard
                     navigate(AppView.LABEL_DASHBOARD);
                 }
             } else {

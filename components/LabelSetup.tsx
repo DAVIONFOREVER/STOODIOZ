@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppView } from '../types';
-import { BriefcaseIcon, ChevronLeftIcon, UserCircleIcon, ArrowRightIcon } from './icons';
+import { BriefcaseIcon, ChevronLeftIcon, ArrowRightIcon } from './icons';
 
 interface LabelSetupProps {
     onCompleteSetup: (
@@ -18,7 +18,6 @@ interface LabelSetupProps {
 
 const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [accountExistsError, setAccountExistsError] = useState(false);
     const [setupSuccess, setSetupSuccess] = useState(false);
     
     const [name, setName] = useState('');
@@ -34,7 +33,6 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setAccountExistsError(false);
         
         if (isFormValid) {
             setIsSubmitting(true);
@@ -45,12 +43,7 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
             } catch (error: any) {
                 console.error("Submission error in component:", error);
                 setIsSubmitting(false); // Enable buttons again
-                
-                if (error.message === "ACCOUNT_EXISTS_LOGIN_FAILED" || error.message.includes("already registered")) {
-                    setAccountExistsError(true);
-                } else {
-                    alert(`Error creating account: ${error.message || "Unknown error"}`);
-                }
+                alert(`Error creating account: ${error.message || "Unknown error"}`);
             }
         } else {
             alert("Please fill in all required fields marked with * and agree to the terms.");
@@ -91,24 +84,6 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
                 Join Stoodioz to manage your roster and streamline bookings.
             </p>
             
-            {accountExistsError && (
-                <div className="bg-red-500/10 border border-red-500/50 p-6 rounded-xl mb-8 text-center animate-fade-in-up">
-                    <h3 className="text-xl font-bold text-red-400 mb-2">Account Already Exists</h3>
-                    <p className="text-zinc-300 mb-6">
-                        An account with the email <strong>{email}</strong> already exists, but the password provided didn't match.
-                    </p>
-                    <div className="flex justify-center gap-4">
-                        <button 
-                            onClick={() => onNavigate(AppView.LOGIN)}
-                            className="bg-red-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-600 transition-all shadow-lg flex items-center gap-2"
-                        >
-                            <UserCircleIcon className="w-5 h-5"/>
-                            Log In Instead
-                        </button>
-                    </div>
-                </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
