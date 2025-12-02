@@ -11,7 +11,7 @@ interface MixingSampleManagerProps {
 
 const MixingSampleFormModal: React.FC<{
     sample: Partial<MixingSample> | null;
-    onSave: (sample: Omit<MixingSample, 'id' | 'audio_url'>, audioFile: File | null) => void;
+    onSave: (sample: Omit<MixingSample, 'id' | 'audio_url' | 'engineer_id'>, audioFile: File | null) => void;
     onClose: () => void;
     isUploading: boolean;
 }> = ({ sample, onSave, onClose, isUploading }) => {
@@ -88,13 +88,14 @@ const MixingSampleManager: React.FC<MixingSampleManagerProps> = ({ engineer, onR
         setIsModalOpen(true);
     };
 
-    const handleSaveSample = async (sampleData: Omit<MixingSample, 'id' | 'audio_url'>, audioFile: File | null) => {
+    const handleSaveSample = async (sampleData: Omit<MixingSample, 'id' | 'audio_url' | 'engineer_id'>, audioFile: File | null) => {
         setIsUploading(true);
         // FIX: Use crypto.randomUUID() to generate a valid UUID for the database
         let finalSample: MixingSample = { 
             id: editingSample?.id || crypto.randomUUID(), 
             ...sampleData, 
-            audio_url: editingSample?.audio_url || '' 
+            audio_url: editingSample?.audio_url || '',
+            engineer_id: engineer.id 
         };
 
         try {

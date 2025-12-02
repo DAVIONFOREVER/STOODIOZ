@@ -1,8 +1,9 @@
+
 import React from 'react';
-import type { Artist, Engineer, Producer, Stoodio } from '../types';
+import type { Artist, Engineer, Producer, Stoodio, Label } from '../types';
 import { CloseIcon, StarIcon, RoadIcon } from './icons';
 
-type MapUser = Artist | Engineer | Producer | Stoodio;
+type MapUser = Artist | Engineer | Producer | Stoodio | Label;
 
 interface MapInfoPopupProps {
     user: MapUser;
@@ -25,7 +26,7 @@ const MapInfoPopup: React.FC<MapInfoPopupProps> = ({ user, onClose, onSelect, on
                             {hasRating && (
                                 <div className="flex items-center text-yellow-400 text-sm">
                                     <StarIcon className="w-4 h-4" />
-                                    <span className="font-bold ml-1">{user.rating_overall.toFixed(1)}</span>
+                                    <span className="font-bold ml-1">{(user as any).rating_overall.toFixed(1)}</span>
                                 </div>
                             )}
                         </div>

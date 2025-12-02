@@ -1,16 +1,11 @@
 
-
-
-
-
-
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaActionResponse, AriaCantataMessage, Location, FileAttachment } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaActionResponse, AriaCantataMessage, Location, FileAttachment, Label } from '../types';
 
 interface AriaHookDependencies {
-    startConversation: (participant: Artist | Engineer | Stoodio | Producer) => void;
+    startConversation: (participant: Artist | Engineer | Stoodio | Producer | Label) => void;
     navigate: (view: AppView) => void;
     viewStoodioDetails: (stoodio: Stoodio) => void;
     viewEngineerProfile: (engineer: Engineer) => void;
@@ -18,14 +13,14 @@ interface AriaHookDependencies {
     viewArtistProfile: (artist: Artist) => void;
     navigateToStudio: (location: Location) => void;
     confirmBooking: (bookingRequest: any) => Promise<void>;
-    updateProfile: (updates: Partial<Artist | Engineer | Stoodio | Producer>) => void;
+    updateProfile: (updates: Partial<Artist | Engineer | Stoodio | Producer | Label>) => void;
     selectRoleToSetup: (role: UserRole) => void;
 }
 
 export const useAria = (dependencies: AriaHookDependencies) => {
     const dispatch = useAppDispatch();
-    const { artists, engineers, producers, stoodioz, conversations, ariaNudge, currentUser, userRole } = useAppState();
-    const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
+    const { artists, engineers, producers, stoodioz, labels, conversations, ariaNudge, currentUser, userRole } = useAppState();
+    const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz, ...labels], [artists, engineers, producers, stoodioz, labels]);
 
     const executeCommand = useCallback(async (command: AriaActionResponse, onClose: () => void) => {
         switch (command.type) {
@@ -45,6 +40,12 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                         if ('amenities' in targetUser) dependencies.viewStoodioDetails(targetUser);
                         else if ('specialties' in targetUser) dependencies.viewEngineerProfile(targetUser);
                         else if ('instrumentals' in targetUser) dependencies.viewProducerProfile(targetUser);
+                        else if ('bio' in targetUser && !('is_seeking_session' in targetUser)) {
+                            // Basic heuristic for Label, might need proper routing
+                            // For now navigate to their dashboard if it's the current user, or maybe list view
+                            // Or default to artist view as a fallback
+                            dependencies.navigate(AppView.LABEL_DASHBOARD); 
+                        }
                         else dependencies.viewArtistProfile(targetUser as Artist);
                     } else {
                          dependencies.navigate(targetView);
@@ -186,6 +187,7 @@ export const useAria = (dependencies: AriaHookDependencies) => {
                 else if (userRole === UserRole.PRODUCER) dependencies.navigate(AppView.PRODUCER_DASHBOARD);
                 else if (userRole === UserRole.STOODIO) dependencies.navigate(AppView.STOODIO_DASHBOARD);
                 else if (userRole === UserRole.ARTIST) dependencies.navigate(AppView.ARTIST_DASHBOARD);
+                else if (userRole === UserRole.LABEL) dependencies.navigate(AppView.LABEL_DASHBOARD);
                 break;
         }
 
