@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { AppView } from '../types';
 import { BriefcaseIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface LabelSetupProps {
     onCompleteSetup: (
@@ -17,6 +18,7 @@ interface LabelSetupProps {
 }
 
 const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) => {
+    const { isLoading } = useAppState();
     const [name, setName] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [email, setEmail] = useState('');
@@ -158,10 +160,17 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
 
                 <button 
                     type="submit" 
-                    className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                    disabled={isLoading}
+                    className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 disabled:bg-zinc-600 disabled:cursor-not-allowed"
                 >
-                    <BriefcaseIcon className="w-5 h-5" />
-                    Submit Application
+                    {isLoading ? (
+                        <span>Creating Account...</span>
+                    ) : (
+                        <>
+                            <BriefcaseIcon className="w-5 h-5" />
+                            Submit Application
+                        </>
+                    )}
                 </button>
             </form>
         </div>

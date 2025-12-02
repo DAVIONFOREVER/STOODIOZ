@@ -193,9 +193,9 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
-            status: 'pending',
+            status: 'active', // Default to active for immediate access
             requires_contact: true,
-            beta_override: false
+            beta_override: true // Allow access to dashboard immediately
         }),
         created_at: new Date().toISOString(),
     };
@@ -216,10 +216,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         .select()
         .single();
 
-    if (error) {
-        console.error("Profile creation error:", error);
-        throw error;
-    }
+    if (error) throw error;
     return data;
 };
 
