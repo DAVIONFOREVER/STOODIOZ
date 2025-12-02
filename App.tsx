@@ -148,7 +148,9 @@ const App: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
-            alert(`Setup failed: ${error.message || "Unknown error"}`);
+            // FIX: Stringify object errors to make them readable in alert
+            const errorMessage = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+            alert(`Setup failed: ${errorMessage}`);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }

@@ -195,13 +195,17 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         created_at: new Date().toISOString(),
     };
 
-    const tableMap = {
+    const tableMap: Record<string, string> = {
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
         'PRODUCER': 'producers',
         'STOODIO': 'stoodioz',
         'LABEL': 'labels'
     };
+
+    if (!tableMap[role]) {
+        throw new Error(`Invalid or unsupported role: ${role}`);
+    }
 
     const { data, error } = await supabase
         .from(tableMap[role])

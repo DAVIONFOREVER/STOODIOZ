@@ -1,11 +1,11 @@
 
 import { useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Location } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Location, Label } from '../types';
 import { getSupabase } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseRealtimeLocationProps {
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | Label | null;
 }
 
 const LOCATION_CHANNEL = 'public:locations';

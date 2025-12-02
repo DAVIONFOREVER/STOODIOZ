@@ -32,11 +32,16 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
 
     const triggerFileInput = () => fileInputRef.current?.click();
 
-    const isFormValid = name.trim() && bio.trim() && email.trim() && password.trim() && agreedToTerms;
+    const isFormValid = name.trim().length > 0 && 
+                        bio.trim().length > 0 && 
+                        email.trim().length > 0 && 
+                        password.trim().length > 0 && 
+                        agreedToTerms;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isFormValid) {
+            console.log("Submitting Label Setup...");
             onCompleteSetup(name, bio, email, password, imagePreview, imageFile);
         } else {
             alert("Please fill in all required fields and agree to the terms and conditions to continue.");
@@ -146,7 +151,15 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
                         </span>
                     </label>
                 </div>
-                <button type="submit" className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20">
+                <button 
+                    type="submit" 
+                    disabled={!isFormValid}
+                    className={`w-full font-bold py-3 px-6 rounded-lg transition-all shadow-lg ${
+                        isFormValid 
+                        ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/20' 
+                        : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                    }`}
+                >
                     Complete Profile
                 </button>
             </form>
