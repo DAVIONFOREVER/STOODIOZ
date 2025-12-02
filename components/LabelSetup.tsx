@@ -16,6 +16,7 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,11 +39,17 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
                         password.trim().length > 0 && 
                         agreedToTerms;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (isFormValid) {
-            console.log("Submitting Label Setup...");
-            onCompleteSetup(name, bio, email, password, imagePreview, imageFile);
+        if (isFormValid && !isSubmitting) {
+            console.log("Submitting Label Setup...", { name, email });
+            setIsSubmitting(true);
+            try {
+                await onCompleteSetup(name, bio, email, password, imagePreview, imageFile);
+            } catch (error) {
+                console.error("Error in LabelSetup submit:", error);
+                setIsSubmitting(false); // Reset on error so they can try again
+            }
         } else {
             alert("Please fill in all required fields and agree to the terms and conditions to continue.");
         }
@@ -153,14 +160,14 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
                 </div>
                 <button 
                     type="submit" 
-                    disabled={!isFormValid}
+                    disabled={!isFormValid || isSubmitting}
                     className={`w-full font-bold py-3 px-6 rounded-lg transition-all shadow-lg ${
-                        isFormValid 
+                        isFormValid && !isSubmitting
                         ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/20' 
                         : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
                     }`}
                 >
-                    Complete Profile
+                    {isSubmitting ? 'Creating Profile...' : 'Complete Profile'}
                 </button>
             </form>
         </div>

@@ -148,9 +148,15 @@ const App: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
-            // FIX: Stringify object errors to make them readable in alert
-            const errorMessage = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
-            alert(`Setup failed: ${errorMessage}`);
+            
+            // IMPROVED ERROR HANDLING
+            let errorMessage = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+            
+            if (errorMessage.includes('relation "public.labels" does not exist') || errorMessage.includes('404') || errorMessage.includes('400')) {
+                alert(`CRITICAL ERROR: The database table for "${role}" does not exist yet. \n\nPlease run the SQL command in your Supabase SQL Editor to create the 'labels' table.`);
+            } else {
+                alert(`Setup failed: ${errorMessage}`);
+            }
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
