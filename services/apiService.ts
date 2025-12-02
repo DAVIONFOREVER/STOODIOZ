@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -112,7 +112,7 @@ export const getAllPublicUsers = async (): Promise<{
     };
 };
 
-export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | { email_confirmation_required: boolean } | null> => {
+export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | Label | { email_confirmation_required: boolean } | null> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
 
@@ -172,7 +172,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     }
 
     // 4. Create/Update Public Profile Record
-    // Using Upsert ensures that if the auth user exists but profile was missing, we create it.
     const profileData = {
         id: authUser.id,
         email: userData.email,
@@ -188,23 +187,41 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             amenities: [], 
             rooms: [] 
         }),
+        ...(role === 'LABEL' && {
+            company_name: userData.company_name,
+            contact_phone: userData.contact_phone,
+            website: userData.website,
+            notes: userData.notes,
+            status: 'pending',
+            requires_contact: true,
+            beta_override: false
+        }),
         created_at: new Date().toISOString(),
     };
 
-    const tableMap = {
-        'ARTIST': 'artists',
-        'ENGINEER': 'engineers',
-        'PRODUCER': 'producers',
-        'STOODIO': 'stoodioz'
+    const tableMap: Record<string, string> = {
+        [UserRoleEnum.ARTIST]: 'artists',
+        [UserRoleEnum.ENGINEER]: 'engineers',
+        [UserRoleEnum.PRODUCER]: 'producers',
+        [UserRoleEnum.STOODIO]: 'stoodioz',
+        [UserRoleEnum.LABEL]: 'labels'
     };
 
+    const tableName = tableMap[role];
+    if (!tableName) {
+        throw new Error(`Invalid role for signup: ${role}. Cannot determine target table.`);
+    }
+
     const { data, error } = await supabase
-        .from(tableMap[role])
+        .from(tableName)
         .upsert(profileData)
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error("Profile creation error:", error);
+        throw error;
+    }
     return data;
 };
 
@@ -662,7 +679,8 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
         'PRODUCER': 'producers',
-        'STOODIO': 'stoodioz'
+        'STOODIO': 'stoodioz',
+        'LABEL': 'labels'
     };
     
     const tableName = tableMap[role];
