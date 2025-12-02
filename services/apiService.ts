@@ -52,7 +52,7 @@ export const uploadDocument = async (file: Blob, fileName: string, userId: strin
 export const uploadRoomPhoto = async (file: File, userId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
     const path = `${userId}/rooms/${Date.now()}.${ext}`;
-    return uploadFile(file, 'avatars', path); // reusing avatars bucket or creating a new one 'rooms'
+    return uploadFile(file, 'avatars', path); 
 };
 
 export const uploadBeatFile = async (file: File, userId: string): Promise<string> => {
@@ -78,13 +78,10 @@ export const getAllPublicUsers = async (): Promise<{
     const supabase = getSupabase();
     if (!supabase) return { artists: [], engineers: [], producers: [], stoodioz: [] };
 
-    // Safely query each table individually to prevent one failure from blocking all
     const safeSelect = async (table: string, select: string) => {
         try {
             const { data, error } = await supabase.from(table).select(select);
             if (error) {
-                console.warn(`Error fetching ${table}:`, error.message);
-                // Fallback to basic select if relation select fails
                 if (error.code === 'PGRST200') {
                      const { data: retry } = await supabase.from(table).select('*');
                      return retry || [];
@@ -132,16 +129,16 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     });
 
     if (authError) {
-        // If user already registered, try signing in to recover and FORCE profile creation
+        // If user already registered, try signing in to recover and fix profile
         if (authError.message.includes("already registered") || authError.status === 400 || authError.status === 422) {
-            console.log("User exists, attempting sign-in to repair profile...");
+            console.log("User exists, performing auto-login and profile repair...");
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: userData.email,
                 password: userData.password,
             });
             
             if (signInError) {
-                throw new Error("Account exists, but password was incorrect. Please log in.");
+                throw new Error("Account exists, but password was incorrect.");
             }
             authUser = signInData.user;
             session = signInData.session;
@@ -155,23 +152,21 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (!authUser) throw new Error("No user returned from authentication service");
 
-    // 2. Check if Email Verification is blocking login
-    if (!session && !authUser.email_confirmed_at) {
+    if (!session && !authUser.email_confirmed_at && !authUser.app_metadata?.provider) {
         return { email_confirmation_required: true };
     }
 
-    // 3. Upload Image if provided (Requires active session/RLS)
+    // 2. Upload Image
     let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
     if (userData.imageFile && authUser) {
         try {
             imageUrl = await uploadAvatar(userData.imageFile, authUser.id);
         } catch (e) {
-            console.warn("Avatar upload skipped due to network/auth issue", e);
+            console.warn("Avatar upload skipped", e);
         }
     }
 
-    // 4. Create/Update Public Profile Record
-    // This runs even if the user logged in, ensuring the profile row exists (healing zombie accounts)
+    // 3. Create/Update Profile (Upsert fixes zombie accounts)
     const profileData = {
         id: authUser.id,
         email: userData.email,
@@ -193,9 +188,9 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
-            status: 'active' // FORCE ACTIVE immediately
+            status: 'active'
         }),
-        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
     };
 
     const tableMap: Record<string, string> = {
@@ -207,20 +202,15 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     };
 
     const tableName = tableMap[role];
-    if (!tableName) throw new Error(`Unknown role: ${role}`);
+    if (!tableName) throw new Error(`Invalid role: ${role}`);
 
-    // UPSERT: Create if missing, Update if exists. 
-    // This is the key fix for "Zombie" accounts.
     const { data, error } = await supabase
         .from(tableName)
         .upsert(profileData)
         .select()
         .single();
 
-    if (error) {
-        console.error("Profile creation error:", error);
-        throw error;
-    }
+    if (error) throw error;
     
     return data;
 };
@@ -257,7 +247,6 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio, b
 
     const { data, error } = await supabase.from('bookings').insert(bookingData).select().single();
     if (error) throw error;
-    
     return data;
 };
 
@@ -283,10 +272,7 @@ export const fetchGlobalFeed = async (limit: number, beforeTimestamp?: string): 
         query = query.lt('created_at', beforeTimestamp);
     }
     const { data, error } = await query;
-    if (error) {
-        console.error("Fetch feed error", error);
-        return [];
-    }
+    if (error) return [];
     return (data || []).map((p: any) => ({
         id: p.id,
         authorId: p.author_id,
@@ -330,7 +316,6 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const supabase = getSupabase();
     if (!supabase) throw new Error("No DB");
     
-    // Do NOT send 'id'. Let Supabase generate a valid UUID v4.
     const newPost = {
         author_id: author.id,
         author_type: authorType,
@@ -347,8 +332,7 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const { data, error } = await supabase.from('posts').insert(newPost).select().single();
     if (error) throw error;
     
-    // Map DB result back to app format
-    const formattedPost: Post = {
+    return { updatedAuthor: author, createdPost: {
          id: data.id,
          authorId: data.author_id,
          authorType: data.author_type,
@@ -362,9 +346,7 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
          comments: data.comments || [],
          display_mode: data.display_mode,
          focus_point: data.focus_point
-    };
-
-    return { updatedAuthor: author, createdPost: formattedPost }; 
+    }}; 
 };
 
 export const likePost = async (postId: string, userId: string, author: any) => {
@@ -392,7 +374,6 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
     const { data: post } = await supabase.from('posts').select('comments').eq('id', postId).single();
     if (!post) return { updatedAuthor: postAuthor };
 
-    // Use crypto.randomUUID() for valid UUID generation for comment ID
     const newComment = {
         id: crypto.randomUUID(),
         authorId: commenter.id,
@@ -410,41 +391,23 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
 
 export const toggleFollow = async (currentUser: any, targetUser: any, type: string, isFollowing: boolean) => {
     const supabase = getSupabase();
-    if (!supabase) {
-        console.warn("Supabase disconnected: Follow toggle simulated locally.");
-        return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
-    }
+    if (!supabase) return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
 
-    // 1. Determine Origin User Type (Uppercase for SQL) and Table
     let originUserType = 'ARTIST';
     let originTable = 'artists';
-    
     if ('amenities' in currentUser) { originUserType = 'STOODIO'; originTable = 'stoodioz'; }
     else if ('specialties' in currentUser) { originUserType = 'ENGINEER'; originTable = 'engineers'; }
     else if ('instrumentals' in currentUser) { originUserType = 'PRODUCER'; originTable = 'producers'; }
+    else if ('company_name' in currentUser) { originUserType = 'LABEL'; originTable = 'labels'; }
     
-    // 2. Determine Target Table
-    const targetTableMap: Record<string, string> = {
-        'artist': 'artists',
-        'engineer': 'engineers',
-        'producer': 'producers',
-        'stoodio': 'stoodioz'
-    };
-    const targetTable = targetTableMap[type];
-
-    // 3. Call the Secure Database Function (RPC)
     const { error } = await supabase.rpc('toggle_follow', {
         origin_user_type: originUserType,
         target_user_id: targetUser.id,
-        target_user_type: type // e.g., 'artist', 'engineer'
+        target_user_type: type
     });
 
-    if (error) {
-        console.error("RPC Error during follow:", error);
-        throw error;
-    }
+    if (error) throw error;
 
-    // 4. Send Notification (Only on follow)
     if (!isFollowing) {
         const notification = {
             recipient_id: targetUser.id,
@@ -457,7 +420,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         await supabase.from('notifications').insert(notification);
     }
 
-    // 5. Fetch latest data to update local state seamlessly
     const getSelectQuery = (table: string) => {
         if (table === 'stoodioz') return '*, rooms(*), in_house_engineers(*)';
         if (table === 'engineers') return '*, mixing_samples(*)';
@@ -465,17 +427,16 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         return '*';
     };
 
-    const { data: updatedCurrentUser } = await supabase
-        .from(originTable)
-        .select(getSelectQuery(originTable))
-        .eq('id', currentUser.id)
-        .single();
+    const targetTableMap: Record<string, string> = {
+        'artist': 'artists',
+        'engineer': 'engineers',
+        'producer': 'producers',
+        'stoodio': 'stoodioz'
+    };
+    const targetTable = targetTableMap[type];
 
-    const { data: updatedTargetUser } = await supabase
-        .from(targetTable)
-        .select(getSelectQuery(targetTable))
-        .eq('id', targetUser.id)
-        .single();
+    const { data: updatedCurrentUser } = await supabase.from(originTable).select(getSelectQuery(originTable)).eq('id', currentUser.id).single();
+    const { data: updatedTargetUser } = await supabase.from(targetTable).select(getSelectQuery(targetTable)).eq('id', targetUser.id).single();
 
     return { 
         updatedCurrentUser: updatedCurrentUser || currentUser, 
@@ -483,32 +444,15 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     };
 };
 
-// --- MESSAGING & REVIEWS (NEW REAL IMPL) ---
-
 export const fetchConversations = async (userId: string) => {
     const supabase = getSupabase();
     if (!supabase) return [];
     
-    // Fetch conversations where user is a participant
-    const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .contains('participant_ids', [userId]);
-        
-    if (error) {
-        console.error("Error fetching conversations:", error);
-        return [];
-    }
+    const { data, error } = await supabase.from('conversations').select('*').contains('participant_ids', [userId]);
+    if (error) return [];
     
-    // For each conversation, fetch messages and participant details
     const fullConversations = await Promise.all(data.map(async (convo: any) => {
-        // 1. Get messages
-        const { data: msgs } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('conversation_id', convo.id)
-            .order('created_at', { ascending: true });
-            
+        const { data: msgs } = await supabase.from('messages').select('*').eq('conversation_id', convo.id).order('created_at', { ascending: true });
         const formattedMessages = (msgs || []).map((m: any) => ({
             id: m.id,
             sender_id: m.sender_id,
@@ -520,13 +464,10 @@ export const fetchConversations = async (userId: string) => {
             files: m.file_attachments
         }));
 
-        // 2. Get participants (other than self)
         const otherIds = convo.participant_ids;
         let participants: any[] = [];
-        
         for (const pid of otherIds) {
-             // Try fetching from each table until found. Optimized with Promise.any equivalent logic.
-             const tables = ['artists', 'engineers', 'producers', 'stoodioz'];
+             const tables = ['artists', 'engineers', 'producers', 'stoodioz', 'labels'];
              for(const t of tables) {
                  const { data: pData } = await supabase.from(t).select('id, name, image_url').eq('id', pid).maybeSingle();
                  if(pData) {
@@ -540,10 +481,9 @@ export const fetchConversations = async (userId: string) => {
             id: convo.id,
             participants,
             messages: formattedMessages,
-            unread_count: 0 // TODO: Calc based on read_by array
+            unread_count: 0
         };
     }));
-    
     return fullConversations;
 };
 
@@ -556,7 +496,6 @@ export const sendMessage = async (conversationId: string, senderId: string, cont
         sender_id: senderId,
         content: content,
         message_type: type,
-        // Map fileData to media_url or file_attachments correctly
         media_url: (type === 'image' || type === 'audio') ? fileData?.url : null,
         file_attachments: type === 'files' ? fileData : null
     };
@@ -569,13 +508,7 @@ export const sendMessage = async (conversationId: string, senderId: string, cont
 export const createConversation = async (participantIds: string[]) => {
     const supabase = getSupabase();
     if (!supabase) return null;
-    
-    const { data, error } = await supabase
-        .from('conversations')
-        .insert({ participant_ids: participantIds })
-        .select()
-        .single();
-        
+    const { data, error } = await supabase.from('conversations').insert({ participant_ids: participantIds }).select().single();
     if (error) throw error;
     return data;
 }
@@ -583,13 +516,11 @@ export const createConversation = async (participantIds: string[]) => {
 export const fetchReviews = async () => {
     const supabase = getSupabase();
     if (!supabase) return [];
-    
     const { data, error } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
     if (error) return [];
-    
     return data.map((r: any) => ({
         id: r.id,
-        reviewer_name: 'Anonymous', // In real app, join with user table
+        reviewer_name: 'Anonymous',
         rating: r.rating,
         comment: r.comment,
         date: r.created_at,
@@ -598,8 +529,6 @@ export const fetchReviews = async () => {
         producer_id: r.target_user_id,
     }));
 };
-
-// --- OTHER ---
 
 export const createCheckoutSessionForWallet = async (amount: number, userId: string) => {
     return { sessionId: 'mock_wallet_session' };
@@ -626,7 +555,6 @@ export const purchaseBeat = async (beat: Instrumental, type: 'lease' | 'exclusiv
         producer_id: producer.id,
         instrumentals_purchased: [beat],
     };
-    
     const booking = { id: crypto.randomUUID(), ...bookingData };
     return { updatedBooking: booking as unknown as Booking };
 };
@@ -674,7 +602,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString();
 
-    // 1. Revenue (from wallet_transactions JSONB column)
     const tableMap: Record<string, string> = {
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
@@ -718,7 +645,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     });
     const revenueSources = Array.from(sourceMap.entries()).map(([name, revenue]) => ({ name, revenue }));
 
-    // 2. Bookings
     const { count: bookingsCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
@@ -726,7 +652,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
         .gte('date', startDateStr)
         .eq('status', BookingStatus.CONFIRMED);
     
-    // 3. New Followers
     const { count: newFollowersCount } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -742,7 +667,7 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
             bookings: bookingsCount || 0,
         },
         revenueOverTime,
-        engagementOverTime: [], 
+        engagementOverTime: [],
         revenueSources
     };
 };

@@ -54,11 +54,10 @@ export const useAuth = (navigate: (view: any) => void) => {
                 if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
                 if (table === 'producers') selectQuery = '*, instrumentals(*)';
 
-                // FIX: Use ID from auth data, not email, to find profile. reliable and RLS friendly.
                 let { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
-                    .eq('id', data.user.id) 
+                    .eq('id', data.user.id)
                     .limit(1);
 
                 // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
@@ -166,7 +165,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
         } catch(error: any) {
             console.error("Setup completion error:", error);
-            // Rethrow the error so the UI component can handle it (stop spinner)
+            // Rethrow so the UI knows it failed
             throw error;
         }
     };
