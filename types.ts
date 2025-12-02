@@ -1,4 +1,5 @@
 
+
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -431,7 +432,7 @@ export interface AppNotification {
     read: boolean;
     timestamp: string;
     link?: { view: AppView; entityId?: string };
-    actor?: Artist | Engineer | Stoodio | Producer;
+    actor?: Artist | Engineer | Stoodio | Producer | Label;
 }
 
 export interface AriaActionResponse {

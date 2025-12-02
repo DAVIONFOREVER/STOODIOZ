@@ -1,12 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole, AriaActionResponse, FileAttachment, Label } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label } from '../types';
 import { askAriaCantata } from '../services/geminiService';
 import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
-import { createPdfBytes } from '../lib/pdf';
-import * as apiService from '../services/apiService';
 
 interface AriaCantataAssistantProps {
     isOpen: boolean;
@@ -151,7 +148,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                                 : 'bg-zinc-800 text-zinc-200 rounded-tl-sm border border-zinc-700'
                             }`}>
                                 <p className="whitespace-pre-wrap leading-relaxed">{msg.parts[0].text}</p>
-                                {/* Handle File Attachments if present in model response (simulated via text parsing or extended type) */}
+                                {/* Handle File Attachments if present in model response */}
                                 {msg.files && msg.files.map((file, i) => (
                                     <div key={i} className="mt-3 flex items-center gap-3 bg-black/20 p-2 rounded-lg">
                                         <PaperclipIcon className="w-5 h-5 opacity-70"/>
@@ -159,7 +156,6 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                                             <p className="text-sm font-semibold truncate">{file.name}</p>
                                             <p className="text-xs opacity-70">{file.size}</p>
                                         </div>
-                                        {/* Since rawContent is Uint8Array, create blob url for download */}
                                         <a 
                                             href={file.rawContent ? URL.createObjectURL(new Blob([file.rawContent], {type: 'application/pdf'})) : '#'} 
                                             download={file.name}
