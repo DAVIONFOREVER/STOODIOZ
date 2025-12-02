@@ -141,7 +141,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             });
             
             if (signInError) {
-                throw new Error("Account exists, but password was incorrect.");
+                throw new Error("Account exists, but password was incorrect. Please log in.");
             }
             authUser = signInData.user;
             session = signInData.session;
@@ -171,7 +171,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     }
 
     // 4. Create/Update Public Profile Record
-    // NOTE: This runs even if the user logged in, ensuring the profile row exists.
+    // This runs even if the user logged in, ensuring the profile row exists (healing zombie accounts)
     const profileData = {
         id: authUser.id,
         email: userData.email,
@@ -209,6 +209,8 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     const tableName = tableMap[role];
     if (!tableName) throw new Error(`Unknown role: ${role}`);
 
+    // UPSERT: Create if missing, Update if exists. 
+    // This is the key fix for "Zombie" accounts.
     const { data, error } = await supabase
         .from(tableName)
         .upsert(profileData)

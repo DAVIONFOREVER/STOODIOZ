@@ -166,7 +166,8 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
         } catch(error: any) {
             console.error("Setup completion error:", error);
-            alert(`Signup failed: ${error.message}`);
+            // Rethrow the error so the UI component can handle it (stop spinner)
+            throw error;
         }
     };
 
