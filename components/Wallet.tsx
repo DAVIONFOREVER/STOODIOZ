@@ -1,11 +1,12 @@
+
 import React from 'react';
-import type { Artist, Engineer, Stoodio, Transaction, Producer } from '../types';
+import type { Artist, Engineer, Stoodio, Transaction, Producer, Label } from '../types';
 import { TransactionCategory, TransactionStatus, UserRole } from '../types';
 import { BanknotesIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, CalendarIcon, DollarSignIcon, HeartIcon, PlusCircleIcon, BriefcaseIcon } from './icons';
 import { format } from 'date-fns';
 
 interface WalletProps {
-    user: Artist | Engineer | Stoodio | Producer;
+    user: Artist | Engineer | Stoodio | Producer | Label;
     onAddFunds: () => void;
     onRequestPayout?: () => void;
     onViewBooking: (bookingId: string) => void;

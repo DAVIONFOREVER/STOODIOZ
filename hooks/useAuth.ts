@@ -96,7 +96,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.LABEL) {
-                    // Force navigation to Dashboard for now to unblock users
+                    // Force navigation to Dashboard directly
                     navigate(AppView.LABEL_DASHBOARD);
                 }
 
@@ -152,17 +152,14 @@ export const useAuth = (navigate: (view: any) => void) => {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
                 
                 // Force navigation based on role
-                // Using setTimeout ensures state update propagates before navigation
-                setTimeout(() => {
-                    if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
-                    else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
-                    else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
-                    else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-                    else if (role === UserRoleEnum.LABEL) {
-                        // Directly navigate to dashboard to unblock user flow
-                        navigate(AppView.LABEL_DASHBOARD);
-                    }
-                }, 100);
+                if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (role === UserRoleEnum.LABEL) {
+                    // Force navigation to Dashboard directly
+                    navigate(AppView.LABEL_DASHBOARD);
+                }
             } else {
                 alert("An unknown error occurred during signup.");
             }

@@ -1,8 +1,9 @@
+
 import React from 'react';
-import type { Artist, Engineer, Producer, Stoodio } from '../types';
+import type { Artist, Engineer, Producer, Stoodio, Label } from '../types';
 import { CloseIcon, StarIcon, RoadIcon } from './icons';
 
-type MapUser = Artist | Engineer | Producer | Stoodio;
+type MapUser = Artist | Engineer | Producer | Stoodio | Label;
 
 interface MapInfoPopupProps {
     user: MapUser;
