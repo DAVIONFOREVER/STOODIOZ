@@ -296,9 +296,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
             else if (role === UserRole.LABEL) {
-                const label = user as Label;
-                if (label.beta_override) landingView = AppView.LABEL_DASHBOARD;
-                else landingView = AppView.LABEL_CONTACT_REQUIRED;
+                // ALWAYS send label to dashboard, ignoring beta/contact requirements
+                landingView = AppView.LABEL_DASHBOARD;
             }
             
             return {
@@ -354,9 +353,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
             else if (role === UserRole.LABEL) {
-                const label = newUser as Label;
-                if (label.beta_override) landingView = AppView.LABEL_DASHBOARD;
-                else landingView = AppView.LABEL_CONTACT_REQUIRED;
+                // ALWAYS send label to dashboard
+                landingView = AppView.LABEL_DASHBOARD;
             }
 
             return {
@@ -389,18 +387,13 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookings: [...state.bookings, action.payload.booking] };
         
         case ActionTypes.UPDATE_USERS: {
-            // REINFORCED DEDUPLICATION LOGIC
             const newUsers = action.payload.users;
             const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer>();
             
-            // 1. Populate map with EXISTING state to preserve what we have
-            // This ensures we don't lose users not present in the update
             [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz].forEach(u => {
                 if(u.id) allUsersMap.set(u.id, u);
             });
             
-            // 2. Add/Overwrite with NEW users from the payload
-            // Using a Map guarantees that if an ID exists, it gets overwritten, preventing duplicates.
             newUsers.forEach(u => {
                 if(u.id) allUsersMap.set(u.id, u);
             });
@@ -409,7 +402,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
             const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
 
-            // 3. Re-distribute unique users into their respective arrays based on type guards
             return {
                 ...state,
                 artists: uniqueUsers.filter(u => 'bio' in u && !('specialties' in u) && !('instrumentals' in u)) as Artist[],
@@ -426,7 +418,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.SET_CURRENT_USER:
             return { ...state, currentUser: action.payload.user };
         case ActionTypes.UPDATE_FOLLOWING: {
-            if (!state.currentUser || state.userRole === UserRole.LABEL) return state; // Labels typically don't follow in this model
+            if (!state.currentUser || state.userRole === UserRole.LABEL) return state; 
             const updatedUser = { ...state.currentUser, following: action.payload.newFollowing };
             return { ...state, currentUser: updatedUser as Artist | Engineer | Stoodio | Producer };
         }

@@ -209,8 +209,8 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
-            status: 'pending',
-            requires_contact: true,
+            status: 'active', // Force active
+            requires_contact: false, // Bypass contact requirement
             beta_override: true // FORCE dashboard access
         }),
         updated_at: new Date().toISOString(),
