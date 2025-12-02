@@ -37,7 +37,7 @@ const ChooseProfile: React.FC<ChooseProfileProps> = ({ onSelectRole }) => {
             <p className="max-w-2xl mx-auto mt-4 text-lg text-slate-400">
                 Choose a profile type to get started. This will tailor your experience on the platform.
             </p>
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-1 gap-8">
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <RoleCard
                     icon={<MicrophoneIcon className="w-10 h-10 text-green-400" />}
                     title="Artist"
@@ -62,12 +62,14 @@ const ChooseProfile: React.FC<ChooseProfileProps> = ({ onSelectRole }) => {
                     description="List your recording space, manage your calendar with ease, and connect with a vibrant community of artists and engineers."
                     onClick={() => onSelectRole(UserRole.STOODIO)}
                 />
-                <RoleCard
-                    icon={<BriefcaseIcon className="w-10 h-10 text-blue-400" />}
-                    title="Label / Management"
-                    description="For record labels and management teams. Manage multiple artists, book sessions for your roster, and track expenses."
-                    onClick={() => onSelectRole(UserRole.LABEL)}
-                />
+                <div className="md:col-span-2">
+                    <RoleCard
+                        icon={<BriefcaseIcon className="w-10 h-10 text-blue-400" />}
+                        title="Label / Management"
+                        description="For record labels and management teams. Manage multiple artists, book sessions for your roster, and track expenses."
+                        onClick={() => onSelectRole(UserRole.LABEL)}
+                    />
+                </div>
             </div>
         </div>
     );
