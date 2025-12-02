@@ -133,17 +133,15 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (authError) {
         // If user already registered, try signing in to recover
-        // 422 is "Unprocessable Entity", often returned by Supabase for existing users
         if (authError.message.includes("already registered") || authError.status === 400 || authError.status === 422) {
-            console.log("User exists (422/400), attempting sign-in recovery...");
+            console.log("User exists, attempting sign-in...");
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: userData.email,
                 password: userData.password,
             });
             
             if (signInError) {
-                // If login fails, throw specific error for UI to handle
-                throw new Error("ACCOUNT_EXISTS_LOGIN_FAILED");
+                throw new Error("Account already exists, but login failed. Please check your password.");
             }
             authUser = signInData.user;
             session = signInData.session;
@@ -158,6 +156,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     if (!authUser) throw new Error("No user returned from authentication service");
 
     // 2. Check if Email Verification is blocking login
+    // If we have a user but no session, usually implies email confirmation is on and pending
     if (!session && !authUser.email_confirmed_at) {
         return { email_confirmation_required: true };
     }
@@ -172,22 +171,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }
     }
 
-    // Determine Table Name with strict mapping
-    let tableName: string;
-    switch (role) {
-        case UserRoleEnum.ARTIST: tableName = 'artists'; break;
-        case UserRoleEnum.ENGINEER: tableName = 'engineers'; break;
-        case UserRoleEnum.PRODUCER: tableName = 'producers'; break;
-        case UserRoleEnum.STOODIO: tableName = 'stoodioz'; break;
-        case UserRoleEnum.LABEL: tableName = 'labels'; break;
-        default: 
-            // Fallback for safety, though enum should prevent this
-            tableName = 'artists'; 
-            console.error(`Unknown role ${role}, defaulting to artists table.`);
-    }
-
     // 4. Create/Update Public Profile Record
-    // For Labels, we enforce beta_override = true to ensure dashboard access
     const profileData = {
         id: authUser.id,
         email: userData.email,
@@ -209,25 +193,26 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
-            status: 'active', // Force active
-            requires_contact: false, // Bypass contact requirement
-            beta_override: true // FORCE dashboard access
+            status: 'active'
         }),
-        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
     };
 
-    // Use upsert to handle both creation and updates (recovery)
+    const tableMap = {
+        'ARTIST': 'artists',
+        'ENGINEER': 'engineers',
+        'PRODUCER': 'producers',
+        'STOODIO': 'stoodioz',
+        'LABEL': 'labels'
+    };
+
     const { data, error } = await supabase
-        .from(tableName)
+        .from(tableMap[role])
         .upsert(profileData)
         .select()
         .single();
 
-    if (error) {
-        console.error(`Error inserting/upserting into ${tableName}:`, error);
-        throw error;
-    }
-    
+    if (error) throw error;
     return data;
 };
 

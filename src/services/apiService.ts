@@ -133,7 +133,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (authError) {
         // If user already registered, try signing in to recover
-        if (authError.message.includes("already registered") || authError.status === 400) {
+        if (authError.message.includes("already registered") || authError.status === 400 || authError.status === 422) {
             console.log("User exists, attempting sign-in...");
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: userData.email,
@@ -189,12 +189,11 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }),
         ...(role === 'LABEL' && {
             company_name: userData.company_name,
+            contact_email: userData.email,
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
-            status: 'pending',
-            requires_contact: true,
-            beta_override: false
+            status: 'active'
         }),
         created_at: new Date().toISOString(),
     };

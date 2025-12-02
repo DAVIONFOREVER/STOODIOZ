@@ -96,7 +96,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.LABEL) {
-                    // Force navigation to Dashboard directly
+                    // Direct access to dashboard, bypassing waitlist check
                     navigate(AppView.LABEL_DASHBOARD);
                 }
 
@@ -157,7 +157,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (role === UserRoleEnum.LABEL) {
-                    // Force navigation to Dashboard directly
+                    // Direct access to dashboard, bypassing waitlist check
                     navigate(AppView.LABEL_DASHBOARD);
                 }
             } else {
@@ -165,8 +165,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
         } catch(error: any) {
             console.error("Setup completion error:", error);
-            // Throw error so the UI can catch it and show feedback
-            throw error;
+            alert(`Signup failed: ${error.message}`);
         }
     };
 
