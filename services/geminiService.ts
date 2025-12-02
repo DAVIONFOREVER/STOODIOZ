@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData } from '../types';
+import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label } from '../types';
 import { AppView, UserRole } from '../types';
 
 let ai: GoogleGenAI | null = null;
@@ -166,7 +166,7 @@ export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Pr
 export const askAriaCantata = async (
     history: AriaCantataMessage[],
     question: string,
-    currentUser: Artist | Engineer | Stoodio | Producer | null,
+    currentUser: Artist | Engineer | Stoodio | Producer | Label | null,
     context: {
         artists: Artist[],
         engineers: Engineer[],

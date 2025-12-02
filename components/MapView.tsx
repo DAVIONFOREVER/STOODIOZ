@@ -2,18 +2,18 @@
 // FIX: Removed reference to @types/google.maps as it is not available in the environment.
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, OverlayViewF, DirectionsService, DirectionsRenderer, MarkerF } from '@react-google-maps/api';
-import type { Stoodio, Artist, Engineer, Producer, Booking, Location } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, Location, Label } from '../types';
 import { UserRole, BookingStatus } from '../types';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 import { useNavigation } from '../hooks/useNavigation.ts';
-import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon, UsersIcon } from './icons.tsx';
+import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon, UsersIcon, BriefcaseIcon } from './icons.tsx';
 import MapJobPopup from './MapJobPopup.tsx';
 import MapInfoPopup from './MapInfoPopup.tsx';
 import { getSupabase } from '../lib/supabase.ts';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // --- TYPE DEFINITIONS ---
-type MapUser = Artist | Engineer | Producer | Stoodio;
+type MapUser = Artist | Engineer | Producer | Stoodio | Label;
 type MapJob = Booking & { itemType: 'JOB' };
 type MapItem = MapUser | MapJob;
 type FilterType = 'ALL' | 'STOODIO' | 'ENGINEER' | 'PRODUCER' | 'ARTIST' | 'JOB';
@@ -88,6 +88,7 @@ const MapMarker: React.FC<{
         if ('amenities' in item) return { icon: <HouseIcon className="w-5 h-5 text-red-400" />, bgColor: 'bg-red-900/50', borderColor: 'border-red-500' };
         if ('specialties' in item) return { icon: <SoundWaveIcon className="w-5 h-5 text-orange-400" />, bgColor: 'bg-orange-900/50', borderColor: 'border-orange-500' };
         if ('instrumentals' in item) return { icon: <MusicNoteIcon className="w-5 h-5 text-purple-400" />, bgColor: 'bg-purple-900/50', borderColor: 'border-purple-500' };
+        if ('company_name' in item) return { icon: <BriefcaseIcon className="w-5 h-5 text-blue-400" />, bgColor: 'bg-blue-900/50', borderColor: 'border-blue-500' };
         return { icon: <MicrophoneIcon className="w-5 h-5 text-blue-400" />, bgColor: 'bg-blue-900/50', borderColor: 'border-blue-500' };
     };
 
@@ -210,7 +211,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if (activeFilter === 'ALL' || activeFilter === 'PRODUCER') items.push(...producers);
 
         // Filter visible users based on DB flag
-        let visibleUsers = items.filter(u => u.show_on_map && u.coordinates);
+        let visibleUsers: MapUser[] = items.filter(u => u.show_on_map && u.coordinates);
 
         // Apply realtime updates overrides
         const liveUpdatedUsers = visibleUsers.map(user => {
@@ -227,11 +228,11 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                 liveUpdatedUsers.push({
                     ...currentUser,
                     coordinates: userLocation 
-                });
+                } as MapUser);
             } else {
                 const userIndex = liveUpdatedUsers.findIndex(u => u.id === currentUser.id);
                 if (userIndex !== -1) {
-                    liveUpdatedUsers[userIndex] = { ...liveUpdatedUsers[userIndex], coordinates: userLocation };
+                    liveUpdatedUsers[userIndex] = { ...liveUpdatedUsers[userIndex], coordinates: userLocation } as MapUser;
                 }
             }
         }
@@ -253,6 +254,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
+        else if ('company_name' in user) { 
+            // Labels not currently handled in map selection callbacks in this component prop interface
+            console.log("Selected Label:", user.name);
+        }
         else onSelectArtist(user as Artist);
     };
     

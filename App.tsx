@@ -1,6 +1,6 @@
 
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData } from './types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
@@ -72,8 +72,12 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
 const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
+const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
+const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
+const LabelContactRequired = lazy(() => import('./components/LabelContactRequired.tsx'));
+const LabelPublicProfile = lazy(() => import('./components/LabelPublicProfile.tsx'));
 
-const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | null }> = ({ currentUser }) => {
+const LoadingSpinner: React.FC<{ currentUser: Artist | Engineer | Stoodio | Producer | Label | null }> = ({ currentUser }) => {
     if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
         return (
             <div className="flex justify-center items-center py-20">
@@ -134,14 +138,19 @@ const App: React.FC = () => {
             }
 
             if (result) {
-                const newUser = result as Artist | Engineer | Stoodio | Producer;
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
+                const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
                 
                 // Force navigation based on role
                 if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRole.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (role === UserRole.LABEL) {
+                    const label = newUser as Label;
+                    if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
+                    else navigate(AppView.LABEL_CONTACT_REQUIRED);
+                }
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
@@ -173,7 +182,7 @@ const App: React.FC = () => {
         selectRoleToSetup,
     });
 
-    useRealtimeLocation({ currentUser });
+    useRealtimeLocation({ currentUser: currentUser as any });
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
@@ -205,12 +214,12 @@ const App: React.FC = () => {
 
             const fetchProfiles = async () => {
                 // Check all tables to find where this user exists.
-                // Note: We use maybeSingle() and detailed error checking now to be robust against partial missing data.
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
                     engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
                     artists: { query: '*', role: UserRoleEnum.ARTIST },
+                    labels: { query: '*', role: UserRoleEnum.LABEL },
                 };
                 
                 const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
@@ -219,9 +228,8 @@ const App: React.FC = () => {
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
                         
                         if (error) {
-                             // FALLBACK: If a specific relation is missing/broken (e.g. instrumentals table locked), 
-                             // fallback to basic fetch so the user can still login.
-                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
+                             // FALLBACK: If a specific relation is missing/broken, fallback to basic fetch
+                             console.warn(`Hydration warning for ${tableName}, retrying basic fetch...`, error.message);
                              const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
                              
                              if (!basicError && basicData) {
@@ -260,7 +268,6 @@ const App: React.FC = () => {
                         } 
                     });
                 } else {
-                    // Only dispatch failure if we truly can't find the profile after retries
                     console.warn("User authenticated but profile not found.");
                 }
             } catch (error) {
@@ -302,8 +309,8 @@ const App: React.FC = () => {
 
     useEffect(() => {
         let timerId: number;
-        if (currentUser && userRole) {
-            getAriaNudge(currentUser, userRole).then(nudge => {
+        if (currentUser && userRole && userRole !== UserRole.LABEL) {
+            getAriaNudge(currentUser as any, userRole).then(nudge => {
                 if (nudge) {
                     dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
                     timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
@@ -353,6 +360,14 @@ const App: React.FC = () => {
                 return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.PRODUCER)} onNavigate={navigate} />;
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} />;
+            case AppView.LABEL_SETUP:
+                return <LabelSetup onCompleteSetup={(name, companyName, email, contactPhone, website, notes, password) => completeSetup({ name, company_name: companyName, email, contact_phone: contactPhone, website, notes, password }, UserRole.LABEL)} onNavigate={navigate} />;
+            case AppView.LABEL_DASHBOARD:
+                return <LabelDashboard />;
+            case AppView.LABEL_CONTACT_REQUIRED:
+                return <LabelContactRequired />;
+            case AppView.LABEL_PUBLIC_PROFILE:
+                return <LabelPublicProfile />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -442,7 +457,7 @@ return (
             />
 
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                <Suspense fallback={<LoadingSpinner currentUser={currentUser as any} />}>
                     {renderView()}
                 </Suspense>
             </main>
@@ -506,7 +521,7 @@ return (
                 </Suspense>
             )}
 
-            {currentUser && !isAriaCantataOpen && (
+            {currentUser && !isAriaCantataOpen && userRole !== UserRole.LABEL && (
                 <AriaFAB onClick={handleOpenAriaFromFAB} />
             )}
 

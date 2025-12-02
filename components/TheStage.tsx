@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer } from '../types';
+import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer, Label } from '../types';
 import { AppView, UserRole } from '../types';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
@@ -55,10 +55,10 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     // Combine all users for author lookup, INCLUDING the current user to ensure immediate availability
     const authorsMap = useMemo(() => {
-        const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+        const allUsers: (Artist | Engineer | Stoodio | Producer | Label)[] = [...artists, ...engineers, ...stoodioz, ...producers];
         if (currentUser) allUsers.push(currentUser); 
         
-        const map = new Map<string, Artist | Engineer | Stoodio | Producer>();
+        const map = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
         allUsers.forEach(u => map.set(u.id, u));
         return map;
     }, [artists, engineers, stoodioz, producers, currentUser]);
@@ -83,7 +83,12 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     const { trendingPost, trendingPostAuthor } = useMemo(() => {
         if (posts.length === 0) return { trendingPost: null, trendingPostAuthor: null };
         const trending = [...posts].sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0];
-        return { trendingPost: trending, trendingPostAuthor: authorsMap.get(trending.authorId) };
+        
+        const author = authorsMap.get(trending.authorId);
+        // Only show trending post if author isn't a Label (unless we want labels trending)
+        if (author && 'company_name' in author) return { trendingPost: null, trendingPostAuthor: null };
+
+        return { trendingPost: trending, trendingPostAuthor: author as Artist | Engineer | Stoodio | Producer };
     }, [posts, authorsMap]);
 
     // Infinite Scroll Loader
@@ -175,10 +180,11 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         };
     }, []);
 
-    const handleSelectUser = (user: Artist | Engineer | Stoodio | Producer) => {
+    const handleSelectUser = (user: Artist | Engineer | Stoodio | Producer | Label) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
+        else if ('company_name' in user) { /* Do nothing or navigate to label profile if available */ }
         else onSelectArtist(user as Artist);
     };
 

@@ -1,6 +1,6 @@
 
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
-import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData } from '../types';
+import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData, Label } from '../types';
 import { AppView, UserRole } from '../types';
 
 // --- STATE AND ACTION TYPES ---
@@ -16,7 +16,7 @@ export interface AppState {
     bookings: Booking[];
     conversations: Conversation[];
     notifications: AppNotification[];
-    currentUser: Artist | Engineer | Stoodio | Producer | null;
+    currentUser: Artist | Engineer | Stoodio | Producer | Label | null;
     userRole: UserRole | null;
     loginError: string | null;
     selectedStoodio: Stoodio | null;
@@ -128,10 +128,10 @@ type Payload = {
     [ActionTypes.GO_FORWARD]: undefined;
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
-    [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer, role?: UserRole };
+    [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer | Label, role?: UserRole };
     [ActionTypes.LOGIN_FAILURE]: { error: string };
     [ActionTypes.LOGOUT]: undefined;
-    [ActionTypes.COMPLETE_SETUP]: { newUser: Artist | Engineer | Stoodio | Producer, role: UserRole };
+    [ActionTypes.COMPLETE_SETUP]: { newUser: Artist | Engineer | Stoodio | Producer | Label, role: UserRole };
     [ActionTypes.VIEW_STOODIO_DETAILS]: { stoodio: Stoodio };
     [ActionTypes.VIEW_ARTIST_PROFILE]: { artist: Artist };
     [ActionTypes.VIEW_ENGINEER_PROFILE]: { engineer: Engineer };
@@ -143,7 +143,7 @@ type Payload = {
     [ActionTypes.SET_BOOKINGS]: { bookings: Booking[] };
     [ActionTypes.ADD_BOOKING]: { booking: Booking };
     [ActionTypes.UPDATE_USERS]: { users: (Artist | Engineer | Stoodio | Producer)[] };
-    [ActionTypes.SET_CURRENT_USER]: { user: Artist | Engineer | Stoodio | Producer | null };
+    [ActionTypes.SET_CURRENT_USER]: { user: Artist | Engineer | Stoodio | Producer | Label | null };
     [ActionTypes.UPDATE_FOLLOWING]: { userId: string; newFollowing: Following };
     [ActionTypes.START_SESSION]: { booking: Booking };
     [ActionTypes.END_SESSION]: undefined;
@@ -283,6 +283,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                     role = UserRole.ENGINEER;
                 } else if ('instrumentals' in user) {
                     role = UserRole.PRODUCER;
+                } else if ('company_name' in user) {
+                    role = UserRole.LABEL;
                 } else {
                     role = UserRole.ARTIST;
                 }
@@ -293,6 +295,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
+            else if (role === UserRole.LABEL) {
+                const label = user as Label;
+                if (label.beta_override) landingView = AppView.LABEL_DASHBOARD;
+                else landingView = AppView.LABEL_CONTACT_REQUIRED;
+            }
             
             return {
                 ...state,
@@ -346,6 +353,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
+            else if (role === UserRole.LABEL) {
+                const label = newUser as Label;
+                if (label.beta_override) landingView = AppView.LABEL_DASHBOARD;
+                else landingView = AppView.LABEL_CONTACT_REQUIRED;
+            }
 
             return {
                 ...updatedState,
@@ -414,9 +426,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.SET_CURRENT_USER:
             return { ...state, currentUser: action.payload.user };
         case ActionTypes.UPDATE_FOLLOWING: {
-            if (!state.currentUser) return state;
+            if (!state.currentUser || state.userRole === UserRole.LABEL) return state; // Labels typically don't follow in this model
             const updatedUser = { ...state.currentUser, following: action.payload.newFollowing };
-            return { ...state, currentUser: updatedUser };
+            return { ...state, currentUser: updatedUser as Artist | Engineer | Stoodio | Producer };
         }
         case ActionTypes.START_SESSION:
             return { ...state, activeSession: action.payload.booking };

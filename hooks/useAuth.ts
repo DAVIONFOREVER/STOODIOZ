@@ -3,8 +3,7 @@ import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
-// FIX: Import missing Stoodio type
-import type { UserRole, Artist, Engineer, Stoodio, Producer } from '../types';
+import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { UserRole as UserRoleEnum } from '../types';
 import { getSupabase } from '../lib/supabase';
 
@@ -36,14 +35,15 @@ export const useAuth = (navigate: (view: any) => void) => {
                 'artists': UserRoleEnum.ARTIST,
                 'engineers': UserRoleEnum.ENGINEER,
                 'producers': UserRoleEnum.PRODUCER,
-                'stoodioz': UserRoleEnum.STOODIO
+                'stoodioz': UserRoleEnum.STOODIO,
+                'labels': UserRoleEnum.LABEL
             };
             
             // Prioritize finding specialized roles first. This fixes issues where a user might exist 
             // in multiple tables (rare but possible) or if the fallback logic was too broad.
-            const tables = ['stoodioz', 'producers', 'engineers', 'artists'];
+            const tables = ['stoodioz', 'producers', 'engineers', 'artists', 'labels'];
             
-            let userProfile: Artist | Engineer | Stoodio | Producer | null = null;
+            let userProfile: Artist | Engineer | Stoodio | Producer | Label | null = null;
             let detectedRole: UserRole | undefined;
     
             for (const table of tables) {
@@ -78,14 +78,14 @@ export const useAuth = (navigate: (view: any) => void) => {
 
                 if (profileData && profileData.length > 0) {
                     // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
-                    userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer;
+                    userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer | Label;
                     detectedRole = roleMap[table];
                     break; // Stop searching once found
                 }
             }
     
             if (userProfile && detectedRole) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile, role: detectedRole } });
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile as any, role: detectedRole } });
                 if ('Notification' in window && Notification.permission !== 'denied') {
                     Notification.requestPermission();
                 }
@@ -94,6 +94,12 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.LABEL) {
+                    const label = userProfile as Label;
+                    // Label workflow: check if overridden to skip waitlist
+                    if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
+                    else navigate(AppView.LABEL_CONTACT_REQUIRED);
+                }
 
             } else {
                 console.warn(`Login successful, but no profile found for ${email}. Routing to profile setup.`);
@@ -105,11 +111,7 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // FIX: Navigate away FIRST to unmount dashboard components that might depend on currentUser.
-        // This prevents "white screen" crashes where the UI tries to render data that just got deleted.
         navigate(AppView.LANDING_PAGE);
-
-        // Use a small timeout to ensure the navigation has processed and components unmounted
         setTimeout(async () => {
             try {
                 const supabase = getSupabase();
@@ -117,16 +119,16 @@ export const useAuth = (navigate: (view: any) => void) => {
             } catch (e) {
                 console.warn("Supabase signout error (ignoring):", e);
             }
-            
             dispatch({ type: ActionTypes.LOGOUT });
         }, 100);
     }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {
-        if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
-        else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
-        else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
-        else if (role === 'PRODUCER') navigate(AppView.PRODUCER_SETUP);
+        if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_SETUP);
+        else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_SETUP);
+        else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_SETUP);
+        else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_SETUP);
+        else if (role === UserRoleEnum.LABEL) navigate(AppView.LABEL_SETUP);
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {
@@ -140,16 +142,19 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
 
             if (result) {
-                // Supabase automatically signs the user in after signUp if no verification required,
-                // so we just need to update the application state.
-                const newUser = result as Artist | Engineer | Stoodio | Producer;
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
+                const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
                 
                 // Force navigation based on role
                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (role === UserRoleEnum.LABEL) {
+                    const label = newUser as Label;
+                    if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
+                    else navigate(AppView.LABEL_CONTACT_REQUIRED);
+                }
             } else {
                 alert("An unknown error occurred during signup.");
             }
