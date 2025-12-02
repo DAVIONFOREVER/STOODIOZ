@@ -293,7 +293,7 @@ export interface Label extends BaseUser {
     status?: 'pending' | 'active' | 'disabled';
     requires_contact?: boolean;
     beta_override?: boolean;
-    roster?: string[]; // IDs of artists/engineers on roster
+    roster?: string[];
 }
 
 export interface Room {
