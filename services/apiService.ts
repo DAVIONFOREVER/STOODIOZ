@@ -133,15 +133,17 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (authError) {
         // If user already registered, try signing in to recover
+        // 422 is "Unprocessable Entity", often returned by Supabase for existing users
         if (authError.message.includes("already registered") || authError.status === 400 || authError.status === 422) {
-            console.log("User exists, attempting sign-in...");
+            console.log("User exists (422/400), attempting sign-in recovery...");
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: userData.email,
                 password: userData.password,
             });
             
             if (signInError) {
-                throw new Error("Account already exists, but login failed. Please check your password.");
+                // If login fails, throw specific error for UI to handle
+                throw new Error("ACCOUNT_EXISTS_LOGIN_FAILED");
             }
             authUser = signInData.user;
             session = signInData.session;
@@ -156,7 +158,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     if (!authUser) throw new Error("No user returned from authentication service");
 
     // 2. Check if Email Verification is blocking login
-    // If we have a user but no session, usually implies email confirmation is on and pending
     if (!session && !authUser.email_confirmed_at) {
         return { email_confirmation_required: true };
     }
@@ -171,7 +172,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }
     }
 
-    // Determine Table Name
+    // Determine Table Name with strict mapping
     let tableName: string;
     switch (role) {
         case UserRoleEnum.ARTIST: tableName = 'artists'; break;
@@ -180,10 +181,13 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         case UserRoleEnum.STOODIO: tableName = 'stoodioz'; break;
         case UserRoleEnum.LABEL: tableName = 'labels'; break;
         default: 
-            throw new Error(`Invalid user role: ${role}`);
+            // Fallback for safety, though enum should prevent this
+            tableName = 'artists'; 
+            console.error(`Unknown role ${role}, defaulting to artists table.`);
     }
 
     // 4. Create/Update Public Profile Record
+    // For Labels, we enforce beta_override = true to ensure dashboard access
     const profileData = {
         id: authUser.id,
         email: userData.email,
@@ -201,7 +205,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }),
         ...(role === 'LABEL' && {
             company_name: userData.company_name,
-            contact_email: userData.email, // Ensure this matches schema
+            contact_email: userData.email,
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
@@ -212,7 +216,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         updated_at: new Date().toISOString(),
     };
 
-    // Use upsert to handle both creation and updates (if recovering account)
+    // Use upsert to handle both creation and updates (recovery)
     const { data, error } = await supabase
         .from(tableName)
         .upsert(profileData)
@@ -220,12 +224,10 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         .single();
 
     if (error) {
-        console.error(`Error inserting into ${tableName}:`, error);
+        console.error(`Error inserting/upserting into ${tableName}:`, error);
         throw error;
     }
     
-    // IMPORTANT: If we recovered by logging in, the `data` returned here is the profile.
-    // We must return this profile, NOT the auth user, so the App can use it.
     return data;
 };
 

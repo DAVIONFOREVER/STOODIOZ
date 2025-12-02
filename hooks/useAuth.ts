@@ -57,7 +57,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 let { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
-                    .eq('email', email)
+                    .eq('id', data.user.id) // Use user ID, not email, for consistency
                     .limit(1);
 
                 // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
@@ -66,14 +66,14 @@ export const useAuth = (navigate: (view: any) => void) => {
                     const retry = await supabase
                         .from(table)
                         .select('*')
-                        .eq('email', email)
+                        .eq('id', data.user.id)
                         .limit(1);
                     profileData = retry.data;
                     profileError = retry.error;
                 }
 
                 if (profileError) {
-                    console.error(`Error finding user profile in ${table}:`, profileError);
+                    // Ignore errors, just means user isn't in this table
                     continue;
                 }
 
@@ -152,14 +152,17 @@ export const useAuth = (navigate: (view: any) => void) => {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
                 
                 // Force navigation based on role
-                if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
-                else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
-                else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
-                else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-                else if (role === UserRoleEnum.LABEL) {
-                    // Directly navigate to dashboard to unblock user flow
-                    navigate(AppView.LABEL_DASHBOARD);
-                }
+                // Using setTimeout ensures state update propagates before navigation
+                setTimeout(() => {
+                    if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                    else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                    else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                    else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                    else if (role === UserRoleEnum.LABEL) {
+                        // Directly navigate to dashboard to unblock user flow
+                        navigate(AppView.LABEL_DASHBOARD);
+                    }
+                }, 100);
             } else {
                 alert("An unknown error occurred during signup.");
             }
