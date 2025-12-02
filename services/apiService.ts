@@ -189,6 +189,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         }),
         ...(role === 'LABEL' && {
             company_name: userData.company_name,
+            contact_email: userData.email,
             contact_phone: userData.contact_phone,
             website: userData.website,
             notes: userData.notes,
@@ -199,17 +200,14 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         created_at: new Date().toISOString(),
     };
 
-    const tableMap: Record<string, string> = {
-        [UserRoleEnum.ARTIST]: 'artists',
-        [UserRoleEnum.ENGINEER]: 'engineers',
-        [UserRoleEnum.PRODUCER]: 'producers',
-        [UserRoleEnum.STOODIO]: 'stoodioz',
-        [UserRoleEnum.LABEL]: 'labels'
-    };
-
-    const tableName = tableMap[role];
-    if (!tableName) {
-        throw new Error(`Invalid role for signup: ${role}. Cannot determine target table.`);
+    let tableName: string;
+    switch (role) {
+        case UserRoleEnum.ARTIST: tableName = 'artists'; break;
+        case UserRoleEnum.ENGINEER: tableName = 'engineers'; break;
+        case UserRoleEnum.PRODUCER: tableName = 'producers'; break;
+        case UserRoleEnum.STOODIO: tableName = 'stoodioz'; break;
+        case UserRoleEnum.LABEL: tableName = 'labels'; break;
+        default: throw new Error(`Invalid role for signup: ${role}`);
     }
 
     const { data, error } = await supabase
