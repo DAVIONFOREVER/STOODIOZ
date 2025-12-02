@@ -9,9 +9,12 @@ import { Label } from '../types';
 const LabelPublicProfile: React.FC = () => {
     const { currentUser } = useAppState();
     
-    // NOTE: In a full implementation, `selectedLabel` would be pulled from AppState. 
-    // Since we are adding this iteratively, we check if the current user is viewing their own profile 
-    // or fallback to a mock for the layout demonstration if no specific label is selected in context.
+    // In a real implementation, we would pull the selected label from context (like selectedStoodio)
+    // For this implementation, we will assume the "selected" label is passed via a mechanism 
+    // or fallback to a placeholder if none is selected (similar to how other profile views work).
+    
+    // NOTE: In a full implementation, `selectedLabel` would be added to AppState. 
+    // For now, we will construct a dummy label object if one isn't available, or use currentUser if it fits.
     
     const label: Label = (currentUser && 'company_name' in currentUser) ? (currentUser as Label) : {
         id: 'mock-label-id',
