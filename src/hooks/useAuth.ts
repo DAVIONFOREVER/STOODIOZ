@@ -128,11 +128,11 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {
-        if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
-        else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
-        else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
-        else if (role === 'PRODUCER') navigate(AppView.PRODUCER_SETUP);
-        else if (role === 'LABEL') navigate(AppView.LABEL_SETUP);
+        if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_SETUP);
+        else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_SETUP);
+        else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_SETUP);
+        else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_SETUP);
+        else if (role === UserRoleEnum.LABEL) navigate(AppView.LABEL_SETUP);
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {
