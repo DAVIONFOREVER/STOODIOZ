@@ -12,7 +12,7 @@ interface LabelSetupProps {
         website: string, 
         notes: string,
         password: string
-    ) => void;
+    ) => Promise<void>; // Ensure this returns Promise<void>
     onNavigate: (view: AppView) => void;
 }
 
@@ -36,10 +36,11 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
             setIsSubmitting(true);
             try {
                 await onCompleteSetup(name, companyName, email, contactPhone, website, notes, password);
-            } catch (error) {
-                console.error("Submission error:", error);
-                setIsSubmitting(false);
-                alert("An error occurred. Please try again.");
+                // Navigation happens in useAuth hook upon success
+            } catch (error: any) {
+                console.error("Submission error in component:", error);
+                setIsSubmitting(false); // Enable buttons again
+                alert(`Error creating account: ${error.message || "Unknown error"}`);
             }
         } else {
             alert("Please fill in all required fields marked with * and agree to the terms.");

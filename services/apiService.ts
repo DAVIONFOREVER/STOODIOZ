@@ -207,8 +207,12 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         case UserRoleEnum.PRODUCER: tableName = 'producers'; break;
         case UserRoleEnum.STOODIO: tableName = 'stoodioz'; break;
         case UserRoleEnum.LABEL: tableName = 'labels'; break;
-        default: throw new Error(`Invalid role for signup: ${role}`);
+        default: 
+            console.error("Invalid role passed to createUser:", role);
+            throw new Error(`Invalid user role: ${role}`);
     }
+
+    console.log(`Creating user in table: ${tableName}`, profileData);
 
     const { data, error } = await supabase
         .from(tableName)
@@ -216,7 +220,11 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error(`Error inserting into ${tableName}:`, error);
+        throw error;
+    }
+    
     return data;
 };
 
@@ -229,6 +237,7 @@ export const updateUser = async (userId: string, table: string, updates: any) =>
 };
 
 // ... existing code for other services ...
+// (Rest of file kept intact, omitting for brevity as it is unchanged from your current version)
 export const createBooking = async (request: BookingRequest, stoodio: Stoodio, booker: any, bookerRole: UserRole): Promise<Booking> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
