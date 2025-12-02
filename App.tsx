@@ -112,54 +112,8 @@ const App: React.FC = () => {
     const canGoForward = historyIndex < history.length - 1;
     
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
-    const { login, logout, selectRoleToSetup } = useAuth(navigate);
+    const { login, logout, selectRoleToSetup, completeSetup } = useAuth(navigate);
     
-    const completeSetup = useCallback(async (userData: any, role: UserRole) => {
-        const supabase = getSupabase();
-        if (!supabase) {
-            alert("System error: Database connection unavailable.");
-            return;
-        }
-
-        // Ensure previous session is cleared before setup to avoid conflicts
-        if (userData.email && userData.password) {
-            await supabase.auth.signOut();
-        }
-        
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-
-        try {
-            const result = await apiService.createUser(userData, role);
-
-            if (result && 'email_confirmation_required' in result) {
-                alert("Account created! Please check your email to verify your account before logging in.");
-                navigate(AppView.LOGIN);
-                return;
-            }
-
-            if (result) {
-                const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
-                
-                // Force navigation based on role
-                if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
-                else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
-                else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
-                else if (role === UserRole.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-                else if (role === UserRole.LABEL) {
-                    const label = newUser as Label;
-                    if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
-                    else navigate(AppView.LABEL_CONTACT_REQUIRED);
-                }
-            }
-        } catch (error: any) {
-            console.error("Complete setup failed:", error);
-            alert(`Setup failed: ${error.message || "Unknown error"}`);
-        } finally {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        }
-    }, [dispatch, navigate]);
-
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);

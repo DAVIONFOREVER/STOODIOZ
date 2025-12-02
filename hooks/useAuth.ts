@@ -39,8 +39,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 'labels': UserRoleEnum.LABEL
             };
             
-            // Prioritize finding specialized roles first. This fixes issues where a user might exist 
-            // in multiple tables (rare but possible) or if the fallback logic was too broad.
+            // Prioritize finding specialized roles first.
             const tables = ['stoodioz', 'producers', 'engineers', 'artists', 'labels'];
             
             let userProfile: Artist | Engineer | Stoodio | Producer | Label | null = null;
@@ -59,36 +58,22 @@ export const useAuth = (navigate: (view: any) => void) => {
                     .eq('email', email)
                     .limit(1);
 
-                // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
-                if (profileError) {
-                    console.warn(`Complex fetch failed for ${table}, retrying basic...`);
-                    const retry = await supabase
-                        .from(table)
-                        .select('*')
-                        .eq('email', email)
-                        .limit(1);
+                if (profileError && profileError.code !== 'PGRST116') {
+                    // Try basic fallback if complex query fails
+                    const retry = await supabase.from(table).select('*').eq('email', email).limit(1);
                     profileData = retry.data;
-                    profileError = retry.error;
-                }
-
-                if (profileError) {
-                    console.error(`Error finding user profile in ${table}:`, profileError);
-                    continue;
                 }
 
                 if (profileData && profileData.length > 0) {
-                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
                     userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer | Label;
                     detectedRole = roleMap[table];
-                    break; // Stop searching once found
+                    break;
                 }
             }
     
             if (userProfile && detectedRole) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile as any, role: detectedRole } });
-                if ('Notification' in window && Notification.permission !== 'denied') {
-                    Notification.requestPermission();
-                }
+                
                 // Explicitly navigate based on detected role
                 if (detectedRole === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
@@ -96,7 +81,6 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.LABEL) {
                     const label = userProfile as Label;
-                    // Label workflow: check if overridden to skip waitlist
                     if (label.beta_override) navigate(AppView.LABEL_DASHBOARD);
                     else navigate(AppView.LABEL_CONTACT_REQUIRED);
                 }
@@ -124,11 +108,12 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {
+        // Ensure exact string matching for the enum
         if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_SETUP);
         else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_SETUP);
         else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_SETUP);
         else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_SETUP);
-        else if (role === UserRoleEnum.LABEL) navigate(AppView.LABEL_SETUP);
+        else if (role === 'LABEL' || role === UserRoleEnum.LABEL) navigate(AppView.LABEL_SETUP);
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {
@@ -145,7 +130,6 @@ export const useAuth = (navigate: (view: any) => void) => {
                 const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: newUser as any, role } });
                 
-                // Force navigation based on role
                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);

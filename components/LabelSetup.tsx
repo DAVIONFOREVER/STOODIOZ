@@ -35,13 +35,11 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
         if (isFormValid) {
             setIsSubmitting(true);
             try {
-                // Determine if we need to wait or just fire and forget (depends on parent implementation)
-                // We'll assume the parent handles navigation away on success.
                 await onCompleteSetup(name, companyName, email, contactPhone, website, notes, password);
             } catch (error) {
                 console.error("Submission error:", error);
-                setIsSubmitting(false); // Only stop loading on error, otherwise we unmount
-                alert("An error occurred during account creation. Please try again.");
+                setIsSubmitting(false);
+                alert("An error occurred. Please try again.");
             }
         } else {
             alert("Please fill in all required fields marked with * and agree to the terms.");
