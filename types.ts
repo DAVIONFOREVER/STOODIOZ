@@ -9,6 +9,10 @@ export enum AppView {
     ENGINEER_SETUP = 'ENGINEER_SETUP',
     PRODUCER_SETUP = 'PRODUCER_SETUP',
     STOODIO_SETUP = 'STOODIO_SETUP',
+    LABEL_SETUP = 'LABEL_SETUP',
+    LABEL_DASHBOARD = 'LABEL_DASHBOARD',
+    LABEL_CONTACT_REQUIRED = 'LABEL_CONTACT_REQUIRED',
+    LABEL_PUBLIC_PROFILE = 'LABEL_PUBLIC_PROFILE',
     PRIVACY_POLICY = 'PRIVACY_POLICY',
     SUBSCRIPTION_PLANS = 'SUBSCRIPTION_PLANS',
     STOODIO_LIST = 'STOODIO_LIST',
@@ -41,6 +45,7 @@ export enum UserRole {
     ENGINEER = 'ENGINEER',
     PRODUCER = 'PRODUCER',
     STOODIO = 'STOODIO',
+    LABEL = 'LABEL',
 }
 
 export enum VerificationStatus {
@@ -279,6 +284,18 @@ export interface Producer extends BaseUser {
     availability?: { date: string, times: string[] }[];
 }
 
+export interface Label extends BaseUser {
+    company_name?: string;
+    contact_email?: string;
+    contact_phone?: string;
+    website?: string;
+    notes?: string;
+    status?: 'pending' | 'active' | 'disabled';
+    requires_contact?: boolean;
+    beta_override?: boolean;
+    roster?: string[]; // IDs of artists/engineers on roster
+}
+
 export interface Room {
     id: string;
     name: string;
@@ -375,7 +392,7 @@ export interface Message {
 
 export interface Conversation {
     id: string;
-    participants: (Artist | Stoodio | Engineer | Producer)[];
+    participants: (Artist | Stoodio | Engineer | Producer | Label)[];
     messages: Message[];
     unread_count: number;
     title?: string;

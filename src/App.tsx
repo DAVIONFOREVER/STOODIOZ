@@ -249,6 +249,7 @@ const App: React.FC = () => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
             } else if (event === 'SIGNED_IN' && session?.user) {
+                // Only fetch if current user is not set or different
                 if (!currentUser || currentUser.id !== session.user.id) {
                     await fetchAndHydrateUser(session.user.id);
                 }

@@ -227,18 +227,6 @@ export interface BaseUser {
     purchased_masterclass_ids?: string[];
 }
 
-export interface Label extends BaseUser {
-    company_name?: string;
-    contact_email?: string;
-    contact_phone?: string;
-    website?: string;
-    notes?: string;
-    status?: 'pending' | 'active' | 'disabled';
-    requires_contact?: boolean;
-    beta_override?: boolean;
-    roster?: string[]; // IDs of artists/engineers on roster
-}
-
 export interface Artist extends BaseUser {
     bio: string;
     is_seeking_session: boolean;
@@ -294,6 +282,18 @@ export interface Producer extends BaseUser {
     is_available: boolean;
     masterclass?: Masterclass;
     availability?: { date: string, times: string[] }[];
+}
+
+export interface Label extends BaseUser {
+    company_name?: string;
+    contact_email?: string;
+    contact_phone?: string;
+    website?: string;
+    notes?: string;
+    status?: 'pending' | 'active' | 'disabled';
+    requires_contact?: boolean;
+    beta_override?: boolean;
+    roster?: string[]; // IDs of artists/engineers on roster
 }
 
 export interface Room {
