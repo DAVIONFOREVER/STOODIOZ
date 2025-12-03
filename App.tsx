@@ -374,7 +374,7 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup onNavigate={navigate} />;
+                return <LabelSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.LABEL)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:

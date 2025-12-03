@@ -68,7 +68,7 @@ export const useProfile = () => {
             if (error) throw error;
             if (data) {
                 // Cast to correct type and update
-                const refreshedUser = data as Artist | Engineer | Stoodio | Producer | Label;
+                const refreshedUser = data as unknown as Artist | Engineer | Stoodio | Producer | Label;
                 // We also need to update this user in the larger lists (engineers, stoodioz, etc)
                 const updatedUsers = allUsers.map(u => u.id === refreshedUser.id ? refreshedUser : u);
                 

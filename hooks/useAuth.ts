@@ -34,6 +34,28 @@ export const useAuth = (navigate: (view: any) => void) => {
         if (data.user) {
             const userId = data.user.id; // CRITICAL: Use ID, not email, to find the profile
             
+            const { data: profileRole } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', userId)
+                .single();
+
+            if (profileRole?.role === 'LABEL') {
+                const { data: labelProfile } = await supabase
+                    .from('labels')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+
+                dispatch({
+                    type: ActionTypes.LOGIN_SUCCESS,
+                    payload: { user: labelProfile, role: UserRoleEnum.LABEL }
+                });
+
+                navigate(AppView.LABEL_DASHBOARD);
+                return;
+            }
+            
             const roleMap: Record<string, UserRole> = {
                 'artists': UserRoleEnum.ARTIST,
                 'engineers': UserRoleEnum.ENGINEER,
@@ -128,12 +150,24 @@ export const useAuth = (navigate: (view: any) => void) => {
         }, 50);
     }, [dispatch, navigate]);
 
-    const selectRoleToSetup = useCallback((role: UserRole) => {
+    const selectRoleToSetup = useCallback(async (role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
         else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
         else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
         else if (role === 'PRODUCER') navigate(AppView.PRODUCER_SETUP);
-        else if (role === 'LABEL') navigate(AppView.LABEL_SETUP);
+        else if (role === 'LABEL') {
+            const supabase = getSupabase();
+            const authUser = await (supabase as any).auth.getUser();
+
+            if (authUser?.data?.user?.id) {
+                await (supabase as any)
+                    .from('profiles')
+                    .update({ role: 'LABEL' })
+                    .eq('id', authUser.data.user.id);
+            }
+
+            navigate(AppView.LABEL_SETUP);
+        }
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {

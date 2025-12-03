@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { AppView } from '../types';
 import { PhotoIcon } from './icons';
@@ -6,15 +5,17 @@ import { getSupabase } from '../lib/supabase';
 
 interface LabelSetupProps {
     onNavigate: (view: AppView) => void;
+    onCompleteSetup: (name: string, bio: string, email: string, password: string, imageUrl: string | null, imageFile: File | null) => Promise<void>;
 }
 
 const supabase = getSupabase();
 
-const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate }) => {
+const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) => {
     const [labelName, setLabelName] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [contactEmail, setContactEmail] = useState('');
     const [contactPhone, setContactPhone] = useState('');
+    const [password, setPassword] = useState('');
     const [website, setWebsite] = useState('');
     const [notes, setNotes] = useState('');
 
@@ -67,43 +68,15 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate }) => {
         setError(null);
 
         try {
-            if (!supabase) throw new Error("Supabase client not initialized");
+            await onCompleteSetup(
+                labelName,
+                notes,
+                contactEmail,
+                password,
+                imagePreview,
+                imageFile
+            );
 
-            // Get the current authenticated user
-            const {
-                data: { user },
-                error: userError,
-            } = await (supabase.auth as any).getUser();
-
-            if (userError || !user) {
-                throw new Error('You must be logged in as a label user to complete setup.');
-            }
-
-            const userId = user.id;
-            const emailFallback = user.email ?? '';
-
-            const logoUrl = await uploadLogo(userId);
-
-            const { error: insertError } = await supabase
-                .from('labels')
-                .insert({
-                    id: userId, // label id = auth.users.id
-                    label_name: labelName,
-                    company_name: companyName,
-                    contact_email: contactEmail || emailFallback,
-                    contact_phone: contactPhone,
-                    website,
-                    notes,
-                    logo_url: logoUrl,
-                    status: 'pending',
-                    requires_contact: true,
-                });
-
-            if (insertError) {
-                throw insertError;
-            }
-
-            // On success, go straight to label dashboard
             onNavigate(AppView.LABEL_DASHBOARD);
         } catch (err: any) {
             console.error('Label setup failed:', err);
@@ -115,7 +88,8 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate }) => {
     const isFormValid =
         labelName.trim().length > 0 &&
         contactEmail.trim().length > 0 &&
-        contactPhone.trim().length > 0;
+        contactPhone.trim().length > 0 &&
+        password.trim().length > 0;
 
     return (
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
@@ -223,6 +197,21 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate }) => {
                         onChange={(e) => setContactPhone(e.target.value)}
                         className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
                         placeholder="(555) 123-4567"
+                        required
+                    />
+                </div>
+
+                {/* Password */}
+                <div>
+                    <label className="block text-sm text-zinc-300 mb-1">
+                        Password <span className="text-orange-500">*</span>
+                    </label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                        placeholder="••••••••"
                         required
                     />
                 </div>

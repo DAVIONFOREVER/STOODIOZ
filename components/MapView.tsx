@@ -296,21 +296,21 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
                 {/* Show blue dot for self when not broadcasting publicly, or when navigating */}
                 {userLocation && (
-                    <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={getPixelPositionOffset}>
+                    <OverlayViewF position={{ lat: userLocation.lat, lng: userLocation.lon }} mapPaneName="overlayMouseTarget" getPixelPositionOffset={getPixelPositionOffset}>
                         <UserMarker />
                     </OverlayViewF>
                 )}
 
                 {mapItems.map(item => (
                     item.coordinates && (
-                         <OverlayViewF key={item.id} position={{ lat: item.coordinates.lat, lng: item.coordinates.lon }} mapPaneName={OverlayViewF.OVERLAY_MOUSE_TARGET} getPixelPositionOffset={() => getPixelPositionOffset(40,40)}>
+                         <OverlayViewF key={item.id} position={{ lat: item.coordinates.lat, lng: item.coordinates.lon }} mapPaneName="overlayMouseTarget" getPixelPositionOffset={() => getPixelPositionOffset(40,40)}>
                             <MapMarker item={item} onClick={handleMarkerClick} />
                         </OverlayViewF>
                     )
                 ))}
                 
                 {selectedItem && selectedItem.coordinates && (
-                    <OverlayViewF position={{ lat: selectedItem.coordinates.lat, lng: selectedItem.coordinates.lon }} mapPaneName={OverlayViewF.FLOAT_PANE} getPixelPositionOffset={() => ({ x: 0, y: 0 })}>
+                    <OverlayViewF position={{ lat: selectedItem.coordinates.lat, lng: selectedItem.coordinates.lon }} mapPaneName="floatPane" getPixelPositionOffset={() => ({ x: 0, y: 0 })}>
                         {'itemType' in selectedItem && selectedItem.itemType === 'JOB' ? (
                              <MapJobPopup job={selectedItem as Booking & { itemType: 'JOB' }} onClose={() => setSelectedItem(null)} />
                         ) : (
