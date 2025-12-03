@@ -20,7 +20,7 @@ export const useAuth = (navigate: (view: any) => void) => {
              return;
         }
 
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await (supabase.auth as any).signInWithPassword({
             email,
             password,
         });
@@ -119,7 +119,7 @@ export const useAuth = (navigate: (view: any) => void) => {
         setTimeout(async () => {
             try {
                 const supabase = getSupabase();
-                if (supabase) await supabase.auth.signOut();
+                if (supabase) await (supabase.auth as any).signOut();
             } catch (e) {
                 console.warn("Supabase signout error (ignoring):", e);
             }

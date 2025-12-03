@@ -1,20 +1,22 @@
+
 import React, { useState, useRef } from 'react';
 import { AppView } from '../types';
 import { PhotoIcon } from './icons';
+import { getSupabase } from '../lib/supabase';
 
 interface LabelSetupProps {
-    onCompleteSetup: (name: string, bio: string, email: string, password: string, imageUrl: string | null, imageFile: File | null) => Promise<void>;
     onNavigate: (view: AppView) => void;
 }
 
-const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) => {
+const supabase = getSupabase();
+
+const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate }) => {
     const [labelName, setLabelName] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [contactEmail, setContactEmail] = useState('');
     const [contactPhone, setContactPhone] = useState('');
     const [website, setWebsite] = useState('');
     const [notes, setNotes] = useState('');
-    const [password, setPassword] = useState(''); // Added for registration
 
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -35,6 +37,28 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
         reader.readAsDataURL(file);
     };
 
+    const uploadLogo = async (userId: string) => {
+        if (!imageFile || !supabase) return null;
+
+        const fileExt = imageFile.name.split('.').pop();
+        const filePath = `label-logos/${userId}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('label-assets')
+            .upload(filePath, imageFile, { upsert: true });
+
+        if (uploadError) {
+            console.error('Logo upload failed:', uploadError);
+            return null;
+        }
+
+        const { data } = supabase.storage
+            .from('label-assets')
+            .getPublicUrl(filePath);
+
+        return data?.publicUrl ?? null;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (submitting) return;
@@ -43,32 +67,55 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
         setError(null);
 
         try {
-            // We combine these specific fields into the 'bio' for the initial user creation
-            // to ensure they are saved to the profile without needing to modify the core API signature yet.
-            const richBio = JSON.stringify({
-                notes: notes,
-                company: companyName,
-                phone: contactPhone,
-                website: website
-            });
+            if (!supabase) throw new Error("Supabase client not initialized");
 
-            // Call the parent handler to create Auth user and Profile
-            await onCompleteSetup(
-                labelName,
-                richBio, // Saving extra data in bio field for now
-                contactEmail,
-                password,
-                imagePreview,
-                imageFile
-            );
-            
-            // Navigation happens in App.tsx on success
+            // Get the current authenticated user
+            const {
+                data: { user },
+                error: userError,
+            } = await (supabase.auth as any).getUser();
+
+            if (userError || !user) {
+                throw new Error('You must be logged in as a label user to complete setup.');
+            }
+
+            const userId = user.id;
+            const emailFallback = user.email ?? '';
+
+            const logoUrl = await uploadLogo(userId);
+
+            const { error: insertError } = await supabase
+                .from('labels')
+                .insert({
+                    id: userId, // label id = auth.users.id
+                    label_name: labelName,
+                    company_name: companyName,
+                    contact_email: contactEmail || emailFallback,
+                    contact_phone: contactPhone,
+                    website,
+                    notes,
+                    logo_url: logoUrl,
+                    status: 'pending',
+                    requires_contact: true,
+                });
+
+            if (insertError) {
+                throw insertError;
+            }
+
+            // On success, go straight to label dashboard
+            onNavigate(AppView.LABEL_DASHBOARD);
         } catch (err: any) {
-            console.error("Label setup failed:", err);
-            setError(err.message || "Failed to save label profile.");
+            console.error('Label setup failed:', err);
+            setError(err.message || 'Failed to save label profile.');
             setSubmitting(false);
         }
     };
+
+    const isFormValid =
+        labelName.trim().length > 0 &&
+        contactEmail.trim().length > 0 &&
+        contactPhone.trim().length > 0;
 
     return (
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
@@ -80,14 +127,13 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                
                 {/* Logo */}
                 <div>
                     <label className="block text-sm text-zinc-300 mb-2">Label Logo</label>
                     <div className="flex items-center gap-4">
                         <div className="w-24 h-24 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
                             {imagePreview ? (
-                                <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                                <img src={imagePreview} className="w-full h-full object-cover" />
                             ) : (
                                 <PhotoIcon className="w-10 h-10 text-zinc-500" />
                             )}
@@ -166,22 +212,6 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
                     />
                 </div>
 
-                {/* Password (Required for new accounts) */}
-                <div>
-                    <label className="block text-sm text-zinc-300 mb-1">
-                        Password <span className="text-orange-500">*</span>
-                    </label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
-                        placeholder="••••••••"
-                        required
-                        autoComplete="new-password"
-                    />
-                </div>
-
                 {/* Contact Phone */}
                 <div>
                     <label className="block text-sm text-zinc-300 mb-1">
@@ -210,18 +240,14 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
                 </div>
 
                 {/* Error */}
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg">
-                        <p className="text-red-400 text-sm font-semibold">Error: {error}</p>
-                    </div>
-                )}
+                {error && <p className="text-red-400 text-sm">{error}</p>}
 
                 {/* Submit */}
                 <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={submitting || !isFormValid}
                     className={`w-full py-3 rounded-lg font-bold transition ${
-                        submitting
+                        submitting || !isFormValid
                             ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
                             : 'bg-orange-500 text-white hover:bg-orange-600'
                     }`}

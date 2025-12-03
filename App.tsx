@@ -1,10 +1,8 @@
-
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
-import type { Session } from '@supabase/supabase-js';
 
 // Import Custom Hooks
 import { useNavigation } from './hooks/useNavigation.ts';
@@ -121,7 +119,7 @@ const App: React.FC = () => {
 
         // Ensure previous session is cleared before setup to avoid conflicts
         if (userData.email && userData.password) {
-            await supabase.auth.signOut();
+            await (supabase.auth as any).signOut();
         }
         
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -295,7 +293,7 @@ const App: React.FC = () => {
 
         // 1. Immediate Session Check on Mount (Fixes Refresh Logout)
         const initSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
                 await fetchAndHydrateUser(session.user.id);
             } else {
@@ -306,7 +304,7 @@ const App: React.FC = () => {
         initSession();
 
         // 2. Listen for Auth Changes (Login, Logout, etc.)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
             } else if (event === 'SIGNED_IN' && session?.user) {
@@ -376,7 +374,7 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.LABEL)} onNavigate={navigate} />;
+                return <LabelSetup onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:

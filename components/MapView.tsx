@@ -10,7 +10,6 @@ import { HouseIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, DollarSignIcon
 import MapJobPopup from './MapJobPopup.tsx';
 import MapInfoPopup from './MapInfoPopup.tsx';
 import { getSupabase } from '../lib/supabase.ts';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio | Label;
@@ -129,7 +128,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const [directionsOrigin, setDirectionsOrigin] = useState<Location | null>(null);
     const [directionsDestination, setDirectionsDestination] = useState<Location | null>(null);
     const [realtimeLocations, setRealtimeLocations] = useState<Map<string, Location>>(new Map());
-    const channelRef = useRef<RealtimeChannel | null>(null);
+    const channelRef = useRef<any | null>(null);
 
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',

@@ -2,7 +2,6 @@
 import { useEffect, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Location, Label } from '../types';
 import { getSupabase } from '../lib/supabase';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseRealtimeLocationProps {
     currentUser: Artist | Engineer | Stoodio | Producer | Label | null;
@@ -12,7 +11,7 @@ const LOCATION_CHANNEL = 'public:locations';
 
 export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) => {
     const watchIdRef = useRef<number | null>(null);
-    const channelRef = useRef<RealtimeChannel | null>(null);
+    const channelRef = useRef<any | null>(null);
 
     useEffect(() => {
         const supabase = getSupabase();
