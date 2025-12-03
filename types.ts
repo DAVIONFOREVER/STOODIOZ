@@ -12,6 +12,7 @@ export enum AppView {
     STOODIO_SETUP = 'STOODIO_SETUP',
     VIDEOGRAPHER_SETUP = 'VIDEOGRAPHER_SETUP',
     LABEL_SETUP = 'LABEL_SETUP',
+    LABEL_SCOUTING = 'LABEL_SCOUTING',
     PRIVACY_POLICY = 'PRIVACY_POLICY',
     SUBSCRIPTION_PLANS = 'SUBSCRIPTION_PLANS',
     STOODIO_LIST = 'STOODIO_LIST',
@@ -476,4 +477,21 @@ export interface AriaNudgeData {
         type: 'OPEN_MODAL' | 'NAVIGATE_DASHBOARD_TAB';
         payload: string;
     };
+}
+
+export interface ArtistScoutingData {
+    id: string;
+    name: string;
+    image_url: string | null;
+    city: string | null;
+    genre: string[];
+    followers: number;
+    growth_30d: number;
+    engagement_score: number; 
+}
+
+export interface AandRNote {
+    artist_id: string;
+    note: string;
+    created_at: string;
 }

@@ -60,6 +60,7 @@ const ProducerSetup = lazy(() => import('./components/ProducerSetup.tsx'));
 const StoodioSetup = lazy(() => import('./components/StoodioSetup.tsx'));
 const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
+const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
 const Login = lazy(() => import('./components/Login.tsx'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.tsx'));
 const TheStage = lazy(() => import('./components/TheStage.tsx'));
@@ -435,6 +436,8 @@ const App: React.FC = () => {
                 return <ProducerDashboard />;
             case AppView.LABEL_DASHBOARD:
                 return <LabelDashboard />;
+            case AppView.LABEL_SCOUTING:
+                return <LabelScouting onNavigate={navigate} />;
             case AppView.ACTIVE_SESSION:
                 return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
             case AppView.ADMIN_RANKINGS:
