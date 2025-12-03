@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { AppView } from '../types';
-import { PhotoIcon, CloseCircleIcon } from './icons';
+import { PhotoIcon } from './icons';
 
 interface LabelSetupProps {
     onCompleteSetup: (name: string, bio: string, email: string, password: string, imageUrl: string | null, imageFile: File | null) => Promise<void>;
@@ -14,256 +14,219 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onCompleteSetup, onNavigate }) 
     const [contactPhone, setContactPhone] = useState('');
     const [website, setWebsite] = useState('');
     const [notes, setNotes] = useState('');
-    const [password, setPassword] = useState('');
-    
-    const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [password, setPassword] = useState(''); // Added for registration
+
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const triggerUpload = () => fileInputRef.current?.click();
+
+    const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            setImageFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
+        if (!file) return;
+        setImageFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setImagePreview(reader.result as string);
+        reader.readAsDataURL(file);
     };
-
-    const triggerFileInput = () => fileInputRef.current?.click();
-
-    const isFormValid = labelName.trim().length > 0 && 
-                        contactEmail.trim().length > 0 && 
-                        contactPhone.trim().length > 0 && 
-                        password.trim().length > 0 && 
-                        agreedToTerms;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isFormValid || isSubmitting) return;
+        if (submitting) return;
 
-        setIsSubmitting(true);
+        setSubmitting(true);
         setError(null);
 
         try {
-            // Combine extra fields into bio since the current API signature is fixed.
-            // This ensures all data is captured until the backend schema is formally expanded.
-            const combinedBio = `
-${notes || ''}
+            // We combine these specific fields into the 'bio' for the initial user creation
+            // to ensure they are saved to the profile without needing to modify the core API signature yet.
+            const richBio = JSON.stringify({
+                notes: notes,
+                company: companyName,
+                phone: contactPhone,
+                website: website
+            });
 
----
-Company: ${companyName}
-Phone: ${contactPhone}
-Website: ${website}
-`.trim();
-
+            // Call the parent handler to create Auth user and Profile
             await onCompleteSetup(
-                labelName, 
-                combinedBio, 
-                contactEmail, 
-                password, 
-                imagePreview, 
+                labelName,
+                richBio, // Saving extra data in bio field for now
+                contactEmail,
+                password,
+                imagePreview,
                 imageFile
             );
+            
+            // Navigation happens in App.tsx on success
         } catch (err: any) {
-            console.error("Error in LabelSetup submit:", err);
-            setIsSubmitting(false);
-            setError(err.message || "Failed to create profile. Please try again.");
+            console.error("Label setup failed:", err);
+            setError(err.message || "Failed to save label profile.");
+            setSubmitting(false);
         }
     };
-    
+
     return (
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
             <h1 className="text-4xl font-extrabold text-center mb-2 text-zinc-100">
-                Label <span className="text-orange-400">Registration</span>
+                Label <span className="text-orange-400">Setup</span>
             </h1>
             <p className="text-center text-zinc-400 mb-8">
-                Register your label or management company to oversee your roster.
+                Complete your label profile to unlock your dashboard.
             </p>
-            
-            <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-                {/* Logo Upload */}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                
+                {/* Logo */}
                 <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">Label Logo</label>
-                    <div className="mt-2 flex items-center gap-4">
-                        <div className="w-24 h-24 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border-2 border-zinc-700">
+                    <label className="block text-sm text-zinc-300 mb-2">Label Logo</label>
+                    <div className="flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
                             {imagePreview ? (
-                                <img src={imagePreview} alt="Logo preview" className="w-full h-full object-cover" />
+                                <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
                             ) : (
                                 <PhotoIcon className="w-10 h-10 text-zinc-500" />
                             )}
                         </div>
+
                         <button
                             type="button"
-                            onClick={triggerFileInput}
-                            className="px-4 py-2 text-sm font-semibold bg-zinc-700 text-zinc-200 rounded-lg hover:bg-zinc-600 transition-colors"
+                            onClick={triggerUpload}
+                            className="px-4 py-2 bg-zinc-700 text-zinc-200 rounded-lg hover:bg-zinc-600 transition"
                         >
                             Upload Logo
                         </button>
+
                         <input
-                            type="file"
                             ref={fileInputRef}
-                            onChange={handleImageChange}
+                            type="file"
                             className="hidden"
                             accept="image/*"
+                            onChange={handleImage}
                         />
                     </div>
                 </div>
 
-                {/* Basic Info */}
+                {/* Label Name */}
+                <div>
+                    <label className="block text-sm text-zinc-300 mb-1">
+                        Label Name <span className="text-orange-500">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        value={labelName}
+                        onChange={(e) => setLabelName(e.target.value)}
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                        placeholder="e.g., Summit Records"
+                        required
+                    />
+                </div>
+
+                {/* Company + Website */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label htmlFor="labelName" className="block text-sm font-medium text-zinc-300 mb-2">Label Name <span className="text-orange-500">*</span></label>
+                        <label className="block text-sm text-zinc-300 mb-1">Company Name (Optional)</label>
                         <input
                             type="text"
-                            id="labelName"
-                            value={labelName}
-                            onChange={(e) => setLabelName(e.target.value)}
-                            className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                            placeholder="e.g. Summit Records"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="companyName" className="block text-sm font-medium text-zinc-300 mb-2">Company Name (Optional)</label>
-                        <input
-                            type="text"
-                            id="companyName"
                             value={companyName}
                             onChange={(e) => setCompanyName(e.target.value)}
-                            className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                            placeholder="e.g. Summit LLC"
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                            placeholder="Summit LLC"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-zinc-300 mb-1">Website (Optional)</label>
+                        <input
+                            type="url"
+                            value={website}
+                            onChange={(e) => setWebsite(e.target.value)}
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                            placeholder="https://summitrecords.com"
                         />
                     </div>
                 </div>
 
-                {/* Contact Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label htmlFor="contactEmail" className="block text-sm font-medium text-zinc-300 mb-2">Contact Email <span className="text-orange-500">*</span></label>
-                        <input
-                            type="email"
-                            id="contactEmail"
-                            value={contactEmail}
-                            onChange={(e) => setContactEmail(e.target.value)}
-                            className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                            placeholder="admin@label.com"
-                            required
-                            autoComplete="email"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="contactPhone" className="block text-sm font-medium text-zinc-300 mb-2">Contact Phone <span className="text-orange-500">*</span></label>
-                        <input
-                            type="tel"
-                            id="contactPhone"
-                            value={contactPhone}
-                            onChange={(e) => setContactPhone(e.target.value)}
-                            className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                            placeholder="(555) 123-4567"
-                            required
-                        />
-                    </div>
-                </div>
-
-                {/* Website */}
+                {/* Contact Email */}
                 <div>
-                    <label htmlFor="website" className="block text-sm font-medium text-zinc-300 mb-2">Website (Optional)</label>
+                    <label className="block text-sm text-zinc-300 mb-1">
+                        Contact Email <span className="text-orange-500">*</span>
+                    </label>
                     <input
-                        type="url"
-                        id="website"
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                        placeholder="https://www.summitrecords.com"
+                        type="email"
+                        value={contactEmail}
+                        onChange={(e) => setContactEmail(e.target.value)}
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                        placeholder="admin@label.com"
+                        required
                     />
                 </div>
 
-                {/* Notes/Bio */}
+                {/* Password (Required for new accounts) */}
                 <div>
-                    <label htmlFor="notes" className="block text-sm font-medium text-zinc-300 mb-2">Notes / Description (Optional)</label>
-                    <textarea
-                        id="notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows={4}
-                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                        placeholder="Tell us about your roster, genres, or what you're looking for."
-                    />
-                </div>
-
-                {/* Password (Required for Auth) */}
-                <div>
-                    <label htmlFor="password" aria-label="Password" className="block text-sm font-medium text-zinc-300 mb-2">Password <span className="text-orange-500">*</span></label>
+                    <label className="block text-sm text-zinc-300 mb-1">
+                        Password <span className="text-orange-500">*</span>
+                    </label>
                     <input
                         type="password"
-                        id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
                         placeholder="••••••••"
                         required
                         autoComplete="new-password"
                     />
                 </div>
 
-                {/* Terms */}
+                {/* Contact Phone */}
                 <div>
-                    <label htmlFor="terms" className="flex items-start cursor-pointer">
-                        <input
-                            type="checkbox"
-                            id="terms"
-                            checked={agreedToTerms}
-                            onChange={(e) => setAgreedToTerms(e.target.checked)}
-                            className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500 mt-1 cursor-pointer"
-                            required
-                        />
-                        <span className="ml-3 text-sm text-zinc-400">
-                            I have read and agree to the{' '}
-                            <button type="button" onClick={() => onNavigate(AppView.PRIVACY_POLICY)} className="font-medium text-orange-400 hover:underline">
-                                User Agreement &amp; Privacy Policy
-                            </button>
-                            .
-                        </span>
+                    <label className="block text-sm text-zinc-300 mb-1">
+                        Contact Phone <span className="text-orange-500">*</span>
                     </label>
+                    <input
+                        type="tel"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                        placeholder="(555) 123-4567"
+                        required
+                    />
                 </div>
 
-                {/* Error Display */}
+                {/* Notes */}
+                <div>
+                    <label className="block text-sm text-zinc-300 mb-1">Notes (Optional)</label>
+                    <textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        rows={4}
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                        placeholder="Tell us about your roster, vision, or genres."
+                    ></textarea>
+                </div>
+
+                {/* Error */}
                 {error && (
-                    <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
-                        <CloseCircleIcon className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                        <div>
-                            <p className="text-red-200 text-sm font-medium">Setup Failed</p>
-                            <p className="text-red-300 text-xs mt-1 break-all">{error}</p>
-                        </div>
+                    <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-lg">
+                        <p className="text-red-400 text-sm font-semibold">Error: {error}</p>
                     </div>
                 )}
 
-                {/* Submit Button */}
-                <button 
-                    type="submit" 
-                    disabled={!isFormValid || isSubmitting}
-                    className={`w-full font-bold py-3 px-6 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
-                        isFormValid && !isSubmitting
-                        ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/20' 
-                        : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                {/* Submit */}
+                <button
+                    type="submit"
+                    disabled={submitting}
+                    className={`w-full py-3 rounded-lg font-bold transition ${
+                        submitting
+                            ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed'
+                            : 'bg-orange-500 text-white hover:bg-orange-600'
                     }`}
                 >
-                    {isSubmitting ? (
-                        <>
-                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Creating Account...
-                        </>
-                    ) : 'Complete Registration'}
+                    {submitting ? 'Saving...' : 'Complete Setup'}
                 </button>
             </form>
         </div>
