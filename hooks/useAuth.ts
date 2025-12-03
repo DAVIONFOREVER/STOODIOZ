@@ -32,6 +32,8 @@ export const useAuth = (navigate: (view: any) => void) => {
     
         // Login successful → find user profile, set user & navigate via dispatch
         if (data.user) {
+            const userId = data.user.id; // CRITICAL: Use ID, not email, to find the profile
+            
             const roleMap: Record<string, UserRole> = {
                 'artists': UserRoleEnum.ARTIST,
                 'engineers': UserRoleEnum.ENGINEER,
@@ -40,8 +42,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 'labels': UserRoleEnum.LABEL
             };
             
-            // Prioritize finding specialized roles first. This fixes issues where a user might exist 
-            // in multiple tables (rare but possible) or if the fallback logic was too broad.
+            // Prioritize finding specialized roles first.
             const tables = ['stoodioz', 'producers', 'engineers', 'artists', 'labels'];
             
             let userProfile: Artist | Engineer | Stoodio | Producer | Label | null = null;
@@ -54,11 +55,12 @@ export const useAuth = (navigate: (view: any) => void) => {
                 if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
                 if (table === 'producers') selectQuery = '*, instrumentals(*)';
 
+                // Look up by ID to ensure exact match
                 let { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
-                    .eq('email', email)
-                    .limit(1);
+                    .eq('id', userId)
+                    .maybeSingle();
 
                 // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
                 if (profileError) {
@@ -66,8 +68,8 @@ export const useAuth = (navigate: (view: any) => void) => {
                     const retry = await supabase
                         .from(table)
                         .select('*')
-                        .eq('email', email)
-                        .limit(1);
+                        .eq('id', userId)
+                        .maybeSingle();
                     profileData = retry.data;
                     profileError = retry.error;
                 }
@@ -77,9 +79,9 @@ export const useAuth = (navigate: (view: any) => void) => {
                     continue;
                 }
 
-                if (profileData && profileData.length > 0) {
+                if (profileData) {
                     // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
-                    userProfile = profileData[0] as unknown as Artist | Engineer | Stoodio | Producer | Label;
+                    userProfile = profileData as unknown as Artist | Engineer | Stoodio | Producer | Label;
                     detectedRole = roleMap[table];
                     break; // Stop searching once found
                 }
@@ -90,6 +92,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 if ('Notification' in window && Notification.permission !== 'denied') {
                     Notification.requestPermission();
                 }
+                
                 // Explicitly navigate based on detected role
                 if (detectedRole === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
@@ -98,8 +101,10 @@ export const useAuth = (navigate: (view: any) => void) => {
                 else if (detectedRole === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
 
             } else {
-                console.warn(`Login successful, but no profile found for ${email}. Routing to profile setup.`);
-                navigate(AppView.CHOOSE_PROFILE);
+                console.warn(`Login successful (Auth ID: ${userId}), but no profile found in public tables.`);
+                // If the user exists in Auth but has no profile, checking "artists" table specifically as a last ditch fallback
+                // or just fail gracefully.
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Login successful, but profile data is missing. Please contact support." } });
             }
         } else {
              dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "An unknown error occurred during login." } });
@@ -108,10 +113,9 @@ export const useAuth = (navigate: (view: any) => void) => {
 
     const logout = useCallback(async () => {
         // FIX: Navigate away FIRST to unmount dashboard components that might depend on currentUser.
-        // This prevents "white screen" crashes where the UI tries to render data that just got deleted.
         navigate(AppView.LANDING_PAGE);
 
-        // Use a small timeout to ensure the navigation has processed and components unmounted
+        // Perform cleanup
         setTimeout(async () => {
             try {
                 const supabase = getSupabase();
@@ -121,7 +125,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
             
             dispatch({ type: ActionTypes.LOGOUT });
-        }, 100);
+        }, 50);
     }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback((role: UserRole) => {
