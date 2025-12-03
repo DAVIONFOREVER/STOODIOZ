@@ -149,13 +149,21 @@ const App: React.FC = () => {
         } catch (error: any) {
             console.error("Complete setup failed:", error);
             
-            // IMPROVED ERROR HANDLING
-            let errorMessage = error.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+            // IMPROVED ERROR HANDLING for debugging
+            // This ensures we see the full error object structure in the alert if available
+            let errorMessage = error.message || "Unknown error";
+            if (typeof error === 'object') {
+                try {
+                    errorMessage = JSON.stringify(error, null, 2);
+                } catch (e) {
+                    errorMessage = String(error);
+                }
+            }
             
             if (errorMessage.includes('relation "public.labels" does not exist') || errorMessage.includes('404') || errorMessage.includes('400')) {
-                alert(`CRITICAL ERROR: The database table for "${role}" does not exist yet. \n\nPlease run the SQL command in your Supabase SQL Editor to create the 'labels' table.`);
+                alert(`CRITICAL ERROR: The database table for "${role}" likely does not exist.\n\nError Details:\n${errorMessage}`);
             } else {
-                alert(`Setup failed: ${errorMessage}`);
+                alert(`Setup failed:\n${errorMessage}`);
             }
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
