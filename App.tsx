@@ -149,22 +149,23 @@ const App: React.FC = () => {
         } catch (error: any) {
             console.error("Complete setup failed:", error);
             
-            // IMPROVED ERROR HANDLING for debugging
-            // This ensures we see the full error object structure in the alert if available
             let errorMessage = error.message || "Unknown error";
             if (typeof error === 'object') {
                 try {
-                    errorMessage = JSON.stringify(error, null, 2);
+                    // Check for specific Supabase error codes
+                    if (error.code === '42P01') {
+                        errorMessage = `Database Error: The table for '${role}' does not exist. Please contact support.`;
+                    } else if (error.code === '23505') {
+                        errorMessage = "An account with this email already exists.";
+                    } else {
+                        errorMessage = JSON.stringify(error, null, 2);
+                    }
                 } catch (e) {
                     errorMessage = String(error);
                 }
             }
             
-            if (errorMessage.includes('relation "public.labels" does not exist') || errorMessage.includes('404') || errorMessage.includes('400')) {
-                alert(`CRITICAL ERROR: The database table for "${role}" likely does not exist.\n\nError Details:\n${errorMessage}`);
-            } else {
-                alert(`Setup failed:\n${errorMessage}`);
-            }
+            alert(`Setup failed:\n${errorMessage}`);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
@@ -225,7 +226,6 @@ const App: React.FC = () => {
 
             const fetchProfiles = async () => {
                 // Check all tables to find where this user exists.
-                // Note: We use maybeSingle() and detailed error checking now to be robust against partial missing data.
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
@@ -236,12 +236,9 @@ const App: React.FC = () => {
                 
                 const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
                     try {
-                        // Try fetching with full relational data
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
                         
                         if (error) {
-                             // FALLBACK: If a specific relation is missing/broken (e.g. instrumentals table locked), 
-                             // fallback to basic fetch so the user can still login.
                              console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
                              const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
                              
@@ -281,12 +278,16 @@ const App: React.FC = () => {
                         } 
                     });
                 } else {
-                    // Only dispatch failure if we truly can't find the profile after retries
-                    console.warn("User authenticated but profile not found.");
+                    // CRITICAL FIX: If we authenticated but found no profile, we MUST tell the user
+                    console.error("User authenticated but profile not found in any table.");
+                    dispatch({ 
+                        type: ActionTypes.LOGIN_FAILURE, 
+                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
+                    });
                 }
             } catch (error) {
                 console.error("Error hydrating user profile:", error);
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
             } finally {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -363,17 +364,17 @@ const App: React.FC = () => {
             case AppView.LANDING_PAGE:
                 return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
             case AppView.LOGIN:
-                return <Login onLogin={login} error={loginError} onNavigate={navigate} />;
+                return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.CHOOSE_PROFILE:
                 return <ChooseProfile onSelectRole={selectRoleToSetup} />;
             case AppView.ARTIST_SETUP:
-                return <ArtistSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ARTIST)} onNavigate={navigate} />;
+                return <ArtistSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ARTIST)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.ENGINEER_SETUP:
-                return <EngineerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ENGINEER)} onNavigate={navigate} />;
+                return <EngineerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ENGINEER)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.PRODUCER_SETUP:
-                return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.PRODUCER)} onNavigate={navigate} />;
+                return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.PRODUCER)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.STOODIO_SETUP:
-                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} />;
+                return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
                 return <LabelSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.LABEL)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:

@@ -213,7 +213,12 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        if (error.code === '42P01') { // PostgreSQL code for undefined table
+             throw new Error(`System Error: The '${tableMap[role]}' table does not exist in the database. Please run the migration script.`);
+        }
+        throw error;
+    }
     return data;
 };
 
