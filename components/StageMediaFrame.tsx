@@ -32,6 +32,7 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
                          // Auto-play was prevented, usually due to browser policies
+                         // We don't log here to avoid console noise
                     });
                 }
             } else {
@@ -50,8 +51,9 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
         objectPosition: `${focusPoint.x * 100}% ${focusPoint.y * 100}%`
     };
 
-    // Background blur source: prioritize thumbnail for video, source for image
-    const backgroundSrc = type === 'video' && thumbnailUrl ? thumbnailUrl : src;
+    // Background blur source: prioritize thumbnail for video, source for image.
+    // Ensure we don't use the video src as a background image as it won't render.
+    const backgroundSrc = type === 'video' ? thumbnailUrl : src;
 
     return (
         <div 
@@ -60,20 +62,23 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
             aria-label={altText}
         >
             {/* 1. Blurframe Background Layer */}
-            {/* We scale it up significantly to create the ambient color effect */}
-            <div 
-                className="absolute inset-0 z-0 transform scale-150 opacity-50 blur-3xl transition-opacity duration-1000"
-                style={{
-                    backgroundImage: `url(${backgroundSrc})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                }}
-            />
+            {/* Only render if we have a valid image source (not a video url) */}
+            {backgroundSrc && (
+                <div 
+                    className="absolute inset-0 z-0 transform scale-150 opacity-50 blur-3xl transition-opacity duration-1000"
+                    style={{
+                        backgroundImage: `url(${backgroundSrc})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                    }}
+                />
+            )}
             
             {/* Dark overlay to ensure text/controls contrast if needed */}
             <div className="absolute inset-0 z-0 bg-black/20" />
 
             {/* 2. Main Media Layer */}
+            {/* If type is video, we ensure it's visible if it starts playing (audio), even if load event lags */}
             <div className={`absolute inset-0 z-10 flex items-center justify-center transition-all duration-700 ease-out ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
                 {type === 'image' ? (
                     <img 
@@ -88,6 +93,9 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
                         ref={videoRef}
                         src={src}
                         onLoadedData={handleLoad}
+                        onLoadedMetadata={handleLoad} // Trigger visibility sooner
+                        onCanPlay={handleLoad}        // Fallback trigger
+                        onPlay={handleLoad}           // Absolute fallback: if it plays, show it
                         className={`w-full h-full ${objectFitClass}`}
                         style={objectPositionStyle}
                         poster={thumbnailUrl}
@@ -95,6 +103,7 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
                         loop
                         muted 
                         playsInline
+                        preload="metadata"
                     />
                 )}
             </div>
