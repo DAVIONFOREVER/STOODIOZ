@@ -1,3 +1,4 @@
+
 import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
@@ -177,7 +178,7 @@ const App: React.FC = () => {
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
     const { handleSubscribe } = useSubscription(navigate);
-    const { startConversation } = useMessaging(navigate);
+    const { startConversation, permissionError, setPermissionError } = useMessaging(navigate);
     const { confirmMasterclassPurchase, submitMasterclassReview } = useMasterclass();
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
         startConversation,
@@ -473,6 +474,25 @@ return (
                     {renderView()}
                 </Suspense>
             </main>
+
+            {/* Permission Error Modal for Messaging */}
+            {permissionError && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
+                    <div className="bg-zinc-900 p-6 rounded-xl max-w-md w-full text-center border border-zinc-700 animate-fade-in">
+                    <h2 className="text-xl font-bold text-orange-400 mb-4">Messaging Restricted</h2>
+                    <p className="text-zinc-300 mb-6">
+                        You cannot message this label unless they have added you to their roster.
+                    </p>
+
+                    <button
+                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-white transition-colors font-semibold"
+                        onClick={() => setPermissionError(null)}
+                    >
+                        OK
+                    </button>
+                    </div>
+                </div>
+            )}
 
             {/* Modals */}
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}

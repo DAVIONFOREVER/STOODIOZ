@@ -569,6 +569,30 @@ export const createConversation = async (participantIds: string[]) => {
     const supabase = getSupabase();
     if (!supabase) return null;
     
+    // --- LABEL MESSAGING PERMISSION RULES ---
+    const [senderId, receiverId] = participantIds;
+
+    // Mock role detection (replace later)
+    const senderIsLabel = senderId?.startsWith("label_");
+    const receiverIsLabel = receiverId?.startsWith("label_");
+
+    // RULE 1: Labels can message ANYONE → always allow
+    if (senderIsLabel) {
+        // continue normally, do NOT block
+    } 
+    // RULE 2: Non-labels cannot message labels unless on roster
+    else if (receiverIsLabel) {
+        const userIsOnRoster = false; // TODO: real roster check later
+        if (!userIsOnRoster) {
+            return {
+                blocked_by_label_permissions: true,
+                reason: "NOT_ON_ROSTER",
+                sender_id: senderId,
+                receiver_id: receiverId
+            };
+        }
+    }
+
     const { data, error } = await supabase
         .from('conversations')
         .insert({ participant_ids: participantIds })

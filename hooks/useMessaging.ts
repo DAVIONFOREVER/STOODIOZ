@@ -1,6 +1,5 @@
 
-
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { generateSmartReplies } from '../services/geminiService';
 import * as apiService from '../services/apiService';
@@ -11,6 +10,7 @@ import { getSupabase } from '../lib/supabase';
 export const useMessaging = (navigate: (view: AppView) => void) => {
     const dispatch = useAppDispatch();
     const { currentUser, conversations } = useAppState();
+    const [permissionError, setPermissionError] = useState<{ status: string; sender: string; receiver: string } | null>(null);
 
     // Real-time Message Listener
     useEffect(() => {
@@ -70,6 +70,17 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
             // Create real conversation in DB
             try {
                 const newConvoData = await apiService.createConversation([currentUser.id, participant.id]);
+                
+                // Handle blocking logic
+                if (newConvoData && newConvoData.blocked_by_label_permissions) {
+                    setPermissionError({
+                        status: newConvoData.reason,
+                        sender: newConvoData.sender_id,
+                        receiver: newConvoData.receiver_id
+                    });
+                    return;
+                }
+
                 if (newConvoData) {
                     conversationId = newConvoData.id;
                     // Refresh to get the new conversation object with full details
@@ -144,5 +155,5 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
          dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId } });
     }, [dispatch]);
 
-    return { sendMessage, selectConversation, fetchSmartReplies, startConversation };
+    return { sendMessage, selectConversation, fetchSmartReplies, startConversation, permissionError, setPermissionError };
 };
