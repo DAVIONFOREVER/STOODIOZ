@@ -38,6 +38,7 @@ export enum AppView {
     PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
     VIDEOGRAPHER_DASHBOARD = 'VIDEOGRAPHER_DASHBOARD',
     LABEL_DASHBOARD = 'LABEL_DASHBOARD',
+    LABEL_IMPORT = 'LABEL_IMPORT',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
     ADMIN_RANKINGS = 'ADMIN_RANKINGS',
     STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
@@ -76,6 +77,8 @@ export enum TransactionCategory {
     MASTERCLASS_PAYOUT = 'MASTERCLASS_PAYOUT',
     BEAT_PURCHASE = 'BEAT_PURCHASE',
     BEAT_SALE = 'BEAT_SALE',
+    CONTRACT_PAYOUT = 'CONTRACT_PAYOUT',
+    CONTRACT_RECOUP = 'CONTRACT_RECOUP',
 }
 
 export enum TransactionStatus {
@@ -123,6 +126,23 @@ export enum RankingTier {
     Gold = 'Gold',
     Platinum = 'Platinum',
     Elite = 'Elite',
+}
+
+export type LabelContractType = 'FULL_RECOUP' | 'PERCENTAGE';
+export type LabelContractStatus = 'active' | 'paused' | 'completed';
+
+export interface LabelContract {
+    id: string;
+    label_id: string;
+    talent_user_id: string;
+    talent_role: string;
+    contract_type: LabelContractType;
+    split_percent: number; // 0 to 100
+    recoup_balance: number;
+    advance_amount?: number;
+    status: LabelContractStatus;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface Location {
@@ -185,6 +205,12 @@ export interface Transaction {
     status: TransactionStatus;
     related_booking_id?: string;
     related_user_name?: string;
+    // Revenue routing metadata
+    contract_id?: string;
+    recoup_applied?: number;
+    label_amount?: number;
+    provider_amount?: number;
+    label_id?: string;
 }
 
 export interface Subscription {
@@ -233,11 +259,13 @@ export interface BaseUser {
     strength_tags: string[];
     local_rank_text: string;
     purchased_masterclass_ids?: string[];
+    role?: string;
 }
 
 export interface Artist extends BaseUser {
     bio: string;
     is_seeking_session: boolean;
+    label_id?: string | null;
 }
 
 export interface Label extends BaseUser {
@@ -257,6 +285,7 @@ export interface Engineer extends BaseUser {
         radius: number; // in miles
     };
     minimum_pay_rate?: number;
+    label_id?: string | null;
 }
 
 export interface MixingServices {
@@ -310,6 +339,7 @@ export interface Producer extends BaseUser {
     instrumentals: Instrumental[];
     pull_up_price?: number;
     masterclass?: Masterclass;
+    label_id?: string | null;
 }
 
 export interface Instrumental {
@@ -494,4 +524,32 @@ export interface AandRNote {
     artist_id: string;
     note: string;
     created_at: string;
+}
+
+export interface RosterImportRow {
+    name: string;
+    email: string;
+    role: 'artist' | 'producer' | 'engineer';
+    phone?: string;
+    instagram?: string;
+    notes?: string;
+}
+
+export interface ShadowProfile extends BaseUser {
+    is_shadow: boolean;
+    claimed_by_email?: string;
+}
+
+export interface RosterMember extends BaseUser {
+    roster_id: string;
+    role_in_label: string;
+    is_pending?: boolean;
+    shadow_profile?: boolean;
+}
+
+export interface LabelRosterEntry extends BaseUser {
+    roster_id: string;
+    role_in_label: string;
+    shadow_profile: boolean;
+    is_pending?: boolean;
 }

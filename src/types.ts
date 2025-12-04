@@ -1,4 +1,5 @@
 
+
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -258,7 +259,7 @@ export interface BaseUser {
     strength_tags: string[];
     local_rank_text: string;
     purchased_masterclass_ids?: string[];
-    role?: string; // Used for shadow profiles
+    role?: string;
 }
 
 export interface Artist extends BaseUser {
@@ -534,9 +535,21 @@ export interface RosterImportRow {
     notes?: string;
 }
 
-export interface RosterMember extends Artist {
-    role_in_label: string;
+export interface ShadowProfile extends BaseUser {
+    is_shadow: boolean;
+    claimed_by_email?: string;
+}
+
+export interface RosterMember extends BaseUser {
     roster_id: string;
+    role_in_label: string;
     is_pending?: boolean;
     shadow_profile?: boolean;
+}
+
+export interface LabelRosterEntry extends BaseUser {
+    roster_id: string;
+    role_in_label: string;
+    shadow_profile: boolean;
+    is_pending?: boolean;
 }

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
-import * as labelService from '../services/labelService';
+import { useLabel } from '../hooks/useLabel';
 import type { Artist } from '../types';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }> = ({ label, value, icon }) => (
@@ -20,32 +20,17 @@ const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }
 
 const LabelArtists: React.FC = () => {
     const { currentUser, userRole } = useAppState();
-    const [roster, setRoster] = useState<any[]>([]); // Using any[] to support RosterMember type
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const labelId = currentUser?.id || '';
+    const { roster, loading, error, refreshRoster } = useLabel(labelId);
     const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
 
-    // Fetch real roster on mount
     useEffect(() => {
-        const fetchRoster = async () => {
-            if (!currentUser || userRole !== 'LABEL') return;
-            setLoading(true);
-            try {
-                // Use the new labelService
-                const data = await labelService.fetchLabelRoster(currentUser.id);
-                setRoster(data);
-            } catch (err) {
-                console.error("Failed to fetch roster:", err);
-                setError("Failed to load roster.");
-            } finally {
-                setLoading(false);
-            }
-        };
+        if (labelId) {
+            refreshRoster();
+        }
+    }, [labelId, refreshRoster]);
 
-        fetchRoster();
-    }, [currentUser, userRole]);
-
-    // --- Analytics (calculated from real data) ---
+    // --- Analytics ---
     const stats = useMemo(() => {
         const totalArtists = roster.length;
         const totalBookings = roster.reduce((acc, curr) => acc + (curr.sessions_completed || 0), 0);
@@ -61,7 +46,7 @@ const LabelArtists: React.FC = () => {
         if (window.confirm("Are you sure you want to remove this member from your roster?")) {
             const success = await apiService.removeArtistFromLabelRoster(currentUser.id, rosterId, artistId);
             if (success) {
-                setRoster(prev => prev.filter(a => a.roster_id !== rosterId && a.id !== rosterId));
+                refreshRoster();
                 if (selectedArtist?.id === artistId) setSelectedArtist(null);
             } else {
                 alert("Failed to remove member.");
@@ -105,7 +90,7 @@ const LabelArtists: React.FC = () => {
                 <div className="text-center py-20 bg-zinc-800/30 rounded-2xl border border-zinc-700/50">
                     <UsersIcon className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
                     <p className="text-zinc-400 text-lg font-semibold">No artists on your roster yet.</p>
-                    <p className="text-zinc-500 mt-1">Add members using the 'Import Roster' button above.</p>
+                    <p className="text-zinc-500 mt-1">Import a roster to get started.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -119,14 +104,17 @@ const LabelArtists: React.FC = () => {
                                         <span className="inline-block bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full border border-zinc-700">
                                             {member.role_in_label || 'Member'}
                                         </span>
-                                        {member.shadow_profile && (
+                                        {member.shadow_profile ? (
                                             <span className="inline-block bg-purple-500/20 text-purple-400 text-xs px-2 py-1 rounded-full border border-purple-500/30">
-                                                Unclaimed
+                                                Shadow Profile
                                             </span>
-                                        )}
-                                        {!member.shadow_profile && !member.is_pending && (
+                                        ) : member.is_pending ? (
+                                            <span className="inline-block bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded-full border border-yellow-500/30">
+                                                Pending
+                                            </span>
+                                        ) : (
                                             <span className="inline-block bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full border border-green-500/30">
-                                                Signed
+                                                Claimed
                                             </span>
                                         )}
                                     </div>
@@ -162,10 +150,10 @@ const LabelArtists: React.FC = () => {
                                         <TrashIcon className="w-5 h-5" />
                                     </button>
                                 </div>
-                                {!member.shadow_profile && !member.is_pending && (
-                                    <button className="w-full bg-zinc-800 hover:bg-zinc-700 text-orange-400 font-semibold py-2 rounded-lg transition-colors text-sm border border-zinc-700">
-                                        Assign Contract
-                                    </button>
+                                {member.shadow_profile && (
+                                    <div className="text-xs text-center text-zinc-500 pt-2">
+                                        Use invite code to claim
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -212,9 +200,9 @@ const LabelArtists: React.FC = () => {
                             <div className="mt-6 pt-6 border-t border-zinc-800 flex items-center justify-between text-zinc-500 text-sm">
                                 <div className="flex items-center gap-2">
                                     <MicrophoneIcon className="w-4 h-4" />
-                                    <span>Profile</span>
+                                    <span>Profile Status: {selectedArtist.shadow_profile ? 'Unclaimed (Shadow)' : 'Active'}</span>
                                 </div>
-                                <span>ID: {selectedArtist.id}</span>
+                                <span>ID: {selectedArtist.id.slice(0, 8)}...</span>
                             </div>
                         </div>
                     </div>

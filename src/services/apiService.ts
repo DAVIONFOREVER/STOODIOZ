@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -1067,44 +1067,154 @@ export const deleteMixingSample = async (sampleId: string) => {
 
 // --- LABEL ROSTER MANAGEMENT ---
 
-export const fetchLabelRoster = async (labelId: string): Promise<any[]> => {
+export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
-    // 1. Fetch entries from label_roster
-    const { data: rosterEntries, error: rosterError } = await supabase
+    // Fetch roster links
+    const { data: rosterData, error } = await supabase
         .from('label_roster')
-        .select('*, artist:artists(*)')
+        .select('*')
         .eq('label_id', labelId);
 
-    if (rosterError) {
-        console.error("Error fetching roster:", rosterError);
-        return [];
+    if (error || !rosterData) return [];
+
+    // Hydrate with user details from respective tables
+    const hydratedRoster: RosterMember[] = [];
+
+    for (const entry of rosterData) {
+        if (!entry.user_id) {
+            // Pending invite (no shadow profile yet, just email invite case)
+            hydratedRoster.push({
+                id: entry.id, // Use roster ID as temp ID
+                name: entry.email || 'Pending Invite',
+                email: entry.email,
+                image_url: USER_SILHOUETTE_URL,
+                bio: '',
+                is_seeking_session: false,
+                role_in_label: entry.role,
+                roster_id: entry.id,
+                is_pending: true,
+                followers: 0,
+                follower_ids: [],
+                following: { artists: [], engineers: [], producers: [], stoodioz: [], videographers: [], labels: [] },
+                wallet_balance: 0,
+                wallet_transactions: [],
+                coordinates: { lat: 0, lon: 0 },
+                show_on_map: false,
+                is_online: false,
+                rating_overall: 0,
+                sessions_completed: 0,
+                ranking_tier: 'Provisional' as any,
+                is_on_streak: false,
+                on_time_rate: 0,
+                completion_rate: 0,
+                repeat_hire_rate: 0,
+                strength_tags: [],
+                local_rank_text: ''
+            });
+            continue;
+        }
+
+        // Try to find in artists, then producers, then engineers
+        let userData = null;
+        let shadowProfile = false;
+
+        // Check if shadow profile
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', entry.user_id).single();
+        if (profile && profile.role === 'UNCLAIMED') {
+            shadowProfile = true;
+        }
+
+        const tables = ['artists', 'producers', 'engineers'];
+        for (const table of tables) {
+            const { data } = await supabase.from(table).select('*').eq('id', entry.user_id).single();
+            if (data) {
+                userData = data;
+                break;
+            }
+        }
+
+        if (userData) {
+            hydratedRoster.push({
+                ...userData,
+                role_in_label: entry.role,
+                roster_id: entry.id,
+                shadow_profile: shadowProfile
+            });
+        }
     }
 
-    // 2. Normalize data for UI
-    const roster = (rosterEntries || []).map((entry: any) => {
-        if (entry.artist) {
-            // Existing platform artist
-            return {
-                ...entry.artist,
-                role_in_label: entry.role, // e.g. "Artist", "Writer"
-                roster_id: entry.id
-            };
-        } else {
-            // Pending invite (email only)
-            return {
-                id: entry.id, // Use roster ID as temporary key
-                name: entry.email || 'Pending Invite',
-                image_url: USER_SILHOUETTE_URL,
-                email: entry.email,
-                role_in_label: entry.role,
-                is_pending: true
-            };
-        }
+    return hydratedRoster;
+};
+
+export const createShadowProfile = async (
+    role: 'ARTIST' | 'PRODUCER' | 'ENGINEER', 
+    labelId: string, 
+    data: { name: string; email?: string }
+): Promise<{ profileId: string; roleId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    // 1. Generate new UUID
+    const shadowId = crypto.randomUUID();
+
+    // 2. Create Shadow Profile entry
+    const { error: profileError } = await supabase.from('profiles').insert({
+        id: shadowId,
+        email: data.email || null,
+        role: 'UNCLAIMED',
+        full_name: data.name,
+        created_at: new Date().toISOString()
     });
 
-    return roster;
+    if (profileError) {
+        console.error("Error creating shadow profile:", profileError);
+        throw profileError;
+    }
+
+    // 3. Create Role Specific Entry
+    const tableMap: Record<string, string> = {
+        'ARTIST': 'artists',
+        'PRODUCER': 'producers',
+        'ENGINEER': 'engineers'
+    };
+    
+    const tableName = tableMap[role];
+    const userRecord = {
+        id: shadowId,
+        name: data.name,
+        email: data.email || null,
+        image_url: USER_SILHOUETTE_URL,
+        label_id: labelId,
+        created_at: new Date().toISOString(),
+        wallet_balance: 0,
+        wallet_transactions: []
+    };
+
+    // Specific fields initialization
+    if (role === 'ENGINEER') (userRecord as any).specialties = [];
+    if (role === 'PRODUCER') (userRecord as any).genres = [];
+    if (role === 'ARTIST') (userRecord as any).bio = '';
+
+    const { error: roleError } = await supabase.from(tableName).insert(userRecord);
+    if (roleError) {
+        // Rollback profile creation if possible, or just throw
+        throw roleError;
+    }
+
+    // 4. Create Label Roster Link
+    const rosterEntry = {
+        id: crypto.randomUUID(),
+        label_id: labelId,
+        user_id: shadowId,
+        role: role.charAt(0).toUpperCase() + role.slice(1).toLowerCase(),
+        created_at: new Date().toISOString()
+    };
+
+    await supabase.from('label_roster').insert(rosterEntry);
+
+    return { profileId: shadowId, roleId: shadowId };
 };
 
 export const addArtistToLabelRoster = async (params: { labelId: string, artistId?: string, email?: string, role?: string }) => {
