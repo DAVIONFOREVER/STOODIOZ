@@ -317,4 +317,180 @@ export interface Instrumental {
     genre: string;
     price_lease: number;
     price_exclusive: number;
-    audio_url: string
+    audio_url: string;
+    cover_art_url?: string;
+    tags: string[];
+    producer_id?: string;
+    is_free_download_available?: boolean;
+}
+
+export interface MixingDetails {
+    type: 'REMOTE' | 'IN_STUDIO';
+    track_count: number;
+    notes: string;
+}
+
+export interface BookingRequest {
+    room?: Room; // Optional for remote/beat purchase
+    date: string;
+    start_time: string;
+    duration: number;
+    total_cost: number;
+    engineer_pay_rate: number;
+    request_type: BookingRequestType;
+    requested_engineer_id?: string;
+    producer_id?: string;
+    instrumentals_to_purchase?: Instrumental[];
+    mixing_details?: MixingDetails;
+    pull_up_fee?: number;
+}
+
+export interface Booking {
+    id: string;
+    stoodio?: Stoodio;
+    engineer?: Engineer;
+    producer?: Producer;
+    room?: Room;
+    artist?: Artist; // The user who booked (if Artist)
+    date: string;
+    start_time: string;
+    duration: number;
+    total_cost: number;
+    status: BookingStatus;
+    request_type: BookingRequestType;
+    engineer_pay_rate: number;
+    requested_engineer_id?: string;
+    tip?: number;
+    invoice_url?: string;
+    instrumentals_purchased?: Instrumental[];
+    mixing_details?: MixingDetails;
+    posted_by?: UserRole;
+}
+
+export interface SessionFeedback {
+    id: string;
+    booking_id: string;
+    target_user_id: string; // The ID of who is being reviewed
+    reviewer_id: string;
+    star_rating: number; // 1-5
+    pro_tags: string[]; // e.g. "Punctual", "Great Gear", "Fast Workflow"
+    timestamp: string;
+}
+
+export interface Review {
+    id: string;
+    stoodio_id?: string;
+    engineer_id?: string;
+    producer_id?: string;
+    artist_id?: string;
+    masterclass_id?: string;
+    reviewer_name: string;
+    rating: number;
+    comment: string;
+    date: string;
+}
+
+export interface Message {
+    id: string;
+    sender_id: string;
+    text: string;
+    timestamp: string;
+    type: 'text' | 'image' | 'video' | 'audio' | 'link' | 'system' | 'files';
+    image_url?: string;
+    video_url?: string;
+    audio_url?: string;
+    link?: LinkAttachment;
+    audio_info?: {
+        filename: string;
+        duration: string;
+    };
+    files?: FileAttachment[];
+}
+
+export interface FileAttachment {
+    name: string;
+    url: string;
+    size: string;
+    rawContent?: Uint8Array; // For client-side generation
+}
+
+export interface Conversation {
+    id: string;
+    participants: (Artist | Engineer | Stoodio | Producer | Label)[];
+    messages: Message[];
+    unread_count: number;
+    title?: string;
+    image_url?: string;
+    booking_id?: string;
+}
+
+export interface AppNotification {
+    id: string;
+    recipient_id: string;
+    type: NotificationType;
+    message: string;
+    read: boolean;
+    timestamp: string;
+    link?: { view: AppView; entityId?: string };
+    actor?: Artist | Engineer | Stoodio | Producer | Label;
+}
+
+export interface AriaActionResponse {
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage';
+    target: string | null;
+    value: any;
+    text: string;
+}
+
+export interface AriaCantataMessage {
+    role: 'user' | 'model';
+    parts: { text: string }[];
+    files?: FileAttachment[];
+}
+
+export interface VibeMatchResult {
+    vibeDescription: string;
+    tags: string[];
+    recommendations: {
+        type: 'stoodio' | 'engineer' | 'producer';
+        entity: Stoodio | Engineer | Producer;
+        reason: string;
+    }[];
+}
+
+export interface AnalyticsData {
+    kpis: {
+        totalRevenue: number;
+        profileViews: number;
+        newFollowers: number;
+        bookings: number;
+    };
+    revenueOverTime: { date: string; revenue: number }[];
+    engagementOverTime: { date: string; views: number; followers: number; likes: number }[];
+    revenueSources: { name: string; revenue: number }[];
+}
+
+export interface AriaNudgeData {
+    text: string;
+    action: {
+        type: 'OPEN_MODAL' | 'NAVIGATE_DASHBOARD_TAB';
+        payload: string;
+    };
+}
+
+export interface ArtistScoutingData {
+    id: string;
+    name: string;
+    image_url: string | null;
+    city: string | null;
+    genre: string[];
+    followers: number;
+    growth_30d: number;
+    engagement_score: number; 
+}
+
+export interface AandRNote {
+    artist_id: string;
+    note: string;
+    created_at: string;
+}
