@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -228,6 +228,215 @@ export const updateUser = async (userId: string, table: string, updates: any) =>
     const { data, error } = await supabase.from(table).update(updates).eq('id', userId).select().single();
     if (error) throw error;
     return data;
+};
+
+// --- LABEL CONTRACTS & REVENUE ROUTING ---
+
+export const fetchLabelContracts = async (labelId: string): Promise<LabelContract[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    
+    const { data, error } = await supabase
+        .from('label_contracts')
+        .select('*')
+        .eq('label_id', labelId);
+        
+    if (error) {
+        console.error("Error fetching label contracts:", error);
+        return [];
+    }
+    return data as LabelContract[];
+};
+
+export const fetchActiveLabelContractForTalent = async (talentUserId: string): Promise<LabelContract | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('label_contracts')
+        .select('*')
+        .eq('talent_user_id', talentUserId)
+        .eq('status', 'active')
+        .single();
+
+    if (error && error.code !== 'PGRST116') { // Ignore "No rows found"
+        console.error("Error fetching active contract:", error);
+    }
+    return data as LabelContract | null;
+};
+
+export const updateLabelContractRecoupBalance = async (contractId: string, amountToDeduct: number) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    // Use RPC or get-then-update. For simulation, get then update.
+    const { data: contract } = await supabase
+        .from('label_contracts')
+        .select('recoup_balance')
+        .eq('id', contractId)
+        .single();
+    
+    if (contract) {
+        const newBalance = Math.max(0, contract.recoup_balance - amountToDeduct);
+        await supabase
+            .from('label_contracts')
+            .update({ recoup_balance: newBalance })
+            .eq('id', contractId);
+    }
+};
+
+const updateWallet = async (userId: string, table: string, amount: number, transaction: Transaction) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    // 1. Get current user data
+    const { data: user } = await supabase
+        .from(table)
+        .select('wallet_balance, wallet_transactions')
+        .eq('id', userId)
+        .single();
+
+    if (user) {
+        const newBalance = (user.wallet_balance || 0) + amount;
+        const newTransactions = [...(user.wallet_transactions || []), transaction];
+        
+        await supabase
+            .from(table)
+            .update({
+                wallet_balance: newBalance,
+                wallet_transactions: newTransactions
+            })
+            .eq('id', userId);
+    }
+};
+
+export const applyLabelRevenueRouting = async (booking: Booking, totalPayout: number) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    let providerId: string | undefined;
+    let providerRole: string | undefined;
+    let providerTable: string | undefined;
+
+    // Determine provider
+    if (booking.engineer) {
+        providerId = booking.engineer.id;
+        providerRole = 'ENGINEER';
+        providerTable = 'engineers';
+    } else if (booking.producer) {
+        providerId = booking.producer.id;
+        providerRole = 'PRODUCER';
+        providerTable = 'producers';
+    } else {
+        // Just a room booking or other case not subject to label routing for now
+        // In real world, studio might be owned by label too, but let's stick to prompt requirements (talent)
+        return; 
+    }
+
+    if (!providerId || !providerTable) return;
+
+    // 1. Check for active contract
+    const contract = await fetchActiveLabelContractForTalent(providerId);
+
+    // If no contract, provider keeps all (handled by standard logic usually, but here we enforce updates)
+    if (!contract) {
+        const tx: Transaction = {
+            id: `txn-${Date.now()}`,
+            date: new Date().toISOString(),
+            description: `Session Payout: ${booking.stoodio?.name || 'Remote'}`,
+            amount: totalPayout,
+            category: TransactionCategory.SESSION_PAYOUT,
+            status: TransactionStatus.COMPLETED,
+            related_booking_id: booking.id
+        };
+        await updateWallet(providerId, providerTable, totalPayout, tx);
+        return;
+    }
+
+    // 2. Contract Logic
+    let labelAmount = 0;
+    let providerAmount = 0;
+    let recoupApplied = 0;
+
+    if (contract.contract_type === 'FULL_RECOUP') {
+        if (contract.recoup_balance > 0) {
+            // Label takes everything up to balance
+            const taken = Math.min(totalPayout, contract.recoup_balance);
+            labelAmount = taken;
+            providerAmount = totalPayout - taken;
+            recoupApplied = taken;
+        } else {
+            // Recoup done, assuming provider gets 100% or fallback? 
+            // Prompt says: "Label keeps 100% until recoup_balance reaches 0." 
+            // Implies after that, provider gets it, or a different split kicks in. 
+            // We'll assume provider gets remainder if balance is 0.
+            providerAmount = totalPayout;
+        }
+    } else if (contract.contract_type === 'PERCENTAGE') {
+        // Label takes split_percent
+        labelAmount = totalPayout * (contract.split_percent / 100);
+        providerAmount = totalPayout - labelAmount;
+
+        // If recoup balance exists, label's portion goes to recoup
+        if (contract.recoup_balance > 0) {
+            recoupApplied = Math.min(labelAmount, contract.recoup_balance);
+        }
+    }
+
+    // 3. Update Wallets & Contract
+    
+    // Label Wallet Update
+    if (labelAmount > 0) {
+        const labelTx: Transaction = {
+            id: `txn-lbl-${Date.now()}`,
+            date: new Date().toISOString(),
+            description: `Contract Revenue: ${booking.id}`,
+            amount: labelAmount,
+            category: TransactionCategory.CONTRACT_PAYOUT,
+            status: TransactionStatus.COMPLETED,
+            related_booking_id: booking.id,
+            contract_id: contract.id,
+            recoup_applied: recoupApplied,
+            provider_amount: providerAmount
+        };
+        await updateWallet(contract.label_id, 'labels', labelAmount, labelTx);
+    }
+
+    // Provider Wallet Update
+    if (providerAmount > 0) {
+        const providerTx: Transaction = {
+            id: `txn-prv-${Date.now()}`,
+            date: new Date().toISOString(),
+            description: `Session Payout (Split): ${booking.stoodio?.name || 'Remote'}`,
+            amount: providerAmount,
+            category: TransactionCategory.SESSION_PAYOUT,
+            status: TransactionStatus.COMPLETED,
+            related_booking_id: booking.id,
+            contract_id: contract.id,
+            label_amount: labelAmount
+        };
+        await updateWallet(providerId, providerTable, providerAmount, providerTx);
+    } else {
+        // Create a 0 amount transaction or notification to show money was taken for recoup
+        const providerTx: Transaction = {
+            id: `txn-prv-${Date.now()}`,
+            date: new Date().toISOString(),
+            description: `Session Revenue (Recoup Applied 100%)`,
+            amount: 0,
+            category: TransactionCategory.CONTRACT_RECOUP,
+            status: TransactionStatus.COMPLETED,
+            related_booking_id: booking.id,
+            contract_id: contract.id,
+            label_amount: labelAmount,
+            recoup_applied: recoupApplied
+        };
+        await updateWallet(providerId, providerTable, 0, providerTx);
+    }
+
+    // Contract Balance Update
+    if (recoupApplied > 0) {
+        await updateLabelContractRecoupBalance(contract.id, recoupApplied);
+    }
 };
 
 // --- BOOKINGS ---
@@ -680,6 +889,15 @@ export const endSession = async (booking: Booking) => {
     const supabase = getSupabase();
     if(supabase) {
         const { data } = await supabase.from('bookings').update({ status: BookingStatus.COMPLETED }).eq('id', booking.id).select().single();
+        
+        // --- REVENUE ROUTING LOGIC ---
+        // Calculate total earnings for the provider (Engineer/Producer)
+        // Usually engineer_pay_rate * duration, or fixed fee
+        const grossEarnings = booking.engineer_pay_rate * booking.duration; 
+        
+        // Execute revenue routing if a contract exists
+        await applyLabelRevenueRouting(booking, grossEarnings);
+
         return { updatedBooking: data || { ...booking, status: BookingStatus.COMPLETED } };
     }
     return { updatedBooking: { ...booking, status: BookingStatus.COMPLETED } };
@@ -845,4 +1063,127 @@ export const upsertMixingSample = async (sample: MixingSample, engineerId: strin
 export const deleteMixingSample = async (sampleId: string) => {
     const supabase = getSupabase();
     if(supabase) await supabase.from('mixing_samples').delete().eq('id', sampleId);
+};
+
+// --- LABEL ROSTER MANAGEMENT ---
+
+export const fetchLabelRoster = async (labelId: string): Promise<any[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    // 1. Fetch entries from label_roster
+    const { data: rosterEntries, error: rosterError } = await supabase
+        .from('label_roster')
+        .select('*, artist:artists(*)')
+        .eq('label_id', labelId);
+
+    if (rosterError) {
+        console.error("Error fetching roster:", rosterError);
+        return [];
+    }
+
+    // 2. Normalize data for UI
+    const roster = (rosterEntries || []).map((entry: any) => {
+        if (entry.artist) {
+            // Existing platform artist
+            return {
+                ...entry.artist,
+                role_in_label: entry.role, // e.g. "Artist", "Writer"
+                roster_id: entry.id
+            };
+        } else {
+            // Pending invite (email only)
+            return {
+                id: entry.id, // Use roster ID as temporary key
+                name: entry.email || 'Pending Invite',
+                image_url: USER_SILHOUETTE_URL,
+                email: entry.email,
+                role_in_label: entry.role,
+                is_pending: true
+            };
+        }
+    });
+
+    return roster;
+};
+
+export const addArtistToLabelRoster = async (params: { labelId: string, artistId?: string, email?: string, role?: string }) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { labelId, artistId, email, role } = params;
+
+    const newRosterEntry = {
+        id: crypto.randomUUID(),
+        label_id: labelId,
+        user_id: artistId || null, // null if invite by email only
+        email: email || null,      // store email for pending invites
+        role: role || 'Artist',
+        created_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+        .from('label_roster')
+        .insert(newRosterEntry)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error adding to roster:", error);
+        throw error;
+    }
+
+    // If linked to an existing artist, update their profile too
+    if (artistId) {
+        await supabase
+            .from('artists')
+            .update({ label_id: labelId })
+            .eq('id', artistId);
+    }
+
+    return data;
+};
+
+export const removeArtistFromLabelRoster = async (labelId: string, rosterId: string, artistId?: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return false;
+
+    const { error } = await supabase
+        .from('label_roster')
+        .delete()
+        .eq('id', rosterId);
+
+    if (error) {
+        console.error("Error removing from roster:", error);
+        return false;
+    }
+
+    // Optionally unlink from artists table
+    if (artistId) {
+        await supabase
+            .from('artists')
+            .update({ label_id: null })
+            .eq('id', artistId)
+            .eq('label_id', labelId); // Safety check
+    }
+
+    return true;
+};
+
+export const markArtistLabelClaimed = async (artistId: string, labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('artists')
+        .update({ label_id: labelId })
+        .eq('id', artistId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error claiming label:", error);
+        throw error;
+    }
+    return data;
 };

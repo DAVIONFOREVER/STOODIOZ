@@ -75,6 +75,8 @@ export enum TransactionCategory {
     MASTERCLASS_PAYOUT = 'MASTERCLASS_PAYOUT',
     BEAT_PURCHASE = 'BEAT_PURCHASE',
     BEAT_SALE = 'BEAT_SALE',
+    CONTRACT_PAYOUT = 'CONTRACT_PAYOUT',
+    CONTRACT_RECOUP = 'CONTRACT_RECOUP',
 }
 
 export enum TransactionStatus {
@@ -122,6 +124,23 @@ export enum RankingTier {
     Gold = 'Gold',
     Platinum = 'Platinum',
     Elite = 'Elite',
+}
+
+export type LabelContractType = 'FULL_RECOUP' | 'PERCENTAGE';
+export type LabelContractStatus = 'active' | 'paused' | 'completed';
+
+export interface LabelContract {
+    id: string;
+    label_id: string;
+    talent_user_id: string;
+    talent_role: string;
+    contract_type: LabelContractType;
+    split_percent: number; // 0 to 100
+    recoup_balance: number;
+    advance_amount?: number;
+    status: LabelContractStatus;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface Location {
@@ -184,6 +203,12 @@ export interface Transaction {
     status: TransactionStatus;
     related_booking_id?: string;
     related_user_name?: string;
+    // Revenue routing metadata
+    contract_id?: string;
+    recoup_applied?: number;
+    label_amount?: number;
+    provider_amount?: number;
+    label_id?: string;
 }
 
 export interface Subscription {
