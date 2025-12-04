@@ -1,12 +1,51 @@
-import React from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { AppView } from '../types';
+import LabelArtists from './LabelArtists';
+import LabelBookings from './LabelBookings';
+import LabelFinancials from './LabelFinancials';
+import LabelNotifications from './LabelNotifications';
+import { useAppState } from '../contexts/AppContext';
+
+const Documents = lazy(() => import('./Documents.tsx'));
+
+type LabelTab = 'roster' | 'bookings' | 'analytics' | 'financials' | 'notifications' | 'settings' | 'documents';
 
 const LabelDashboard: React.FC = () => {
     const { navigate } = useNavigation();
+    const { conversations } = useAppState();
+    const [activeTab, setActiveTab] = useState<LabelTab>('roster');
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'roster': return <LabelArtists />;
+            case 'bookings': return <LabelBookings />;
+            case 'financials': return <LabelFinancials />;
+            case 'notifications': return <LabelNotifications />;
+            case 'documents': 
+                return (
+                    <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading Documents...</div>}>
+                        <Documents conversations={conversations} />
+                    </Suspense>
+                );
+            case 'analytics':
+                 return (
+                    <div className="p-20 text-center">
+                        <p className="text-zinc-400 text-lg">Analytics Dashboard coming soon.</p>
+                    </div>
+                );
+            case 'settings':
+            default:
+                return (
+                    <div className="p-20 text-center">
+                        <p className="text-zinc-400 text-lg">Settings coming soon.</p>
+                    </div>
+                );
+        }
+    };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
+        <div className="max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
             {/* Header Section */}
             <div className="cardSurface p-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -37,31 +76,53 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
-                    <button className="px-6 py-4 font-bold text-sm border-b-2 border-orange-500 text-orange-400 transition-colors whitespace-nowrap">
+                    <button 
+                        onClick={() => setActiveTab('roster')}
+                        className={`px-6 py-4 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'roster' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+                    >
                         Roster
                     </button>
-                    <button className="px-6 py-4 font-bold text-sm border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition-colors whitespace-nowrap">
+                    <button 
+                         onClick={() => setActiveTab('bookings')}
+                         className={`px-6 py-4 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'bookings' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+                    >
                         Bookings
                     </button>
-                    <button className="px-6 py-4 font-bold text-sm border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition-colors whitespace-nowrap">
+                    <button 
+                         onClick={() => setActiveTab('financials')}
+                         className={`px-6 py-4 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'financials' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+                    >
+                        Financials
+                    </button>
+                    <button 
+                         onClick={() => setActiveTab('notifications')}
+                         className={`px-6 py-4 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'notifications' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+                    >
+                        Notifications
+                    </button>
+                     <button 
+                         onClick={() => setActiveTab('documents')}
+                         className={`px-6 py-4 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'documents' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+                    >
+                        Documents
+                    </button>
+                     <button 
+                         onClick={() => setActiveTab('analytics')}
+                         className={`px-6 py-4 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'analytics' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+                    >
                         Analytics
                     </button>
-                    <button className="px-6 py-4 font-bold text-sm border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition-colors whitespace-nowrap">
-                        Team
-                    </button>
-                    <button className="px-6 py-4 font-bold text-sm border-b-2 border-transparent text-zinc-400 hover:text-zinc-200 transition-colors whitespace-nowrap">
+                    <button 
+                         onClick={() => setActiveTab('settings')}
+                         className={`px-6 py-4 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'settings' ? 'border-orange-500 text-orange-400' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`}
+                    >
                         Settings
                     </button>
                 </div>
 
                 {/* Content Placeholder */}
-                <div className="p-20 text-center">
-                    <div className="inline-block p-4 rounded-full bg-zinc-800/50 mb-4">
-                        <svg className="w-8 h-8 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                    </div>
-                    <p className="text-zinc-400 text-lg">Select a tab to manage your label.</p>
+                <div className="p-6">
+                   {renderContent()}
                 </div>
             </div>
         </div>
