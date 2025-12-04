@@ -37,6 +37,7 @@ export enum AppView {
     PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
     VIDEOGRAPHER_DASHBOARD = 'VIDEOGRAPHER_DASHBOARD',
     LABEL_DASHBOARD = 'LABEL_DASHBOARD',
+    LABEL_IMPORT = 'LABEL_IMPORT',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
     ADMIN_RANKINGS = 'ADMIN_RANKINGS',
     STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
@@ -257,11 +258,13 @@ export interface BaseUser {
     strength_tags: string[];
     local_rank_text: string;
     purchased_masterclass_ids?: string[];
+    role?: string; // Used for shadow profiles
 }
 
 export interface Artist extends BaseUser {
     bio: string;
     is_seeking_session: boolean;
+    label_id?: string | null;
 }
 
 export interface Label extends BaseUser {
@@ -281,6 +284,7 @@ export interface Engineer extends BaseUser {
         radius: number; // in miles
     };
     minimum_pay_rate?: number;
+    label_id?: string | null;
 }
 
 export interface MixingServices {
@@ -334,6 +338,7 @@ export interface Producer extends BaseUser {
     instrumentals: Instrumental[];
     pull_up_price?: number;
     masterclass?: Masterclass;
+    label_id?: string | null;
 }
 
 export interface Instrumental {
@@ -518,4 +523,20 @@ export interface AandRNote {
     artist_id: string;
     note: string;
     created_at: string;
+}
+
+export interface RosterImportRow {
+    name: string;
+    email: string;
+    role: 'artist' | 'producer' | 'engineer';
+    phone?: string;
+    instagram?: string;
+    notes?: string;
+}
+
+export interface RosterMember extends Artist {
+    role_in_label: string;
+    roster_id: string;
+    is_pending?: boolean;
+    shadow_profile?: boolean;
 }
