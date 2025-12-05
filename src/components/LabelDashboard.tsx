@@ -15,12 +15,13 @@ import LabelReports from './label/LabelReports';
 import LabelQAReview from './label/LabelQAReview';
 import LabelActivityFeed from './label/LabelActivityFeed';
 import LabelInsights from './label/LabelInsights';
+import LabelApprovals from './label/LabelApprovals'; // Import new component
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
-type LabelTab = 'roster' | 'bookings' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'activity' | 'insights' | 'settings' | 'documents';
+type LabelTab = 'roster' | 'bookings' | 'approvals' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'activity' | 'insights' | 'settings' | 'documents';
 
 const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
     <button
@@ -42,6 +43,7 @@ const LabelDashboard: React.FC = () => {
         switch (activeTab) {
             case 'roster': return <LabelArtists />;
             case 'bookings': return <LabelBookings />;
+            case 'approvals': return <LabelApprovals />;
             case 'budget': return <LabelBudgetDashboard />;
             case 'financials': return <LabelFinancials />;
             case 'notifications': return <LabelNotifications />;
@@ -110,7 +112,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['roster', 'bookings', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'activity', 'insights', 'documents', 'settings'].map((tab) => (
+                    {['roster', 'bookings', 'approvals', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'activity', 'insights', 'documents', 'settings'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}
