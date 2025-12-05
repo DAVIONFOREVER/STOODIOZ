@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { fetchLabelPerformance } from '../services/apiService';
+import { getSupabase } from '../../lib/supabase.ts';
 
 // --- Local Icon Definitions (to avoid modifying icons.tsx) ---
 const ChartBarIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -45,22 +45,82 @@ const StatCard: React.FC<{ label: string; value: string | React.ReactNode; icon:
 
 export default function LabelPerformance() {
   const { currentUser } = useAppState();
+  const [performance, setPerformance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [performance, setPerformance] = useState<any[]>([]);
 
   useEffect(() => {
     async function load() {
-        if (!currentUser?.id) return;
+        if (!currentUser?.id) {
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
-        const data = await fetchLabelPerformance();
-        setPerformance(data || []);
-        setLoading(false);
+        setError(null);
+        try {
+            const data = await fetchLabelPerformance(currentUser.id);
+            if (!data || data.length === 0) {
+                setPerformance([]);
+                // No error, just empty state handled in JSX
+            } else {
+                setPerformance(data);
+            }
+        } catch (e) {
+            setError("Failed to fetch performance data.");
+        } finally {
+            setLoading(false);
+        }
     }
 
     load();
   }, [currentUser?.id]);
+  
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase || !currentUser?.id) return;
+
+    const channel = supabase
+        .channel("label-performance-updates")
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "bookings"
+            },
+            async () => {
+                const data = await fetchLabelPerformance(currentUser.id);
+                setPerformance(data);
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id]);
+
+  const summary = React.useMemo(() => {
+      if(performance.length === 0) {
+          return {
+              totalSessions: 0,
+              avgCost: 0,
+              mostActiveArtist: 'N/A'
+          };
+      }
+      const totalSessions = performance.reduce((sum, p) => sum + p.total_sessions, 0);
+      const totalCost = performance.reduce((sum, p) => sum + (p.avg_cost * p.completed_sessions), 0);
+      const totalCompleted = performance.reduce((sum, p) => sum + p.completed_sessions, 0);
+      const avgCost = totalCompleted > 0 ? totalCost / totalCompleted : 0;
+      const mostActive = [...performance].sort((a,b) => b.total_sessions - a.total_sessions)[0];
+
+      return {
+          totalSessions,
+          avgCost,
+          mostActiveArtist: mostActive?.artist_name || 'N/A'
+      };
+  }, [performance]);
 
   if (loading) {
     return <div className="text-center text-zinc-400 p-10">Loading performance data...</div>;
@@ -76,9 +136,9 @@ export default function LabelPerformance() {
 
         {/* Summary Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <StatCard label="Total Sessions (Label)" value="80" icon={<CalendarIcon className="w-6 h-6"/>} />
-            <StatCard label="Avg Session Cost" value="$376.67" icon={<DollarSignIcon className="w-6 h-6"/>} />
-            <StatCard label="Most Active Artist" value="Kid Astro" icon={<TrendingUpIcon className="w-6 h-6"/>} />
+            <StatCard label="Total Sessions (Label)" value={summary.totalSessions} icon={<CalendarIcon className="w-6 h-6"/>} />
+            <StatCard label="Avg Session Cost" value={`$${summary.avgCost.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6"/>} />
+            <StatCard label="Most Active Artist" value={summary.mostActiveArtist} icon={<TrendingUpIcon className="w-6 h-6"/>} />
         </div>
 
         {/* Artist Table */}
@@ -110,28 +170,20 @@ export default function LabelPerformance() {
                                     <td className="px-6 py-4 font-medium text-zinc-100">{artist.artist_name}</td>
                                     <td className="px-6 py-4 text-center font-semibold">{artist.total_sessions}</td>
                                     <td className="px-6 py-4 text-center font-semibold text-green-400">{artist.completed_sessions}</td>
-                                    <td className="px-6 py-4 text-center font-mono">${(artist.avg_cost || 0).toFixed(2)}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex justify-center">
-                                            {artist.trend === 'up' 
-                                                ? <TrendingUpIcon className="w-5 h-5 text-green-500" />
-                                                : <TrendingDownIcon className="w-5 h-5 text-red-500" />
-                                            }
-                                        </div>
+                                    <td className="px-6 py-4 text-center font-mono">${Number(artist.avg_cost).toFixed(2)}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        {artist.total_sessions === 0 ? (
+                                            <span className="text-zinc-500 text-xs italic">No data</span>
+                                        ) : (
+                                            // Simple placeholder - replace with real trend logic
+                                            <TrendingUpIcon className="w-5 h-5 text-green-500 mx-auto" />
+                                        )}
                                     </td>
                                 </tr>
                             ))
                         )}
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        {/* Chart Placeholder */}
-        <div className="cardSurface p-6">
-            <h2 className="text-xl font-bold text-zinc-100 mb-4">Spending Chart (Placeholder)</h2>
-            <div className="h-64 bg-zinc-800 rounded-lg flex items-center justify-center border border-zinc-700">
-                <p className="text-zinc-500">Chart visualization will be rendered here.</p>
             </div>
         </div>
     </div>

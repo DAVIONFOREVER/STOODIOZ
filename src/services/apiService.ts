@@ -1054,15 +1054,16 @@ export const getClaimDetails = async (token: string) => {
     const supabase = getSupabase();
     if (!supabase) return null;
 
-    const { data, error } = await supabase
+    const { data, error: rosterError } = await supabase
         .from('label_roster')
         .select('role, email, labels(name)')
         .eq('claim_token', token)
         .eq('claimed', false)
         .maybeSingle();
 
-    if (error || !data) {
-        console.warn("Invalid or expired claim token");
+    // FIX: `error` was aliased to `rosterError` but `error` was used.
+    if (rosterError || !data) {
+        console.warn("Invalid or expired claim token", rosterError);
         return null;
     }
 
