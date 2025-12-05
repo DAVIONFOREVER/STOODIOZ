@@ -9,12 +9,16 @@ import LabelRosterImport from './LabelRosterImport';
 import LabelBudgetDashboard from './LabelBudgetDashboard';
 import LabelAnalytics from './LabelAnalytics';
 import LabelControls from './label/LabelControls';
+import LabelPolicies from './label/LabelPolicies';
+import LabelMessaging from './label/LabelMessaging';
+import LabelReports from './label/LabelReports';
+import LabelQAReview from './label/LabelQAReview';
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
-type LabelTab = 'roster' | 'bookings' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'settings' | 'documents';
+type LabelTab = 'roster' | 'bookings' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'settings' | 'documents';
 
 const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
     <button
@@ -41,6 +45,10 @@ const LabelDashboard: React.FC = () => {
             case 'notifications': return <LabelNotifications />;
             case 'analytics': return <LabelAnalytics />;
             case 'controls': return <LabelControls />;
+            case 'policies': return <LabelPolicies />;
+            case 'messaging': return <LabelMessaging />;
+            case 'reports': return <LabelReports />;
+            case 'qa': return <LabelQAReview />;
             case 'documents': 
                 return (
                     <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading Documents...</div>}>
@@ -95,7 +103,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['roster', 'bookings', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'documents', 'settings'].map((tab) => (
+                    {['roster', 'bookings', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'documents', 'settings'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}
