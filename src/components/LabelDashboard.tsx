@@ -1,4 +1,3 @@
-
 import React, { useState, lazy, Suspense } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { AppView } from '../types';

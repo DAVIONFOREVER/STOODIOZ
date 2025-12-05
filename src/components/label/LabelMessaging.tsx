@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageIcon, PaperAirplaneIcon } from '../icons';
+import { PaperAirplaneIcon } from '../icons';
 
 const LabelMessaging: React.FC = () => {
     const [message, setMessage] = useState('');
@@ -15,9 +15,6 @@ const LabelMessaging: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto p-6 animate-fade-in pb-24">
             <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-orange-500/10 rounded-xl">
-                    <MessageIcon className="w-8 h-8 text-orange-400" />
-                </div>
                 <div>
                     <h1 className="text-3xl font-bold text-zinc-100">Roster Announcements</h1>
                     <p className="text-zinc-400 text-sm">Send broadcasts to your entire label or specific groups.</p>

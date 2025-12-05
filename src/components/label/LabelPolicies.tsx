@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircleIcon } from '../icons';
+import { CheckCircleIcon, ClockIcon, CalendarIcon, UserGroupIcon } from '../icons';
 
 const ToggleCard: React.FC<{ label: string; description: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, description, checked, onChange }) => (
     <div className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
@@ -20,6 +20,8 @@ const LabelPolicies: React.FC = () => {
     const [allowInPerson, setAllowInPerson] = useState(true);
     const [allowWeekends, setAllowWeekends] = useState(false);
     const [requireApproval, setRequireApproval] = useState(true);
+    const [minDuration, setMinDuration] = useState(2);
+    const [maxDuration, setMaxDuration] = useState(8);
 
     return (
         <div className="max-w-4xl mx-auto p-6 animate-fade-in">
@@ -49,6 +51,16 @@ const LabelPolicies: React.FC = () => {
                     checked={requireApproval} 
                     onChange={setRequireApproval} 
                 />
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-800">
+                     <div>
+                        <label className="block text-sm font-medium text-zinc-400 mb-1">Min Session Duration (hours)</label>
+                        <input type="number" value={minDuration} onChange={e => setMinDuration(Number(e.target.value))} className="w-full p-2 bg-zinc-800 border border-zinc-700 rounded-md" />
+                     </div>
+                     <div>
+                        <label className="block text-sm font-medium text-zinc-400 mb-1">Max Session Duration (hours)</label>
+                        <input type="number" value={maxDuration} onChange={e => setMaxDuration(Number(e.target.value))} className="w-full p-2 bg-zinc-800 border border-zinc-700 rounded-md" />
+                    </div>
+                </div>
             </div>
         </div>
     );
