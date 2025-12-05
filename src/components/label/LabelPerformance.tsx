@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import { useAppState } from '../contexts/AppContext';
+import { fetchLabelPerformance } from '../services/apiService';
 
 // --- Local Icon Definitions (to avoid modifying icons.tsx) ---
 const ChartBarIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -41,29 +43,24 @@ const StatCard: React.FC<{ label: string; value: string | React.ReactNode; icon:
     </div>
 );
 
-const mockArtistsPerformance = [
-    { id: '1', name: 'Luna Vance', totalSessions: 25, completedSessions: 22, avgCost: 350, trend: 'up' },
-    { id: '2', name: 'Kid Astro', totalSessions: 40, completedSessions: 38, avgCost: 500, trend: 'up' },
-    { id: '3', name: 'Echo & The Vibe', totalSessions: 15, completedSessions: 12, avgCost: 280, trend: 'down' },
-];
-
 export default function LabelPerformance() {
+  const { currentUser } = useAppState();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [performance, setPerformance] = useState<any[]>([]);
 
   useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      if (mockArtistsPerformance && mockArtistsPerformance.length > 0) {
-        setLoading(false);
-      } else {
-        setError("No performance data available");
-        setLoading(false);
-      }
-    }, 500);
+    async function load() {
+        if (!currentUser?.id) return;
 
-    return () => clearTimeout(timer);
-  }, []);
+        setLoading(true);
+        const data = await fetchLabelPerformance();
+        setPerformance(data || []);
+        setLoading(false);
+    }
+
+    load();
+  }, [currentUser?.id]);
 
   if (loading) {
     return <div className="text-center text-zinc-400 p-10">Loading performance data...</div>;
@@ -99,22 +96,32 @@ export default function LabelPerformance() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-800 text-zinc-300">
-                        {mockArtistsPerformance.map(artist => (
-                            <tr key={artist.id} className="hover:bg-zinc-800/40">
-                                <td className="px-6 py-4 font-medium text-zinc-100">{artist.name}</td>
-                                <td className="px-6 py-4 text-center font-semibold">{artist.totalSessions}</td>
-                                <td className="px-6 py-4 text-center font-semibold text-green-400">{artist.completedSessions}</td>
-                                <td className="px-6 py-4 text-center font-mono">${artist.avgCost.toFixed(2)}</td>
-                                <td className="px-6 py-4">
-                                    <div className="flex justify-center">
-                                        {artist.trend === 'up' 
-                                            ? <TrendingUpIcon className="w-5 h-5 text-green-500" />
-                                            : <TrendingDownIcon className="w-5 h-5 text-red-500" />
-                                        }
-                                    </div>
+                        {performance.length === 0 ? (
+                            <tr>
+                                <td colSpan={5}>
+                                    <p className="text-zinc-500 p-6 text-center">
+                                       No performance data available yet.
+                                    </p>
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            performance.map((artist: any) => (
+                                <tr key={artist.artist_id} className="hover:bg-zinc-800/40">
+                                    <td className="px-6 py-4 font-medium text-zinc-100">{artist.artist_name}</td>
+                                    <td className="px-6 py-4 text-center font-semibold">{artist.total_sessions}</td>
+                                    <td className="px-6 py-4 text-center font-semibold text-green-400">{artist.completed_sessions}</td>
+                                    <td className="px-6 py-4 text-center font-mono">${(artist.avg_cost || 0).toFixed(2)}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex justify-center">
+                                            {artist.trend === 'up' 
+                                                ? <TrendingUpIcon className="w-5 h-5 text-green-500" />
+                                                : <TrendingDownIcon className="w-5 h-5 text-red-500" />
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
