@@ -1366,6 +1366,29 @@ export const generateClaimTokenForRosterMember = async (rosterId: string): Promi
     return { claimUrl, claimCode };
 };
 
+export const getClaimDetails = async (token: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('label_roster')
+        .select('role, email, labels(name)')
+        .eq('claim_token', token)
+        .eq('claimed', false)
+        .maybeSingle();
+
+    if (error || !data) {
+        console.warn("Invalid or expired claim token");
+        return null;
+    }
+
+    return {
+        role: data.role,
+        email: data.email,
+        labelName: data.labels ? (data.labels as any).name : 'Unknown Label'
+    };
+};
+
 export const claimProfileByToken = async (token: string, authUserId: string): Promise<{ role: UserRole; profileId: string }> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
@@ -1430,11 +1453,9 @@ const processProfileClaim = async (rosterEntry: any, authUserId: string, supabas
     }).eq('id', rosterEntry.id);
 
     // Ensure user has correct role in profiles table
-    // (In a real app, we might need to handle role switching or multi-roles more carefully)
     await supabase.from('profiles').upsert({
         id: authUserId,
         role: userRole,
-        // Preserve other fields if needed
     });
 
     // Check if user already exists in specific table
@@ -1442,11 +1463,9 @@ const processProfileClaim = async (rosterEntry: any, authUserId: string, supabas
 
     if (!existingUser) {
         // If user doesn't exist in role table, create/migrate them
-        // If there was a shadow profile, we might want to copy data from it.
-        // For now, create a basic entry linked to the auth user.
         await supabase.from(tableName).insert({
             id: authUserId,
-            name: 'Claimed Account', // Placeholder, ideally prompt user for name or fetch from auth metadata
+            name: 'Claimed Account', // Placeholder
             email: 'claimed@user.com', // Placeholder
             image_url: USER_SILHOUETTE_URL,
             label_id: rosterEntry.label_id,
@@ -1495,8 +1514,6 @@ export const claimLabelRosterProfile = async (params: {
       imageFile: null
     };
 
-    // Using existing createUser helper which handles Auth + Profile creation
-    // We assume role is ARTIST for now as per prompt requirement for this specific flow
     const created = await createUser(userData, UserRoleEnum.ARTIST);
 
     if (!created || (created && 'email_confirmation_required' in created)) {
@@ -1512,7 +1529,7 @@ export const claimLabelRosterProfile = async (params: {
       .from('label_roster')
       .update({ 
          user_id: newUserId,
-         claimed: true, // Using 'claimed' to match existing column convention in file
+         claimed: true, 
          claimed_at: new Date().toISOString(),
          claimed_by_user_id: newUserId
       })

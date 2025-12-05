@@ -62,9 +62,11 @@ const StoodioSetup = lazy(() => import('./components/StoodioSetup.tsx'));
 const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
-const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx')); // Lazy load import
-const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx')); // Lazy load claim
-const ClaimLabelProfile = lazy(() => import('./components/ClaimLabelProfile.tsx')); // Lazy load label roster claim
+const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx'));
+const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
+const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
+const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
+const ClaimLabelProfile = lazy(() => import('./components/ClaimLabelProfile.tsx'));
 const Login = lazy(() => import('./components/Login.tsx'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.tsx'));
 const TheStage = lazy(() => import('./components/TheStage.tsx'));
@@ -112,7 +114,6 @@ const App: React.FC = () => {
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
-    // State to hold the claim token parsed from URL
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
     
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
@@ -125,7 +126,6 @@ const App: React.FC = () => {
             return;
         }
 
-        // Ensure previous session is cleared before setup to avoid conflicts
         if (userData.email && userData.password) {
             await (supabase.auth as any).signOut();
         }
@@ -154,23 +154,7 @@ const App: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
-            
             let errorMessage = error.message || "Unknown error";
-            if (typeof error === 'object') {
-                try {
-                    // Check for specific Supabase error codes
-                    if (error.code === '42P01') {
-                        errorMessage = `Database Error: The table for '${role}' does not exist. Please contact support.`;
-                    } else if (error.code === '23505') {
-                        errorMessage = "An account with this email already exists.";
-                    } else {
-                        errorMessage = JSON.stringify(error, null, 2);
-                    }
-                } catch (e) {
-                    errorMessage = String(error);
-                }
-            }
-            
             alert(`Setup failed:\n${errorMessage}`);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
@@ -203,13 +187,18 @@ const App: React.FC = () => {
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
-        // Handle URL Routing manually for "Claim" flow
+        // 1. Handle Token Routes (e.g., invites)
         const path = window.location.pathname;
         if (path.startsWith('/claim/')) {
-            const token = path.split('/claim/')[1];
+            const pathParts = path.split('/');
+            const token = pathParts[2];
             if (token) {
                 setClaimToken(token);
-                dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_PROFILE } });
+                if (path.includes('/confirm')) {
+                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
+                } else {
+                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
+                }
             }
         }
 
@@ -227,21 +216,19 @@ const App: React.FC = () => {
                     producers: directory.producers,
                     stoodioz: directory.stoodioz,
                     labels: directory.labels,
-                    reviews: [] // Fetch reviews later if needed
+                    reviews: [] 
                 }
             });
         };
         
         fetchDirectory();
 
-        // Helper to fetch and hydrate CURRENT logged-in user profile data
         const fetchAndHydrateUser = async (userId: string) => {
             if (!currentUser) {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             }
 
             const fetchProfiles = async () => {
-                // Check all tables to find where this user exists.
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
@@ -255,31 +242,23 @@ const App: React.FC = () => {
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
                         
                         if (error) {
-                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
                              const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                             
-                             if (!basicError && basicData) {
-                                 return { data: basicData, role: config.role };
-                             }
+                             if (!basicError && basicData) return { data: basicData, role: config.role };
                              return null;
                         }
                         return data ? { data, role: config.role } : null;
                     } catch (e) {
-                        console.warn(`Hydration error for ${tableName}:`, e);
                         return null;
                     }
                 });
                 
                 const idResults = await Promise.all(idPromises);
-                const found = idResults.find(result => result !== null);
-                
-                return found;
+                return idResults.find(result => result !== null);
             };
             
             try {
                 let userProfileResult = await fetchProfiles();
                 
-                // Retry logic for race conditions on signup
                 if (!userProfileResult) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         userProfileResult = await fetchProfiles();
@@ -294,11 +273,9 @@ const App: React.FC = () => {
                         } 
                     });
                 } else {
-                    // CRITICAL FIX: If we authenticated but found no profile, we MUST tell the user
-                    console.error("User authenticated but profile not found in any table.");
                     dispatch({ 
                         type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
+                        payload: { error: "Login successful, but your profile data could not be found." } 
                     });
                 }
             } catch (error) {
@@ -309,7 +286,6 @@ const App: React.FC = () => {
             }
         };
 
-        // 1. Immediate Session Check on Mount (Fixes Refresh Logout)
         const initSession = async () => {
             const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
@@ -321,12 +297,10 @@ const App: React.FC = () => {
         
         initSession();
 
-        // 2. Listen for Auth Changes (Login, Logout, etc.)
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
             } else if (event === 'SIGNED_IN' && session?.user) {
-                // Only fetch if current user is not set or different
                 if (!currentUser || currentUser.id !== session.user.id) {
                     await fetchAndHydrateUser(session.user.id);
                 }
@@ -337,6 +311,13 @@ const App: React.FC = () => {
             subscription?.unsubscribe();
         };
     }, [dispatch]); 
+
+    // Post-Login Redirect for Claim Flow
+    useEffect(() => {
+        if (currentUser && localStorage.getItem('pending_claim_token')) {
+            dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
+        }
+    }, [currentUser, dispatch]);
 
     useEffect(() => {
         let timerId: number;
@@ -459,6 +440,10 @@ const App: React.FC = () => {
                 return <LabelRosterImport />;
             case AppView.CLAIM_PROFILE:
                 return <ClaimProfile token={claimToken} />;
+            case AppView.CLAIM_ENTRY:
+                return <ClaimEntryScreen token={claimToken || ''} />;
+            case AppView.CLAIM_CONFIRM:
+                return <ClaimConfirmScreen />;
             case AppView.CLAIM_LABEL_PROFILE:
                 return <ClaimLabelProfile onNavigate={navigate} />;
             case AppView.ACTIVE_SESSION:
@@ -497,7 +482,6 @@ const App: React.FC = () => {
                 </Suspense>
             </main>
 
-            {/* Permission Error Modal for Messaging */}
             {permissionError && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
                     <div className="bg-zinc-900 p-6 rounded-xl max-w-md w-full text-center border border-zinc-700 animate-fade-in">
@@ -559,7 +543,6 @@ const App: React.FC = () => {
                 </Suspense>
             )}
 
-            {/* Global UI Elements */}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
              {isAriaCantataOpen && (
                 <Suspense fallback={<div />}>
