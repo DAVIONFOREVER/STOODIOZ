@@ -1524,3 +1524,19 @@ export const generateClaimTokenForRosterMember = async (rosterId: string): Promi
 
     return { claimUrl, claimCode };
 };
+
+export async function fetchLabelPerformance() {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('label_artist_performance')
+        .select('*');
+
+    if (error) {
+        console.error("fetchLabelPerformance error:", error);
+        return [];
+    }
+
+    return data || [];
+}
