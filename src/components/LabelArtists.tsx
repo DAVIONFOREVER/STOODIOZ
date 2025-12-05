@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon } from './icons';
+import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon, FireIcon, ShieldCheckIcon, PhotoIcon, MusicNoteIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import type { RosterMember } from '../types';
 import { USER_SILHOUETTE_URL } from '../constants';
+import RankingBadge from './RankingBadge';
 
 interface LabelArtistsProps {
     reloadSignal?: number;
@@ -43,6 +44,13 @@ const StatusBadge: React.FC<{ member: RosterMember }> = ({ member }) => {
             <CheckCircleIcon className="w-3.5 h-3.5" /> Claimed
         </span>
     );
+};
+
+const calculateOutputScore = (member: any) => {
+    const sessions = member.sessions_completed || 0;
+    const posts = member.posts_created || 0;
+    const uploads = member.uploads_count || 0;
+    return (sessions * 3) + (posts * 1) + (uploads * 2);
 };
 
 const RosterCard: React.FC<{ member: RosterMember; onRemove: (id: string) => void }> = ({ member, onRemove }) => (
@@ -124,7 +132,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
 
     const openAria = () => {
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
-        dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: "Help me manage my roster and specific artist strategies." } });
+        dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: "Analyze my roster's output score and suggest improvements." } });
     };
 
     // Categories
@@ -136,7 +144,13 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
     const stats = useMemo(() => {
         const totalArtists = activeMembers.length;
         const totalSessions = activeMembers.reduce((acc, curr: any) => acc + (curr.sessions_completed || 0), 0);
-        const totalMixes = activeMembers.reduce((acc, curr: any) => acc + (curr.mixes_delivered || 0), 0);
+        
+        let totalOutputScore = 0;
+        activeMembers.forEach((m: any) => {
+            totalOutputScore += calculateOutputScore(m);
+        });
+
+        const avgOutputScore = totalArtists > 0 ? Math.round(totalOutputScore / totalArtists) : 0;
         const avgEngagement = activeMembers.length > 0 
             ? (activeMembers.reduce((acc, curr: any) => acc + (curr.engagement_score || 0), 0) / activeMembers.length).toFixed(2)
             : "N/A";
@@ -144,7 +158,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         return { 
             totalArtists, 
             totalSessions, 
-            totalMixes, 
+            avgOutputScore, 
             avgEngagement 
         };
     }, [activeMembers]);
@@ -207,7 +221,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard label="Total Artists" value={stats.totalArtists.toString()} icon={<UsersIcon className="w-6 h-6" />} />
                 <StatCard label="Total Sessions" value={stats.totalSessions.toString()} icon={<CalendarIcon className="w-6 h-6" />} />
-                <StatCard label="Total Mixes" value={stats.totalMixes.toString()} icon={<ChartBarIcon className="w-6 h-6" />} />
+                <StatCard label="Avg Output Score" value={stats.avgOutputScore.toString()} icon={<FireIcon className="w-6 h-6" />} />
                 <StatCard label="Avg. Engagement" value={stats.avgEngagement} icon={<HeartIcon className="w-6 h-6" />} />
             </div>
 
@@ -255,46 +269,75 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                             <div className="h-px bg-zinc-800 flex-grow"></div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {activeMembers.map((artist) => (
-                                <div key={artist.roster_id || artist.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-orange-500/30 transition-all duration-300 group">
-                                    <div className="flex items-center gap-4 mb-6">
-                                        <img src={artist.image_url} alt={artist.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
-                                        <div>
-                                            <h3 className="text-xl font-bold text-zinc-100">{artist.name}</h3>
-                                            <span className="inline-block bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full border border-zinc-700 mt-1">
-                                                {artist.role_in_label || 'Artist'}
-                                            </span>
+                            {activeMembers.map((artist) => {
+                                const outputScore = calculateOutputScore(artist);
+                                const anyArtist = artist as any; // Cast to access extended metrics
+                                return (
+                                    <div key={artist.roster_id || artist.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-orange-500/30 transition-all duration-300 group">
+                                        <div className="flex items-center gap-4 mb-6">
+                                            <img src={artist.image_url} alt={artist.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                                            <div>
+                                                <h3 className="text-xl font-bold text-zinc-100">{artist.name}</h3>
+                                                <span className="inline-block bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full border border-zinc-700 mt-1">
+                                                    {artist.role_in_label || 'Artist'}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-4 mb-6">
-                                        <div className="bg-zinc-800/50 p-3 rounded-lg text-center">
-                                            <p className="text-xs text-zinc-500 uppercase font-bold">Sessions</p>
-                                            <p className="text-lg font-bold text-zinc-200">{(artist as any).sessions_completed || 0}</p>
+                                        
+                                        {/* KPI Grid */}
+                                        <div className="grid grid-cols-2 gap-3 mb-4">
+                                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Sessions</p>
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                    <CalendarIcon className="w-3.5 h-3.5 text-blue-400" />
+                                                    <p className="text-lg font-bold text-zinc-200">{anyArtist.sessions_completed || 0}</p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Mixes</p>
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                    <ChartBarIcon className="w-3.5 h-3.5 text-purple-400" />
+                                                    <p className="text-lg font-bold text-zinc-200">{anyArtist.mixes_delivered || 0}</p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Ranking</p>
+                                                <div className="flex justify-center">
+                                                    <RankingBadge tier={anyArtist.ranking_tier} isOnStreak={anyArtist.is_on_streak} short />
+                                                </div>
+                                            </div>
+                                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Output Score</p>
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                    <FireIcon className="w-3.5 h-3.5 text-orange-500" />
+                                                    <p className="text-lg font-bold text-orange-400">{outputScore}</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="bg-zinc-800/50 p-3 rounded-lg text-center">
-                                            <p className="text-xs text-zinc-500 uppercase font-bold">Mixes</p>
-                                            <p className="text-lg font-bold text-orange-400">{(artist as any).mixes_delivered || 0}</p>
+                                        
+                                        <div className="flex gap-3 items-center text-xs text-zinc-500 px-1 mb-4 justify-between">
+                                            <span className="flex items-center gap-1"><PhotoIcon className="w-3 h-3" /> {anyArtist.posts_created || 0} Posts</span>
+                                            <span className="flex items-center gap-1"><MusicNoteIcon className="w-3 h-3" /> {anyArtist.uploads_count || 0} Uploads</span>
                                         </div>
-                                    </div>
 
-                                    <div className="flex gap-3">
-                                        <button 
-                                            onClick={() => setSelectedArtist(artist)}
-                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                                        >
-                                            <EyeIcon className="w-4 h-4" /> View
-                                        </button>
-                                        <button 
-                                            onClick={() => handleRemove(artist.roster_id)}
-                                            className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-colors"
-                                            title="Remove Artist"
-                                        >
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
+                                        <div className="flex gap-3">
+                                            <button 
+                                                onClick={() => setSelectedArtist(artist)}
+                                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                                            >
+                                                <EyeIcon className="w-4 h-4" /> View
+                                            </button>
+                                            <button 
+                                                onClick={() => handleRemove(artist.roster_id)}
+                                                className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-colors"
+                                                title="Remove Artist"
+                                            >
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </section>
                 )}
@@ -307,8 +350,8 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                         <MagicWandIcon className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-grow min-w-0">
-                        <p className="text-sm font-bold text-zinc-100 truncate">Need roster advice?</p>
-                        <p className="text-xs text-zinc-400 truncate">Ask Aria to analyze performance metrics.</p>
+                        <p className="text-sm font-bold text-zinc-100 truncate">Need performance insights?</p>
+                        <p className="text-xs text-zinc-400 truncate">Ask Aria to analyze output scores.</p>
                     </div>
                     <button 
                         onClick={openAria}
@@ -338,24 +381,27 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                             <img src={selectedArtist.image_url} alt={selectedArtist.name} className="w-32 h-32 rounded-2xl object-cover border-4 border-zinc-900 shadow-xl mb-4" />
                             
                             <h2 className="text-3xl font-extrabold text-zinc-100">{selectedArtist.name}</h2>
-                            <p className="text-orange-400 font-medium mb-4">{selectedArtist.role_in_label || 'Artist'}</p>
+                            <div className="flex items-center gap-3 mb-4">
+                                <p className="text-orange-400 font-medium">{selectedArtist.role_in_label || 'Artist'}</p>
+                                <RankingBadge tier={selectedArtist.ranking_tier} isOnStreak={selectedArtist.is_on_streak} short />
+                            </div>
                             
                             <p className="text-zinc-400 mb-6 leading-relaxed">
                                 {selectedArtist.bio || "No bio available."}
                             </p>
 
                             <div className="grid grid-cols-3 gap-4">
-                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700">
-                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Sessions Completed</p>
+                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
+                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Sessions</p>
                                     <p className="text-2xl font-bold text-zinc-100">{(selectedArtist as any).sessions_completed || 0}</p>
                                 </div>
-                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700">
-                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Mixes Delivered</p>
-                                    <p className="text-2xl font-bold text-green-400">{(selectedArtist as any).mixes_delivered || 0}</p>
+                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
+                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Output</p>
+                                    <p className="text-2xl font-bold text-orange-400">{calculateOutputScore(selectedArtist)}</p>
                                 </div>
-                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700">
-                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Engagement Score</p>
-                                    <p className="text-2xl font-bold text-orange-400">{(selectedArtist as any).engagement_score || 0}</p>
+                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
+                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Engagement</p>
+                                    <p className="text-2xl font-bold text-blue-400">{(selectedArtist as any).engagement_score || 0}</p>
                                 </div>
                             </div>
                             
