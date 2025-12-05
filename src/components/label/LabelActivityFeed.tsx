@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useAppState } from '../contexts/AppContext.tsx';
-import * as apiService from '../services/apiService.ts';
-import { CalendarIcon, UsersIcon, DollarSignIcon, BellIcon } from '../icons.tsx';
+import { useAppState } from '../contexts/AppContext';
+import * as apiService from '../services/apiService';
+import { CalendarIcon, UsersIcon, DollarSignIcon, BellIcon } from '../icons';
 
 type ActivityEvent = {
     id: string;
