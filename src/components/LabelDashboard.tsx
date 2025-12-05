@@ -1,4 +1,3 @@
-
 import React, { useState, lazy, Suspense } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { AppView } from '../types';
@@ -9,12 +8,13 @@ import LabelNotifications from './LabelNotifications';
 import LabelRosterImport from './LabelRosterImport';
 import LabelBudgetDashboard from './LabelBudgetDashboard';
 import LabelAnalytics from './LabelAnalytics';
+import LabelControls from './label/LabelControls';
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
-type LabelTab = 'roster' | 'bookings' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'settings' | 'documents';
+type LabelTab = 'roster' | 'bookings' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'settings' | 'documents';
 
 const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
     <button
@@ -40,6 +40,7 @@ const LabelDashboard: React.FC = () => {
             case 'financials': return <LabelFinancials />;
             case 'notifications': return <LabelNotifications />;
             case 'analytics': return <LabelAnalytics />;
+            case 'controls': return <LabelControls />;
             case 'documents': 
                 return (
                     <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading Documents...</div>}>
@@ -94,7 +95,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['roster', 'bookings', 'budget', 'analytics', 'financials', 'notifications', 'documents', 'settings'].map((tab) => (
+                    {['roster', 'bookings', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'documents', 'settings'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}
