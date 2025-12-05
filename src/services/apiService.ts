@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember, LabelBudgetOverview } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -454,6 +454,75 @@ export const applyLabelRevenueRouting = async (booking: Booking, totalPayout: nu
     if (recoupApplied > 0) {
         await updateLabelContractRecoupBalance(contract.id, recoupApplied);
     }
+};
+
+// --- LABEL BUDGETS ---
+
+export const getLabelBudgetOverview = async (labelId: string): Promise<LabelBudgetOverview | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    try {
+        const { data, error } = await supabase.rpc('get_label_budget_overview', { p_label_id: labelId });
+        if (error) throw error;
+        return data as LabelBudgetOverview;
+    } catch (e) {
+        console.warn("RPC get_label_budget_overview failed, attempting fallback fetch.", e);
+        
+        // Fallback: Fetch tables manually if RPC is missing
+        const { data: budget } = await supabase.from('label_budgets').select('*').eq('label_id', labelId).maybeSingle();
+        
+        const { data: roster } = await supabase.from('label_artist_budgets').select('*, artist:artists(name, image_url)').eq('label_id', labelId);
+        
+        const artists = (roster || []).map((r: any) => ({
+            artist_id: r.artist_id,
+            artist_name: r.artist?.name || 'Unknown Artist',
+            artist_image_url: r.artist?.image_url || USER_SILHOUETTE_URL,
+            allocation_amount: r.allocation_amount,
+            amount_spent: r.amount_spent
+        }));
+
+        return {
+            budget: budget || null,
+            artists: artists
+        };
+    }
+};
+
+export const setLabelBudget = async (labelId: string, totalBudget: number) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    
+    const currentYear = new Date().getFullYear().toString();
+
+    const { data, error } = await supabase
+        .from('label_budgets')
+        .upsert(
+            { label_id: labelId, total_budget: totalBudget, fiscal_year: currentYear },
+            { onConflict: 'label_id, fiscal_year' }
+        )
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+};
+
+export const setArtistAllocation = async (labelId: string, artistId: string, allocation: number) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('label_artist_budgets')
+        .upsert(
+            { label_id: labelId, artist_id: artistId, allocation_amount: allocation },
+            { onConflict: 'label_id, artist_id' }
+        )
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
 };
 
 // --- BOOKINGS ---

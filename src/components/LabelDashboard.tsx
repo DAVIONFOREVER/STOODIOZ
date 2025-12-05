@@ -7,12 +7,13 @@ import LabelBookings from './LabelBookings';
 import LabelFinancials from './LabelFinancials';
 import LabelNotifications from './LabelNotifications';
 import LabelRosterImport from './LabelRosterImport';
+import LabelBudgetDashboard from './LabelBudgetDashboard';
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
-type LabelTab = 'roster' | 'bookings' | 'analytics' | 'financials' | 'notifications' | 'settings' | 'documents';
+type LabelTab = 'roster' | 'bookings' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'settings' | 'documents';
 
 const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
     <button
@@ -34,6 +35,7 @@ const LabelDashboard: React.FC = () => {
         switch (activeTab) {
             case 'roster': return <LabelArtists />;
             case 'bookings': return <LabelBookings />;
+            case 'budget': return <LabelBudgetDashboard />;
             case 'financials': return <LabelFinancials />;
             case 'notifications': return <LabelNotifications />;
             case 'documents': 
@@ -96,7 +98,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['roster', 'bookings', 'financials', 'notifications', 'documents', 'analytics', 'settings'].map((tab) => (
+                    {['roster', 'bookings', 'budget', 'financials', 'notifications', 'documents', 'analytics', 'settings'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}
@@ -117,7 +119,7 @@ const LabelDashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Single Add Roster Modal (Deprecated by full page import but kept for legacy button if needed) */}
+            {/* Roster Import Modal */}
             {showRosterImport && currentUser?.id && userRole === 'LABEL' && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
                     <LabelRosterImport

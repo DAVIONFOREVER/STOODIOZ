@@ -38,14 +38,14 @@ export enum AppView {
     VIDEOGRAPHER_DASHBOARD = 'VIDEOGRAPHER_DASHBOARD',
     LABEL_DASHBOARD = 'LABEL_DASHBOARD',
     LABEL_IMPORT = 'LABEL_IMPORT',
-    CLAIM_PROFILE = 'CLAIM_PROFILE',
-    CLAIM_LABEL_PROFILE = 'CLAIM_LABEL_PROFILE',
-    CLAIM_ENTRY = 'CLAIM_ENTRY',
-    CLAIM_CONFIRM = 'CLAIM_CONFIRM',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
     ADMIN_RANKINGS = 'ADMIN_RANKINGS',
     STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
     LEADERBOARD = 'LEADERBOARD',
+    CLAIM_PROFILE = 'CLAIM_PROFILE',
+    CLAIM_ENTRY = 'CLAIM_ENTRY',
+    CLAIM_CONFIRM = 'CLAIM_CONFIRM',
+    CLAIM_LABEL_PROFILE = 'CLAIM_LABEL_PROFILE',
 }
 
 export enum UserRole {
@@ -548,14 +548,12 @@ export interface RosterMember extends BaseUser {
     role_in_label: string;
     is_pending?: boolean;
     shadow_profile?: boolean;
-    claim_code?: string;
     claim_token?: string;
+    claim_code?: string;
     posts_created?: number;
     uploads_count?: number;
     mixes_delivered?: number;
     output_score?: number;
-    songs_finished?: number;
-    avg_session_rating?: number | null;
     engagement_score?: number;
 }
 
@@ -564,4 +562,26 @@ export interface LabelRosterEntry extends BaseUser {
     role_in_label: string;
     shadow_profile: boolean;
     is_pending?: boolean;
+}
+
+export interface LabelBudget {
+    id: string;
+    label_id: string;
+    total_budget: number;
+    amount_spent: number;
+    currency: string;
+    fiscal_year: string;
+}
+
+export interface ArtistBudget {
+    artist_id: string;
+    artist_name: string;
+    artist_image_url: string;
+    allocation_amount: number;
+    amount_spent: number;
+}
+
+export interface LabelBudgetOverview {
+    budget: LabelBudget | null;
+    artists: ArtistBudget[];
 }
