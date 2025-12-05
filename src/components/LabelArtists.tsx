@@ -50,7 +50,15 @@ const calculateOutputScore = (member: any) => {
     const sessions = member.sessions_completed || 0;
     const posts = member.posts_created || 0;
     const uploads = member.uploads_count || 0;
-    return (sessions * 3) + (posts * 1) + (uploads * 2);
+    return (sessions * 3) + (uploads * 2) + (posts * 1);
+};
+
+const handleCopyInvite = (member: RosterMember) => {
+    const token = (member as any).claim_token || (member as any).claim_code || 'unavailable';
+    const url = `${window.location.origin}/claim/${token}`;
+    navigator.clipboard.writeText(url).then(() => {
+        alert("Invite link copied to clipboard!");
+    });
 };
 
 const RosterCard: React.FC<{ member: RosterMember; onRemove: (id: string) => void }> = ({ member, onRemove }) => (
@@ -74,9 +82,9 @@ const RosterCard: React.FC<{ member: RosterMember; onRemove: (id: string) => voi
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
              {(member.shadow_profile || member.is_pending) && (
                 <button 
+                    onClick={() => handleCopyInvite(member)}
                     className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
-                    title="Resend Invite / Copy Link"
-                    onClick={() => alert("Invite link copied to clipboard!")}
+                    title="Copy Invite Link"
                 >
                     <LinkIcon className="w-5 h-5" />
                 </button>
