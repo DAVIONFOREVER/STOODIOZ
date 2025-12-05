@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState, useEffect } from 'react';
 
 // --- Local Icon Definitions (to avoid modifying icons.tsx) ---
 const ChartBarIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -47,6 +48,31 @@ const mockArtistsPerformance = [
 ];
 
 export default function LabelPerformance() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => {
+      if (mockArtistsPerformance && mockArtistsPerformance.length > 0) {
+        setLoading(false);
+      } else {
+        setError("No performance data available");
+        setLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return <div className="text-center text-zinc-400 p-10">Loading performance data...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-400 p-10">{error}</div>;
+  }
+
   return (
     <div className="space-y-8 animate-fade-in">
         <h1 className="text-3xl font-extrabold text-zinc-100">Label Performance</h1>
