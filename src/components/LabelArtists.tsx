@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { UsersIcon, CalendarIcon, TrashIcon, EyeIcon, LinkIcon, MagicWandIcon, MailIcon, CheckCircleIcon, PlusCircleIcon, UserPlusIcon } from './icons';
+import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import type { RosterMember } from '../types';
@@ -89,6 +90,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
     
     const [roster, setRoster] = useState<RosterMember[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
 
     const fetchRoster = async () => {
         if (!currentUser || userRole !== 'LABEL') return;
@@ -132,14 +134,20 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
 
     // Metrics
     const stats = useMemo(() => {
-        const total = roster.length;
-        const claimed = activeMembers.length;
-        const totalBookings = activeMembers.reduce((acc, curr) => acc + (curr.sessions_completed || 0), 0);
-        const avgRating = activeMembers.length > 0 
-            ? (activeMembers.reduce((acc, curr) => acc + (curr.rating_overall || 0), 0) / activeMembers.length).toFixed(1) 
+        const totalArtists = activeMembers.length;
+        const totalSessions = activeMembers.reduce((acc, curr: any) => acc + (curr.sessions_completed || 0), 0);
+        const totalMixes = activeMembers.reduce((acc, curr: any) => acc + (curr.mixes_delivered || 0), 0);
+        const avgEngagement = activeMembers.length > 0 
+            ? (activeMembers.reduce((acc, curr: any) => acc + (curr.engagement_score || 0), 0) / activeMembers.length).toFixed(2)
             : "N/A";
-        return { total, claimed, totalBookings, avgRating };
-    }, [roster, activeMembers]);
+
+        return { 
+            totalArtists, 
+            totalSessions, 
+            totalMixes, 
+            avgEngagement 
+        };
+    }, [activeMembers]);
 
     if (!currentUser || userRole !== 'LABEL') return null;
 
@@ -196,11 +204,11 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         <div className="space-y-10 animate-fade-in pb-24">
             
             {/* Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard label="Total Talent" value={stats.total.toString()} icon={<UsersIcon className="w-6 h-6" />} />
-                <StatCard label="Active Profiles" value={stats.claimed.toString()} icon={<CheckCircleIcon className="w-6 h-6" />} />
-                <StatCard label="Total Bookings" value={stats.totalBookings.toString()} icon={<CalendarIcon className="w-6 h-6" />} />
-                <StatCard label="Avg Rating" value={stats.avgRating} icon={<EyeIcon className="w-6 h-6" />} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard label="Total Artists" value={stats.totalArtists.toString()} icon={<UsersIcon className="w-6 h-6" />} />
+                <StatCard label="Total Sessions" value={stats.totalSessions.toString()} icon={<CalendarIcon className="w-6 h-6" />} />
+                <StatCard label="Total Mixes" value={stats.totalMixes.toString()} icon={<ChartBarIcon className="w-6 h-6" />} />
+                <StatCard label="Avg. Engagement" value={stats.avgEngagement} icon={<HeartIcon className="w-6 h-6" />} />
             </div>
 
             {/* Main Roster Views */}
@@ -216,7 +224,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {pendingMembers.map(member => (
-                                <RosterCard key={member.roster_id} member={member} onRemove={handleRemove} />
+                                <RosterCard key={member.roster_id} member={member} onRemove={(id) => handleRemove(id)} />
                             ))}
                         </div>
                     </section>
@@ -232,13 +240,13 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {shadowMembers.map(member => (
-                                <RosterCard key={member.roster_id} member={member} onRemove={handleRemove} />
+                                <RosterCard key={member.roster_id} member={member} onRemove={(id) => handleRemove(id)} />
                             ))}
                         </div>
                     </section>
                 )}
 
-                {/* Confirmed Section */}
+                {/* Confirmed Section (Active Roster) */}
                 {activeMembers.length > 0 && (
                     <section className="space-y-4">
                         <div className="flex items-center gap-3 px-2">
@@ -246,9 +254,46 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                             <h3 className="text-sm font-bold text-green-500 uppercase tracking-widest">Active Roster ({activeMembers.length})</h3>
                             <div className="h-px bg-zinc-800 flex-grow"></div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {activeMembers.map(member => (
-                                <RosterCard key={member.roster_id} member={member} onRemove={handleRemove} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {activeMembers.map((artist) => (
+                                <div key={artist.roster_id || artist.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-orange-500/30 transition-all duration-300 group">
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <img src={artist.image_url} alt={artist.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                                        <div>
+                                            <h3 className="text-xl font-bold text-zinc-100">{artist.name}</h3>
+                                            <span className="inline-block bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full border border-zinc-700 mt-1">
+                                                {artist.role_in_label || 'Artist'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-4 mb-6">
+                                        <div className="bg-zinc-800/50 p-3 rounded-lg text-center">
+                                            <p className="text-xs text-zinc-500 uppercase font-bold">Sessions</p>
+                                            <p className="text-lg font-bold text-zinc-200">{(artist as any).sessions_completed || 0}</p>
+                                        </div>
+                                        <div className="bg-zinc-800/50 p-3 rounded-lg text-center">
+                                            <p className="text-xs text-zinc-500 uppercase font-bold">Mixes</p>
+                                            <p className="text-lg font-bold text-orange-400">{(artist as any).mixes_delivered || 0}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <button 
+                                            onClick={() => setSelectedArtist(artist)}
+                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                                        >
+                                            <EyeIcon className="w-4 h-4" /> View
+                                        </button>
+                                        <button 
+                                            onClick={() => handleRemove(artist.roster_id)}
+                                            className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-colors"
+                                            title="Remove Artist"
+                                        >
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     </section>
@@ -273,6 +318,58 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                     </button>
                 </div>
             </div>
+
+            {/* SECTION D: View Artist Modal */}
+            {selectedArtist && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl w-full max-w-lg animate-slide-up overflow-hidden relative">
+                        <button 
+                            onClick={() => setSelectedArtist(null)} 
+                            className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded-full text-zinc-200 hover:bg-black/70 backdrop-blur-md"
+                        >
+                            <CloseIcon className="w-6 h-6" />
+                        </button>
+                        
+                        <div className="h-40 bg-gradient-to-br from-orange-600 to-purple-700 relative">
+                            <img src={selectedArtist.image_url} className="w-full h-full object-cover opacity-50 mix-blend-overlay" alt="cover" />
+                        </div>
+                        
+                        <div className="px-8 pb-8 -mt-16 relative">
+                            <img src={selectedArtist.image_url} alt={selectedArtist.name} className="w-32 h-32 rounded-2xl object-cover border-4 border-zinc-900 shadow-xl mb-4" />
+                            
+                            <h2 className="text-3xl font-extrabold text-zinc-100">{selectedArtist.name}</h2>
+                            <p className="text-orange-400 font-medium mb-4">{selectedArtist.role_in_label || 'Artist'}</p>
+                            
+                            <p className="text-zinc-400 mb-6 leading-relaxed">
+                                {selectedArtist.bio || "No bio available."}
+                            </p>
+
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700">
+                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Sessions Completed</p>
+                                    <p className="text-2xl font-bold text-zinc-100">{(selectedArtist as any).sessions_completed || 0}</p>
+                                </div>
+                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700">
+                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Mixes Delivered</p>
+                                    <p className="text-2xl font-bold text-green-400">{(selectedArtist as any).mixes_delivered || 0}</p>
+                                </div>
+                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700">
+                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Engagement Score</p>
+                                    <p className="text-2xl font-bold text-orange-400">{(selectedArtist as any).engagement_score || 0}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="mt-6 pt-6 border-t border-zinc-800 flex items-center justify-between text-zinc-500 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <MicrophoneIcon className="w-4 h-4" />
+                                    <span>Artist Profile</span>
+                                </div>
+                                <span>ID: {selectedArtist.id}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

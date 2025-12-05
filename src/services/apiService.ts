@@ -285,6 +285,23 @@ export const updateLabelContractRecoupBalance = async (contractId: string, amoun
     }
 };
 
+export const fetchLabelBookings = async (labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    // Requires RPC get_label_bookings()
+    const { data, error } = await supabase.rpc("get_label_bookings", {
+        label_id: labelId
+    });
+
+    if (error) {
+        console.error("Error fetching label bookings:", error);
+        return [];
+    }
+
+    return data;
+};
+
 const updateWallet = async (userId: string, table: string, amount: number, transaction: Transaction) => {
     const supabase = getSupabase();
     if (!supabase) return;
@@ -898,6 +915,22 @@ export const endSession = async (booking: Booking) => {
         // Execute revenue routing if a contract exists
         await applyLabelRevenueRouting(booking, grossEarnings);
 
+        // Notify connected label contracts
+        const talentId = booking.engineer?.id || booking.producer?.id;
+
+        if (talentId) {
+            const activeContract = await fetchActiveLabelContractForTalent(talentId);
+            if (activeContract) {
+                await supabase.from("notifications").insert({
+                    recipient_id: activeContract.label_id,
+                    type: "LABEL_SESSION_COMPLETE" as any,
+                    message: `Session completed for contracted talent. Contract ID: ${activeContract.id}`,
+                    read: false,
+                    timestamp: new Date().toISOString(),
+                });
+            }
+        }
+
         return { updatedBooking: data || { ...booking, status: BookingStatus.COMPLETED } };
     }
     return { updatedBooking: { ...booking, status: BookingStatus.COMPLETED } };
@@ -1139,7 +1172,13 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
                 role_in_label: entry.role,
                 roster_id: entry.id,
                 shadow_profile: shadowProfile,
-                claim_code: entry.claim_code // Pass claim code to UI
+                claim_code: entry.claim_code,
+                // NEW METRICS
+                sessions_completed: userData.sessions_completed || 0,
+                mixes_delivered: userData.mixes_delivered || 0,
+                songs_finished: userData.songs_finished || 0,
+                avg_session_rating: userData.avg_session_rating || null,
+                engagement_score: userData.engagement_score || 0
             });
         }
     }
@@ -1490,3 +1529,48 @@ export const claimLabelRosterProfile = async (params: {
       labelId: roster.label_id
     };
 };
+
+export const getBookingEconomics = async (bookingId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data: booking } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("id", bookingId)
+        .single();
+
+    if (!booking) return null;
+
+    const contract = await fetchActiveLabelContractForTalent(
+        booking.engineer_id || booking.producer_id
+    );
+
+    return {
+        total_cost: booking.total_cost,
+        engineer_pay_rate: booking.engineer_pay_rate,
+        duration: booking.duration,
+        contract,
+        estimated_provider_take:
+            booking.engineer_pay_rate * booking.duration *
+            (contract?.contract_type === "PERCENTAGE"
+                ? (1 - contract.split_percent / 100)
+                : 1),
+        estimated_label_take:
+            contract?.contract_type === "PERCENTAGE"
+                ? booking.engineer_pay_rate *
+                  booking.duration *
+                  (contract.split_percent / 100)
+                : 0,
+        recoup_remaining: contract?.recoup_balance || 0
+    };
+};
+
+function computeEngagementScore(a: any) {
+    const sessions = a.sessions_completed || 0;
+    const mixes = a.mixes_delivered || 0;
+    const songs = a.songs_finished || 0;
+    const rating = a.avg_session_rating || 0;
+
+    return (sessions * 2) + (mixes * 3) + (songs * 1.5) + rating;
+}
