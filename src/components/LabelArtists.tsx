@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon, FireIcon, ShieldCheckIcon, PhotoIcon, MusicNoteIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
@@ -47,58 +46,12 @@ const StatusBadge: React.FC<{ member: RosterMember }> = ({ member }) => {
 };
 
 const calculateOutputScore = (member: any) => {
+    // Fallback if not populated from API, though we aim to use API data
     const sessions = member.sessions_completed || 0;
     const posts = member.posts_created || 0;
     const uploads = member.uploads_count || 0;
     return (sessions * 3) + (uploads * 2) + (posts * 1);
 };
-
-const handleCopyInvite = (member: RosterMember) => {
-    const token = (member as any).claim_token || (member as any).claim_code || 'unavailable';
-    const url = `${window.location.origin}/claim/${token}`;
-    navigator.clipboard.writeText(url).then(() => {
-        alert("Invite link copied to clipboard!");
-    });
-};
-
-const RosterCard: React.FC<{ member: RosterMember; onRemove: (id: string) => void }> = ({ member, onRemove }) => (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-orange-500/30 transition-all duration-200 group flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-grow min-w-0">
-            <img 
-                src={member.image_url || USER_SILHOUETTE_URL} 
-                alt={member.name} 
-                className="w-14 h-14 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500/50 transition-colors" 
-            />
-            <div className="min-w-0 space-y-1">
-                <h4 className="text-zinc-100 font-bold text-lg truncate">{member.name}</h4>
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-orange-400 font-medium">{member.role_in_label || 'Talent'}</span>
-                    <span className="text-zinc-600 hidden sm:inline">•</span>
-                    <StatusBadge member={member} />
-                </div>
-            </div>
-        </div>
-        
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-             {(member.shadow_profile || member.is_pending) && (
-                <button 
-                    onClick={() => handleCopyInvite(member)}
-                    className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
-                    title="Copy Invite Link"
-                >
-                    <LinkIcon className="w-5 h-5" />
-                </button>
-            )}
-            <button 
-                onClick={() => onRemove(member.roster_id)}
-                className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-colors"
-                title="Remove from Roster"
-            >
-                <TrashIcon className="w-5 h-5" />
-            </button>
-        </div>
-    </div>
-);
 
 const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }) => {
     const { currentUser, userRole } = useAppState();
@@ -112,8 +65,33 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         if (!currentUser || userRole !== 'LABEL') return;
         setLoading(true);
         try {
-            const data = await apiService.fetchLabelRoster(currentUser.id);
-            setRoster(data);
+            // Fetch basic roster
+            const rosterData = await apiService.fetchLabelRoster(currentUser.id);
+            
+            // Fetch activity metrics (Real data from RPC)
+            const activityData = await apiService.getRosterActivity(currentUser.id);
+            
+            // Merge metrics
+            const activityMap = new Map(activityData.map((a: any) => [a.user_id, a]));
+            
+            const mergedRoster = rosterData.map(member => {
+                const activity = activityMap.get(member.id);
+                // Even if activity is missing, we use what we have or defaults
+                if (activity) {
+                    const act = activity as any;
+                    return {
+                        ...member,
+                        sessions_completed: act.sessions_completed,
+                        posts_created: act.posts_created,
+                        uploads_count: act.uploads_count,
+                        mixes_delivered: act.mixes_delivered,
+                        output_score: act.output_score
+                    };
+                }
+                return member;
+            });
+
+            setRoster(mergedRoster);
         } catch (err) {
             console.error("Failed to fetch roster:", err);
         } finally {
@@ -138,24 +116,46 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         }
     };
 
+    const handleCopyInvite = async (member: RosterMember) => {
+        let token = member.claim_token || member.claim_code;
+        
+        if (!token) {
+            try {
+                const res = await apiService.generateClaimTokenForRosterMember(member.roster_id);
+                token = res.claimUrl.split('/').pop(); 
+                if (!token) throw new Error("Failed to parse token");
+
+                setRoster(prev => prev.map(m => m.id === member.id ? { ...m, claim_token: token } : m));
+            } catch (e) {
+                console.error("Error generating invite:", e);
+                alert("Failed to generate invite link. Please try again.");
+                return;
+            }
+        }
+
+        const url = `${window.location.origin}/claim/${token}`;
+        navigator.clipboard.writeText(url).then(() => {
+            alert("Invite link copied to clipboard!");
+        });
+    };
+
     const openAria = () => {
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
         dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: "Analyze my roster's output score and suggest improvements." } });
     };
 
-    // Categories
     const pendingMembers = useMemo(() => roster.filter(m => m.is_pending), [roster]);
     const shadowMembers = useMemo(() => roster.filter(m => m.shadow_profile && !m.is_pending), [roster]);
     const activeMembers = useMemo(() => roster.filter(m => !m.is_pending && !m.shadow_profile), [roster]);
 
-    // Metrics
     const stats = useMemo(() => {
         const totalArtists = activeMembers.length;
         const totalSessions = activeMembers.reduce((acc, curr: any) => acc + (curr.sessions_completed || 0), 0);
         
+        // Use the output_score from DB if available, else calculate
         let totalOutputScore = 0;
         activeMembers.forEach((m: any) => {
-            totalOutputScore += calculateOutputScore(m);
+            totalOutputScore += (m.output_score !== undefined ? m.output_score : calculateOutputScore(m));
         });
 
         const avgOutputScore = totalArtists > 0 ? Math.round(totalOutputScore / totalArtists) : 0;
@@ -170,6 +170,45 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
             avgEngagement 
         };
     }, [activeMembers]);
+
+    const RosterCard: React.FC<{ member: RosterMember }> = ({ member }) => (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-orange-500/30 transition-all duration-200 group flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 flex-grow min-w-0">
+                <img 
+                    src={member.image_url || USER_SILHOUETTE_URL} 
+                    alt={member.name} 
+                    className="w-14 h-14 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500/50 transition-colors" 
+                />
+                <div className="min-w-0 space-y-1">
+                    <h4 className="text-zinc-100 font-bold text-lg truncate">{member.name}</h4>
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-orange-400 font-medium">{member.role_in_label || 'Talent'}</span>
+                        <span className="text-zinc-600 hidden sm:inline">•</span>
+                        <StatusBadge member={member} />
+                    </div>
+                </div>
+            </div>
+            
+            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                 {(member.shadow_profile || member.is_pending) && (
+                    <button 
+                        onClick={() => handleCopyInvite(member)}
+                        className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+                        title="Copy Invite Link"
+                    >
+                        <LinkIcon className="w-5 h-5" />
+                    </button>
+                )}
+                <button 
+                    onClick={() => handleRemove(member.roster_id)}
+                    className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                    title="Remove from Roster"
+                >
+                    <TrashIcon className="w-5 h-5" />
+                </button>
+            </div>
+        </div>
+    );
 
     if (!currentUser || userRole !== 'LABEL') return null;
 
@@ -246,7 +285,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {pendingMembers.map(member => (
-                                <RosterCard key={member.roster_id} member={member} onRemove={(id) => handleRemove(id)} />
+                                <RosterCard key={member.roster_id} member={member} />
                             ))}
                         </div>
                     </section>
@@ -262,7 +301,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {shadowMembers.map(member => (
-                                <RosterCard key={member.roster_id} member={member} onRemove={(id) => handleRemove(id)} />
+                                <RosterCard key={member.roster_id} member={member} />
                             ))}
                         </div>
                     </section>
@@ -278,8 +317,9 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {activeMembers.map((artist) => {
-                                const outputScore = calculateOutputScore(artist);
-                                const anyArtist = artist as any; // Cast to access extended metrics
+                                const anyArtist = artist as any; // Cast to access metrics if not in type
+                                const outputScore = anyArtist.output_score !== undefined ? anyArtist.output_score : calculateOutputScore(anyArtist);
+                                
                                 return (
                                     <div key={artist.roster_id || artist.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-orange-500/30 transition-all duration-300 group">
                                         <div className="flex items-center gap-4 mb-6">
@@ -405,7 +445,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                                 </div>
                                 <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
                                     <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Output</p>
-                                    <p className="text-2xl font-bold text-orange-400">{calculateOutputScore(selectedArtist)}</p>
+                                    <p className="text-2xl font-bold text-orange-400">{selectedArtist.output_score !== undefined ? selectedArtist.output_score : calculateOutputScore(selectedArtist)}</p>
                                 </div>
                                 <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
                                     <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Engagement</p>

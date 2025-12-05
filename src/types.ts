@@ -549,6 +549,14 @@ export interface RosterMember extends BaseUser {
     is_pending?: boolean;
     shadow_profile?: boolean;
     claim_code?: string;
+    claim_token?: string;
+    posts_created?: number;
+    uploads_count?: number;
+    mixes_delivered?: number;
+    output_score?: number;
+    songs_finished?: number;
+    avg_session_rating?: number | null;
+    engagement_score?: number;
 }
 
 export interface LabelRosterEntry extends BaseUser {

@@ -1100,22 +1100,50 @@ export const deleteMixingSample = async (sampleId: string) => {
 
 // --- LABEL ROSTER MANAGEMENT ---
 
+export const getRosterActivity = async (labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase.rpc("get_roster_activity", {
+        label_id: labelId
+    });
+
+    if (error) {
+        console.error("Error fetching roster activity:", error);
+        return [];
+    }
+
+    return data || [];
+};
+
+// Kept for backward compatibility if used internally by other functions
+export const fetchRosterActivity = getRosterActivity;
+
 export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
-    // Fetch roster links
-    const { data: rosterData, error } = await supabase
+    // 1. Fetch entries from label_roster
+    const { data: rosterEntries, error: rosterError } = await supabase
         .from('label_roster')
-        .select('*')
+        .select('*, artist:artists(*)')
         .eq('label_id', labelId);
 
-    if (error || !rosterData) return [];
+    if (rosterError) {
+        console.error("Error fetching roster:", rosterError);
+        return [];
+    }
 
-    // Hydrate with user details from respective tables
+    // 2. Fetch Activity Data (to ensure consistent merging structure as requested)
+    const activityList = await fetchRosterActivity(labelId);
+    const activityMap = Object.fromEntries(
+        activityList.map((a: any) => [a.user_id, a])
+    );
+
+    // 3. Hydrate with user details from respective tables
     const hydratedRoster: RosterMember[] = [];
 
-    for (const entry of rosterData) {
+    for (const entry of rosterEntries || []) {
         if (!entry.user_id) {
             // Pending invite (no shadow profile yet, just email invite case)
             hydratedRoster.push({
@@ -1142,7 +1170,13 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
                 completion_rate: 0,
                 repeat_hire_rate: 0,
                 strength_tags: [],
-                local_rank_text: ''
+                local_rank_text: '',
+                // Activity defaults
+                posts_created: 0,
+                uploads_count: 0,
+                mixes_delivered: 0,
+                output_score: 0,
+                claim_token: entry.claim_token // Ensure token is passed for invite links
             });
             continue;
         }
@@ -1167,18 +1201,29 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
         }
 
         if (userData) {
+            const act = activityMap[entry.user_id] || {};
+            const sessions = act.sessions_completed || userData.sessions_completed || 0;
+            const posts = act.posts_created || 0;
+            const uploads = act.uploads_count || 0;
+            const mixes = act.mixes_delivered || 0;
+            const outputScore = act.output_score || ((sessions * 3) + (posts * 1) + (uploads * 2));
+
             hydratedRoster.push({
                 ...userData,
                 role_in_label: entry.role,
                 roster_id: entry.id,
                 shadow_profile: shadowProfile,
                 claim_code: entry.claim_code,
-                // NEW METRICS
-                sessions_completed: userData.sessions_completed || 0,
-                mixes_delivered: userData.mixes_delivered || 0,
+                claim_token: entry.claim_token,
+                // MERGED METRICS
+                sessions_completed: sessions,
+                mixes_delivered: mixes,
                 songs_finished: userData.songs_finished || 0,
                 avg_session_rating: userData.avg_session_rating || null,
-                engagement_score: userData.engagement_score || 0
+                engagement_score: userData.engagement_score || 0,
+                posts_created: posts,
+                uploads_count: uploads,
+                output_score: outputScore
             });
         }
     }
