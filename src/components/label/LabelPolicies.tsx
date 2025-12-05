@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircleIcon, CloseIcon, ClockIcon, CalendarIcon, UserGroupIcon } from '../icons';
+import { CheckCircleIcon } from '../icons';
 
 const ToggleCard: React.FC<{ label: string; description: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, description, checked, onChange }) => (
     <div className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-lg">

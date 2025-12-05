@@ -25,7 +25,7 @@ const ReportCard: React.FC<{ title: string; description: string; icon: React.Rea
 
 const LabelReports: React.FC = () => {
     const handleExport = (reportName: string) => (type: string) => {
-        alert(`Exporting ${reportName} as ${type.toUpperCase()}... (Mock Handler)`);
+        alert(`Exporting ${reportName} as ${type.toUpperCase()}... (UI Only)`);
     };
 
     return (
