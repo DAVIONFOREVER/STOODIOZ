@@ -136,6 +136,7 @@ export enum RankingTier {
 export type LabelContractType = 'FULL_RECOUP' | 'PERCENTAGE';
 export type LabelContractStatus = 'active' | 'paused' | 'completed';
 export type LabelBudgetMode = 'MANUAL' | 'MONTHLY_FIXED' | 'MONTHLY_ROLLING';
+export type PaymentSource = 'ARTIST' | 'LABEL';
 
 export interface LabelContract {
     id: string;
@@ -383,6 +384,7 @@ export interface BookingRequest {
     instrumentals_to_purchase?: Instrumental[];
     mixing_details?: MixingDetails;
     pull_up_fee?: number;
+    payment_source?: PaymentSource;
 }
 
 export interface Booking {
@@ -405,6 +407,7 @@ export interface Booking {
     instrumentals_purchased?: Instrumental[];
     mixing_details?: MixingDetails;
     posted_by?: UserRole;
+    payment_source?: PaymentSource;
 }
 
 export interface SessionFeedback {
