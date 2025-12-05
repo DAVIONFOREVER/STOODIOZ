@@ -49,14 +49,13 @@ const mockArtistsPerformance = [
 export default function LabelPerformance() {
   return (
     <div className="space-y-8 animate-fade-in">
-        <h1 className="text-3xl font-extrabold text-zinc-100">Roster Performance</h1>
+        <h1 className="text-3xl font-extrabold text-zinc-100">Label Performance</h1>
 
         {/* Summary Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <StatCard label="Total Sessions (Label)" value="80" icon={<CalendarIcon className="w-6 h-6"/>} />
             <StatCard label="Avg Session Cost" value="$376.67" icon={<DollarSignIcon className="w-6 h-6"/>} />
-            <StatCard label="Most Active" value="Kid Astro" icon={<TrendingUpIcon className="w-6 h-6"/>} />
-            <StatCard label="Least Active" value="Echo & The Vibe" icon={<TrendingDownIcon className="w-6 h-6"/>} />
+            <StatCard label="Most Active Artist" value="Kid Astro" icon={<TrendingUpIcon className="w-6 h-6"/>} />
         </div>
 
         {/* Artist Table */}
