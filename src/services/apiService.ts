@@ -1281,7 +1281,7 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
         .eq('label_id', labelId);
 
     if (rosterError) {
-        console.error("Error fetching roster:", rosterError);
+        console.error("Error fetching roster:", error);
         return [];
     }
 
@@ -1499,39 +1499,34 @@ export const removeArtistFromLabelRoster = async (labelId: string, rosterId: str
     return true;
 };
 
-export const generateClaimTokenForRosterMember = async (rosterId: string): Promise<{ claimUrl: string; claimCode: string }> => {
+// FIX: Added missing 'generateClaimTokenForRosterMember' function.
+export const generateClaimTokenForRosterMember = async (rosterId: string): Promise<{ claimUrl: string }> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase client not initialized");
 
-    const claimToken = crypto.randomUUID();
-    const claimCode = Math.floor(100000 + Math.random() * 900000).toString();
-
+    const token = crypto.randomUUID();
     const { error } = await supabase
         .from('label_roster')
-        .update({
-            claim_token: claimToken,
-            claim_code: claimCode,
-            claimed: false
-        })
+        .update({ claim_token: token })
         .eq('id', rosterId);
 
     if (error) {
-        console.error("Error generating claim token:", error);
-        throw new Error("Failed to generate claim link");
+        console.error('Error saving claim token:', error);
+        throw error;
     }
 
-    const claimUrl = `${window.location.origin}/claim/${claimToken}`;
-
-    return { claimUrl, claimCode };
+    return { claimUrl: `${window.location.origin}/claim/${token}` };
 };
 
-export async function fetchLabelPerformance() {
+export async function fetchLabelPerformance(labelId?: string) {
     const supabase = getSupabase();
-    if (!supabase) return [];
+    if (!supabase || !labelId) return [];
 
+    // Query the secure filtered view
     const { data, error } = await supabase
-        .from('label_artist_performance')
-        .select('*');
+        .from("label_artist_performance")
+        .select("*")
+        .eq("label_id", labelId);
 
     if (error) {
         console.error("fetchLabelPerformance error:", error);
