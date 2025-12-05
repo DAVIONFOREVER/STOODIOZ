@@ -1,5 +1,4 @@
 
-
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -39,6 +38,8 @@ export enum AppView {
     VIDEOGRAPHER_DASHBOARD = 'VIDEOGRAPHER_DASHBOARD',
     LABEL_DASHBOARD = 'LABEL_DASHBOARD',
     LABEL_IMPORT = 'LABEL_IMPORT',
+    CLAIM_PROFILE = 'CLAIM_PROFILE',
+    CLAIM_LABEL_PROFILE = 'CLAIM_LABEL_PROFILE',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
     ADMIN_RANKINGS = 'ADMIN_RANKINGS',
     STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
@@ -545,6 +546,7 @@ export interface RosterMember extends BaseUser {
     role_in_label: string;
     is_pending?: boolean;
     shadow_profile?: boolean;
+    claim_code?: string;
 }
 
 export interface LabelRosterEntry extends BaseUser {

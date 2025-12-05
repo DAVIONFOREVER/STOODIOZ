@@ -113,8 +113,6 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
                 name: entry.email || 'Pending Invite',
                 email: entry.email,
                 image_url: USER_SILHOUETTE_URL,
-                bio: '',
-                is_seeking_session: false,
                 role_in_label: entry.role,
                 roster_id: entry.id,
                 is_pending: true,

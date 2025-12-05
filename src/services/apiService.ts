@@ -1090,8 +1090,6 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
                 name: entry.email || 'Pending Invite',
                 email: entry.email,
                 image_url: USER_SILHOUETTE_URL,
-                bio: '',
-                is_seeking_session: false,
                 role_in_label: entry.role,
                 roster_id: entry.id,
                 is_pending: true,
@@ -1140,7 +1138,8 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
                 ...userData,
                 role_in_label: entry.role,
                 roster_id: entry.id,
-                shadow_profile: shadowProfile
+                shadow_profile: shadowProfile,
+                claim_code: entry.claim_code // Pass claim code to UI
             });
         }
     }
@@ -1296,4 +1295,198 @@ export const markArtistLabelClaimed = async (artistId: string, labelId: string) 
         throw error;
     }
     return data;
+};
+
+// --- ROSTER CLAIM FLOW ---
+
+export const generateClaimTokenForRosterMember = async (rosterId: string): Promise<{ claimUrl: string; claimCode: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    const claimToken = crypto.randomUUID();
+    // Generate a 6-digit code (simple random for this implementation)
+    const claimCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const { error } = await supabase
+        .from('label_roster')
+        .update({
+            claim_token: claimToken,
+            claim_code: claimCode,
+            claimed: false
+        })
+        .eq('id', rosterId);
+
+    if (error) {
+        console.error("Error generating claim token:", error);
+        throw new Error("Failed to generate claim link");
+    }
+
+    // Construct the URL based on current window location
+    const claimUrl = `${window.location.origin}/claim/${claimToken}`;
+
+    return { claimUrl, claimCode };
+};
+
+export const claimProfileByToken = async (token: string, authUserId: string): Promise<{ role: UserRole; profileId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    // 1. Find the roster entry
+    const { data: rosterEntry, error: fetchError } = await supabase
+        .from('label_roster')
+        .select('*')
+        .eq('claim_token', token)
+        .eq('claimed', false)
+        .single();
+
+    if (fetchError || !rosterEntry) {
+        throw new Error('Invalid or already used claim token');
+    }
+
+    return processProfileClaim(rosterEntry, authUserId, supabase);
+};
+
+export const claimProfileByCode = async (code: string, authUserId: string): Promise<{ role: UserRole; profileId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    // 1. Find the roster entry
+    const { data: rosterEntry, error: fetchError } = await supabase
+        .from('label_roster')
+        .select('*')
+        .eq('claim_code', code)
+        .eq('claimed', false)
+        .single();
+
+    if (fetchError || !rosterEntry) {
+        throw new Error('Invalid or already used claim code');
+    }
+
+    return processProfileClaim(rosterEntry, authUserId, supabase);
+};
+
+// Helper for claim logic to avoid duplication
+const processProfileClaim = async (rosterEntry: any, authUserId: string, supabase: any): Promise<{ role: UserRole; profileId: string }> => {
+    // Map string role to UserRole enum and Table
+    const roleString = (rosterEntry.role || 'Artist').toUpperCase();
+    let userRole: UserRole = UserRoleEnum.ARTIST;
+    let tableName = 'artists';
+
+    if (roleString === 'ENGINEER') {
+        userRole = UserRoleEnum.ENGINEER;
+        tableName = 'engineers';
+    } else if (roleString === 'PRODUCER') {
+        userRole = UserRoleEnum.PRODUCER;
+        tableName = 'producers';
+    }
+
+    // Update Label Roster to mark as claimed
+    await supabase.from('label_roster').update({
+        claimed: true,
+        claimed_at: new Date().toISOString(),
+        claimed_by_user_id: authUserId,
+        user_id: authUserId, // Important: link to real user ID now
+        claim_token: null, // Consume token
+        claim_code: null
+    }).eq('id', rosterEntry.id);
+
+    // Ensure user has correct role in profiles table
+    // (In a real app, we might need to handle role switching or multi-roles more carefully)
+    await supabase.from('profiles').upsert({
+        id: authUserId,
+        role: userRole,
+        // Preserve other fields if needed
+    });
+
+    // Check if user already exists in specific table
+    const { data: existingUser } = await supabase.from(tableName).select('id').eq('id', authUserId).single();
+
+    if (!existingUser) {
+        // If user doesn't exist in role table, create/migrate them
+        // If there was a shadow profile, we might want to copy data from it.
+        // For now, create a basic entry linked to the auth user.
+        await supabase.from(tableName).insert({
+            id: authUserId,
+            name: 'Claimed Account', // Placeholder, ideally prompt user for name or fetch from auth metadata
+            email: 'claimed@user.com', // Placeholder
+            image_url: USER_SILHOUETTE_URL,
+            label_id: rosterEntry.label_id,
+            created_at: new Date().toISOString(),
+            wallet_balance: 0,
+            wallet_transactions: []
+        });
+    } else {
+        // Just link to label
+        await supabase.from(tableName).update({ label_id: rosterEntry.label_id }).eq('id', authUserId);
+    }
+
+    return { role: userRole, profileId: authUserId };
+};
+
+export const claimLabelRosterProfile = async (params: {
+    email: string;
+    password: string;
+    name?: string;
+}) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    const { email, password, name } = params;
+
+    // 1. Look up roster entry by email where user_id is null (unclaimed)
+    const { data: roster, error: rosterError } = await supabase
+       .from('label_roster')
+       .select('*')
+       .eq('email', email.toLowerCase())
+       .is('user_id', null)
+       .order('created_at', { ascending: true })
+       .limit(1)
+       .maybeSingle();
+
+    if (rosterError) throw new Error("Failed to look up label invite. Please try again.");
+    if (!roster) throw new Error("No label invite found for this email. Ask your label to add you again.");
+
+    // 2. Create new Auth User & Artist Profile
+    const userData = {
+      name: name || 'Artist',
+      email,
+      password,
+      bio: '',
+      image_url: null,
+      imageFile: null
+    };
+
+    // Using existing createUser helper which handles Auth + Profile creation
+    // We assume role is ARTIST for now as per prompt requirement for this specific flow
+    const created = await createUser(userData, UserRoleEnum.ARTIST);
+
+    if (!created || (created && 'email_confirmation_required' in created)) {
+        throw new Error("Unable to complete claim automatically. Please check email or try standard sign up.");
+    }
+
+    // 3. Link new user to label & update roster
+    const newArtist = created as Artist;
+    const newUserId = newArtist.id;
+
+    // Update roster entry to mark as claimed
+    await supabase
+      .from('label_roster')
+      .update({ 
+         user_id: newUserId,
+         claimed: true, // Using 'claimed' to match existing column convention in file
+         claimed_at: new Date().toISOString(),
+         claimed_by_user_id: newUserId
+      })
+      .eq('id', roster.id);
+
+    // Update artists table to link label_id
+    await supabase
+      .from('artists')
+      .update({ label_id: roster.label_id })
+      .eq('id', newUserId);
+
+    return {
+      artist: newArtist,
+      labelId: roster.label_id
+    };
 };
