@@ -82,6 +82,8 @@ export enum TransactionCategory {
     BEAT_SALE = 'BEAT_SALE',
     CONTRACT_PAYOUT = 'CONTRACT_PAYOUT',
     CONTRACT_RECOUP = 'CONTRACT_RECOUP',
+    LABEL_TOP_UP = 'LABEL_TOP_UP',
+    MONTHLY_ALLOCATION = 'MONTHLY_ALLOCATION'
 }
 
 export enum TransactionStatus {
@@ -133,6 +135,7 @@ export enum RankingTier {
 
 export type LabelContractType = 'FULL_RECOUP' | 'PERCENTAGE';
 export type LabelContractStatus = 'active' | 'paused' | 'completed';
+export type LabelBudgetMode = 'MANUAL' | 'MONTHLY_FIXED' | 'MONTHLY_ROLLING';
 
 export interface LabelContract {
     id: string;
@@ -214,6 +217,9 @@ export interface Transaction {
     label_amount?: number;
     provider_amount?: number;
     label_id?: string;
+    source?: string;
+    artist_name?: string;
+    note?: string;
 }
 
 export interface Subscription {
@@ -571,6 +577,9 @@ export interface LabelBudget {
     amount_spent: number;
     currency: string;
     fiscal_year: string;
+    budget_mode?: LabelBudgetMode;
+    monthly_allowance?: number;
+    reset_day?: number;
 }
 
 export interface ArtistBudget {
