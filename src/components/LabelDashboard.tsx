@@ -8,6 +8,7 @@ import LabelFinancials from './LabelFinancials';
 import LabelNotifications from './LabelNotifications';
 import LabelRosterImport from './LabelRosterImport';
 import LabelBudgetDashboard from './LabelBudgetDashboard';
+import LabelAnalytics from './LabelAnalytics';
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
@@ -38,17 +39,12 @@ const LabelDashboard: React.FC = () => {
             case 'budget': return <LabelBudgetDashboard />;
             case 'financials': return <LabelFinancials />;
             case 'notifications': return <LabelNotifications />;
+            case 'analytics': return <LabelAnalytics />;
             case 'documents': 
                 return (
                     <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading Documents...</div>}>
                         <Documents conversations={conversations} />
                     </Suspense>
-                );
-            case 'analytics':
-                 return (
-                    <div className="p-20 text-center cardSurface">
-                        <p className="text-zinc-400 text-lg">Analytics Dashboard coming soon.</p>
-                    </div>
                 );
             case 'settings':
             default:
@@ -98,7 +94,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['roster', 'bookings', 'budget', 'financials', 'notifications', 'documents', 'analytics', 'settings'].map((tab) => (
+                    {['roster', 'bookings', 'budget', 'analytics', 'financials', 'notifications', 'documents', 'settings'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}
