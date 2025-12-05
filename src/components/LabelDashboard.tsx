@@ -6,13 +6,31 @@ import LabelBookings from './LabelBookings';
 import LabelFinancials from './LabelFinancials';
 import LabelNotifications from './LabelNotifications';
 import LabelRosterImport from './LabelRosterImport';
-import { useAppState } from '../contexts/AppContext';
-import { PhotoIcon, PlusCircleIcon } from './icons';
+import LabelBudgetDashboard from './LabelBudgetDashboard';
+import LabelAnalytics from './LabelAnalytics';
+import LabelControls from './label/LabelControls';
+import LabelPolicies from './label/LabelPolicies';
+import LabelMessaging from './label/LabelMessaging';
+import LabelReports from './label/LabelReports';
+import LabelQAReview from './label/LabelQAReview';
 import LabelActivityFeed from './label/LabelActivityFeed';
+import LabelInsights from './label/LabelInsights';
+import { useAppState } from '../contexts/AppContext';
+import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
-type LabelTab = 'roster' | 'bookings' | 'analytics' | 'financials' | 'notifications' | 'settings' | 'documents' | 'activity';
+type LabelTab = 'roster' | 'bookings' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'activity' | 'insights' | 'settings' | 'documents';
+
+const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
+    <button
+        onClick={onClick}
+        className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 rounded-lg font-bold transition-colors shadow-lg flex items-center justify-center gap-2"
+    >
+        <UsersIcon className="w-5 h-5"/>
+        {text}
+    </button>
+);
 
 const LabelDashboard: React.FC = () => {
     const { navigate } = useNavigation();
@@ -24,20 +42,22 @@ const LabelDashboard: React.FC = () => {
         switch (activeTab) {
             case 'roster': return <LabelArtists />;
             case 'bookings': return <LabelBookings />;
+            case 'budget': return <LabelBudgetDashboard />;
             case 'financials': return <LabelFinancials />;
             case 'notifications': return <LabelNotifications />;
+            case 'analytics': return <LabelAnalytics />;
+            case 'controls': return <LabelControls />;
+            case 'policies': return <LabelPolicies />;
+            case 'messaging': return <LabelMessaging />;
+            case 'reports': return <LabelReports />;
+            case 'qa': return <LabelQAReview />;
             case 'activity': return <LabelActivityFeed />;
+            case 'insights': return <LabelInsights />;
             case 'documents': 
                 return (
                     <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading Documents...</div>}>
                         <Documents conversations={conversations} />
                     </Suspense>
-                );
-            case 'analytics':
-                 return (
-                    <div className="p-20 text-center cardSurface">
-                        <p className="text-zinc-400 text-lg">Analytics Dashboard coming soon.</p>
-                    </div>
                 );
             case 'settings':
             default:
@@ -90,7 +110,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['roster', 'bookings', 'financials', 'notifications', 'analytics', 'activity', 'documents', 'settings'].map((tab) => (
+                    {['roster', 'bookings', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'activity', 'insights', 'documents', 'settings'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}
@@ -117,10 +137,7 @@ const LabelDashboard: React.FC = () => {
                     <LabelRosterImport
                         labelId={currentUser.id}
                         onAdded={() => {
-                            // Close modal. LabelArtists component will handle refresh on next mount or via signal if needed.
-                            // For simplicity, just close it now.
                             setShowRosterImport(false);
-                            // Force tab switch to Roster to see changes if not already there
                             setActiveTab('roster');
                         }}
                         onClose={() => setShowRosterImport(false)}
