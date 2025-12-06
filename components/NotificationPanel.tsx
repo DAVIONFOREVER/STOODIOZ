@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import type { AppNotification } from '../types';
 import { AppView, NotificationType } from '../types';
-import { BellIcon, CalendarIcon, UserPlusIcon, HeartIcon, ChatBubbleIcon, DollarSignIcon } from './icons';
+import { BellIcon, CalendarIcon, UserPlusIcon, HeartIcon, ChatBubbleIcon, DollarSignIcon, CheckCircleIcon } from './icons';
 
 interface NotificationPanelProps {
   notifications: AppNotification[];
@@ -46,7 +45,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ notifications, on
     };
 
     return (
-        <div className="absolute top-full right-0 mt-3 w-80 md:w-96 cardSurface text-slate-200 animate-fade-in-down" role="dialog">
+        <div className="absolute top-full right-0 mt-3 w-80 md:w-96 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl z-50 text-slate-200 animate-fade-in-down" role="dialog">
             <div className="flex justify-between items-center p-4 border-b border-zinc-700">
                 <h3 className="font-bold text-lg">Notifications</h3>
                 <button onClick={onMarkAllAsRead} className="text-sm font-semibold text-orange-400 hover:underline disabled:text-slate-500 disabled:no-underline" disabled={notifications.every(n => n.read)}>
@@ -67,7 +66,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ notifications, on
                                 <button onClick={() => handleNotificationClick(notification)} className="w-full flex items-start gap-4 p-4 text-left hover:bg-zinc-700/50 transition-colors">
                                     <div className="relative flex-shrink-0 mt-1">
                                         {notification.actor ? (
-                                             <img src={notification.actor.imageUrl} alt={notification.actor.name} className="w-10 h-10 rounded-xl object-cover" />
+                                             <img src={notification.actor.image_url} alt={notification.actor.name} className="w-10 h-10 rounded-xl object-cover" />
                                         ) : (
                                             <div className="w-10 h-10 rounded-xl bg-zinc-700 flex items-center justify-center">
                                                 <NotificationIcon type={notification.type} />

@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { UserRole } from '../types';
-import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons';
+import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon, BriefcaseIcon } from './icons';
 
 interface ChooseProfileProps {
     onSelectRole: (role: UserRole) => void;
@@ -60,6 +61,12 @@ const ChooseProfile: React.FC<ChooseProfileProps> = ({ onSelectRole }) => {
                     title="Stoodio Owner"
                     description="List your recording space, manage your calendar with ease, and connect with a vibrant community of artists and engineers."
                     onClick={() => onSelectRole(UserRole.STOODIO)}
+                />
+                <RoleCard
+                    icon={<BriefcaseIcon className="w-10 h-10 text-blue-400" />}
+                    title="Label / Management"
+                    description="Scout talent, manage your roster's bookings, and oversee projects from a central dashboard."
+                    onClick={() => onSelectRole(UserRole.LABEL)}
                 />
             </div>
         </div>

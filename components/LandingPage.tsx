@@ -1,20 +1,19 @@
 import React from 'react';
-import type { Stoodio, Producer, Engineer } from '../types';
+import type { Stoodio, Producer } from '../types';
 import { AppView } from '../types';
-import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons';
-import StoodioCard from './StudioCard';
-import EngineerCard from './EngineerCard';
-import ProducerCard from './ProducerCard';
-import AiHeroText from './AiHeroText';
-import ProductTour from './ProductTour';
-import AriaCantataHero from './AriaHero';
-import { useAppState } from '../contexts/AppContext';
+import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons.tsx';
+import StoodioCard from './StudioCard.tsx';
+import EngineerCard from './EngineerCard.tsx';
+import ProducerCard from './ProducerCard.tsx';
+import AiHeroText from './AiHeroText.tsx';
+import ProductTour from './ProductTour.tsx';
+import AriaCantataHero from './AriaHero.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface LandingPageProps {
     onNavigate: (view: AppView) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectProducer: (producer: Producer) => void;
-    onSelectEngineer: (engineer: Engineer) => void;
     onOpenAriaCantata: () => void;
 }
 
@@ -25,7 +24,7 @@ const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
     </div>
 );
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, onSelectEngineer, onOpenAriaCantata }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, onOpenAriaCantata }) => {
     const { stoodioz, engineers, artists, producers } = useAppState();
     
     const featuredStoodioz = stoodioz.slice(0, 3);
@@ -47,7 +46,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                 <div className="mt-10 flex justify-center items-center gap-4">
                     <button 
                         onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
-                        className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg"
+                        className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg"
                     >
                         Get Started
                     </button>
@@ -85,7 +84,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {featuredEngineers.map(engineer => (
-                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={onSelectEngineer} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
+                        <EngineerCard key={engineer.id} engineer={engineer} onSelectEngineer={() => onNavigate(AppView.ENGINEER_PROFILE)} onToggleFollow={() => {}} isFollowing={false} isSelf={false} isLoggedIn={false} />
                     ))}
                 </div>
             </section>
@@ -163,7 +162,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                 </p>
                 <button 
                     onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
-                    className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transform hover:scale-105 transition-all duration-300 shadow-lg"
+                    className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 shadow-lg"
                 >
                     Sign Up for Free
                 </button>

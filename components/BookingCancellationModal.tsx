@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Booking } from '../types';
@@ -13,7 +15,7 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
     const [isConfirmed, setIsConfirmed] = useState(false);
 
     const { refundAmount, cancellationFee, policyMessage } = useMemo(() => {
-        const bookingStartTime = new Date(`${booking.date}T${booking.startTime}`);
+        const bookingStartTime = new Date(`${booking.date}T${booking.start_time}`);
         const hoursUntilSession = differenceInHours(bookingStartTime, new Date());
 
         let refundPercentage = 0;
@@ -30,8 +32,8 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
             policyMessage = 'Non-refundable: Session is within 24 hours.';
         }
 
-        const refundAmount = booking.totalCost * refundPercentage;
-        const cancellationFee = booking.totalCost - refundAmount;
+        const refundAmount = booking.total_cost * refundPercentage;
+        const cancellationFee = booking.total_cost - refundAmount;
 
         return { refundAmount, cancellationFee, policyMessage };
     }, [booking]);
@@ -55,7 +57,7 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
 
                 <div className="p-6">
                     <p className="text-slate-300 text-center mb-4">
-                        Are you sure you want to cancel your session at <strong className="text-slate-100">{booking.stoodio.name}</strong> on {new Date(booking.date + 'T00:00').toLocaleDateString()}?
+                        Are you sure you want to cancel your session {booking.stoodio ? <>at <strong className="text-slate-100">{booking.stoodio.name}</strong></> : booking.engineer ? <>with <strong className="text-slate-100">{booking.engineer.name}</strong></> : ''} on {new Date(booking.date + 'T00:00').toLocaleDateString()}?
                     </p>
                     
                     <div className="bg-red-500/10 p-4 rounded-lg border border-red-500/20">
@@ -63,7 +65,7 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
                         <div className="space-y-2 text-sm text-slate-200">
                             <div className="flex justify-between">
                                 <span>Total Amount Paid:</span> 
-                                <span>${booking.totalCost.toFixed(2)}</span>
+                                <span>${booking.total_cost.toFixed(2)}</span>
                             </div>
                              <div className="flex justify-between text-red-400">
                                 <span>Cancellation Fee:</span> 

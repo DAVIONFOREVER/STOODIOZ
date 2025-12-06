@@ -1,49 +1,203 @@
+
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
-import type { UserRole } from '../types';
+// FIX: Import missing Stoodio type
+import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
+import { UserRole as UserRoleEnum } from '../types';
+import { getSupabase } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
-        try {
-            const user = await apiService.findUserByCredentials(email, password);
-            if (user) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user } });
+        dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
+
+        const supabase = getSupabase();
+        if (!supabase) {
+             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
+             return;
+        }
+
+        const { data, error } = await (supabase.auth as any).signInWithPassword({
+            email,
+            password,
+        });
+    
+        if (error) {
+            dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
+            return;
+        }
+    
+        // Login successful → find user profile, set user & navigate via dispatch
+        if (data.user) {
+            const userId = data.user.id; // CRITICAL: Use ID, not email, to find the profile
+            
+            const { data: profileRole } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', userId)
+                .single();
+
+            if (profileRole?.role === 'LABEL') {
+                const { data: labelProfile } = await supabase
+                    .from('labels')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+
+                dispatch({
+                    type: ActionTypes.LOGIN_SUCCESS,
+                    payload: { user: labelProfile, role: UserRoleEnum.LABEL }
+                });
+
+                navigate(AppView.LABEL_DASHBOARD);
+                return;
+            }
+            
+            const roleMap: Record<string, UserRole> = {
+                'artists': UserRoleEnum.ARTIST,
+                'engineers': UserRoleEnum.ENGINEER,
+                'producers': UserRoleEnum.PRODUCER,
+                'stoodioz': UserRoleEnum.STOODIO,
+                'labels': UserRoleEnum.LABEL
+            };
+            
+            // Prioritize finding specialized roles first.
+            const tables = ['stoodioz', 'producers', 'engineers', 'artists', 'labels'];
+            
+            let userProfile: Artist | Engineer | Stoodio | Producer | Label | null = null;
+            let detectedRole: UserRole | undefined;
+    
+            for (const table of tables) {
+                // Adjust select query based on table for relational data
+                let selectQuery = '*';
+                if (table === 'stoodioz') selectQuery = '*, rooms(*), in_house_engineers(*)';
+                if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
+                if (table === 'producers') selectQuery = '*, instrumentals(*)';
+
+                // Look up by ID to ensure exact match
+                let { data: profileData, error: profileError } = await supabase
+                    .from(table)
+                    .select(selectQuery)
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
+                if (profileError) {
+                    console.warn(`Complex fetch failed for ${table}, retrying basic...`);
+                    const retry = await supabase
+                        .from(table)
+                        .select('*')
+                        .eq('id', userId)
+                        .maybeSingle();
+                    profileData = retry.data;
+                    profileError = retry.error;
+                }
+
+                if (profileError) {
+                    console.error(`Error finding user profile in ${table}:`, profileError);
+                    continue;
+                }
+
+                if (profileData) {
+                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
+                    userProfile = profileData as unknown as Artist | Engineer | Stoodio | Producer | Label;
+                    detectedRole = roleMap[table];
+                    break; // Stop searching once found
+                }
+            }
+    
+            if (userProfile && detectedRole) {
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile, role: detectedRole } });
                 if ('Notification' in window && Notification.permission !== 'denied') {
                     Notification.requestPermission();
                 }
+                
+                // Explicitly navigate based on detected role
+                if (detectedRole === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
+
             } else {
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Invalid email or password." } });
+                console.warn(`Login successful (Auth ID: ${userId}), but no profile found in public tables.`);
+                // If the user exists in Auth but has no profile, checking "artists" table specifically as a last ditch fallback
+                // or just fail gracefully.
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Login successful, but profile data is missing. Please contact support." } });
             }
-        } catch (error) {
-            console.error("Login error:", error);
-            dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "An error occurred during login." } });
+        } else {
+             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "An unknown error occurred during login." } });
         }
-    }, [dispatch]);
+    }, [dispatch, navigate]);
 
-    const logout = useCallback(() => dispatch({ type: ActionTypes.LOGOUT }), [dispatch]);
+    const logout = useCallback(async () => {
+        // FIX: Navigate away FIRST to unmount dashboard components that might depend on currentUser.
+        navigate(AppView.LANDING_PAGE);
 
-    const selectRoleToSetup = useCallback((role: UserRole) => {
+        // Perform cleanup
+        setTimeout(async () => {
+            try {
+                const supabase = getSupabase();
+                if (supabase) await (supabase.auth as any).signOut();
+            } catch (e) {
+                console.warn("Supabase signout error (ignoring):", e);
+            }
+            
+            dispatch({ type: ActionTypes.LOGOUT });
+        }, 50);
+    }, [dispatch, navigate]);
+
+    const selectRoleToSetup = useCallback(async (role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
         else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
         else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
         else if (role === 'PRODUCER') navigate(AppView.PRODUCER_SETUP);
+        else if (role === 'LABEL') {
+            const supabase = getSupabase();
+            const authUser = await (supabase as any).auth.getUser();
+
+            if (authUser?.data?.user?.id) {
+                await (supabase as any)
+                    .from('profiles')
+                    .update({ role: 'LABEL' })
+                    .eq('id', authUser.data.user.id);
+            }
+
+            navigate(AppView.LABEL_SETUP);
+        }
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {
         try {
-            const newUser = await apiService.createUser(userData, role);
-            if (newUser) {
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
-            } else {
-                // Handle user creation failure
-                console.error("User creation failed");
+            const result = await apiService.createUser(userData, role);
+            
+            if (result && 'email_confirmation_required' in result) {
+                alert("Account created! Please check your email to verify your account before logging in.");
+                navigate(AppView.LOGIN);
+                return;
             }
-        } catch(error) {
+
+            if (result) {
+                // Supabase automatically signs the user in after signUp if no verification required,
+                // so we just need to update the application state.
+                const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
+                
+                // Force navigation based on role
+                if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (role === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
+            } else {
+                alert("An unknown error occurred during signup.");
+            }
+        } catch(error: any) {
             console.error("Setup completion error:", error);
+            alert(`Signup failed: ${error.message}`);
         }
     };
 

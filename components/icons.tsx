@@ -46,6 +46,12 @@ export const ChevronRightIcon: React.FC<IconProps> = (props) => (
     </svg>
 );
 
+export const ChevronDownIcon: React.FC<IconProps> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+    </svg>
+);
+
 export const MicrophoneIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 013-3a3 3 0 013 3v8.25a3 3 0 01-3 3z" />
@@ -121,7 +127,6 @@ export const StarIcon: React.FC<IconProps> = (props) => (
 
 export const VerifiedIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <title>Verified</title>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
 );
@@ -335,7 +340,7 @@ export const EditIcon: React.FC<IconProps> = (props) => (
 
 export const ChatBubbleLeftRightIcon: React.FC<IconProps> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193l-3.72-3.72a2.25 2.25 0 00-3.182 0l-3.72 3.72A2.25 2.25 0 006 16.5v-4.286c0-.97.616-1.813 1.5-2.097m14.25-6.118c.228.028.45.08.668.142a2.25 2.25 0 011.086 2.43l-2.26 6.786a2.25 2.25 0 01-4.282 0l-2.26-6.786a2.25 2.25 0 011.086-2.43c.218-.062.44-.114.668-.142m0 0a2.25 2.25 0 00-2.25 2.25v5.197l-1.008-1.008a2.25 2.25 0 00-3.182 0l-1.008 1.008v-5.197a2.25 2.25 0 00-2.25-2.25h-1.5a2.25 2.25 0 00-2.25 2.25v5.197l-1.008-1.008a2.25 2.25 0 00-3.182 0l-1.008 1.008v-5.197a2.25 2.25 0 00-2.25-2.25h-1.5a2.25 2.25 0 100 4.5h1.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193l-3.72-3.72a2.25 2.25 0 00-3.182 0l-3.72 3.72A2.25 2.25 0 006 16.5v-4.286c0-.97.616-1.813 1.5-2.097m14.25-6.118c.228.028.45.08.668.142a2.25 2.25 0 011.086 2.43l-2.26 6.786a2.25 2.25 0 01-4.282 0l-2.26-6.786a2.25 2.25 0 011.086-2.43c.218-.062.44-.114.668-.142m0 0a2.25 2.25 0 00-2.25 2.25v5.197l-1.008-1.008a2.25 2.25 0 00-3.182 0l-1.008 1.008v-5.197a2.25 2.25 0 00-2.25-2.25h-1.5a2.25 2.25 0 100 4.5h1.5" />
     </svg>
 );
 
@@ -370,18 +375,10 @@ export const ChevronUpDownIcon: React.FC<IconProps> = (props) => (
   </svg>
 );
 
-export const DollarSignIcon: React.FC<IconProps> = PriceIcon;
+export const DiamondIcon: React.FC<IconProps> = (props) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" {...props}>
+        <path d="M12 2L2 12l10 10 10-10L12 2z" />
+    </svg>
+);
 
-export default {
-    MagicWandIcon, StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon,
-    ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon,
-    HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, SearchIcon, LocationIcon,
-    StarIcon, VerifiedIcon, CalendarIcon, ClockIcon, DurationIcon, PriceIcon,
-    UserGroupIcon, CheckCircleIcon, CogIcon, DownloadIcon, RoadIcon, TrashIcon,
-    UserPlusIcon, UserCheckIcon, PhotoIcon, MessageIcon, SmokingIcon, NoSmokingIcon,
-    LinkIcon, PaperclipIcon, BriefcaseIcon, VideoCameraIcon, CloseCircleIcon, HeartIcon,
-    ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, FlagIcon, PlayIcon, PauseIcon,
-    ArrowUpCircleIcon, ArrowDownCircleIcon, BanknotesIcon, PlusCircleIcon, EditIcon,
-    ChatBubbleLeftRightIcon, NavigationArrowIcon, DollarSignIcon, ChartBarIcon,
-    EyeIcon, FireIcon, ShieldCheckIcon, ChevronUpDownIcon
-};
+export const DollarSignIcon: React.FC<IconProps> = PriceIcon;

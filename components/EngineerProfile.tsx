@@ -1,14 +1,19 @@
-import React, { useState, useMemo } from 'react';
-import type { Engineer, Review, Artist, Stoodio, Producer } from '../types';
+
+import React, { useState, useMemo, useEffect } from 'react';
+// FIX: Import missing types
+import type { Engineer, Review, Artist, Stoodio, Producer, Post } from '../types';
 import { UserRole } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon } from './icons';
-import PostFeed from './PostFeed';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import { useNavigation } from '../hooks/useNavigation';
-import { useSocial } from '../hooks/useSocial';
-import { useMessaging } from '../hooks/useMessaging';
-import { useBookings } from '../hooks/useBookings';
-import MixingSamplePlayer from './MixingSamplePlayer';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon, PhotoIcon, PlayIcon } from './icons.tsx';
+import PostFeed from './PostFeed.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import { useNavigation } from '../hooks/useNavigation.ts';
+import { useSocial } from '../hooks/useSocial.ts';
+import { useMessaging } from '../hooks/useMessaging.ts';
+import { useBookings } from '../hooks/useBookings.ts';
+import { useMasterclass } from '../hooks/useMasterclass.ts';
+import MixingSamplePlayer from './MixingSamplePlayer.tsx';
+import MasterclassCard from './MasterclassCard.tsx';
+import { fetchUserPosts } from '../services/apiService';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -22,18 +27,19 @@ const ProfileCard: React.FC<{
         details = (profile as Stoodio).location;
     } else if (type === 'engineer') {
         icon = <SoundWaveIcon className="w-4 h-4" />;
-        details = (profile as Engineer).specialties.join(', ');
+        details = (profile as Engineer).specialties?.join(', ');
     } else if (type === 'producer') {
         icon = <MusicNoteIcon className="w-4 h-4" />;
-        details = (profile as Producer).genres.join(', ');
+        details = (profile as Producer).genres?.join(', ');
     } else { // artist
         icon = <MicrophoneIcon className="w-4 h-4" />;
         details = (profile as Artist).bio;
     }
 
     return (
-        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 transition-colors text-left cardSurface">
-            <img src={profile.imageUrl} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+        <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
+            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
+            <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
@@ -50,8 +56,24 @@ const EngineerProfile: React.FC = () => {
     const { toggleFollow, likePost, commentOnPost } = useSocial();
     const { startConversation } = useMessaging(useNavigation().navigate);
     const { initiateBookingWithEngineer } = useBookings(useNavigation().navigate);
+    const { openPurchaseMasterclassModal, openWatchMasterclassModal } = useMasterclass();
 
     const engineer = selectedEngineer;
+    const [posts, setPosts] = useState<Post[]>([]);
+
+    useEffect(() => {
+        if (engineer?.id) {
+            fetchUserPosts(engineer.id).then(setPosts);
+        }
+    }, [engineer?.id]);
+
+    const mediaItems = useMemo(() => {
+        return posts.filter(p => p.image_url || p.video_url).map(p => ({
+            id: p.id,
+            url: p.image_url || p.video_thumbnail_url || '',
+            type: p.video_url ? 'video' : 'image'
+        }));
+    }, [posts]);
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState('12:00');
@@ -67,10 +89,12 @@ const EngineerProfile: React.FC = () => {
     
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.engineers || []).includes(engineer.id)) : false;
 
-    const engineerReviews = reviews.filter(r => r.engineerId === engineer.id);
+    // FIX: Corrected property name from 'engineerId' to 'engineer_id'
+    const engineerReviews = reviews.filter(r => r.engineer_id === engineer.id);
     
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const followers = useMemo(() => allUsers.filter(u => engineer.followerIds.includes(u.id)), [allUsers, engineer.followerIds]);
+    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
+    const followers = useMemo(() => allUsers.filter(u => engineer.follower_ids.includes(u.id)), [allUsers, engineer.follower_ids]);
 
     const followedArtists = useMemo(() => artists.filter(a => engineer.following.artists.includes(a.id)), [artists, engineer.following.artists]);
     const followedEngineers = useMemo(() => engineers.filter(e => engineer.following.engineers.includes(e.id)), [engineers, engineer.following.engineers]);
@@ -78,15 +102,14 @@ const EngineerProfile: React.FC = () => {
     const followedProducers = useMemo(() => producers.filter(p => engineer.following.producers.includes(p.id)), [producers, engineer.following.producers]);
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
-    const sortedPosts = useMemo(() => (engineer.posts || []).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [engineer.posts]);
-
     const handleBookClick = () => {
         initiateBookingWithEngineer(engineer, date, time);
     };
 
     const onOpenMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: true } });
 
-    const canRequestMix = engineer.mixingServices?.isEnabled && currentUser && currentUser.id !== engineer.id;
+    // FIX: Corrected property name from 'mixingServices' to 'mixing_services' and 'isEnabled' to 'is_enabled'
+    const canRequestMix = engineer.mixing_services?.is_enabled && currentUser && currentUser.id !== engineer.id;
 
 
     return (
@@ -98,13 +121,13 @@ const EngineerProfile: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-12">
                 <div className="p-8 cardSurface">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                        <img src={engineer.imageUrl} alt={engineer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
+                        {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
+                        <img src={engineer.image_url} alt={engineer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left flex-grow">
                             <h1 className="text-4xl font-extrabold text-orange-500">{engineer.name}</h1>
                             <div className="flex items-center justify-center sm:justify-start gap-1 text-yellow-400 mt-2">
                                 <StarIcon className="w-5 h-5" />
-                                
-                                <span className="font-bold text-lg text-slate-200">{engineer.rating_overall.toFixed(1)}</span>
+                                <span className="font-bold text-lg text-slate-200">{(engineer.rating_overall ?? 0).toFixed(1)}</span>
                                 <span className="text-slate-400 text-sm">({engineerReviews.length} reviews)</span>
                             </div>
                             <p className="text-slate-300 leading-relaxed mt-4">{engineer.bio}</p>
@@ -143,23 +166,55 @@ const EngineerProfile: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* FIX: Corrected property name from 'isEnabled' to 'is_enabled' */}
+                {engineer.masterclass?.is_enabled && (
+                    <MasterclassCard 
+                        masterclass={engineer.masterclass}
+                        owner={engineer}
+                        onPurchase={openPurchaseMasterclassModal}
+                        onWatch={openWatchMasterclassModal}
+                    />
+                )}
                 
                 <div>
-                    <MixingSamplePlayer mixingSamples={engineer.mixingSamples || []} />
+                    {/* FIX: Corrected property name from 'mixingSamples' to 'mixing_samples' */}
+                    <MixingSamplePlayer mixingSamples={engineer.mixing_samples || []} />
                 </div>
+
+                 {/* Recent Media Gallery */}
+                 {mediaItems.length > 0 && (
+                    <div className="mb-8">
+                        <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2">
+                            <PhotoIcon className="w-6 h-6 text-orange-400" /> Recent Media
+                        </h3>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                            {mediaItems.slice(0, 8).map(item => (
+                                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700 group cursor-pointer">
+                                    <img src={item.url} alt="Media" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                    {item.type === 'video' && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
+                                            <PlayIcon className="w-8 h-8 text-white drop-shadow-lg" />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                  <div className="p-8 cardSurface">
                     <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><CalendarIcon className="w-6 h-6"/>Book an In-Studio Session</h3>
                     <div className="grid sm:grid-cols-3 gap-4 items-end">
                         <div>
                             <label htmlFor="date" className="block text-sm font-medium text-slate-400 mb-1">Date</label>
-                            <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full bg-zinc-700 border-zinc-600 rounded-lg p-2.5" />
+                            <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full bg-zinc-700 border-zinc-600 rounded-lg p-2.5 text-white" />
                         </div>
                         <div>
                             <label htmlFor="time" className="block text-sm font-medium text-slate-400 mb-1">Time</label>
-                             <input type="time" id="time" value={time} onChange={e => setTime(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 rounded-lg p-2.5" />
+                             <input type="time" id="time" value={time} onChange={e => setTime(e.target.value)} className="w-full bg-zinc-700 border-zinc-600 rounded-lg p-2.5 text-white" />
                         </div>
-                        <button onClick={handleBookClick} disabled={!currentUser} className="w-full sm:col-span-1 bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition-all disabled:bg-slate-500 disabled:cursor-not-allowed">
+                        <button onClick={handleBookClick} disabled={!currentUser} className="w-full sm:col-span-1 bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition-all disabled:bg-slate-500 disabled:cursor-not-allowed shadow-lg">
                             Find a Stoodio
                         </button>
                     </div>
@@ -215,7 +270,7 @@ const EngineerProfile: React.FC = () => {
                 <div>
                      <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts</h3>
                      <PostFeed 
-                        posts={sortedPosts}
+                        posts={posts}
                         authors={new Map([[engineer.id, engineer]])}
                         onLikePost={likePost}
                         onCommentOnPost={commentOnPost}

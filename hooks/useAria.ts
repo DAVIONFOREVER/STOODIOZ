@@ -1,159 +1,132 @@
-import { useCallback, useMemo } from 'react';
+
+import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaCantataMessage } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaActionResponse, AriaCantataMessage, Location, FileAttachment, Label } from '../types';
 
-export const useAria = (
-    handleStartConversation: (participant: Artist | Engineer | Stoodio | Producer) => void,
-    handleNavigate: (view: AppView) => void,
-    handleViewStoodioDetails: (stoodio: Stoodio) => void,
-    handleViewEngineerProfile: (engineer: Engineer) => void,
-    handleViewProducerProfile: (producer: Producer) => void,
-    handleViewArtistProfile: (artist: Artist) => void,
-    handleNavigateToStudio: (location: any) => void,
-    handleConfirmBooking: (bookingRequest: any) => Promise<void>
-) => {
+interface AriaHookDependencies {
+    startConversation: (participant: Artist | Engineer | Stoodio | Producer | Label) => void;
+    navigate: (view: AppView) => void;
+    viewStoodioDetails: (stoodio: Stoodio) => void;
+    viewEngineerProfile: (engineer: Engineer) => void;
+    viewProducerProfile: (producer: Producer) => void;
+    viewArtistProfile: (artist: Artist) => void;
+    navigateToStudio: (location: Location) => void;
+    confirmBooking: (request: any) => void; // Using any for brevity, strictly it's BookingRequest
+    updateProfile: (updates: any) => void;
+    selectRoleToSetup: (role: UserRole) => void;
+}
+
+export const useAria = (deps: AriaHookDependencies) => {
     const dispatch = useAppDispatch();
-    const { artists, engineers, producers, stoodioz, conversations, ariaNudge, ariaHistory, initialAriaCantataPrompt, bookings } = useAppState();
-    
-    const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
+    const { artists, engineers, producers, stoodioz } = useAppState();
 
-    const handleAriaCantataBooking = useCallback(async (bookingDetails: Omit<Booking, 'id' | 'status'>) => {
-        const bookingRequest = { ...bookingDetails, requestType: bookingDetails.requestType, totalCost: bookingDetails.totalCost, engineerPayRate: bookingDetails.engineerPayRate };
-        await handleConfirmBooking(bookingRequest);
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-    }, [handleConfirmBooking, dispatch]);
+    const executeCommand = useCallback(async (command: AriaActionResponse, onClose: () => void) => {
+        console.log("Aria Executing Command:", command);
 
-    const handleShowVibeResults = useCallback(async (results: VibeMatchResult) => {
-        dispatch({ type: ActionTypes.SET_VIBE_RESULTS, payload: { results } });
-        handleNavigate(AppView.VIBE_MATCHER_RESULTS);
-    }, [dispatch, handleNavigate]);
-    
-    const handleAriaGroupConversation = useCallback((participants: (Artist | Engineer | Stoodio | Producer)[], title: string) => {
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-        const newConversation = { id: `convo-group-${Date.now()}`, participants, messages: [], unreadCount: 0, title, imageUrl: '' };
-        dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: [newConversation, ...conversations] } });
-        dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: newConversation.id } });
-        handleNavigate(AppView.INBOX);
-    }, [dispatch, handleNavigate, conversations]);
+        switch (command.type) {
+            case 'navigate':
+                if (command.target && command.target in AppView) {
+                    deps.navigate(command.target as AppView);
+                    
+                    if (command.value && typeof command.value === 'object' && command.value.tab) {
+                        // Handle dashboard tab navigation
+                        dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: command.value.tab } });
+                    }
+                    
+                    onClose();
+                } else if (command.target === 'ARTIST_PROFILE' && command.value) {
+                    const artist = artists.find(a => a.name.toLowerCase().includes(command.value.toLowerCase()));
+                    if (artist) {
+                        deps.viewArtistProfile(artist);
+                        onClose();
+                    }
+                } else if (command.target === 'ENGINEER_PROFILE' && command.value) {
+                    const engineer = engineers.find(e => e.name.toLowerCase().includes(command.value.toLowerCase()));
+                    if (engineer) {
+                        deps.viewEngineerProfile(engineer);
+                        onClose();
+                    }
+                } else if (command.target === 'PRODUCER_PROFILE' && command.value) {
+                    const producer = producers.find(p => p.name.toLowerCase().includes(command.value.toLowerCase()));
+                    if (producer) {
+                        deps.viewProducerProfile(producer);
+                        onClose();
+                    }
+                } else if (command.target === 'STOODIO_DETAIL' && command.value) {
+                    const stoodio = stoodioz.find(s => s.name.toLowerCase().includes(command.value.toLowerCase()));
+                    if (stoodio) {
+                        deps.viewStoodioDetails(stoodio);
+                        onClose();
+                    }
+                }
+                break;
 
-    const handleAriaSendMessage = useCallback((recipientName: string, messageText: string, currentUser: any) => {
-        if (!currentUser) return;
-        const recipient = allUsers.find(u => u.name.toLowerCase() === recipientName.toLowerCase());
-        if (!recipient) return;
+            case 'openModal':
+                if (command.target === 'VIBE_MATCHER') {
+                    dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: true } });
+                    onClose();
+                } else if (command.target === 'ADD_FUNDS') {
+                    dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+                    onClose();
+                } else if (command.target === 'PAYOUT') {
+                    dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
+                    onClose();
+                }
+                break;
 
-        const newMessage: Message = {
-            id: `msg-text-${Date.now()}`,
-            senderId: currentUser.id,
-            timestamp: new Date().toISOString(),
-            type: 'text',
-            text: messageText,
-        };
-        
-        let convo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [recipient.id, currentUser.id].includes(p.id)));
-        let updatedConversations = [...conversations];
+            case 'showVibeMatchResults':
+                if (command.value) {
+                    dispatch({ type: ActionTypes.SET_VIBE_RESULTS, payload: { results: command.value } });
+                    deps.navigate(AppView.VIBE_MATCHER_RESULTS);
+                    // We don't close Aria here so user can ask follow up questions about results
+                }
+                break;
+            
+            case 'assistAccountSetup':
+                if (command.target && command.target in UserRole) {
+                    deps.selectRoleToSetup(command.target as UserRole);
+                    onClose();
+                }
+                break;
 
-        if (convo) {
-            updatedConversations = updatedConversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, newMessage], unreadCount: 0 } : c);
-        } else {
-            convo = { id: `convo-${recipient.id}-${currentUser.id}`, participants: [recipient, currentUser], messages: [newMessage], unreadCount: 0 };
-            updatedConversations = [convo, ...updatedConversations];
+            case 'sendMessage':
+                if (command.target && command.value) {
+                    const allUsers = [...artists, ...engineers, ...producers, ...stoodioz];
+                    const recipient = allUsers.find(u => u.name.toLowerCase().includes(command.target!.toLowerCase()));
+                    if (recipient) {
+                        deps.startConversation(recipient);
+                        // We might want to pre-fill the message or send it directly.
+                        // For now, startConversation navigates to inbox.
+                        onClose();
+                    }
+                }
+                break;
+            
+            case 'sendDocumentMessage':
+                // Handled in UI layer (AriaAssistant.tsx) primarily by adding to history
+                // This hook just acknowledges it.
+                break;
+
+            case 'error':
+                console.warn("Aria reported an error:", command.value);
+                break;
+
+            default:
+                break;
         }
-
-        dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
-        dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: convo.id } });
-        handleNavigate(AppView.INBOX);
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-    }, [allUsers, conversations, dispatch, handleNavigate]);
-    
-    const handleAriaSendDocument = useCallback((recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => {
-        const ariaProfile = artists.find(a => a.id === 'artist-aria-cantata');
-        if (!ariaProfile) return;
-
-        const fileUri = 'data:text/markdown;charset=utf-8,' + encodeURIComponent(documentContent);
-        const fileSize = new Blob([documentContent]).size;
-
-        const newMessage: Message = {
-            id: `msg-doc-${Date.now()}`,
-            senderId: ariaProfile.id,
-            timestamp: new Date().toISOString(),
-            type: 'files',
-            text: `Here is the document we discussed: ${fileName}`,
-            files: [{ name: fileName, url: fileUri, size: `${(fileSize / 1024).toFixed(1)} KB` }],
-        };
-        
-        let convo = conversations.find(c => c.participants.length === 2 && c.participants.every(p => [recipient.id, ariaProfile.id].includes(p.id)));
-        let updatedConversations = [...conversations];
-
-        if (convo) {
-            updatedConversations = updatedConversations.map(c => c.id === convo!.id ? { ...c, messages: [...c.messages, newMessage] } : c);
-        } else {
-            convo = { id: `convo-${recipient.id}-${ariaProfile.id}`, participants: [recipient, ariaProfile], messages: [newMessage], unreadCount: 1 };
-            updatedConversations = [convo, ...updatedConversations];
-        }
-
-        dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
-        dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: convo.id } });
-        handleNavigate(AppView.INBOX);
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-
-    }, [artists, conversations, dispatch, handleNavigate]);
-
-    const handleAriaNavigation = useCallback((view: AppView, entityName?: string, tab?: string) => {
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-
-        if (tab) {
-            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab } });
-        }
-        
-        if (!entityName) {
-            handleNavigate(view);
-            return;
-        }
-        const target = allUsers.find(u => u.name.toLowerCase() === entityName.toLowerCase());
-        if (target) {
-            if ('amenities' in target) handleViewStoodioDetails(target);
-            else if ('specialties' in target) handleViewEngineerProfile(target);
-            else if ('instrumentals' in target) handleViewProducerProfile(target);
-            else handleViewArtistProfile(target as Artist);
-        } else {
-            handleNavigate(view);
-        }
-    }, [allUsers, handleNavigate, handleViewStoodioDetails, handleViewEngineerProfile, handleViewProducerProfile, handleViewArtistProfile, dispatch]);
-    
-    const handleAriaGetDirections = useCallback((entityName: string) => {
-        const target = allUsers.find(e => e.name.toLowerCase() === entityName.toLowerCase());
-        if (target?.coordinates) {
-            handleNavigateToStudio(target.coordinates);
-            dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-        }
-    }, [allUsers, handleNavigateToStudio, dispatch]);
+    }, [dispatch, deps, artists, engineers, producers, stoodioz]);
 
     const handleAriaNudgeClick = useCallback(() => {
-        if (ariaNudge) {
-            dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: ariaNudge } });
-            dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
-            dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge: null } });
-            dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
-        }
-    }, [ariaNudge, dispatch]);
+        // Logic to handle when the user clicks on a nudge toast
+        // This usually just opens Aria with context
+        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+        dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
+    }, [dispatch]);
 
     const handleDismissAriaNudge = useCallback(() => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
-        setTimeout(() => dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge: null } }), 300);
     }, [dispatch]);
 
-    return {
-        handleAriaCantataBooking,
-        handleShowVibeResults,
-        handleAriaGroupConversation,
-        handleAriaSendMessage,
-        handleAriaSendDocument,
-        handleAriaNavigation,
-        handleAriaGetDirections,
-        handleAriaNudgeClick,
-        handleDismissAriaNudge,
-        ariaHistory,
-        initialAriaCantataPrompt
-    };
+    return { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge };
 };

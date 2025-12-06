@@ -1,7 +1,8 @@
+
 import React from 'react';
 import type { Post, Artist, Engineer, Stoodio, Producer } from '../types';
-import PostCard from './PostCard';
-import { useAppState } from '../contexts/AppContext';
+import PostCard from './PostCard.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface PostFeedProps {
     posts: Post[];
@@ -9,9 +10,10 @@ interface PostFeedProps {
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
     onSelectAuthor: (author: Artist | Engineer | Stoodio | Producer) => void;
+    useFixedFrame?: boolean;
 }
 
-const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onCommentOnPost, onSelectAuthor }) => {
+const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onCommentOnPost, onSelectAuthor, useFixedFrame = false }) => {
     const { currentUser } = useAppState();
 
     if (!posts || posts.length === 0) {
@@ -35,6 +37,7 @@ const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onComme
                         onLikePost={onLikePost}
                         onCommentOnPost={onCommentOnPost}
                         onSelectAuthor={() => onSelectAuthor(author)}
+                        useFixedFrame={useFixedFrame}
                     />
                 );
             })}

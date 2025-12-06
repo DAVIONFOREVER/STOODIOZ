@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 
@@ -112,7 +113,7 @@ const ProductTour: React.FC = () => {
     }, [handleNext]);
 
     return (
-        <div className="max-w-4xl mx-auto bg-zinc-800/50 p-6 rounded-3xl border border-zinc-700/50 shadow-2xl backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto p-6 cardSurface">
             {/* Slideshow Container */}
             <div className="relative aspect-video rounded-2xl overflow-hidden shadow-lg bg-zinc-900">
                 {/* Animated Backgrounds */}

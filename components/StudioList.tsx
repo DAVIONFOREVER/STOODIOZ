@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import type { Stoodio } from '../types';
 import { VerificationStatus, SmokingPolicy } from '../types';
-import StoodioCard from './StudioCard';
-import { SearchIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import StoodioCard from './StudioCard.tsx';
+import { SearchIcon } from './icons.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface StoodioListProps {
     onSelectStoodio: (stoodio: Stoodio) => void;
@@ -30,11 +30,13 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
         let results = stoodioz;
 
         if (showVerifiedOnly) {
-            results = results.filter(s => s.verificationStatus === VerificationStatus.VERIFIED);
+            // FIX: Corrected property 'verificationStatus' to 'verification_status' to match type definition.
+            results = results.filter(s => s.verification_status === VerificationStatus.VERIFIED);
         }
 
         if (smokingFilter !== 'any') {
-            results = results.filter(s => s.rooms.some(r => (r.smokingPolicy || SmokingPolicy.NON_SMOKING) === smokingFilter));
+            // FIX: Corrected property 'smokingPolicy' to 'smoking_policy' to match type definition.
+            results = results.filter(s => s.rooms.some(r => (r.smoking_policy || SmokingPolicy.NON_SMOKING) === smokingFilter));
         }
 
         if (searchTerm) {
@@ -42,7 +44,8 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
             results = results.filter(s => 
                 s.name.toLowerCase().includes(lowerCaseTerm) || 
                 s.location.toLowerCase().includes(lowerCaseTerm) ||
-                s.businessAddress?.toLowerCase().includes(lowerCaseTerm) ||
+                // FIX: Corrected property 'businessAddress' to 'business_address' to match type definition.
+                s.business_address?.toLowerCase().includes(lowerCaseTerm) ||
                 s.amenities.some(a => a.toLowerCase().includes(lowerCaseTerm))
             );
         }
@@ -57,7 +60,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
             </h1>
             <p className="text-center text-lg text-zinc-400 mb-8">Discover and book top-tier recording stoodioz.</p>
 
-            <div className="max-w-4xl mx-auto mb-12 p-4 cardSurface">
+            <div className="max-w-4xl mx-auto mb-12 p-4 bg-zinc-800/50 backdrop-blur-sm rounded-2xl shadow-lg border border-zinc-700/50">
                 <div className="relative flex-grow w-full mb-4">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <SearchIcon className="h-5 w-5 text-zinc-400" />

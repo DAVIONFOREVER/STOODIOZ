@@ -1,22 +1,14 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, AriaCantataMessage, AppView, UserRole } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label } from '../types';
 import { askAriaCantata } from '../services/geminiService';
-import { CloseIcon, PaperAirplaneIcon, MagicWandIcon } from './icons';
+import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 
 interface AriaCantataAssistantProps {
     isOpen: boolean;
     onClose: () => void;
-    onStartConversation: (participant: Artist | Engineer | Stoodio | Producer) => void;
-    onStartGroupConversation: (participants: (Artist | Engineer | Stoodio | Producer)[], title: string) => void;
-    onUpdateProfile: (updates: Partial<Artist | Engineer | Stoodio | Producer>) => void;
-    onBookStudio: (details: Omit<Booking, 'id' | 'status'>) => void;
-    onShowVibeMatchResults: (results: VibeMatchResult) => void;
-    onNavigateRequest: (view: AppView, entityName?: string) => void;
-    onStartSetupRequest: (role: UserRole) => void;
-    onSendMessageRequest: (recipientName: string, messageText: string) => void;
-    onSendDocument: (recipient: Artist | Engineer | Stoodio | Producer, documentContent: string, fileName: string) => void;
-    onGetDirectionsRequest: (entityName: string) => void;
+    onExecuteCommand: (command: AriaActionResponse, onClose: () => void) => Promise<void>;
     history: AriaCantataMessage[];
     setHistory: (history: AriaCantataMessage[]) => void;
     initialPrompt: string | null;
@@ -31,183 +23,184 @@ const TypingIndicator: React.FC = () => (
     </div>
 );
 
-const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = (props) => {
-    const { 
-        isOpen, onClose, onStartConversation, onStartGroupConversation, onUpdateProfile,
-        onBookStudio, onShowVibeMatchResults, onNavigateRequest, onStartSetupRequest, onSendMessageRequest,
-        onGetDirectionsRequest, onSendDocument, history, setHistory, initialPrompt, clearInitialPrompt 
-    } = props;
-    const { currentUser, artists, engineers, producers, stoodioz, bookings } = useAppState();
-    
-    const getInitialMessage = () => {
-        const greetings = [
-            `Welcome back, ${currentUser?.name || 'superstar'}. Let’s create something worth remembering.`,
-            `Hey, ${currentUser?.name || 'gorgeous'}. Ready to make the world listen?`,
-            `Your sound is waiting, ${currentUser?.name || 'creative'}. Let’s make it timeless.`,
-            `Back in the studio? That’s power. Let’s get to work, ${currentUser?.name || 'superstar'}.`,
-            `Welcome home to Stoodioz, ${currentUser?.name || 'creative'}. The stage is yours.`,
-            `Oh, you’re back. Let’s turn creativity into luxury, ${currentUser?.name || 'darling'}.`
-        ];
-        const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
-        return {
-            role: 'model' as const,
-            parts: [{ text: randomGreeting }]
-        };
-    };
-
-    const [isLoading, setIsLoading] = useState(false);
+const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({ 
+    isOpen, 
+    onClose, 
+    onExecuteCommand,
+    history, 
+    setHistory,
+    initialPrompt,
+    clearInitialPrompt
+}) => {
+    const { currentUser, artists, engineers, stoodioz, producers, bookings } = useAppState();
     const [inputValue, setInputValue] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const isProcessingInitialPrompt = useRef(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        if (isOpen && history.length === 0) {
-            setHistory([getInitialMessage()]);
-        }
-    }, [isOpen, currentUser]);
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
     useEffect(() => {
         if (isOpen) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            scrollToBottom();
+            inputRef.current?.focus();
         }
-    }, [history, isOpen]);
+    }, [isOpen, history]);
 
-     useEffect(() => {
-        if (isOpen && initialPrompt && !isProcessingInitialPrompt.current) {
-            isProcessingInitialPrompt.current = true;
-            handleSendMessage(null, initialPrompt);
+    useEffect(() => {
+        if (isOpen && initialPrompt) {
+            handleSendMessage(initialPrompt);
             clearInitialPrompt();
-            setTimeout(() => { isProcessingInitialPrompt.current = false; }, 1000);
         }
     }, [isOpen, initialPrompt]);
-    
-    const handleSendMessage = async (e: React.FormEvent | null, promptOverride?: string) => {
-        e?.preventDefault();
-        const question = promptOverride || inputValue.trim();
-        if (!question || isLoading) return;
 
-        const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text: question }] };
-        const historyBeforeSend = history; // Capture history before optimistic update
-        
-        setHistory([...historyBeforeSend, userMessage]); // Optimistic UI update
+    const handleSendMessage = async (text: string) => {
+        if (!text.trim()) return;
+
+        const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text }] };
+        const newHistory = [...history, userMessage];
+        setHistory(newHistory);
         setInputValue('');
         setIsLoading(true);
 
         try {
-            // Pass the OLD history and the new question string to the service
-            const response = await askAriaCantata(historyBeforeSend, question, currentUser, { artists, engineers, producers, stoodioz, bookings });
-            
-            const ariaResponse: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
-            
-            // Final state update with the model's response
-            setHistory([...historyBeforeSend, userMessage, ariaResponse]);
+            const context = { artists, engineers, producers, stoodioz, bookings };
+            // Ensure currentUser is typed correctly for the service call
+            const response = await askAriaCantata(newHistory, text, currentUser as (Artist | Engineer | Stoodio | Producer | Label | null), context);
 
-            if (response.type === 'function') {
-                setTimeout(() => {
-                    if (response.action === 'assistAccountSetup') {
-                        onStartSetupRequest(response.payload.role);
-                        onClose();
-                    } else if (response.action === 'navigateApp') {
-                        onNavigateRequest(response.payload.view, response.payload.entityName);
-                        onClose();
-                    } else if (response.action === 'getDirections') {
-                        onGetDirectionsRequest(response.payload.entityName);
-                    } else if (response.action === 'startConversation') {
-                        onStartConversation(response.payload.participant);
-                    } else if (response.action === 'startGroupConversation') {
-                        onStartGroupConversation(response.payload.participants, response.payload.conversationTitle);
-                    } else if (response.action === 'updateProfile') {
-                        onUpdateProfile(response.payload.updates);
-                    } else if (response.action === 'bookStudio') {
-                        onBookStudio(response.payload.bookingDetails);
-                    } else if (response.action === 'showVibeMatchResults') {
-                        onShowVibeMatchResults(response.payload.results);
-                        onClose();
-                    } else if (response.action === 'sendMessage') {
-                        onSendMessageRequest(response.payload.recipientName, response.payload.messageText);
-                    } else if (response.action === 'sendDocumentMessage') {
-                        onSendDocument(response.payload.recipient, response.payload.documentContent, response.payload.fileName);
-                    }
-                }, 1500);
+            if (response.type !== 'speak' && response.type !== 'error') {
+                // It's a command
+                await onExecuteCommand(response, onClose);
+                
+                // Add a system message indicating the action was taken, unless it was a navigation which closes the modal
+                if (response.type !== 'navigate' && response.type !== 'showVibeMatchResults') {
+                     const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
+                     setHistory([...newHistory, modelMessage]);
+                }
+            } else {
+                // It's just text
+                const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
+                setHistory([...newHistory, modelMessage]);
             }
 
         } catch (error) {
-            const errorResponse: AriaCantataMessage = { role: 'model', parts: [{ text: "Sorry, I encountered an error. Please try again." }] };
-            // On error, also update the history correctly
-            setHistory([...historyBeforeSend, userMessage, errorResponse]);
+            console.error("Error asking Aria:", error);
+            const errorMessage: AriaCantataMessage = { role: 'model', parts: [{ text: "I'm having trouble connecting right now. Please try again later." }] };
+            setHistory([...newHistory, errorMessage]);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage(inputValue);
         }
     };
 
     if (!isOpen) return null;
 
     return (
-        <div 
-            className="fixed bottom-6 right-6 z-[60] w-[calc(100%-3rem)] max-w-sm h-[70vh] max-h-[600px] bg-zinc-900/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-zinc-700/50 flex flex-col animate-slide-up"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="aria-heading"
-        >
-            {/* Header */}
-            <header className="flex items-center justify-between p-4 border-b border-zinc-700/50 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-orange-500 to-purple-600 p-2 rounded-lg">
-                        <MagicWandIcon className="w-5 h-5 text-white" />
-                    </div>
-                    <h2 id="aria-heading" className="text-lg font-bold text-zinc-100">Aria Cantata</h2>
-                </div>
-                <button onClick={onClose} className="text-zinc-400 hover:text-zinc-100 transition-colors">
-                    <CloseIcon className="w-6 h-6" />
-                </button>
-            </header>
-
-            {/* Messages */}
-            <div className="flex-grow p-4 space-y-4 overflow-y-auto">
-                {history.map((msg, index) => {
-                    const isUser = msg.role === 'user';
-                    return (
-                        <div key={index} className={`flex items-end gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
-                            {!isUser && (
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                                    <MagicWandIcon className="w-5 h-5 text-white" />
-                                </div>
-                            )}
-                            <div className={`max-w-[80%] p-3 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-zinc-200 rounded-bl-lg'}`}>
-                                <p className="text-sm">{msg.parts[0].text}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative w-full max-w-2xl h-[80vh] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 p-0.5">
+                            <div className="w-full h-full bg-zinc-900 rounded-full flex items-center justify-center">
+                                <MagicWandIcon className="w-5 h-5 text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-purple-400" />
                             </div>
                         </div>
-                    );
-                })}
-                {isLoading && (
-                    <div className="flex items-end gap-2.5 justify-start">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                            <MagicWandIcon className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="max-w-xs p-3 rounded-2xl bg-zinc-700 text-zinc-200 rounded-bl-lg">
-                            <TypingIndicator />
+                        <div>
+                            <h2 className="font-bold text-zinc-100">Aria Cantata</h2>
+                            <p className="text-xs text-zinc-400">AI A&R Assistant</p>
                         </div>
                     </div>
-                )}
-                <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Form */}
-            <footer className="p-4 border-t border-zinc-700/50 flex-shrink-0">
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder="Ask Aria Cantata anything..."
-                        className="w-full bg-zinc-800 border-zinc-700 text-zinc-100 rounded-full py-2.5 px-4 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        aria-label="Your message to Aria Cantata"
-                    />
-                    <button type="submit" disabled={!inputValue.trim() || isLoading} className="bg-orange-500 text-white p-2.5 rounded-full hover:bg-orange-600 transition-colors flex-shrink-0 disabled:bg-zinc-600 disabled:cursor-not-allowed">
-                        <PaperAirplaneIcon className="w-5 h-5" />
+                    <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
+                        <CloseIcon className="w-6 h-6" />
                     </button>
-                </form>
-            </footer>
+                </div>
+
+                {/* Messages Area */}
+                <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                    {history.length === 0 && (
+                        <div className="h-full flex flex-col items-center justify-center text-center text-zinc-500 space-y-4">
+                            <MagicWandIcon className="w-12 h-12 opacity-20" />
+                            <p>How can I help with your music career today?</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm w-full max-w-lg">
+                                <button onClick={() => handleSendMessage("Find me a studio in Atlanta")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Find a studio in Atlanta</button>
+                                <button onClick={() => handleSendMessage("Who is the best engineer for Trap?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Best engineer for Trap?</button>
+                                <button onClick={() => handleSendMessage("Help me write a hook about summer")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Write a hook about summer</button>
+                                <button onClick={() => handleSendMessage("Draft a split sheet agreement")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Draft a split sheet</button>
+                            </div>
+                        </div>
+                    )}
+                    {history.map((msg, index) => (
+                        <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] rounded-2xl p-4 ${
+                                msg.role === 'user' 
+                                ? 'bg-orange-600 text-white rounded-tr-sm' 
+                                : 'bg-zinc-800 text-zinc-200 rounded-tl-sm border border-zinc-700'
+                            }`}>
+                                <p className="whitespace-pre-wrap leading-relaxed">{msg.parts[0].text}</p>
+                                {/* Handle File Attachments if present in model response */}
+                                {msg.files && msg.files.map((file, i) => (
+                                    <div key={i} className="mt-3 flex items-center gap-3 bg-black/20 p-2 rounded-lg">
+                                        <PaperclipIcon className="w-5 h-5 opacity-70"/>
+                                        <div className="flex-grow overflow-hidden">
+                                            <p className="text-sm font-semibold truncate">{file.name}</p>
+                                            <p className="text-xs opacity-70">{file.size}</p>
+                                        </div>
+                                        <a 
+                                            href={file.rawContent ? URL.createObjectURL(new Blob([file.rawContent], {type: 'application/pdf'})) : '#'} 
+                                            download={file.name}
+                                            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+                                        >
+                                            <DownloadIcon className="w-4 h-4"/>
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    {isLoading && (
+                        <div className="flex justify-start">
+                            <div className="bg-zinc-800 rounded-2xl rounded-tl-sm p-4 border border-zinc-700">
+                                <TypingIndicator />
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input Area */}
+                <div className="p-4 bg-zinc-900 border-t border-zinc-800">
+                    <div className="relative">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Ask Aria anything..."
+                            className="w-full bg-zinc-800 text-zinc-100 rounded-full py-3 pl-5 pr-12 focus:outline-none focus:ring-2 focus:ring-orange-500/50 border border-zinc-700"
+                            disabled={isLoading}
+                        />
+                        <button 
+                            onClick={() => handleSendMessage(inputValue)}
+                            disabled={!inputValue.trim() || isLoading}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 transition-all"
+                        >
+                            <PaperAirplaneIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

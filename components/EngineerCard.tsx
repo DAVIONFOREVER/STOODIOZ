@@ -1,3 +1,6 @@
+
+
+
 import React from 'react';
 import type { Engineer } from '../types';
 import { UserPlusIcon, UserCheckIcon, StarIcon } from './icons';
@@ -21,19 +24,18 @@ const EngineerCard: React.FC<EngineerCardProps> = ({ engineer, onSelectEngineer,
 
     return (
         <div 
-            className="p-6 group transition-all duration-400 ease-in-out hover:border-orange-500/50 hover:-translate-y-1 hover:rotate-1 shimmer glass-overlay relative overflow-hidden cardSurface"
-            style={{ '--shimmer-delay': (Math.random() * 8 + 2) } as React.CSSProperties}
+            className="cardSurface p-6 group relative overflow-hidden"
         >
             <div className="relative">
                 <button onClick={() => onSelectEngineer(engineer)} className="w-full text-center">
-                    <img loading="lazy" src={engineer.imageUrl} alt={engineer.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                    <img loading="lazy" src={engineer.image_url} alt={engineer.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-orange-500 transition-colors" />
                     <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400 text-glow">{engineer.name}</h3>
                     <div className="flex items-center justify-center gap-1 text-yellow-400 mt-1">
                         <StarIcon className="w-4 h-4" />
-                        <span className="font-bold text-sm text-slate-200">{engineer.rating_overall.toFixed(1)}</span>
+                        <span className="font-bold text-sm text-slate-200">{(engineer.rating_overall ?? 0).toFixed(1)}</span>
                     </div>
                 </button>
-                <p className="text-slate-400 text-xs text-center mt-2 h-9 overflow-hidden">{engineer.specialties.join(' • ')}</p>
+                <p className="text-slate-400 text-xs text-center mt-2 h-9 overflow-hidden">{engineer.specialties?.join(' • ')}</p>
                 <div className="mt-4">
                     {isLoggedIn && !isSelf && (
                          <button

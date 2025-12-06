@@ -7,7 +7,7 @@ interface PrivacyPolicyProps {
 
 const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
     return (
-        <div className="max-w-4xl mx-auto bg-zinc-900/70 backdrop-blur-lg p-8 rounded-2xl border border-zinc-700/50 shadow-2xl animate-fade-in">
+        <div className="max-w-4xl mx-auto p-8 animate-fade-in cardSurface">
             <button onClick={onBack} className="flex items-center gap-2 text-zinc-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
                 <ChevronLeftIcon className="w-5 h-5" />
                 Back to Setup

@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
-import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon } from './icons';
+import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon, PaperclipIcon, MusicNoteIcon, EyeIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import Following from './Following';
@@ -11,10 +12,13 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
+import { fetchUserPosts } from '../services/apiService';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
+const Documents = lazy(() => import('./Documents.tsx'));
+const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following';
+type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following' | 'documents' | 'myCourses';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -39,6 +43,16 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 const ArtistDashboard: React.FC = () => {
     const { currentUser, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
+    
+    if (!currentUser) {
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p className="text-zinc-400">Loading user data...</p>
+            </div>
+        );
+    }
+
     const artist = currentUser as Artist;
 
     const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewBooking } = useNavigation();
@@ -57,20 +71,70 @@ const ArtistDashboard: React.FC = () => {
         }
     }, [dashboardInitialTab, dispatch]);
 
-    const profileFileInputRef = useRef<HTMLInputElement>(null);
-    const coverFileInputRef = useRef<HTMLInputElement>(null);
+    // Fetch user specific posts for personal feed
+    const refreshPosts = async () => {
+        if (artist.id) {
+            const posts = await fetchUserPosts(artist.id);
+            setMyPosts(posts);
+        }
+    };
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'cover') => {
+    useEffect(() => {
+        refreshPosts();
+    }, [artist.id]);
+
+    const handleNewPost = async (postData: any) => {
+        // Optimistic update for immediate feedback
+        const tempPost: Post = {
+            id: `temp-${Date.now()}`,
+            authorId: artist.id,
+            authorType: UserRole.ARTIST,
+            text: postData.text,
+            image_url: postData.imageUrl,
+            video_url: postData.videoUrl,
+            video_thumbnail_url: postData.videoThumbnailUrl,
+            link: postData.link,
+            timestamp: new Date().toISOString(),
+            likes: [],
+            comments: []
+        };
+        setMyPosts(prev => [tempPost, ...prev]);
+
+        // Explicitly pass role to ensure correct posting
+        await createPost(postData, UserRole.ARTIST);
+        refreshPosts();
+    };
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const coverImageInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+    
+    const handleCoverImageUploadClick = () => {
+        coverImageInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const imageUrl = e.target?.result as string;
-                 if (type === 'profile') {
-                    updateProfile({ imageUrl });
-                } else {
-                    updateProfile({ coverImageUrl: imageUrl });
-                }
+                updateProfile({ image_url: imageUrl });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    const handleCoverFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const coverImageUrl = e.target?.result as string;
+                updateProfile({ cover_image_url: coverImageUrl });
             };
             reader.readAsDataURL(file);
         }
@@ -79,19 +143,19 @@ const ArtistDashboard: React.FC = () => {
     const upcomingBookingsCount = bookings.filter(b => new Date(b.date) >= new Date()).length;
     
     const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => artist.followerIds.includes(u.id));
+    const followers = allUsers.filter(u => (artist.follower_ids || []).includes(u.id));
+    const followedArtists = artists.filter(a => (artist.following?.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (artist.following?.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (artist.following?.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (artist.following?.producers || []).includes(p.id));
 
-    const followedArtists = artists.filter(a => artist.following.artists.includes(a.id));
-    const followedEngineers = engineers.filter(e => artist.following.engineers.includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => artist.following.stoodioz.includes(s.id));
-    const followedProducers = producers.filter(p => artist.following.producers.includes(p.id));
 
     const renderContent = () => {
         switch (activeTab) {
             case 'analytics':
                 return (
                     <Suspense fallback={<div>Loading Analytics...</div>}>
-                        <AnalyticsDashboard user={artist} />
+                        <AnalyticsDashboard user={artist} userRole={UserRole.ARTIST} />
                     </Suspense>
                 );
             case 'wallet':
@@ -107,14 +171,25 @@ const ArtistDashboard: React.FC = () => {
                  return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile}/>;
             case 'following':
                 return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={toggleFollow} onSelectStudio={viewStoodioDetails} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile}/>;
-
+            case 'documents':
+                return (
+                    <Suspense fallback={<div>Loading Documents...</div>}>
+                        <Documents conversations={conversations} />
+                    </Suspense>
+                );
+            case 'myCourses':
+                return (
+                    <Suspense fallback={<div>Loading Courses...</div>}>
+                        <MyCourses />
+                    </Suspense>
+                );
             case 'dashboard':
             default:
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={artist} onPost={createPost} />
-                            <PostFeed posts={artist.posts || []} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={viewArtistProfile} />
+                            <CreatePost currentUser={artist} onPost={handleNewPost} />
+                            <PostFeed posts={myPosts} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={(author) => viewArtistProfile(author as Artist)} />
                         </div>
                     </div>
                 );
@@ -124,57 +199,97 @@ const ArtistDashboard: React.FC = () => {
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
-            <div className="cardSurface overflow-hidden">
-                <div className="relative h-40 md:h-56 bg-zinc-700">
-                    <img src={artist.coverImageUrl || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=800&auto=format&fit=crop'} alt="Cover" className="w-full h-full object-cover"/>
-                     <button 
-                        onClick={() => coverFileInputRef.current?.click()}
-                        className="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-black/70 transition-colors"
-                        aria-label="Change cover photo"
-                    >
-                        <EditIcon className="w-5 h-5" />
-                    </button>
-                    <input type="file" ref={coverFileInputRef} onChange={(e) => handleFileChange(e, 'cover')} className="hidden" accept="image/*"/>
-                </div>
-                <div className="p-6 pt-0">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-20 gap-4">
-                        <div className="relative group flex-shrink-0">
-                            <img src={artist.imageUrl} alt={artist.name} className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-zinc-800" />
-                            <button 
-                                onClick={() => profileFileInputRef.current?.click()}
-                                className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                aria-label="Change profile photo"
+            <div className="relative rounded-2xl overflow-hidden cardSurface group">
+                {/* Cover Image */}
+                <img 
+                    src={artist.cover_image_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'} 
+                    alt={`${artist.name}'s cover photo`}
+                    className="w-full h-48 md:h-64 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                
+                {/* Edit Cover Button */}
+                <button 
+                    onClick={handleCoverImageUploadClick}
+                    className="absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold py-1.5 px-3 rounded-full hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100 flex items-center gap-2"
+                >
+                    <PhotoIcon className="w-4 h-4" /> Edit Cover
+                </button>
+                <input
+                    type="file"
+                    ref={coverImageInputRef}
+                    onChange={handleCoverFileChange}
+                    className="hidden"
+                    accept="image/*"
+                />
+
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
+                        <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
+                            <div className="relative group/pfp flex-shrink-0">
+                                <img src={artist.image_url} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <button 
+                                    onClick={handleImageUploadClick} 
+                                    className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
+                                    aria-label="Change profile photo"
+                                >
+                                    <EditIcon className="w-8 h-8 text-white" />
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept="image/*"
+                                />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{artist.name}</h1>
+                                <p className="text-zinc-400 mt-1">Artist Dashboard</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 items-center">
+                             <button
+                                onClick={() => viewArtistProfile(artist)}
+                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md"
                             >
-                                <EditIcon className="w-8 h-8 text-white" />
+                                <EyeIcon className="w-4 h-4" />
+                                View Public Profile
                             </button>
-                            <input type="file" ref={profileFileInputRef} onChange={(e) => handleFileChange(e, 'profile')} className="hidden" accept="image/*" />
+                            <button
+                                onClick={() => navigate(AppView.STOODIO_LIST)}
+                                className="bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-orange-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                            >
+                                <CalendarIcon className="w-5 h-5"/>
+                                Book a New Session
+                            </button>
+                            <button
+                                onClick={onOpenVibeMatcher}
+                                className="bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2"
+                            >
+                                <MagicWandIcon className="w-5 h-5"/>
+                                AI Vibe Matcher
+                            </button>
                         </div>
-                        <div className="flex-grow text-center sm:text-left sm:pb-4">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{artist.name}</h1>
-                            <p className="text-zinc-400 mt-1">Artist Dashboard</p>
-                        </div>
-                        <button
-                            onClick={onOpenVibeMatcher}
-                            className="bg-purple-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-purple-600 transition-colors text-base shadow-md flex items-center justify-center gap-2 sm:mb-4"
-                        >
-                            <MagicWandIcon className="w-5 h-5"/>
-                            AI Vibe Matcher
-                        </button>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-white/5">
-                    <StatCard label="Wallet Balance" value={`$${artist.walletBalance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
-                    <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
-                    <StatCard label="Followers" value={artist.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
-                </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <StatCard label="Wallet Balance" value={`$${artist.wallet_balance.toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                <StatCard label="Followers" value={artist.followers} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
+            </div>
+
              <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">
                     <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+                    <TabButton label="My Activity" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
                     <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
                 </div>
                 <div className="p-6">
                     {renderContent()}

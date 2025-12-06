@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Engineer } from '../types';
-import EngineerCard from './EngineerCard';
-import { useAppState } from '../contexts/AppContext';
+import EngineerCard from './EngineerCard.tsx';
+import { useAppState } from '../contexts/AppContext.tsx';
 
 interface EngineerListProps {
     onSelectEngineer: (engineer: Engineer) => void;

@@ -1,3 +1,5 @@
+
+
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -8,6 +10,9 @@ export enum AppView {
     ENGINEER_SETUP = 'ENGINEER_SETUP',
     PRODUCER_SETUP = 'PRODUCER_SETUP',
     STOODIO_SETUP = 'STOODIO_SETUP',
+    VIDEOGRAPHER_SETUP = 'VIDEOGRAPHER_SETUP',
+    LABEL_SETUP = 'LABEL_SETUP',
+    LABEL_SCOUTING = 'LABEL_SCOUTING',
     PRIVACY_POLICY = 'PRIVACY_POLICY',
     SUBSCRIPTION_PLANS = 'SUBSCRIPTION_PLANS',
     STOODIO_LIST = 'STOODIO_LIST',
@@ -23,15 +28,21 @@ export enum AppView {
     ENGINEER_PROFILE = 'ENGINEER_PROFILE',
     PRODUCER_LIST = 'PRODUCER_LIST',
     PRODUCER_PROFILE = 'PRODUCER_PROFILE',
+    VIDEOGRAPHER_LIST = 'VIDEOGRAPHER_LIST',
+    VIDEOGRAPHER_PROFILE = 'VIDEOGRAPHER_PROFILE',
     THE_STAGE = 'THE_STAGE',
     VIBE_MATCHER_RESULTS = 'VIBE_MATCHER_RESULTS',
     ARTIST_DASHBOARD = 'ARTIST_DASHBOARD',
     STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
     ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
     PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
-    // FIX: Add missing LEADERBOARD view to AppView enum
-    LEADERBOARD = 'LEADERBOARD',
+    VIDEOGRAPHER_DASHBOARD = 'VIDEOGRAPHER_DASHBOARD',
+    LABEL_DASHBOARD = 'LABEL_DASHBOARD',
+    LABEL_IMPORT = 'LABEL_IMPORT',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
+    ADMIN_RANKINGS = 'ADMIN_RANKINGS',
+    STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
+    LEADERBOARD = 'LEADERBOARD',
 }
 
 export enum UserRole {
@@ -39,6 +50,8 @@ export enum UserRole {
     ENGINEER = 'ENGINEER',
     PRODUCER = 'PRODUCER',
     STOODIO = 'STOODIO',
+    VIDEOGRAPHER = 'VIDEOGRAPHER',
+    LABEL = 'LABEL',
 }
 
 export enum VerificationStatus {
@@ -60,6 +73,12 @@ export enum TransactionCategory {
     TIP_PAYOUT = 'TIP_PAYOUT',
     REFUND = 'REFUND',
     WITHDRAWAL = 'WITHDRAWAL',
+    MASTERCLASS_PURCHASE = 'MASTERCLASS_PURCHASE',
+    MASTERCLASS_PAYOUT = 'MASTERCLASS_PAYOUT',
+    BEAT_PURCHASE = 'BEAT_PURCHASE',
+    BEAT_SALE = 'BEAT_SALE',
+    CONTRACT_PAYOUT = 'CONTRACT_PAYOUT',
+    CONTRACT_RECOUP = 'CONTRACT_RECOUP',
 }
 
 export enum TransactionStatus {
@@ -80,6 +99,8 @@ export enum BookingRequestType {
     FIND_AVAILABLE = 'FIND_AVAILABLE',
     SPECIFIC_ENGINEER = 'SPECIFIC_ENGINEER',
     BRING_YOUR_OWN = 'BRING_YOUR_OWN',
+    BEAT_PURCHASE = 'BEAT_PURCHASE',
+    VIDEOGRAPHY = 'VIDEOGRAPHY',
 }
 
 export enum NotificationType {
@@ -98,7 +119,6 @@ export enum SubscriptionPlan {
     STOODIO_PRO = 'STOODIO_PRO',
 }
 
-// FIX: Add missing RankingTier enum
 export enum RankingTier {
     Provisional = 'Provisional',
     Bronze = 'Bronze',
@@ -106,6 +126,23 @@ export enum RankingTier {
     Gold = 'Gold',
     Platinum = 'Platinum',
     Elite = 'Elite',
+}
+
+export type LabelContractType = 'FULL_RECOUP' | 'PERCENTAGE';
+export type LabelContractStatus = 'active' | 'paused' | 'completed';
+
+export interface LabelContract {
+    id: string;
+    label_id: string;
+    talent_user_id: string;
+    talent_role: string;
+    contract_type: LabelContractType;
+    split_percent: number; // 0 to 100
+    recoup_balance: number;
+    advance_amount?: number;
+    status: LabelContractStatus;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface Location {
@@ -118,6 +155,8 @@ export interface Following {
     engineers: string[];
     stoodioz: string[];
     producers: string[];
+    videographers: string[];
+    labels: string[];
 }
 
 export interface Link {
@@ -129,14 +168,14 @@ export interface LinkAttachment {
     url: string;
     title: string;
     description?: string;
-    imageUrl?: string;
+    image_url?: string;
 }
 
 export interface Comment {
     id: string;
     authorId: string;
     authorName: string;
-    authorImageUrl: string;
+    author_image_url: string;
     text: string;
     timestamp: string;
 }
@@ -147,12 +186,14 @@ export interface Post {
     authorType: UserRole;
     timestamp: string;
     text: string;
-    imageUrl?: string;
-    videoUrl?: string;
-    videoThumbnailUrl?: string;
+    image_url?: string;
+    video_url?: string;
+    video_thumbnail_url?: string;
     link?: LinkAttachment;
     likes: string[];
     comments: Comment[];
+    display_mode?: 'fit' | 'fill';
+    focus_point?: { x: number; y: number };
 }
 
 export interface Transaction {
@@ -162,8 +203,14 @@ export interface Transaction {
     amount: number;
     category: TransactionCategory;
     status: TransactionStatus;
-    relatedBookingId?: string;
-    relatedUserName?: string;
+    related_booking_id?: string;
+    related_user_name?: string;
+    // Revenue routing metadata
+    contract_id?: string;
+    recoup_applied?: number;
+    label_amount?: number;
+    provider_amount?: number;
+    label_id?: string;
 }
 
 export interface Subscription {
@@ -173,227 +220,266 @@ export interface Subscription {
     endDate: string | null;
 }
 
+export interface Masterclass {
+    id: string;
+    is_enabled: boolean;
+    title: string;
+    description: string;
+    video_url: string;
+    price: number;
+}
+
 export interface BaseUser {
     id: string;
     name: string;
     email: string;
     password?: string;
-    imageUrl: string;
-    coverImageUrl?: string;
+    image_url: string;
+    cover_image_url?: string;
+    animated_logo_url?: string;
     followers: number;
-    followerIds: string[];
+    follower_ids: string[];
     following: Following;
     posts?: Post[];
-    walletBalance: number;
-    walletTransactions: Transaction[];
+    wallet_balance: number;
+    wallet_transactions: Transaction[];
     coordinates: Location;
-    showOnMap: boolean;
-    isOnline: boolean;
+    show_on_map: boolean;
+    is_online: boolean;
     links?: Link[];
     isAdmin?: boolean;
     subscription?: Subscription;
     rating_overall: number;
     sessions_completed: number;
-    // FIX: Add missing ranking and performance properties
     ranking_tier: RankingTier;
     is_on_streak: boolean;
-    strength_tags: string[];
     on_time_rate: number;
     completion_rate: number;
     repeat_hire_rate: number;
+    strength_tags: string[];
     local_rank_text: string;
+    purchased_masterclass_ids?: string[];
+    role?: string;
 }
 
 export interface Artist extends BaseUser {
     bio: string;
-    isSeekingSession: boolean;
+    is_seeking_session: boolean;
+    label_id?: string | null;
+}
+
+export interface Label extends BaseUser {
+    bio: string;
+    company_name?: string;
+    contact_phone?: string;
+    website?: string;
+}
+
+export interface Engineer extends BaseUser {
+    bio: string;
+    specialties: string[];
+    is_available: boolean;
+    availability: { date: string; times: string[] }[];
+    mixing_services?: MixingServices;
+    mixing_samples?: MixingSample[];
+    masterclass?: Masterclass;
+    notification_preferences?: {
+        enabled: boolean;
+        radius: number; // in miles
+    };
+    minimum_pay_rate?: number;
+    label_id?: string | null;
+}
+
+export interface MixingServices {
+    is_enabled: boolean;
+    price_per_track: number;
+    description: string;
+    turnaround_time: string;
 }
 
 export interface MixingSample {
     id: string;
     title: string;
     description: string;
-    audioUrl: string;
+    audio_url: string;
+    engineer_id: string;
 }
 
-export interface MixingServices {
-    isEnabled: boolean;
-    pricePerTrack: number;
+export interface InHouseEngineerInfo {
+    engineer_id: string;
+    pay_rate: number;
+}
+
+export interface Stoodio extends BaseUser {
     description: string;
-    turnaroundTime: string;
-}
-
-export interface Engineer extends BaseUser {
-    bio: string;
-    specialties: string[];
-    mixingSamples?: MixingSample[];
-    isAvailable: boolean;
-    displayExactLocation?: boolean;
-    notificationPreferences?: {
-        enabled: boolean;
-        radius: number;
-    };
-    minimumPayRate?: number;
-    mixingServices?: MixingServices;
-}
-
-export interface Instrumental {
-    id: string;
-    title: string;
-    genre: string;
-    tags: string[];
-    priceLease: number;
-    priceExclusive: number;
-    audioUrl: string;
-    coverArtUrl?: string;
-    isFreeDownloadAvailable?: boolean;
-}
-
-export interface Producer extends BaseUser {
-    bio: string;
-    genres: string[];
-    instrumentals: Instrumental[];
-    pullUpPrice?: number;
-    isAvailable: boolean;
+    location: string;
+    business_address?: string;
+    verification_status: VerificationStatus;
+    amenities: string[];
+    rooms: Room[];
+    in_house_engineers: InHouseEngineerInfo[];
+    availability: { date: string; times: string[] }[];
+    photos: string[];
+    hourly_rate?: number; // Base rate for search display
+    engineer_pay_rate?: number; // Default pay rate for freelance engineers
 }
 
 export interface Room {
     id: string;
     name: string;
     description: string;
-    hourlyRate: number;
+    hourly_rate: number;
     photos: string[];
-    smokingPolicy: SmokingPolicy;
+    smoking_policy: SmokingPolicy;
 }
 
-export interface InHouseEngineerInfo {
-    engineerId: string;
-    payRate: number;
+export interface Producer extends BaseUser {
+    bio: string;
+    genres: string[];
+    is_available: boolean;
+    availability: { date: string; times: string[] }[];
+    instrumentals: Instrumental[];
+    pull_up_price?: number;
+    masterclass?: Masterclass;
+    label_id?: string | null;
 }
 
-export interface Stoodio extends BaseUser {
-    description: string;
-    location: string;
-    businessAddress?: string;
-    hourlyRate: number; // Base rate
-    engineerPayRate: number;
-    amenities: string[];
-    availability: { date: string, times: string[] }[];
-    photos: string[];
-    rooms: Room[];
-    inHouseEngineers?: InHouseEngineerInfo[];
-    verificationStatus: VerificationStatus;
-    animatedLogoUrl?: string;
+export interface Instrumental {
+    id: string;
+    title: string;
+    genre: string;
+    price_lease: number;
+    price_exclusive: number;
+    audio_url: string;
+    cover_art_url?: string;
+    tags: string[];
+    producer_id?: string;
+    is_free_download_available?: boolean;
 }
 
 export interface MixingDetails {
     type: 'REMOTE' | 'IN_STUDIO';
-    trackCount: number;
+    track_count: number;
     notes: string;
 }
 
 export interface BookingRequest {
-    room?: Room;
+    room?: Room; // Optional for remote/beat purchase
     date: string;
-    startTime: string;
+    start_time: string;
     duration: number;
-    totalCost: number;
-    engineerPayRate: number;
-    requestType: BookingRequestType;
-    requestedEngineerId?: string;
-    producerId?: string;
-    instrumentalsToPurchase?: Instrumental[];
-    pullUpFee?: number;
-    mixingDetails?: MixingDetails;
-    requiredSkills?: string[];
+    total_cost: number;
+    engineer_pay_rate: number;
+    request_type: BookingRequestType;
+    requested_engineer_id?: string;
+    producer_id?: string;
+    instrumentals_to_purchase?: Instrumental[];
+    mixing_details?: MixingDetails;
+    pull_up_fee?: number;
 }
 
 export interface Booking {
     id: string;
-    date: string;
-    startTime: string;
-    duration: number;
-    totalCost: number;
-    status: BookingStatus;
     stoodio?: Stoodio;
-    artist?: Artist;
     engineer?: Engineer;
     producer?: Producer;
-    bookedById: string;
-    requestType: BookingRequestType;
-    requestedEngineerId?: string;
-    engineerPayRate: number;
-    instrumentalsPurchased?: Instrumental[];
+    room?: Room;
+    artist?: Artist; // The user who booked (if Artist)
+    date: string;
+    start_time: string;
+    duration: number;
+    total_cost: number;
+    status: BookingStatus;
+    request_type: BookingRequestType;
+    engineer_pay_rate: number;
+    requested_engineer_id?: string;
     tip?: number;
-    coordinates?: Location;
-    mixingDetails?: MixingDetails;
-    postedBy?: UserRole;
+    invoice_url?: string;
+    instrumentals_purchased?: Instrumental[];
+    mixing_details?: MixingDetails;
+    posted_by?: UserRole;
+}
+
+export interface SessionFeedback {
+    id: string;
+    booking_id: string;
+    target_user_id: string; // The ID of who is being reviewed
+    reviewer_id: string;
+    star_rating: number; // 1-5
+    pro_tags: string[]; // e.g. "Punctual", "Great Gear", "Fast Workflow"
+    timestamp: string;
 }
 
 export interface Review {
     id: string;
-    stoodioId?: string;
-    engineerId?: string;
-    artistId?: string;
-    reviewerName: string;
+    stoodio_id?: string;
+    engineer_id?: string;
+    producer_id?: string;
+    artist_id?: string;
+    masterclass_id?: string;
+    reviewer_name: string;
     rating: number;
     comment: string;
     date: string;
 }
 
-export interface AppNotification {
+export interface Message {
     id: string;
-    type: NotificationType;
-    message: string;
+    sender_id: string;
+    text: string;
     timestamp: string;
-    read: boolean;
-    actor?: {
-        id: string;
-        name: string;
-        imageUrl: string;
+    type: 'text' | 'image' | 'video' | 'audio' | 'link' | 'system' | 'files';
+    image_url?: string;
+    video_url?: string;
+    audio_url?: string;
+    link?: LinkAttachment;
+    audio_info?: {
+        filename: string;
+        duration: string;
     };
-    link?: {
-        view: AppView;
-        entityId?: string;
-    };
+    files?: FileAttachment[];
 }
 
 export interface FileAttachment {
     name: string;
     url: string;
     size: string;
-}
-
-export interface Message {
-    id: string;
-    senderId: string;
-    timestamp: string;
-    type: 'text' | 'image' | 'link' | 'audio' | 'files' | 'system';
-    text?: string;
-    imageUrl?: string;
-    link?: Link;
-    audioUrl?: string;
-    audioInfo?: { filename: string; duration: string };
-    files?: FileAttachment[];
+    rawContent?: Uint8Array; // For client-side generation
 }
 
 export interface Conversation {
     id: string;
-    participants: (Artist | Engineer | Stoodio | Producer)[];
+    participants: (Artist | Engineer | Stoodio | Producer | Label)[];
     messages: Message[];
-    unreadCount: number;
-    bookingId?: string;
+    unread_count: number;
     title?: string;
-    imageUrl?: string;
+    image_url?: string;
+    booking_id?: string;
 }
 
-// FIX: Add missing SessionFeedback interface
-export interface SessionFeedback {
+export interface AppNotification {
     id: string;
-    target_user_id: string;
+    recipient_id: string;
+    type: NotificationType;
+    message: string;
+    read: boolean;
     timestamp: string;
-    star_rating: number;
-    pro_tags: string[];
+    link?: { view: AppView; entityId?: string };
+    actor?: Artist | Engineer | Stoodio | Producer | Label;
+}
+
+export interface AriaActionResponse {
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage';
+    target: string | null;
+    value: any;
+    text: string;
+}
+
+export interface AriaCantataMessage {
+    role: 'user' | 'model';
+    parts: { text: string }[];
+    files?: FileAttachment[];
 }
 
 export interface VibeMatchResult {
@@ -406,18 +492,6 @@ export interface VibeMatchResult {
     }[];
 }
 
-export interface AriaCantataMessage {
-    role: 'user' | 'model';
-    parts: { text: string }[];
-}
-
-export interface AriaActionResponse {
-    type: 'text' | 'function';
-    text: string;
-    action?: string;
-    payload?: any;
-}
-
 export interface AnalyticsData {
     kpis: {
         totalRevenue: number;
@@ -428,4 +502,67 @@ export interface AnalyticsData {
     revenueOverTime: { date: string; revenue: number }[];
     engagementOverTime: { date: string; views: number; followers: number; likes: number }[];
     revenueSources: { name: string; revenue: number }[];
+}
+
+export interface AriaNudgeData {
+    text: string;
+    action: {
+        type: 'OPEN_MODAL' | 'NAVIGATE_DASHBOARD_TAB';
+        payload: string;
+    };
+}
+
+export interface ArtistScoutingData {
+    id: string;
+    name: string;
+    image_url: string | null;
+    city: string | null;
+    genre: string[];
+    followers: number;
+    growth_30d: number;
+    engagement_score: number; 
+}
+
+export interface AandRNote {
+    artist_id: string;
+    note: string;
+    created_at: string;
+}
+
+export interface RosterImportRow {
+    name: string;
+    email: string;
+    role: 'artist' | 'producer' | 'engineer';
+    phone?: string;
+    instagram?: string;
+    notes?: string;
+}
+
+export interface ShadowProfile extends BaseUser {
+    is_shadow: boolean;
+    claimed_by_email?: string;
+}
+
+// FIX: Add missing properties to RosterMember to align with usage in services/apiService.ts
+export interface RosterMember extends BaseUser {
+    roster_id: string;
+    role_in_label: string;
+    is_pending?: boolean;
+    shadow_profile?: boolean;
+    claim_token?: string;
+    claim_code?: string;
+    posts_created?: number;
+    uploads_count?: number;
+    mixes_delivered?: number;
+    output_score?: number;
+    engagement_score?: number;
+    songs_finished?: number;
+    avg_session_rating?: number | null;
+}
+
+export interface LabelRosterEntry extends BaseUser {
+    roster_id: string;
+    role_in_label: string;
+    shadow_profile: boolean;
+    is_pending?: boolean;
 }
