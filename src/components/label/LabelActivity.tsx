@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -81,8 +80,7 @@ const LabelActivity: React.FC = () => {
 
                 let feed: ActivityEvent[] = [];
 
-                // FIX: Ensure bookingsData is an array before iterating. The underlying RPC can return non-array values.
-                (Array.isArray(bookingsData) ? bookingsData : []).forEach((b: Booking) => {
+                (bookingsData as Booking[])?.forEach(b => {
                     feed.push({
                         id: `booking-created-${b.id}`,
                         type: 'booking',
@@ -169,7 +167,7 @@ const LabelActivity: React.FC = () => {
                             <div className="cardSurface divide-y divide-zinc-800">
                                 {dayEvents.map(e => (
                                     <div key={e.id} className="flex items-start p-4 gap-4 hover:bg-zinc-900/50 transition-colors">
-                                        <div>{e.icon}</div>
+                                        <div className="p-2 bg-zinc-800 rounded-full mt-1">{e.icon}</div>
                                         <div className="flex-grow">
                                             <p className="text-zinc-200 font-bold">{e.title}</p>
                                             <p className="text-zinc-400 text-sm">{e.description}</p>
