@@ -149,7 +149,7 @@ const LabelPerformance: React.FC = () => {
                             </div>
                              <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700/50">
                                 <p className="text-xs font-bold text-zinc-500 uppercase">Avg. Cost</p>
-                                <p className="text-2xl font-bold text-zinc-100">${artist.avgSessionCost.toFixed(0)}</p>
+                                <p className="text-2xl font-bold text-zinc-100">${(Number(artist.avgSessionCost) || 0).toFixed(0)}</p>
                             </div>
                             <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700/50">
                                 <p className="text-xs font-bold text-zinc-500 uppercase">Allocation</p>
@@ -158,7 +158,15 @@ const LabelPerformance: React.FC = () => {
                         </div>
                         <div className="flex items-center justify-end gap-2 text-sm">
                             <span className="text-zinc-500">Activity Trend:</span>
-                            {artist.trend === 'up' ? <TrendingUpIcon className="w-5 h-5 text-green-500"/> : artist.trend === 'down' ? <TrendingDownIcon className="w-5 h-5 text-red-500" /> : <div className="w-5 h-5 text-zinc-500 font-bold text-center">-</div>}
+                            {artist.totalSessions === 0 && artist.completedSessions === 0 ? (
+                                <span className="text-zinc-500 font-semibold text-xs">Inactive</span>
+                            ) : artist.trend === 'up' ? (
+                                <TrendingUpIcon className="w-5 h-5 text-green-500"/>
+                            ) : artist.trend === 'down' ? (
+                                <TrendingDownIcon className="w-5 h-5 text-red-500" />
+                            ) : (
+                                <div className="w-5 h-5 text-zinc-500 font-bold text-center">-</div>
+                            )}
                         </div>
                     </div>
                 ))}
