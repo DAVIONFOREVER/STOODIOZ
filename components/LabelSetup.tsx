@@ -1,14 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { AppView } from '../types';
 import { PhotoIcon } from './icons';
-import { getSupabase } from '../lib/supabase';
 
 interface LabelSetupProps {
     onNavigate: (view: AppView) => void;
-    onCompleteSetup: (name: string, bio: string, email: string, password: string, imageUrl: string | null, imageFile: File | null) => Promise<void>;
+    onCompleteSetup: (data: any) => Promise<void>;
 }
-
-const supabase = getSupabase();
 
 const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) => {
     const [labelName, setLabelName] = useState('');
@@ -38,28 +35,6 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) 
         reader.readAsDataURL(file);
     };
 
-    const uploadLogo = async (userId: string) => {
-        if (!imageFile || !supabase) return null;
-
-        const fileExt = imageFile.name.split('.').pop();
-        const filePath = `label-logos/${userId}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-            .from('label-assets')
-            .upload(filePath, imageFile, { upsert: true });
-
-        if (uploadError) {
-            console.error('Logo upload failed:', uploadError);
-            return null;
-        }
-
-        const { data } = supabase.storage
-            .from('label-assets')
-            .getPublicUrl(filePath);
-
-        return data?.publicUrl ?? null;
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (submitting) return;
@@ -68,16 +43,19 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) 
         setError(null);
 
         try {
-            await onCompleteSetup(
-                labelName,
-                notes,
-                contactEmail,
+            // Pass all fields in a single object as required
+            await onCompleteSetup({
+                name: labelName,
+                companyName,
+                email: contactEmail,
+                contactPhone,
                 password,
-                imagePreview,
-                imageFile
-            );
+                website,
+                bio: notes, // Map notes to bio
+                imageFile,
+            });
 
-            onNavigate(AppView.LABEL_DASHBOARD);
+            // Navigation will be handled by the parent context after successful setup
         } catch (err: any) {
             console.error('Label setup failed:', err);
             setError(err.message || 'Failed to save label profile.');
@@ -88,8 +66,7 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) 
     const isFormValid =
         labelName.trim().length > 0 &&
         contactEmail.trim().length > 0 &&
-        contactPhone.trim().length > 0 &&
-        password.trim().length > 0;
+        password.trim().length > 5;
 
     return (
         <div className="max-w-2xl mx-auto p-8 animate-fade-in cardSurface">
@@ -107,7 +84,7 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) 
                     <div className="flex items-center gap-4">
                         <div className="w-24 h-24 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center overflow-hidden">
                             {imagePreview ? (
-                                <img src={imagePreview} className="w-full h-full object-cover" />
+                                <img src={imagePreview} alt="Label logo preview" className="w-full h-full object-cover" />
                             ) : (
                                 <PhotoIcon className="w-10 h-10 text-zinc-500" />
                             )}
@@ -171,34 +148,31 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) 
                     </div>
                 </div>
 
-                {/* Contact Email */}
-                <div>
-                    <label className="block text-sm text-zinc-300 mb-1">
-                        Contact Email <span className="text-orange-500">*</span>
-                    </label>
-                    <input
-                        type="email"
-                        value={contactEmail}
-                        onChange={(e) => setContactEmail(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
-                        placeholder="admin@label.com"
-                        required
-                    />
-                </div>
-
-                {/* Contact Phone */}
-                <div>
-                    <label className="block text-sm text-zinc-300 mb-1">
-                        Contact Phone <span className="text-orange-500">*</span>
-                    </label>
-                    <input
-                        type="tel"
-                        value={contactPhone}
-                        onChange={(e) => setContactPhone(e.target.value)}
-                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
-                        placeholder="(555) 123-4567"
-                        required
-                    />
+                {/* Contact Email & Phone */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm text-zinc-300 mb-1">
+                            Contact Email <span className="text-orange-500">*</span>
+                        </label>
+                        <input
+                            type="email"
+                            value={contactEmail}
+                            onChange={(e) => setContactEmail(e.target.value)}
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                            placeholder="admin@label.com"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm text-zinc-300 mb-1">Contact Phone</label>
+                        <input
+                            type="tel"
+                            value={contactPhone}
+                            onChange={(e) => setContactPhone(e.target.value)}
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200"
+                            placeholder="(555) 123-4567"
+                        />
+                    </div>
                 </div>
 
                 {/* Password */}
@@ -218,7 +192,7 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) 
 
                 {/* Notes */}
                 <div>
-                    <label className="block text-sm text-zinc-300 mb-1">Notes (Optional)</label>
+                    <label className="block text-sm text-zinc-300 mb-1">Notes / Bio (Optional)</label>
                     <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}

@@ -119,7 +119,6 @@ const App: React.FC = () => {
             return;
         }
 
-        // Ensure previous session is cleared before setup to avoid conflicts
         if (userData.email && userData.password) {
             await (supabase.auth as any).signOut();
         }
@@ -127,6 +126,16 @@ const App: React.FC = () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
         try {
+            if (role === UserRole.LABEL) {
+                userData = {
+                    ...userData,
+                    bio: userData.bio || "",
+                    company_name: userData.company_name || null,
+                    website: userData.website || null,
+                    contact_phone: userData.contact_phone || null,
+                    image_url: userData.image_url || null
+                };
+            }
             const result = await apiService.createUser(userData, role);
 
             if (result && 'email_confirmation_required' in result) {
@@ -139,7 +148,6 @@ const App: React.FC = () => {
                 const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 
-                // Force navigation based on role
                 if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
@@ -149,23 +157,14 @@ const App: React.FC = () => {
         } catch (error: any) {
             console.error("Complete setup failed:", error);
             
-            let errorMessage = error.message || "Unknown error";
-            if (typeof error === 'object') {
-                try {
-                    // Check for specific Supabase error codes
-                    if (error.code === '42P01') {
-                        errorMessage = `Database Error: The table for '${role}' does not exist. Please contact support.`;
-                    } else if (error.code === '23505') {
-                        errorMessage = "An account with this email already exists.";
-                    } else {
-                        errorMessage = JSON.stringify(error, null, 2);
-                    }
-                } catch (e) {
-                    errorMessage = String(error);
-                }
+            let errorMessage = "An unknown error occurred during setup.";
+            if (error && typeof error.message === 'string') {
+                errorMessage = error.message;
             }
             
             alert(`Setup failed:\n${errorMessage}`);
+            // Re-throw to be caught by component-level state
+            throw error;
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
@@ -231,7 +230,10 @@ const App: React.FC = () => {
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
                     engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
                     artists: { query: '*', role: UserRoleEnum.ARTIST },
-                    labels: { query: '*', role: UserRoleEnum.LABEL },
+                    labels: { 
+                        query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier',
+                        role: UserRoleEnum.LABEL 
+                    },
                 };
                 
                 const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
@@ -376,7 +378,27 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.LABEL)} onNavigate={navigate} />;
+                return (
+                    <LabelSetup 
+                        onCompleteSetup={(data) =>
+                            completeSetup(
+                                {
+                                    name: data.name,
+                                    bio: data.bio,
+                                    email: data.email,
+                                    password: data.password,
+                                    image_url: null,
+                                    imageFile: data.imageFile,
+                                    company_name: data.companyName,
+                                    contact_phone: data.contactPhone,
+                                    website: data.website
+                                },
+                                UserRole.LABEL
+                            )
+                        }
+                        onNavigate={navigate}
+                    />
+                );
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:

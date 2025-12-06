@@ -270,6 +270,9 @@ export interface Artist extends BaseUser {
 
 export interface Label extends BaseUser {
     bio: string;
+    company_name?: string;
+    contact_phone?: string;
+    website?: string;
 }
 
 export interface Engineer extends BaseUser {
@@ -540,11 +543,21 @@ export interface ShadowProfile extends BaseUser {
     claimed_by_email?: string;
 }
 
+// FIX: Add missing properties to RosterMember to align with usage in services/apiService.ts
 export interface RosterMember extends BaseUser {
     roster_id: string;
     role_in_label: string;
     is_pending?: boolean;
     shadow_profile?: boolean;
+    claim_token?: string;
+    claim_code?: string;
+    posts_created?: number;
+    uploads_count?: number;
+    mixes_delivered?: number;
+    output_score?: number;
+    engagement_score?: number;
+    songs_finished?: number;
+    avg_session_rating?: number | null;
 }
 
 export interface LabelRosterEntry extends BaseUser {

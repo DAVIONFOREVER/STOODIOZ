@@ -1,5 +1,5 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -135,7 +135,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     });
 
     if (authError) {
-        // If user already registered, try signing in to recover
         if (authError.message.includes("already registered") || authError.status === 400) {
             console.log("User exists, attempting sign-in...");
             const { data: signInData, error: signInError } = await (supabase.auth as any).signInWithPassword({
@@ -158,43 +157,23 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
 
     if (!authUser) throw new Error("No user returned from authentication service");
 
-    // 2. Check if Email Verification is blocking login
-    // If we have a user but no session, usually implies email confirmation is on and pending
     if (!session && !authUser.email_confirmed_at) {
         return { email_confirmation_required: true };
     }
 
-    // 3. Upload Image if provided (Requires active session/RLS)
-    let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
+    let imageUrl = USER_SILHOUETTE_URL;
     if (userData.imageFile && authUser) {
         try {
-            imageUrl = await uploadAvatar(userData.imageFile, authUser.id);
+            // Using a more specific path for label logos
+            const filePath = `label-logos/${authUser.id}.${(userData.imageFile as File).name.split('.').pop()}`;
+            imageUrl = await uploadFile(userData.imageFile, 'avatars', filePath);
         } catch (e) {
-            console.warn("Avatar upload skipped due to network/auth issue", e);
+            console.warn("Logo upload skipped due to network/auth issue", e);
         }
     }
 
-    // 4. Create/Update Public Profile Record
-    // Using Upsert ensures that if the auth user exists but profile was missing, we create it.
-    const profileData = {
-        id: authUser.id,
-        email: userData.email,
-        name: userData.name,
-        image_url: imageUrl,
-        ...(role === 'ARTIST' && { bio: userData.bio }),
-        ...(role === 'ENGINEER' && { bio: userData.bio, specialties: [] }),
-        ...(role === 'PRODUCER' && { bio: userData.bio, genres: [] }),
-        ...(role === 'LABEL' && { bio: userData.bio }),
-        ...(role === 'STOODIO' && { 
-            description: userData.description, 
-            location: userData.location, 
-            business_address: userData.businessAddress, 
-            amenities: [], 
-            rooms: [] 
-        }),
-        created_at: new Date().toISOString(),
-    };
-
+    // 4. Create Public Profile Record
+    let profileData: any;
     const tableMap: Record<string, string> = {
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
@@ -202,21 +181,53 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         'STOODIO': 'stoodioz',
         'LABEL': 'labels'
     };
+    
+    if (role === 'LABEL') {
+        profileData = {
+            id: authUser.id,
+            name: userData.name,
+            email: userData.email,
+            image_url: imageUrl,
+            bio: userData.bio,
+            company_name: userData.companyName,
+            contact_phone: userData.contactPhone,
+            website: userData.website,
+            wallet_balance: 0,
+            wallet_transactions: [],
+        };
+    } else {
+        profileData = {
+            id: authUser.id,
+            email: userData.email,
+            name: userData.name,
+            image_url: imageUrl,
+            ...(role === 'ARTIST' && { bio: userData.bio }),
+            ...(role === 'ENGINEER' && { bio: userData.bio, specialties: [] }),
+            ...(role === 'PRODUCER' && { bio: userData.bio, genres: [] }),
+            ...(role === 'STOODIO' && { 
+                description: userData.description, 
+                location: userData.location, 
+                business_address: userData.businessAddress, 
+                amenities: [], 
+                rooms: [] 
+            }),
+        };
+    }
 
-    if (!tableMap[role]) {
+    const tableName = tableMap[role];
+    if (!tableName) {
         throw new Error(`Invalid or unsupported role: ${role}`);
     }
 
     const { data, error } = await supabase
-        .from(tableMap[role])
+        .from(tableName)
         .upsert(profileData)
         .select()
         .single();
 
     if (error) {
-        if (error.code === '42P01') { // PostgreSQL code for undefined table
-             throw new Error(`System Error: The '${tableMap[role]}' table does not exist in the database. Please run the migration script.`);
-        }
+        // Rollback auth user if profile creation fails
+        await (supabase.auth.admin as any).deleteUser(authUser.id);
         throw error;
     }
     return data;
@@ -230,6 +241,7 @@ export const updateUser = async (userId: string, table: string, updates: any) =>
     return data;
 };
 
+// ... (rest of the apiService file remains unchanged)
 // --- LABEL CONTRACTS & REVENUE ROUTING ---
 
 export const fetchLabelContracts = async (labelId: string): Promise<LabelContract[]> => {
@@ -1065,13 +1077,48 @@ export const deleteMixingSample = async (sampleId: string) => {
     if(supabase) await supabase.from('mixing_samples').delete().eq('id', sampleId);
 };
 
+export const markArtistLabelClaimed = async (artistId: string, labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('artists')
+        .update({ label_id: labelId })
+        .eq('id', artistId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error claiming label:", error);
+        throw error;
+    }
+    return data;
+};
+
+// --- FIX START: Add missing label roster functions ---
+
 // --- LABEL ROSTER MANAGEMENT ---
 
-export const fetchLabelRoster = async (labelId: string): Promise<any[]> => {
+export const getRosterActivity = async (labelId: string) => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
-    // 1. Fetch entries from label_roster
+    const { data, error } = await supabase.rpc("get_roster_activity", {
+        p_label_id: labelId // Ensure parameter name matches SQL function
+    });
+
+    if (error) {
+        console.error("Error fetching roster activity:", error);
+        return [];
+    }
+
+    return data || [];
+};
+
+export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
     const { data: rosterEntries, error: rosterError } = await supabase
         .from('label_roster')
         .select('*, artist:artists(*)')
@@ -1082,29 +1129,94 @@ export const fetchLabelRoster = async (labelId: string): Promise<any[]> => {
         return [];
     }
 
-    // 2. Normalize data for UI
-    const roster = (rosterEntries || []).map((entry: any) => {
-        if (entry.artist) {
-            // Existing platform artist
-            return {
-                ...entry.artist,
-                role_in_label: entry.role, // e.g. "Artist", "Writer"
-                roster_id: entry.id
-            };
-        } else {
-            // Pending invite (email only)
-            return {
-                id: entry.id, // Use roster ID as temporary key
-                name: entry.email || 'Pending Invite',
-                image_url: USER_SILHOUETTE_URL,
-                email: entry.email,
-                role_in_label: entry.role,
-                is_pending: true
-            };
-        }
-    });
+    const activityList = await getRosterActivity(labelId);
+    const activityMap = Object.fromEntries(
+        (activityList || []).map((a: any) => [a.user_id, a])
+    );
 
-    return roster;
+    const hydratedRoster: RosterMember[] = [];
+
+    for (const entry of rosterEntries || []) {
+        if (!entry.user_id) {
+            hydratedRoster.push({
+                id: entry.id,
+                name: entry.email || 'Pending Invite',
+                email: entry.email,
+                image_url: USER_SILHOUETTE_URL,
+                role_in_label: entry.role,
+                roster_id: entry.id,
+                is_pending: true,
+                followers: 0,
+                follower_ids: [],
+                following: { artists: [], engineers: [], producers: [], stoodioz: [], videographers: [], labels: [] },
+                wallet_balance: 0,
+                wallet_transactions: [],
+                coordinates: { lat: 0, lon: 0 },
+                show_on_map: false,
+                is_online: false,
+                rating_overall: 0,
+                sessions_completed: 0,
+                ranking_tier: 'Provisional' as any,
+                is_on_streak: false,
+                on_time_rate: 0,
+                completion_rate: 0,
+                repeat_hire_rate: 0,
+                strength_tags: [],
+                local_rank_text: '',
+                posts_created: 0,
+                uploads_count: 0,
+                mixes_delivered: 0,
+                output_score: 0,
+                claim_token: entry.claim_token
+            });
+            continue;
+        }
+
+        let userData = null;
+        let shadowProfile = false;
+
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', entry.user_id).single();
+        if (profile && profile.role === 'UNCLAIMED') {
+            shadowProfile = true;
+        }
+
+        const tables = ['artists', 'producers', 'engineers'];
+        for (const table of tables) {
+            const { data } = await supabase.from(table).select('*').eq('id', entry.user_id).single();
+            if (data) {
+                userData = data;
+                break;
+            }
+        }
+
+        if (userData) {
+            const act = activityMap[entry.user_id] || {};
+            const sessions = act.sessions_completed || userData.sessions_completed || 0;
+            const posts = act.posts_created || 0;
+            const uploads = act.uploads_count || 0;
+            const mixes = act.mixes_delivered || 0;
+            const outputScore = act.output_score || ((sessions * 3) + (posts * 1) + (uploads * 2));
+
+            hydratedRoster.push({
+                ...userData,
+                role_in_label: entry.role,
+                roster_id: entry.id,
+                shadow_profile: shadowProfile,
+                claim_code: entry.claim_code,
+                claim_token: entry.claim_token,
+                sessions_completed: sessions,
+                mixes_delivered: mixes,
+                songs_finished: (userData as any).songs_finished || 0,
+                avg_session_rating: (userData as any).avg_session_rating || null,
+                engagement_score: (userData as any).engagement_score || 0,
+                posts_created: posts,
+                uploads_count: uploads,
+                output_score: outputScore
+            });
+        }
+    }
+
+    return hydratedRoster;
 };
 
 export const addArtistToLabelRoster = async (params: { labelId: string, artistId?: string, email?: string, role?: string }) => {
@@ -1116,8 +1228,8 @@ export const addArtistToLabelRoster = async (params: { labelId: string, artistId
     const newRosterEntry = {
         id: crypto.randomUUID(),
         label_id: labelId,
-        user_id: artistId || null, // null if invite by email only
-        email: email || null,      // store email for pending invites
+        user_id: artistId || null, 
+        email: email || null,      
         role: role || 'Artist',
         created_at: new Date().toISOString()
     };
@@ -1133,7 +1245,6 @@ export const addArtistToLabelRoster = async (params: { labelId: string, artistId
         throw error;
     }
 
-    // If linked to an existing artist, update their profile too
     if (artistId) {
         await supabase
             .from('artists')
@@ -1158,32 +1269,14 @@ export const removeArtistFromLabelRoster = async (labelId: string, rosterId: str
         return false;
     }
 
-    // Optionally unlink from artists table
     if (artistId) {
         await supabase
             .from('artists')
             .update({ label_id: null })
             .eq('id', artistId)
-            .eq('label_id', labelId); // Safety check
+            .eq('label_id', labelId); 
     }
 
     return true;
 };
-
-export const markArtistLabelClaimed = async (artistId: string, labelId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-
-    const { data, error } = await supabase
-        .from('artists')
-        .update({ label_id: labelId })
-        .eq('id', artistId)
-        .select()
-        .single();
-
-    if (error) {
-        console.error("Error claiming label:", error);
-        throw error;
-    }
-    return data;
-};
+// --- FIX END ---
