@@ -127,12 +127,14 @@ const App: React.FC = () => {
 
         try {
             if (role === UserRole.LABEL) {
+                // The userData object comes in with snake_case from the LABEL_SETUP case.
+                // The createUser function expects camelCase. We must map it here to fix the broken flow.
                 userData = {
                     ...userData,
                     bio: userData.bio || "",
-                    company_name: userData.company_name || null,
+                    companyName: userData.company_name || null, // Map snake_case to camelCase
                     website: userData.website || null,
-                    contact_phone: userData.contact_phone || null,
+                    contactPhone: userData.contact_phone || null, // Map snake_case to camelCase
                     image_url: userData.image_url || null
                 };
             }

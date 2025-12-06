@@ -1,5 +1,3 @@
-
-
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -43,6 +41,10 @@ export enum AppView {
     ADMIN_RANKINGS = 'ADMIN_RANKINGS',
     STUDIO_INSIGHTS = 'STUDIO_INSIGHTS',
     LEADERBOARD = 'LEADERBOARD',
+    CLAIM_PROFILE = 'CLAIM_PROFILE',
+    CLAIM_ENTRY = 'CLAIM_ENTRY',
+    CLAIM_CONFIRM = 'CLAIM_CONFIRM',
+    CLAIM_LABEL_PROFILE = 'CLAIM_LABEL_PROFILE',
 }
 
 export enum UserRole {
@@ -79,6 +81,8 @@ export enum TransactionCategory {
     BEAT_SALE = 'BEAT_SALE',
     CONTRACT_PAYOUT = 'CONTRACT_PAYOUT',
     CONTRACT_RECOUP = 'CONTRACT_RECOUP',
+    LABEL_TOP_UP = 'LABEL_TOP_UP',
+    MONTHLY_ALLOCATION = 'MONTHLY_ALLOCATION'
 }
 
 export enum TransactionStatus {
@@ -130,6 +134,8 @@ export enum RankingTier {
 
 export type LabelContractType = 'FULL_RECOUP' | 'PERCENTAGE';
 export type LabelContractStatus = 'active' | 'paused' | 'completed';
+export type LabelBudgetMode = 'MANUAL' | 'MONTHLY_FIXED' | 'MONTHLY_ROLLING';
+export type PaymentSource = 'ARTIST' | 'LABEL';
 
 export interface LabelContract {
     id: string;
@@ -211,6 +217,9 @@ export interface Transaction {
     label_amount?: number;
     provider_amount?: number;
     label_id?: string;
+    source?: string;
+    artist_name?: string;
+    note?: string;
 }
 
 export interface Subscription {
@@ -377,6 +386,7 @@ export interface BookingRequest {
     instrumentals_to_purchase?: Instrumental[];
     mixing_details?: MixingDetails;
     pull_up_fee?: number;
+    payment_source?: PaymentSource;
 }
 
 export interface Booking {
@@ -399,6 +409,7 @@ export interface Booking {
     instrumentals_purchased?: Instrumental[];
     mixing_details?: MixingDetails;
     posted_by?: UserRole;
+    payment_source?: PaymentSource;
 }
 
 export interface SessionFeedback {
@@ -543,14 +554,17 @@ export interface ShadowProfile extends BaseUser {
     claimed_by_email?: string;
 }
 
-// FIX: Add missing properties to RosterMember to align with usage in services/apiService.ts
 export interface RosterMember extends BaseUser {
     roster_id: string;
     role_in_label: string;
+
+    // Invitation / claim state
     is_pending?: boolean;
     shadow_profile?: boolean;
     claim_token?: string;
     claim_code?: string;
+
+    // Activity metrics
     posts_created?: number;
     uploads_count?: number;
     mixes_delivered?: number;
@@ -565,4 +579,29 @@ export interface LabelRosterEntry extends BaseUser {
     role_in_label: string;
     shadow_profile: boolean;
     is_pending?: boolean;
+}
+
+export interface LabelBudget {
+    id: string;
+    label_id: string;
+    total_budget: number;
+    amount_spent: number;
+    currency: string;
+    fiscal_year: string;
+    budget_mode?: LabelBudgetMode;
+    monthly_allowance?: number;
+    reset_day?: number;
+}
+
+export interface ArtistBudget {
+    artist_id: string;
+    artist_name: string;
+    artist_image_url: string;
+    allocation_amount: number;
+    amount_spent: number;
+}
+
+export interface LabelBudgetOverview {
+    budget: LabelBudget | null;
+    artists: ArtistBudget[];
 }

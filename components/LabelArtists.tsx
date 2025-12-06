@@ -1,9 +1,16 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon } from './icons';
-import { useAppState } from '../contexts/AppContext';
+import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon, FireIcon, ShieldCheckIcon, PhotoIcon, MusicNoteIcon } from './icons';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
-import type { Artist } from '../types';
+import type { RosterMember } from '../types';
+import { USER_SILHOUETTE_URL } from '../constants';
+import RankingBadge from './RankingBadge';
+
+interface LabelArtistsProps {
+    reloadSignal?: number;
+    onAddMember?: () => void;
+}
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800 border border-zinc-700/50 p-6 rounded-xl flex items-center gap-4 shadow-lg">
@@ -17,20 +24,53 @@ const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }
     </div>
 );
 
-const LabelArtists: React.FC = () => {
+const StatusBadge: React.FC<{ member: RosterMember }> = ({ member }) => {
+    if (member.is_pending) {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                <MailIcon className="w-3.5 h-3.5" /> Invite Pending
+            </span>
+        );
+    }
+    if (member.shadow_profile) {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <UserPlusIcon className="w-3.5 h-3.5" /> Unclaimed
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-500/10 text-green-400 border border-green-500/20">
+            <CheckCircleIcon className="w-3.5 h-3.5" /> Claimed
+        </span>
+    );
+};
+
+const calculateOutputScore = (member: any) => {
+    // Fallback if not populated from API, though we aim to use API data
+    const sessions = member.sessions_completed || 0;
+    const posts = member.posts_created || 0;
+    const uploads = member.uploads_count || 0;
+    return (sessions * 3) + (uploads * 2) + (posts * 1);
+};
+
+const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }) => {
     const { currentUser, userRole } = useAppState();
-    const [roster, setRoster] = useState<any[]>([]); // Using any[] temporarily as API returns mixed Artist + pending invite types
+    const dispatch = useAppDispatch();
+    
+    const [roster, setRoster] = useState<RosterMember[]>([]); // Using any[] temporarily as API returns mixed Artist + pending invite types
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
 
     // Fetch real roster on mount
     useEffect(() => {
-        const fetchRoster = async () => {
+        const fetchRosterData = async () => {
             if (!currentUser || userRole !== 'LABEL') return;
             setLoading(true);
             try {
-                const data = await apiService.fetchLabelRoster(currentUser.id);
+                // FIX: Corrected function name from 'fetchLabelRoster' to 'fetchRoster' to match apiService.ts
+                const data = await apiService.fetchRoster(currentUser.id);
                 setRoster(data);
             } catch (err) {
                 console.error("Failed to fetch roster:", err);
@@ -40,7 +80,7 @@ const LabelArtists: React.FC = () => {
             }
         };
 
-        fetchRoster();
+        fetchRosterData();
     }, [currentUser, userRole]);
 
     // --- Analytics (calculated from real data) ---
@@ -62,7 +102,8 @@ const LabelArtists: React.FC = () => {
     const handleRemoveArtist = async (rosterId: string, artistId?: string) => {
         if (!currentUser) return;
         if (window.confirm("Are you sure you want to remove this artist from your roster?")) {
-            const success = await apiService.removeArtistFromLabelRoster(currentUser.id, rosterId, artistId);
+            // FIX: Corrected function name from 'removeArtistFromLabelRoster' to 'removeArtistFromRoster'
+            const success = await apiService.removeArtistFromRoster(currentUser.id, rosterId, artistId);
             if (success) {
                 setRoster(prev => prev.filter(a => a.roster_id !== rosterId && a.id !== rosterId));
                 if (selectedArtist?.id === artistId) setSelectedArtist(null);

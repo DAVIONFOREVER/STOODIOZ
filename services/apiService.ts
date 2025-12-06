@@ -1,9 +1,11 @@
 
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember, LabelBudgetOverview, LabelBudgetMode } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL } from '../constants';
 import { generateInvoicePDF } from '../lib/pdf';
+
+// ... (previous imports and helper functions remain unchanged)
 
 // --- HELPER FUNCTIONS ---
 
@@ -79,13 +81,11 @@ export const getAllPublicUsers = async (): Promise<{
     const supabase = getSupabase();
     if (!supabase) return { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
 
-    // Safely query each table individually to prevent one failure from blocking all
     const safeSelect = async (table: string, select: string) => {
         try {
             const { data, error } = await supabase.from(table).select(select);
             if (error) {
                 console.warn(`Error fetching ${table}:`, error.message);
-                // Fallback to basic select if relation select fails
                 if (error.code === 'PGRST200') {
                      const { data: retry } = await supabase.from(table).select('*');
                      return retry || [];
@@ -122,7 +122,6 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
     let authUser = null;
     let session = null;
 
-    // 1. Attempt Sign Up
     const { data: authData, error: authError } = await (supabase.auth as any).signUp({
         email: userData.email,
         password: userData.password,
@@ -189,9 +188,9 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             email: userData.email,
             image_url: imageUrl,
             bio: userData.bio,
-            company_name: userData.companyName,
-            contact_phone: userData.contactPhone,
-            website: userData.website,
+            company_name: userData.company_name || userData.companyName || null,
+            contact_phone: userData.contact_phone || userData.contactPhone || null,
+            website: userData.website || null,
             wallet_balance: 0,
             wallet_transactions: [],
         };
@@ -295,6 +294,22 @@ export const updateLabelContractRecoupBalance = async (contractId: string, amoun
             .update({ recoup_balance: newBalance })
             .eq('id', contractId);
     }
+};
+
+export const fetchLabelBookings = async (labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase.rpc("get_label_bookings", {
+        label_id: labelId
+    });
+
+    if (error) {
+        console.error("Error fetching label bookings:", error);
+        return [];
+    }
+
+    return data;
 };
 
 const updateWallet = async (userId: string, table: string, amount: number, transaction: Transaction) => {
@@ -451,9 +466,160 @@ export const applyLabelRevenueRouting = async (booking: Booking, totalPayout: nu
     }
 };
 
-// --- BOOKINGS ---
+// --- LABEL BUDGETS (FINANCE) ---
+
+export const getLabelBudgetOverview = async (labelId: string): Promise<LabelBudgetOverview | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    try {
+        const { data, error } = await supabase.rpc('get_label_budget_overview', { p_label_id: labelId });
+        if (error) throw error;
+        return data as LabelBudgetOverview;
+    } catch (e) {
+        // Fallback: Fetch tables manually
+        const { data: budget } = await supabase.from('label_budgets').select('*').eq('label_id', labelId).maybeSingle();
+        const { data: roster } = await supabase.from('label_artist_budgets').select('*, artist:artists(name, image_url)').eq('label_id', labelId);
+        
+        const artists = (roster || []).map((r: any) => ({
+            artist_id: r.artist_id,
+            artist_name: r.artist?.name || 'Unknown Artist',
+            artist_image_url: r.artist?.image_url || USER_SILHOUETTE_URL,
+            allocation_amount: r.allocation_amount,
+            amount_spent: r.amount_spent
+        }));
+
+        return {
+            budget: budget || null,
+            artists: artists
+        };
+    }
+};
+
+export const setLabelBudget = async (labelId: string, totalBudget: number) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    
+    const currentYear = new Date().getFullYear().toString();
+
+    const { data, error } = await supabase
+        .from('label_budgets')
+        .upsert(
+            { label_id: labelId, total_budget: totalBudget, fiscal_year: currentYear },
+            { onConflict: 'label_id, fiscal_year' }
+        )
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+};
+
+export const setArtistAllocation = async (labelId: string, artistId: string, allocation: number) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('label_artist_budgets')
+        .upsert(
+            { label_id: labelId, artist_id: artistId, allocation_amount: allocation },
+            { onConflict: 'label_id, artist_id' }
+        )
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+};
+
+// NEW FINANCE FUNCTIONS
+export const updateLabelBudgetMode = async (labelId: string, mode: LabelBudgetMode, monthlyAllowance?: number, resetDay?: number) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const currentYear = new Date().getFullYear().toString();
+
+    // Upsert budget record with new settings
+    const { data, error } = await supabase
+        .from('label_budgets')
+        .upsert(
+            { 
+                label_id: labelId, 
+                budget_mode: mode, 
+                monthly_allowance: monthlyAllowance,
+                reset_day: resetDay,
+                fiscal_year: currentYear
+            },
+            { onConflict: 'label_id, fiscal_year' }
+        )
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+};
+
+export const addLabelFunds = async (labelId: string, amount: number, note: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    // Ideally this is a transaction RPC. Simulating with client-side calls.
+    // 1. Get current budget
+    const currentYear = new Date().getFullYear().toString();
+    const { data: budget } = await supabase.from('label_budgets').select('*').eq('label_id', labelId).eq('fiscal_year', currentYear).single();
+
+    const newTotal = (budget?.total_budget || 0) + amount;
+
+    // 2. Update budget
+    await supabase
+        .from('label_budgets')
+        .upsert(
+            { label_id: labelId, total_budget: newTotal, fiscal_year: currentYear },
+            { onConflict: 'label_id, fiscal_year' }
+        );
+
+    // 3. Create Transaction Record
+    const tx: Transaction = {
+        id: crypto.randomUUID(),
+        date: new Date().toISOString(),
+        description: note || 'Manual Top-Up',
+        amount: amount,
+        category: TransactionCategory.LABEL_TOP_UP,
+        status: TransactionStatus.COMPLETED,
+        label_id: labelId,
+        source: 'Manual'
+    };
+
+    // We store label transactions in the `labels` table wallet_transactions for now
+    // Fetch current user tx
+    const { data: labelUser } = await supabase.from('labels').select('wallet_transactions').eq('id', labelId).single();
+    const newTxns = [...(labelUser?.wallet_transactions || []), tx];
+    
+    await supabase.from('labels').update({ wallet_transactions: newTxns }).eq('id', labelId);
+    
+    return true;
+};
+
+export const fetchLabelTransactions = async (labelId: string): Promise<Transaction[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data: labelUser, error } = await supabase
+        .from('labels')
+        .select('wallet_transactions')
+        .eq('id', labelId)
+        .single();
+    
+    if (error || !labelUser) return [];
+
+    // Filter or sort as needed
+    return (labelUser.wallet_transactions || []).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+// ... (Rest of existing functions for bookings, posts, social, messaging etc)
 
 export const createBooking = async (request: BookingRequest, stoodio: Stoodio, booker: any, bookerRole: UserRole): Promise<Booking> => {
+    // ... implementation unchanged
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
 
@@ -490,8 +656,6 @@ export const cancelBooking = async (booking: Booking) => {
     if (error) throw error;
     return data;
 };
-
-// --- SOCIAL ---
 
 export const fetchGlobalFeed = async (limit: number, beforeTimestamp?: string): Promise<Post[]> => {
     const supabase = getSupabase();
@@ -548,7 +712,6 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const supabase = getSupabase();
     if (!supabase) throw new Error("No DB");
     
-    // Do NOT send 'id'. Let Supabase generate a valid UUID v4.
     const newPost = {
         author_id: author.id,
         author_type: authorType,
@@ -565,7 +728,6 @@ export const createPost = async (postData: any, author: any, authorType: UserRol
     const { data, error } = await supabase.from('posts').insert(newPost).select().single();
     if (error) throw error;
     
-    // Map DB result back to app format
     const formattedPost: Post = {
          id: data.id,
          authorId: data.author_id,
@@ -610,7 +772,6 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
     const { data: post } = await supabase.from('posts').select('comments').eq('id', postId).single();
     if (!post) return { updatedAuthor: postAuthor };
 
-    // Use crypto.randomUUID() for valid UUID generation for comment ID
     const newComment = {
         id: crypto.randomUUID(),
         authorId: commenter.id,
@@ -633,7 +794,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
     }
 
-    // 1. Determine Origin User Type (Uppercase for SQL) and Table
     let originUserType = 'ARTIST';
     let originTable = 'artists';
     
@@ -642,7 +802,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     else if ('instrumentals' in currentUser) { originUserType = 'PRODUCER'; originTable = 'producers'; }
     else if ('bio' in currentUser && !('is_seeking_session' in currentUser)) { originUserType = 'LABEL'; originTable = 'labels'; }
     
-    // 2. Determine Target Table
     const targetTableMap: Record<string, string> = {
         'artist': 'artists',
         'engineer': 'engineers',
@@ -652,11 +811,10 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     };
     const targetTable = targetTableMap[type];
 
-    // 3. Call the Secure Database Function (RPC)
     const { error } = await supabase.rpc('toggle_follow', {
         origin_user_type: originUserType,
         target_user_id: targetUser.id,
-        target_user_type: type // e.g., 'artist', 'engineer'
+        target_user_type: type 
     });
 
     if (error) {
@@ -664,7 +822,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         throw error;
     }
 
-    // 4. Send Notification (Only on follow)
     if (!isFollowing) {
         const notification = {
             recipient_id: targetUser.id,
@@ -677,7 +834,6 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
         await supabase.from('notifications').insert(notification);
     }
 
-    // 5. Fetch latest data to update local state seamlessly
     const getSelectQuery = (table: string) => {
         if (table === 'stoodioz') return '*, rooms(*), in_house_engineers(*)';
         if (table === 'engineers') return '*, mixing_samples(*)';
@@ -703,13 +859,10 @@ export const toggleFollow = async (currentUser: any, targetUser: any, type: stri
     };
 };
 
-// --- MESSAGING & REVIEWS (NEW REAL IMPL) ---
-
 export const fetchConversations = async (userId: string) => {
     const supabase = getSupabase();
     if (!supabase) return [];
     
-    // Fetch conversations where user is a participant
     const { data, error } = await supabase
         .from('conversations')
         .select('*')
@@ -720,9 +873,7 @@ export const fetchConversations = async (userId: string) => {
         return [];
     }
     
-    // For each conversation, fetch messages and participant details
     const fullConversations = await Promise.all(data.map(async (convo: any) => {
-        // 1. Get messages
         const { data: msgs } = await supabase
             .from('messages')
             .select('*')
@@ -740,12 +891,10 @@ export const fetchConversations = async (userId: string) => {
             files: m.file_attachments
         }));
 
-        // 2. Get participants (other than self)
         const otherIds = convo.participant_ids;
         let participants: any[] = [];
         
         for (const pid of otherIds) {
-             // Try fetching from each table until found. Optimized with Promise.any equivalent logic.
              const tables = ['artists', 'engineers', 'producers', 'stoodioz', 'labels'];
              for(const t of tables) {
                  const { data: pData } = await supabase.from(t).select('id, name, image_url').eq('id', pid).maybeSingle();
@@ -760,7 +909,7 @@ export const fetchConversations = async (userId: string) => {
             id: convo.id,
             participants,
             messages: formattedMessages,
-            unread_count: 0 // TODO: Calc based on read_by array
+            unread_count: 0
         };
     }));
     
@@ -776,7 +925,6 @@ export const sendMessage = async (conversationId: string, senderId: string, cont
         sender_id: senderId,
         content: content,
         message_type: type,
-        // Map fileData to media_url or file_attachments correctly
         media_url: (type === 'image' || type === 'audio') ? fileData?.url : null,
         file_attachments: type === 'files' ? fileData : null
     };
@@ -790,20 +938,15 @@ export const createConversation = async (participantIds: string[]) => {
     const supabase = getSupabase();
     if (!supabase) return null;
     
-    // --- LABEL MESSAGING PERMISSION RULES ---
     const [senderId, receiverId] = participantIds;
-
-    // Mock role detection (replace later)
     const senderIsLabel = senderId?.startsWith("label_");
     const receiverIsLabel = receiverId?.startsWith("label_");
 
-    // RULE 1: Labels can message ANYONE → always allow
     if (senderIsLabel) {
-        // continue normally, do NOT block
+        // continue
     } 
-    // RULE 2: Non-labels cannot message labels unless on roster
     else if (receiverIsLabel) {
-        const userIsOnRoster = false; // TODO: real roster check later
+        const userIsOnRoster = false; // Placeholder roster check
         if (!userIsOnRoster) {
             return {
                 blocked_by_label_permissions: true,
@@ -833,7 +976,7 @@ export const fetchReviews = async () => {
     
     return data.map((r: any) => ({
         id: r.id,
-        reviewer_name: 'Anonymous', // In real app, join with user table
+        reviewer_name: 'Anonymous',
         rating: r.rating,
         comment: r.comment,
         date: r.created_at,
@@ -842,8 +985,6 @@ export const fetchReviews = async () => {
         producer_id: r.target_user_id,
     }));
 };
-
-// --- OTHER ---
 
 export const createCheckoutSessionForWallet = async (amount: number, userId: string) => {
     return { sessionId: 'mock_wallet_session' };
@@ -902,13 +1043,23 @@ export const endSession = async (booking: Booking) => {
     if(supabase) {
         const { data } = await supabase.from('bookings').update({ status: BookingStatus.COMPLETED }).eq('id', booking.id).select().single();
         
-        // --- REVENUE ROUTING LOGIC ---
-        // Calculate total earnings for the provider (Engineer/Producer)
-        // Usually engineer_pay_rate * duration, or fixed fee
         const grossEarnings = booking.engineer_pay_rate * booking.duration; 
         
-        // Execute revenue routing if a contract exists
         await applyLabelRevenueRouting(booking, grossEarnings);
+
+        const talentId = booking.engineer?.id || booking.producer?.id;
+        if (talentId) {
+            const activeContract = await fetchActiveLabelContractForTalent(talentId);
+            if (activeContract) {
+                await supabase.from("notifications").insert({
+                    recipient_id: activeContract.label_id,
+                    type: "LABEL_SESSION_COMPLETE" as any,
+                    message: `Session completed for contracted talent. Contract ID: ${activeContract.id}`,
+                    read: false,
+                    timestamp: new Date().toISOString(),
+                });
+            }
+        }
 
         return { updatedBooking: data || { ...booking, status: BookingStatus.COMPLETED } };
     }
@@ -927,7 +1078,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     startDate.setDate(startDate.getDate() - days);
     const startDateStr = startDate.toISOString();
 
-    // 1. Revenue (from wallet_transactions JSONB column)
     const tableMap: Record<string, string> = {
         'ARTIST': 'artists',
         'ENGINEER': 'engineers',
@@ -971,7 +1121,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
     });
     const revenueSources = Array.from(sourceMap.entries()).map(([name, revenue]) => ({ name, revenue }));
 
-    // 2. Bookings
     const { count: bookingsCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
@@ -979,7 +1128,6 @@ export const fetchAnalyticsData = async (userId: string, role: UserRole, days: n
         .gte('date', startDateStr)
         .eq('status', BookingStatus.CONFIRMED);
     
-    // 3. New Followers
     const { count: newFollowersCount } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -1077,45 +1225,10 @@ export const deleteMixingSample = async (sampleId: string) => {
     if(supabase) await supabase.from('mixing_samples').delete().eq('id', sampleId);
 };
 
-export const markArtistLabelClaimed = async (artistId: string, labelId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-
-    const { data, error } = await supabase
-        .from('artists')
-        .update({ label_id: labelId })
-        .eq('id', artistId)
-        .select()
-        .single();
-
-    if (error) {
-        console.error("Error claiming label:", error);
-        throw error;
-    }
-    return data;
-};
-
-// --- FIX START: Add missing label roster functions ---
-
 // --- LABEL ROSTER MANAGEMENT ---
 
-export const getRosterActivity = async (labelId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return [];
-
-    const { data, error } = await supabase.rpc("get_roster_activity", {
-        p_label_id: labelId // Ensure parameter name matches SQL function
-    });
-
-    if (error) {
-        console.error("Error fetching roster activity:", error);
-        return [];
-    }
-
-    return data || [];
-};
-
-export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]> => {
+// FIX: Rename fetchLabelRoster to fetchRoster to match hint, and add back alias for compatibility.
+export const fetchRoster = async (labelId: string): Promise<RosterMember[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
@@ -1219,7 +1332,72 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
     return hydratedRoster;
 };
 
-export const addArtistToLabelRoster = async (params: { labelId: string, artistId?: string, email?: string, role?: string }) => {
+export const createShadowProfile = async (
+    role: 'ARTIST' | 'PRODUCER' | 'ENGINEER', 
+    labelId: string, 
+    data: { name: string; email?: string }
+): Promise<{ profileId: string; roleId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+
+    const shadowId = crypto.randomUUID();
+
+    const { error: profileError } = await supabase.from('profiles').insert({
+        id: shadowId,
+        email: data.email || null,
+        role: 'UNCLAIMED', // Shadow role
+        full_name: data.name,
+        created_at: new Date().toISOString()
+    });
+
+    if (profileError) {
+        console.error("Error creating shadow profile:", profileError);
+        throw profileError;
+    }
+
+    const tableMap: Record<string, string> = {
+        'ARTIST': 'artists',
+        'PRODUCER': 'producers',
+        'ENGINEER': 'engineers'
+    };
+    
+    const tableName = tableMap[role];
+    const userRecord = {
+        id: shadowId,
+        name: data.name,
+        email: data.email || null,
+        image_url: USER_SILHOUETTE_URL,
+        label_id: labelId, // Directly assign label ownership
+        created_at: new Date().toISOString(),
+        wallet_balance: 0,
+        wallet_transactions: []
+    };
+
+    if (role === 'ENGINEER') (userRecord as any).specialties = [];
+    if (role === 'PRODUCER') (userRecord as any).genres = [];
+    if (role === 'ARTIST') (userRecord as any).bio = '';
+
+    const { error: roleError } = await supabase.from(tableName).insert(userRecord);
+    if (roleError) {
+        throw roleError;
+    }
+
+    const rosterEntry = {
+        id: crypto.randomUUID(),
+        label_id: labelId,
+        user_id: shadowId,
+        role: role.charAt(0).toUpperCase() + role.slice(1).toLowerCase(), // Capitalize
+        email: data.email,
+        created_at: new Date().toISOString()
+    };
+
+    await supabase.from('label_roster').insert(rosterEntry);
+
+    return { profileId: shadowId, roleId: shadowId };
+};
+
+// FIX: Rename addArtistToLabelRoster to addArtistToRoster
+export const addArtistToRoster = async (params: { labelId: string, artistId?: string, email?: string, role?: string }) => {
     const supabase = getSupabase();
     if (!supabase) return null;
 
@@ -1255,7 +1433,8 @@ export const addArtistToLabelRoster = async (params: { labelId: string, artistId
     return data;
 };
 
-export const removeArtistFromLabelRoster = async (labelId: string, rosterId: string, artistId?: string) => {
+// FIX: Rename removeArtistFromLabelRoster to removeArtistFromRoster
+export const removeArtistFromRoster = async (labelId: string, rosterId: string, artistId?: string) => {
     const supabase = getSupabase();
     if (!supabase) return false;
 
@@ -1279,4 +1458,211 @@ export const removeArtistFromLabelRoster = async (labelId: string, rosterId: str
 
     return true;
 };
-// --- FIX END ---
+
+export async function fetchLabelPerformance(labelId: string) {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+        .from('label_artist_performance')
+        .select('*')
+        .eq('label_id', labelId);
+
+    if (error) {
+        console.error("fetchLabelPerformance error:", error);
+        return [];
+    }
+    return data || [];
+}
+
+export const getRosterActivity = async (labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase.rpc("get_roster_activity", {
+        p_label_id: labelId // Ensure parameter name matches SQL function
+    });
+
+    if (error) {
+        console.error("Error fetching roster activity:", error);
+        return [];
+    }
+
+    return data || [];
+};
+
+export const fetchLabelRoster = fetchRoster;
+
+const getTableNameFromRole = (role: UserRole | null): string | null => {
+    if (!role) return null;
+    switch(role) {
+        case 'ARTIST': return 'artists';
+        case 'ENGINEER': return 'engineers';
+        case 'PRODUCER': return 'producers';
+        case 'STOODIO': return 'stoodioz';
+        case 'LABEL': return 'labels';
+        default: return null;
+    }
+};
+
+export const getClaimDetails = async (token: string): Promise<{ labelName: string; role: string; email?: string } | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data: rosterEntry, error: rosterError } = await supabase
+        .from('label_roster')
+        .select('*, label:labels(name)')
+        .or(`claim_token.eq.${token},claim_code.eq.${token}`)
+        .maybeSingle();
+
+    if (rosterError || !rosterEntry) {
+        console.error("Error fetching claim details:", rosterError);
+        return null;
+    }
+
+    return {
+        labelName: (rosterEntry.label as any)?.name || 'A Label',
+        role: rosterEntry.role,
+        email: rosterEntry.email
+    };
+};
+
+export const claimProfileByToken = async (token: string, userId: string): Promise<{ role: UserRole }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Database not connected.");
+
+    const { data: rosterEntry, error: findError } = await supabase.from('label_roster').select('*').eq('claim_token', token).single();
+    if (findError || !rosterEntry) throw new Error("Invalid or expired claim token.");
+
+    const { error: updateRosterError } = await supabase.from('label_roster').update({ user_id: userId, is_pending: false, claim_token: null, claim_code: null }).eq('id', rosterEntry.id);
+    if (updateRosterError) throw updateRosterError;
+
+    const role = rosterEntry.role.toUpperCase() as UserRole;
+    const tableName = getTableNameFromRole(role);
+    if (tableName) {
+        await supabase.from(tableName).update({ label_id: rosterEntry.label_id }).eq('id', userId);
+    }
+    
+    return { role };
+};
+
+export const claimProfileByCode = async (code: string, userId: string): Promise<{ role: UserRole }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Database not connected.");
+
+    const { data: rosterEntry, error: findError } = await supabase.from('label_roster').select('*').eq('claim_code', code).single();
+    if (findError || !rosterEntry) throw new Error("Invalid or expired claim code.");
+    
+    const { error: updateRosterError } = await supabase.from('label_roster').update({ user_id: userId, is_pending: false, claim_code: null, claim_token: null }).eq('id', rosterEntry.id);
+    if (updateRosterError) throw updateRosterError;
+    
+    const role = rosterEntry.role.toUpperCase() as UserRole;
+    const tableName = getTableNameFromRole(role);
+    if (tableName) {
+        await supabase.from(tableName).update({ label_id: rosterEntry.label_id }).eq('id', userId);
+    }
+
+    return { role };
+};
+
+export const claimLabelRosterProfile = async (details: { email: string; password: string; name?: string }): Promise<any> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Database not connected.");
+    
+    const { data: rosterEntry, error: findError } = await supabase
+        .from('label_roster')
+        .select('*')
+        .eq('email', details.email)
+        .is('user_id', null)
+        .single();
+
+    if (findError || !rosterEntry) {
+        throw new Error("No pending invite found for this email address. Please create a regular account or check the invite email.");
+    }
+
+    const { data: authData, error: authError } = await (supabase.auth as any).signUp({
+        email: details.email,
+        password: details.password,
+        options: {
+            data: {
+                full_name: details.name || details.email,
+                user_role: rosterEntry.role.toUpperCase(),
+            }
+        }
+    });
+
+    if (authError) throw authError;
+    if (!authData.user) throw new Error("Account creation failed.");
+
+    const { error: claimError } = await supabase.from('label_roster').update({ user_id: authData.user.id, is_pending: false }).eq('id', rosterEntry.id);
+    if (claimError) throw new Error("Failed to link account to roster: " + claimError.message);
+    
+    const role = rosterEntry.role.toUpperCase() as UserRole;
+    const tableName = getTableNameFromRole(role);
+    if (tableName) {
+        const profileData: any = {
+            id: authData.user.id,
+            name: details.name || details.email,
+            email: details.email,
+            image_url: USER_SILHOUETTE_URL,
+            label_id: rosterEntry.label_id,
+        };
+        if(role === 'ARTIST') profileData.bio = 'New artist on the scene!';
+        if(role === 'ENGINEER') { profileData.bio = 'Ready to engineer.'; profileData.specialties = []; }
+        if(role === 'PRODUCER') { profileData.bio = 'Making beats.'; profileData.genres = []; }
+
+        await supabase.from(tableName).insert(profileData);
+    }
+    
+    return { success: true };
+};
+
+export const generateClaimTokenForRosterMember = async (rosterId: string): Promise<{ claimUrl: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Database not connected.");
+    
+    const token = crypto.randomUUID();
+    const { error } = await supabase.from('label_roster').update({ claim_token: token }).eq('id', rosterId);
+
+    if (error) throw error;
+    return { claimUrl: `${window.location.origin}/claim/${token}` };
+};
+
+export const getBookingEconomics = async (bookingId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data: booking } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("id", bookingId)
+        .single();
+
+    if (!booking) return null;
+    const talentId = 'engineer_id' in booking ? (booking as any).engineer_id : 'producer_id' in booking ? (booking as any).producer_id : null;
+    if (!talentId) return { total_cost: booking.total_cost, duration: booking.duration, contract: null };
+
+    const contract = await fetchActiveLabelContractForTalent(talentId);
+
+    const engineerPayRate = (booking as any).engineer_pay_rate || 0;
+    const duration = booking.duration || 0;
+
+    return {
+        total_cost: booking.total_cost,
+        engineer_pay_rate: engineerPayRate,
+        duration: duration,
+        contract,
+        estimated_provider_take:
+            engineerPayRate * duration *
+            (contract?.contract_type === "PERCENTAGE"
+                ? (1 - contract.split_percent / 100)
+                : 1),
+        estimated_label_take:
+            contract?.contract_type === "PERCENTAGE"
+                ? engineerPayRate *
+                  duration *
+                  (contract.split_percent / 100)
+                : 0,
+        recoup_remaining: contract?.recoup_balance || 0
+    };
+};
