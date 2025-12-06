@@ -13,12 +13,16 @@ import LabelPolicies from './label/LabelPolicies';
 import LabelMessaging from './label/LabelMessaging';
 import LabelReports from './label/LabelReports';
 import LabelQAReview from './label/LabelQAReview';
+import LabelActivityFeed from './label/LabelActivityFeed';
+import LabelInsights from './label/LabelInsights';
+import LabelApprovals from './label/LabelApprovals';
+import LabelPerformance from './label/LabelPerformance'; // Import new component
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
-type LabelTab = 'roster' | 'bookings' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'settings' | 'documents';
+type LabelTab = 'roster' | 'bookings' | 'approvals' | 'performance' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'activity' | 'insights' | 'settings' | 'documents';
 
 const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
     <button
@@ -40,6 +44,8 @@ const LabelDashboard: React.FC = () => {
         switch (activeTab) {
             case 'roster': return <LabelArtists />;
             case 'bookings': return <LabelBookings />;
+            case 'approvals': return <LabelApprovals />;
+            case 'performance': return <LabelPerformance />;
             case 'budget': return <LabelBudgetDashboard />;
             case 'financials': return <LabelFinancials />;
             case 'notifications': return <LabelNotifications />;
@@ -49,6 +55,8 @@ const LabelDashboard: React.FC = () => {
             case 'messaging': return <LabelMessaging />;
             case 'reports': return <LabelReports />;
             case 'qa': return <LabelQAReview />;
+            case 'activity': return <LabelActivityFeed />;
+            case 'insights': return <LabelInsights />;
             case 'documents': 
                 return (
                     <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading Documents...</div>}>
@@ -103,7 +111,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['roster', 'bookings', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'documents', 'settings'].map((tab) => (
+                    {['roster', 'bookings', 'approvals', 'performance', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'activity', 'insights', 'documents', 'settings'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}
