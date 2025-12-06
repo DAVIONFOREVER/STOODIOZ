@@ -13,10 +13,10 @@ import LabelPolicies from './label/LabelPolicies';
 import LabelMessaging from './label/LabelMessaging';
 import LabelReports from './label/LabelReports';
 import LabelQAReview from './label/LabelQAReview';
-import LabelActivityFeed from './label/LabelActivityFeed';
+import LabelActivity from './label/LabelActivity'; // Import new component
 import LabelInsights from './label/LabelInsights';
 import LabelApprovals from './label/LabelApprovals';
-import LabelPerformance from './label/LabelPerformance'; // Import new component
+import LabelPerformance from './label/LabelPerformance';
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
@@ -55,7 +55,7 @@ const LabelDashboard: React.FC = () => {
             case 'messaging': return <LabelMessaging />;
             case 'reports': return <LabelReports />;
             case 'qa': return <LabelQAReview />;
-            case 'activity': return <LabelActivityFeed />;
+            case 'activity': return <LabelActivity />;
             case 'insights': return <LabelInsights />;
             case 'documents': 
                 return (

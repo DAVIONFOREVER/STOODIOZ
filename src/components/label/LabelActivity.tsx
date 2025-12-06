@@ -1,9 +1,8 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
-import { useAppState } from '../../contexts/AppContext';
-import * as apiService from '../../services/apiService';
+import { useAppState } from '../contexts/AppContext';
+import * as apiService from '../services/apiService';
 import { CalendarIcon, UsersIcon, DollarSignIcon, BellIcon, CheckCircleIcon } from '../icons';
-import type { Booking, RosterMember, Transaction, LabelBudgetOverview } from '../../types';
+import type { Booking, RosterMember, Transaction, LabelBudgetOverview } from '../types';
 
 type ActivityEvent = {
     id: string;
@@ -96,7 +95,7 @@ const LabelActivity: React.FC = () => {
                             type: 'booking',
                             title: 'Session Completed',
                             description: `For ${b.artist?.name || 'An artist'}. Total: $${b.total_cost.toFixed(2)}`,
-                            date: b.date, // Assuming completion date is booking date for simplicity
+                            date: b.date,
                             icon: <CheckCircleIcon className="w-5 h-5 text-green-400"/>
                         });
                     }
@@ -119,7 +118,7 @@ const LabelActivity: React.FC = () => {
                         type: 'roster',
                         title: 'Artist Added to Roster',
                         description: a.name,
-                        date: 'N/A',
+                        date: 'N/A', // As per prompt, timestamp might not be available.
                         icon: <UsersIcon className="w-5 h-5 text-blue-400"/>
                     });
                 });
@@ -130,7 +129,7 @@ const LabelActivity: React.FC = () => {
                         type: 'system',
                         title: 'Budget Updated',
                         description: `Total budget is now $${budgetData.budget.total_budget.toLocaleString()}`,
-                        date: 'N/A',
+                        date: 'N/A', // No reliable timestamp for this derived event
                         icon: <BellIcon className="w-5 h-5 text-zinc-400"/>
                     });
                 }
@@ -156,7 +155,11 @@ const LabelActivity: React.FC = () => {
             
             <div className="space-y-6">
                 {Object.keys(processedEvents).length === 0 ? (
-                    <p className="p-6 text-center text-zinc-500 cardSurface">No activity yet.</p>
+                    <div className="p-10 text-center text-zinc-500 cardSurface">
+                        <BellIcon className="w-12 h-12 mx-auto text-zinc-600 mb-4"/>
+                        <p className="font-semibold">No activity to report yet.</p>
+                        <p className="text-sm">Bookings, transactions, and roster changes will appear here.</p>
+                    </div>
                 ) : (
                     Object.entries(processedEvents).map(([dateLabel, dayEvents]) => (
                         <div key={dateLabel}>
