@@ -1204,7 +1204,7 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
 
     const activityList = await getRosterActivity(labelId);
     const activityMap = Object.fromEntries(
-        activityList.map((a: any) => [a.user_id, a])
+        (activityList || []).map((a: any) => [a.user_id, a])
     );
 
     const hydratedRoster: RosterMember[] = [];
@@ -1279,9 +1279,9 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
                 claim_token: entry.claim_token,
                 sessions_completed: sessions,
                 mixes_delivered: mixes,
-                songs_finished: userData.songs_finished || 0,
-                avg_session_rating: userData.avg_session_rating || null,
-                engagement_score: userData.engagement_score || 0,
+                songs_finished: (userData as any).songs_finished || 0,
+                avg_session_rating: (userData as any).avg_session_rating || null,
+                engagement_score: (userData as any).engagement_score || 0,
                 posts_created: posts,
                 uploads_count: uploads,
                 output_score: outputScore
@@ -1421,7 +1421,6 @@ export async function fetchLabelPerformance(labelId: string) {
     const supabase = getSupabase();
     if (!supabase || !labelId) return [];
 
-    // Query the secure filtered view
     const { data, error } = await supabase
         .from("label_artist_performance")
         .select("*")
@@ -1453,8 +1452,6 @@ export const getRosterActivity = async (labelId: string) => {
 
 export const fetchRoster = fetchLabelRoster;
 
-// FIX: Add missing functions for profile claiming
-// Helper to get table name from UserRole
 const getTableNameFromRole = (role: UserRole | null): string | null => {
     if (!role) return null;
     switch(role) {
@@ -1467,20 +1464,18 @@ const getTableNameFromRole = (role: UserRole | null): string | null => {
     }
 };
 
-// --- ROSTER CLAIMING ---
-
 export const getClaimDetails = async (token: string): Promise<{ labelName: string; role: string; email?: string } | null> => {
     const supabase = getSupabase();
     if (!supabase) return null;
 
-    const { data: rosterEntry, error } = await supabase
+    const { data: rosterEntry, error: rosterError } = await supabase
         .from('label_roster')
         .select('*, label:labels(name)')
         .or(`claim_token.eq.${token},claim_code.eq.${token}`)
         .maybeSingle();
 
-    if (error || !rosterEntry) {
-        console.error("Error fetching claim details:", error);
+    if (rosterError || !rosterEntry) {
+        console.error("Error fetching claim details:", rosterError);
         return null;
     }
 
@@ -1590,4 +1585,43 @@ export const generateClaimTokenForRosterMember = async (rosterId: string): Promi
 
     if (error) throw error;
     return { claimUrl: `${window.location.origin}/claim/${token}` };
+};
+
+export const getBookingEconomics = async (bookingId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data: booking } = await supabase
+        .from("bookings")
+        .select("*")
+        .eq("id", bookingId)
+        .single();
+
+    if (!booking) return null;
+    const talentId = 'engineer_id' in booking ? (booking as any).engineer_id : 'producer_id' in booking ? (booking as any).producer_id : null;
+    if (!talentId) return { total_cost: booking.total_cost, duration: booking.duration, contract: null };
+
+    const contract = await fetchActiveLabelContractForTalent(talentId);
+
+    const engineerPayRate = (booking as any).engineer_pay_rate || 0;
+    const duration = booking.duration || 0;
+
+    return {
+        total_cost: booking.total_cost,
+        engineer_pay_rate: engineerPayRate,
+        duration: duration,
+        contract,
+        estimated_provider_take:
+            engineerPayRate * duration *
+            (contract?.contract_type === "PERCENTAGE"
+                ? (1 - contract.split_percent / 100)
+                : 1),
+        estimated_label_take:
+            contract?.contract_type === "PERCENTAGE"
+                ? engineerPayRate *
+                  duration *
+                  (contract.split_percent / 100)
+                : 0,
+        recoup_remaining: contract?.recoup_balance || 0
+    };
 };
