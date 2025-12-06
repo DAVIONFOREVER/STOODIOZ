@@ -1,4 +1,3 @@
-
 import React, { useState, lazy, Suspense } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { AppView } from '../types';
@@ -17,7 +16,7 @@ import LabelQAReview from './label/LabelQAReview';
 import LabelActivityFeed from './label/LabelActivityFeed';
 import LabelInsights from './label/LabelInsights';
 import LabelApprovals from './label/LabelApprovals';
-import LabelPerformance from './label/LabelPerformance';
+import LabelPerformance from './label/LabelPerformance'; // Import new component
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 

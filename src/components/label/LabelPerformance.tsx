@@ -1,17 +1,9 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
-import { fetchLabelPerformance } from '../services/apiService';
-import { getSupabase } from '../lib/supabase';
-import { CalendarIcon, DollarSignIcon, TrendingUpIcon } from '../icons';
-
-// Local icon definition to avoid modifying other files if missing
-const TrendingDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.306-4.307a11.95 11.95 0 015.814 5.519l2.74 1.22m0 0l-5.94 2.28m5.94-2.28l-2.28-5.941" />
-    </svg>
-);
-
+import * as apiService from '../services/apiService';
+import type { RosterMember, Booking, LabelBudgetOverview } from '../../types';
+import { CalendarIcon, DollarSignIcon, TrendingUpIcon, TrendingDownIcon } from '../icons';
+import { USER_SILHOUETTE_URL } from '../../constants';
 
 const StatCard: React.FC<{ label: string; value: string | React.ReactNode; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800 border border-zinc-700/50 p-6 rounded-xl flex items-center gap-4 shadow-lg">
@@ -27,99 +19,99 @@ const StatCard: React.FC<{ label: string; value: string | React.ReactNode; icon:
 
 const LabelPerformance: React.FC = () => {
     const { currentUser } = useAppState();
-    const [performance, setPerformance] = useState<any[]>([]);
+    const [roster, setRoster] = useState<RosterMember[]>([]);
+    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [budget, setBudget] = useState<LabelBudgetOverview | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
-    // Initial data fetch
     useEffect(() => {
-        async function load() {
-            if (!currentUser?.id) {
-                setLoading(false);
-                setError("Cannot load performance data without a logged-in label user.");
-                return;
-            };
+        if (!currentUser) return;
+        const load = async () => {
             setLoading(true);
-            setError(null);
             try {
-                const data = await fetchLabelPerformance(currentUser.id);
-                setPerformance(data || []);
+                const [rosterData, bookingsData, budgetData] = await Promise.all([
+                    apiService.fetchLabelRoster(currentUser.id),
+                    apiService.fetchLabelBookings(currentUser.id),
+                    apiService.getLabelBudgetOverview(currentUser.id),
+                ]);
+                setRoster(rosterData || []);
+                setBookings(bookingsData || []);
+                setBudget(budgetData || null);
             } catch (err) {
-                console.error("Error in load performance:", err);
-                setError("Failed to fetch performance data.");
+                console.error("Error loading performance data:", err);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
-        }
-        load();
-    }, [currentUser?.id]);
-
-    // Real-time subscription
-    useEffect(() => {
-        const supabase = getSupabase();
-        if (!supabase || !currentUser?.id) return;
-
-        const channel = supabase
-            .channel("label-performance-updates")
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "bookings" 
-                },
-                async () => {
-                    const data = await fetchLabelPerformance(currentUser.id);
-                    setPerformance(data || []);
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
         };
-    }, [currentUser?.id]);
+        load();
+    }, [currentUser]);
 
-
-    // Computed metrics for summary cards
-    const { totalSessions, avgSessionCost, mostActive, leastActive } = useMemo(() => {
-        if (performance.length === 0) {
-            return { totalSessions: 0, avgSessionCost: 0, mostActive: null, leastActive: null };
+    const performanceData = useMemo(() => {
+        if (roster.length === 0) {
+            return { artists: [], summary: { totalSessions: 0, avgCostAcrossLabel: 0, mostActiveArtist: 'N/A', leastActiveArtist: 'N/A' } };
         }
 
-        const totalSessions = performance.reduce(
-            (sum, a) => sum + Number(a.total_sessions || 0),
-            0
-        );
+        const artistPerformances = roster.map(artist => {
+            const artistBookings = bookings.filter(b => b.artist?.id === artist.id);
+            const completedBookings = artistBookings.filter(b => b.status === 'COMPLETED');
+            
+            const totalSpentOnArtist = completedBookings.reduce((sum, b) => sum + b.total_cost, 0);
+            const avgCost = completedBookings.length > 0 ? totalSpentOnArtist / completedBookings.length : 0;
+            
+            const budgetInfo = budget?.artists.find(a => a.artist_id === artist.id);
+            const allocationRemaining = budgetInfo ? budgetInfo.allocation_amount - budgetInfo.amount_spent : null;
 
-        const costs = performance.map(a => Number(a.avg_cost || 0)).filter(n => n > 0);
-        const avgSessionCost = costs.length === 0 ? 0 : costs.reduce((a, b) => a + b, 0) / costs.length;
+            const sortedBookings = artistBookings.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const lastSessionDate = sortedBookings.length > 0 
+                ? new Date(sortedBookings[0].date).toLocaleDateString()
+                : 'N/A';
+            
+            let trend = 'stable';
+            if (sortedBookings.length >= 3) {
+                const diff1 = new Date(sortedBookings[0].date).getTime() - new Date(sortedBookings[1].date).getTime();
+                const diff2 = new Date(sortedBookings[1].date).getTime() - new Date(sortedBookings[2].date).getTime();
+                if (diff1 < diff2 * 0.8) trend = 'up'; // Activity is accelerating
+                if (diff1 > diff2 * 1.2) trend = 'down'; // Activity is slowing
+            } else if (sortedBookings.length > 0) {
+                trend = 'up'; // Any recent activity is a positive trend
+            } else {
+                trend = 'down';
+            }
 
-        const mostActive = performance.reduce((max, a) =>
-            (a.total_sessions || 0) > (max.total_sessions || 0) ? a : max
-          );
 
-        const leastActive = performance.reduce((min, a) =>
-            (a.total_sessions || 0) < (min.total_sessions || 0) ? a : min
-          );
+            return {
+                ...artist,
+                totalSessions: artistBookings.length,
+                completedSessions: completedBookings.length,
+                avgSessionCost: avgCost,
+                allocationRemaining,
+                lastSessionDate,
+                trend,
+            };
+        });
 
-        return { totalSessions, avgSessionCost, mostActive, leastActive };
-    }, [performance]);
+        const totalLabelSessions = bookings.length;
+        const totalCompleted = bookings.filter(b => b.status === 'COMPLETED').length;
+        const totalCost = bookings.filter(b => b.status === 'COMPLETED').reduce((sum, b) => sum + b.total_cost, 0);
+        const avgCostAcrossLabel = totalCompleted > 0 ? totalCost / totalCompleted : 0;
+        
+        const mostActive = artistPerformances.length > 0 ? [...artistPerformances].sort((a,b) => b.totalSessions - a.totalSessions)[0] : null;
+        const leastActive = artistPerformances.length > 0 ? [...artistPerformances].sort((a,b) => a.totalSessions - b.totalSessions)[0] : null;
 
+        return {
+            artists: artistPerformances,
+            summary: {
+                totalSessions: totalLabelSessions,
+                avgCostAcrossLabel,
+                mostActiveArtist: mostActive?.name || 'N/A',
+                leastActiveArtist: leastActive?.name || 'N/A',
+            }
+        };
+
+    }, [roster, bookings, budget]);
 
     if (loading) {
-        return <div className="text-center text-zinc-400 p-10">Loading performance data...</div>;
-    }
-
-    if (error) {
-        return <div className="text-center text-red-400 p-10">{error}</div>;
-    }
-
-    if (!loading && performance.length === 0) {
-        return (
-            <div className="cardSurface p-10 text-center text-zinc-500">
-                No performance data yet. Stats will appear here after your roster completes bookings.
-            </div>
-        );
+        return <div className="p-20 text-center text-zinc-500">Calculating performance metrics...</div>;
     }
 
     return (
@@ -128,66 +120,53 @@ const LabelPerformance: React.FC = () => {
 
             {/* Summary Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard 
-                    label="Total Sessions (Label)" 
-                    value={totalSessions.toString()} 
-                    icon={<CalendarIcon className="w-6 h-6" />} 
-                />
-                <StatCard 
-                    label="Avg Session Cost" 
-                    value={`$${avgSessionCost.toFixed(2)}`} 
-                    icon={<DollarSignIcon className="w-6 h-6" />} 
-                />
-                <StatCard 
-                    label="Most Active Artist" 
-                    value={mostActive ? mostActive.artist_name : "—"} 
-                    icon={<TrendingUpIcon className="w-6 h-6" />} 
-                />
-                 <StatCard 
-                    label="Least Active Artist" 
-                    value={leastActive ? leastActive.artist_name : "—"} 
-                    icon={<TrendingDownIcon className="w-6 h-6" />} 
-                />
-            </div>
-            
-            {/* Artist Grid */}
-            <div className="cardSurface overflow-hidden">
-                <h3 className="text-xl font-bold text-zinc-100 p-6">Artist Breakdown</h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-zinc-800/50 text-zinc-400 uppercase text-xs">
-                            <tr>
-                                <th className="px-6 py-3">Artist</th>
-                                <th className="px-6 py-3 text-center">Total Sessions</th>
-                                <th className="px-6 py-3 text-center">Completed</th>
-                                <th className="px-6 py-3 text-center">Avg Cost</th>
-                                <th className="px-6 py-3 text-center">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-800 text-zinc-300">
-                            {performance.map((artist: any) => (
-                                <tr key={artist.artist_id} className="hover:bg-zinc-800/40">
-                                    <td className="px-6 py-4 font-medium text-zinc-100">{artist.artist_name}</td>
-                                    <td className="px-6 py-4 text-center font-semibold">{artist.total_sessions}</td>
-                                    <td className="px-6 py-4 text-center font-semibold text-green-400">{artist.completed_sessions}</td>
-                                    <td className="px-6 py-4 text-center font-mono">${Number(artist.avg_cost).toFixed(2)}</td>
-                                    <td className="px-6 py-4 text-center">
-                                        {artist.completed_sessions > 0 ? (
-                                            <span className="text-green-400 font-bold">Active</span>
-                                        ) : (
-                                            <span className="text-zinc-500">No Data</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <StatCard label="Total Sessions (Label)" value={performanceData.summary.totalSessions || 0} icon={<CalendarIcon className="w-6 h-6"/>} />
+                <StatCard label="Avg Session Cost" value={`$${(performanceData.summary.avgCostAcrossLabel || 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6"/>} />
+                <StatCard label="Most Active" value={performanceData.summary.mostActiveArtist || 'N/A'} icon={<TrendingUpIcon className="w-6 h-6"/>} />
+                <StatCard label="Least Active" value={performanceData.summary.leastActiveArtist || 'N/A'} icon={<TrendingDownIcon className="w-6 h-6"/>} />
             </div>
 
-             {/* Chart Placeholder */}
-            <div className="cardSurface p-10 text-center">
-                <p className="text-zinc-500 font-semibold">Chart visualization will be rendered here.</p>
+            {/* Artist Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {performanceData.artists.map(artist => (
+                    <div key={artist.id} className="cardSurface p-6 space-y-4">
+                        <div className="flex items-center gap-4">
+                            <img src={artist.image_url || USER_SILHOUETTE_URL} alt={artist.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700"/>
+                            <div>
+                                <h3 className="text-xl font-bold text-zinc-100">{artist.name}</h3>
+                                <p className="text-sm text-zinc-400">Last Session: {artist.lastSessionDate}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-center">
+                            <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700/50">
+                                <p className="text-xs font-bold text-zinc-500 uppercase">Total Sessions</p>
+                                <p className="text-2xl font-bold text-zinc-100">{artist.totalSessions}</p>
+                            </div>
+                            <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700/50">
+                                <p className="text-xs font-bold text-zinc-500 uppercase">Completed</p>
+                                <p className="text-2xl font-bold text-green-400">{artist.completedSessions}</p>
+                            </div>
+                             <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700/50">
+                                <p className="text-xs font-bold text-zinc-500 uppercase">Avg. Cost</p>
+                                <p className="text-2xl font-bold text-zinc-100">${artist.avgSessionCost.toFixed(0)}</p>
+                            </div>
+                            <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700/50">
+                                <p className="text-xs font-bold text-zinc-500 uppercase">Allocation</p>
+                                <p className="text-2xl font-bold text-orange-400">{artist.allocationRemaining !== null ? `$${artist.allocationRemaining.toLocaleString()}`: 'N/A'}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-end gap-2 text-sm">
+                            <span className="text-zinc-500">Activity Trend:</span>
+                            {artist.trend === 'up' ? <TrendingUpIcon className="w-5 h-5 text-green-500"/> : artist.trend === 'down' ? <TrendingDownIcon className="w-5 h-5 text-red-500" /> : <div className="w-5 h-5 text-zinc-500 font-bold text-center">-</div>}
+                        </div>
+                    </div>
+                ))}
+                 {performanceData.artists.length === 0 && (
+                    <div className="md:col-span-2 lg:col-span-3 text-center p-10 bg-zinc-900/50 rounded-xl border border-zinc-800">
+                        <p className="text-zinc-500">No artist performance data to display.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
