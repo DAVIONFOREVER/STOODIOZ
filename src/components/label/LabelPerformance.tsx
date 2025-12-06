@@ -114,6 +114,14 @@ const LabelPerformance: React.FC = () => {
         return <div className="text-center text-red-400 p-10">{error}</div>;
     }
 
+    if (!loading && performance.length === 0) {
+        return (
+            <div className="cardSurface p-10 text-center text-zinc-500">
+                No performance data yet. Stats will appear here after your roster completes bookings.
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8 animate-fade-in">
             <h1 className="text-3xl font-extrabold text-zinc-100">Roster Performance</h1>
@@ -145,42 +153,36 @@ const LabelPerformance: React.FC = () => {
             {/* Artist Grid */}
             <div className="cardSurface overflow-hidden">
                 <h3 className="text-xl font-bold text-zinc-100 p-6">Artist Breakdown</h3>
-                {performance.length === 0 ? (
-                    <p className="text-zinc-500 p-6 pt-0 text-center">
-                       No performance data available yet.
-                    </p>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-zinc-800/50 text-zinc-400 uppercase text-xs">
-                                <tr>
-                                    <th className="px-6 py-3">Artist</th>
-                                    <th className="px-6 py-3 text-center">Total Sessions</th>
-                                    <th className="px-6 py-3 text-center">Completed</th>
-                                    <th className="px-6 py-3 text-center">Avg Cost</th>
-                                    <th className="px-6 py-3 text-center">Trend</th>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-zinc-800/50 text-zinc-400 uppercase text-xs">
+                            <tr>
+                                <th className="px-6 py-3">Artist</th>
+                                <th className="px-6 py-3 text-center">Total Sessions</th>
+                                <th className="px-6 py-3 text-center">Completed</th>
+                                <th className="px-6 py-3 text-center">Avg Cost</th>
+                                <th className="px-6 py-3 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800 text-zinc-300">
+                            {performance.map((artist: any) => (
+                                <tr key={artist.artist_id} className="hover:bg-zinc-800/40">
+                                    <td className="px-6 py-4 font-medium text-zinc-100">{artist.artist_name}</td>
+                                    <td className="px-6 py-4 text-center font-semibold">{artist.total_sessions}</td>
+                                    <td className="px-6 py-4 text-center font-semibold text-green-400">{artist.completed_sessions}</td>
+                                    <td className="px-6 py-4 text-center font-mono">${Number(artist.avg_cost).toFixed(2)}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        {artist.completed_sessions > 0 ? (
+                                            <span className="text-green-400 font-bold">Active</span>
+                                        ) : (
+                                            <span className="text-zinc-500">No Data</span>
+                                        )}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-800 text-zinc-300">
-                                {performance.map((artist: any) => (
-                                    <tr key={artist.artist_id} className="hover:bg-zinc-800/40">
-                                        <td className="px-6 py-4 font-medium text-zinc-100">{artist.artist_name}</td>
-                                        <td className="px-6 py-4 text-center font-semibold">{artist.total_sessions}</td>
-                                        <td className="px-6 py-4 text-center font-semibold text-green-400">{artist.completed_sessions}</td>
-                                        <td className="px-6 py-4 text-center font-mono">${Number(artist.avg_cost).toFixed(2)}</td>
-                                        <td className="px-6 py-4 text-center">
-                                            {artist.completed_sessions > 0 ? (
-                                                <span className="text-green-400 font-bold">Active</span>
-                                            ) : (
-                                                <span className="text-zinc-500">No Data</span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
              {/* Chart Placeholder */}
