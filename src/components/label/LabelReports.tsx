@@ -15,7 +15,7 @@ const ReportCard: React.FC<{ title: string; description: string; icon: React.Rea
         <h3 className="text-lg font-bold text-zinc-100 mb-2">{title}</h3>
         <p className="text-sm text-zinc-400 flex-grow">{description}</p>
         <button 
-            onClick={() => onExport('default')}
+            onClick={() => onExport('csv')}
             className="mt-6 w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
         >
             <DownloadIcon className="w-4 h-4" /> Quick Export
@@ -25,7 +25,7 @@ const ReportCard: React.FC<{ title: string; description: string; icon: React.Rea
 
 const LabelReports: React.FC = () => {
     const handleExport = (reportName: string) => (type: string) => {
-        alert(`Exporting ${reportName} as ${type.toUpperCase()}... (UI Only)`);
+        alert(`UI-Only: Exporting ${reportName} as ${type.toUpperCase()}...`);
     };
 
     return (

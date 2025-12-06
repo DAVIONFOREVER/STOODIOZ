@@ -8,17 +8,15 @@ const LabelMessaging: React.FC = () => {
     const handleSend = (e: React.FormEvent) => {
         e.preventDefault();
         if(!message.trim()) return;
-        alert(`Announcement sent to ${recipient === 'all' ? 'all active roster members' : recipient}`);
+        alert(`UI-Only: Announcement sent to ${recipient === 'all' ? 'all active roster members' : recipient}`);
         setMessage('');
     };
 
     return (
         <div className="max-w-4xl mx-auto p-6 animate-fade-in pb-24">
-            <div className="flex items-center gap-3 mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-zinc-100">Roster Announcements</h1>
-                    <p className="text-zinc-400 text-sm">Send broadcasts to your entire label or specific groups.</p>
-                </div>
+            <div className="mb-6">
+                <h1 className="text-3xl font-bold text-zinc-100">Roster Announcements</h1>
+                <p className="text-zinc-400 text-sm">Send broadcasts to your entire label or specific groups.</p>
             </div>
 
             <div className="cardSurface p-6">

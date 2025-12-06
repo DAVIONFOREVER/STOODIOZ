@@ -19,7 +19,6 @@ const LabelPolicies: React.FC = () => {
     const [allowRemote, setAllowRemote] = useState(true);
     const [allowInPerson, setAllowInPerson] = useState(true);
     const [allowWeekends, setAllowWeekends] = useState(false);
-    const [requireApproval, setRequireApproval] = useState(true);
     const [minDuration, setMinDuration] = useState(2);
     const [maxDuration, setMaxDuration] = useState(8);
 
@@ -29,28 +28,23 @@ const LabelPolicies: React.FC = () => {
             <div className="cardSurface p-6 space-y-4">
                 <ToggleCard 
                     label="Allow Remote Sessions" 
-                    description="Enable artists to book remote mixing and production services." 
+                    description="Permit artists to book remote-only services like mixing." 
                     checked={allowRemote} 
                     onChange={setAllowRemote} 
                 />
                 <ToggleCard 
                     label="Allow In-Person Sessions" 
-                    description="Enable bookings for physical studio time." 
+                    description="Permit bookings for physical studio time." 
                     checked={allowInPerson} 
                     onChange={setAllowInPerson} 
                 />
                 <ToggleCard 
-                    label="Enable Weekend Bookings" 
-                    description="Allow sessions to be scheduled on Saturdays and Sundays." 
+                    label="Allow Weekend Bookings" 
+                    description="Permit sessions to be scheduled on Saturdays and Sundays." 
                     checked={allowWeekends} 
                     onChange={setAllowWeekends} 
                 />
-                 <ToggleCard 
-                    label="Require Manager Approval" 
-                    description="All bookings must be approved by a label admin before confirmation." 
-                    checked={requireApproval} 
-                    onChange={setRequireApproval} 
-                />
+
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-800">
                      <div>
                         <label className="block text-sm font-medium text-zinc-400 mb-1">Min Session Duration (hours)</label>
