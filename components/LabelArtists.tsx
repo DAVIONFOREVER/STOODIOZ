@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon, FireIcon, ShieldCheckIcon, PhotoIcon, MusicNoteIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
@@ -86,14 +85,12 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
     // --- Analytics (calculated from real data) ---
     const stats = useMemo(() => {
         const totalArtists = roster.length;
-        // Mocking advanced stats for now as they aren't on the Artist type yet
-        const totalMonthlyListeners = roster.reduce((acc, curr) => acc + (curr.monthly_listeners || 0), 0);
+        // FIX: Removed reference to non-existent property 'monthly_listeners'.
         const totalBookings = roster.reduce((acc, curr) => acc + (curr.sessions_completed || 0), 0);
         const avgEngagement = 'N/A'; 
 
         return {
             totalArtists,
-            totalMonthlyListeners: totalMonthlyListeners.toLocaleString(),
             totalBookings,
             avgEngagement
         };
@@ -132,9 +129,8 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
             </div>
 
             {/* SECTION A: Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <StatCard label="Total Artists" value={stats.totalArtists.toString()} icon={<UsersIcon className="w-6 h-6" />} />
-                <StatCard label="Total Listeners" value={stats.totalMonthlyListeners} icon={<ChartBarIcon className="w-6 h-6" />} />
                 <StatCard label="Completed Sessions" value={stats.totalBookings.toString()} icon={<CalendarIcon className="w-6 h-6" />} />
                 <StatCard label="Avg. Engagement" value={stats.avgEngagement} icon={<HeartIcon className="w-6 h-6" />} />
             </div>
@@ -196,7 +192,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                                 <button 
                                     onClick={() => handleRemoveArtist(artist.roster_id, artist.is_pending ? undefined : artist.id)}
                                     className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-colors"
-                                    title="Remove Artist"
+                                    title="Remove from Roster"
                                 >
                                     <TrashIcon className="w-5 h-5" />
                                 </button>
