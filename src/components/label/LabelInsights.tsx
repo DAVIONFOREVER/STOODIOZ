@@ -1,6 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { useAppState } from '../../contexts/AppContext';
-// FIX: Changed fetchRosterActivity to getRosterActivity as it is the correct exported member.
 import { fetchLabelPerformance, getRosterActivity } from '../../services/apiService';
 import { ChartBarIcon, UsersIcon, DollarSignIcon, TrendingUpIcon } from '../icons';
 
@@ -19,7 +18,7 @@ const InsightCard: React.FC<{ title: string; description: string | React.ReactNo
             </div>
             <h3 className="text-lg font-bold text-zinc-100">{title}</h3>
         </div>
-        <p className="text-zinc-400 text-sm leading-relaxed">{description}</p>
+        <div className="text-zinc-400 text-sm leading-relaxed">{description}</div>
     </div>
 );
 
@@ -48,7 +47,6 @@ const LabelInsights: React.FC = () => {
             setLoading(true);
 
             const perf = await fetchLabelPerformance(currentUser.id);
-            // FIX: Changed fetchRosterActivity to getRosterActivity to match the imported function name.
             const act = await getRosterActivity(currentUser.id);
 
             setPerformance(perf || []);
@@ -58,24 +56,27 @@ const LabelInsights: React.FC = () => {
         load();
     }, [currentUser?.id]);
 
-    const mostActive = useMemo(() => performance.length > 0 ? performance.reduce((max, a) => a.total_sessions > max.total_sessions ? a : max) : null, [performance]);
+    const mostSessions = useMemo(() => performance.length > 0 ? performance.reduce((max, a) => (a.total_sessions || 0) > (max.total_sessions || 0) ? a : max, performance[0]) : null, [performance]);
     
-    const leastActive = useMemo(() => performance.length > 0 ? performance.reduce((min, a) => a.total_sessions < min.total_sessions ? a : min) : null, [performance]);
+    const highestCost = useMemo(() => performance.length > 0 ? performance.reduce((max, a) => (a.avg_cost || 0) > (max.avg_cost || 0) ? a : max, performance[0]) : null, [performance]);
 
     const bestCompletionRate = useMemo(() => {
         if (performance.length === 0) return null;
         return performance.reduce((best, a) => {
-            const rate = a.completed_sessions / (a.total_sessions || 1);
-            const bestRate = best.rate || 0;
-            return rate > bestRate ? { ...a, rate } : best;
-        }, { artist_name: '', rate: 0 });
+            const currentRate = (a.completed_sessions || 0) / (a.total_sessions || 1);
+            const bestRate = (best.completed_sessions || 0) / (best.total_sessions || 1);
+            return currentRate > bestRate ? a : best;
+        }, performance[0]);
     }, [performance]);
     
-    const avgCost = useMemo(() => {
-        const costs = performance.map(a => Number(a.avg_cost || 0)).filter(c => c > 0);
-        if (costs.length === 0) return 0;
-        return costs.reduce((a, b) => a + b) / costs.length;
-    }, [performance]);
+    const lowActivity = useMemo(() => performance.filter(a => (a.total_sessions || 0) < 5), [performance]);
+    
+    const insights = [
+      mostSessions ? `${mostSessions.artist_name} is the most active artist with ${mostSessions.total_sessions} total sessions.` : null,
+      highestCost ? `${highestCost.artist_name} has the highest average session cost at $${Number(highestCost.avg_cost).toFixed(2)}.` : null,
+      bestCompletionRate ? `${bestCompletionRate.artist_name} has the strongest completion rate at ${Math.round(((bestCompletionRate.completed_sessions || 0) / (bestCompletionRate.total_sessions || 1)) * 100)}%.` : null,
+      lowActivity.length > 0 ? `${lowActivity.length} artists show low activity (<5 sessions). Consider A&R review.` : null,
+    ].filter(Boolean);
 
     const improving = useMemo(() => {
         if (activity.length === 0) return [];
@@ -95,13 +96,12 @@ const LabelInsights: React.FC = () => {
             .map(act => ({ ...act, artist_name: performance.find(p => p.artist_id === act.user_id)?.artist_name || '...' }));
     }, [activity, performance]);
 
-
     if (loading) return <p className='text-zinc-400 p-10 text-center'>Loading insights...</p>;
 
     if (performance.length === 0) return (
-        <div className='p-10 text-center text-zinc-500 cardSurface'>
-            No performance data yet. Insights will appear after your roster completes some sessions.
-        </div>
+       <div className='p-10 text-center text-zinc-500 cardSurface'>
+           No performance data yet. Insights will appear after your roster completes some sessions.
+       </div>
     );
 
     return (
@@ -110,42 +110,14 @@ const LabelInsights: React.FC = () => {
             <p className="text-zinc-400 mb-6">AI-style recommendations and data-driven observations.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <InsightCard
-                    title="Highest Session Count"
-                    description={
-                        <>
-                            <span className="font-bold text-white">{mostActive?.artist_name || 'N/A'}</span> leads with <span className="font-bold text-white">{mostActive?.total_sessions || 0}</span> sessions.
-                        </>
-                    }
-                    icon={<TrendingUpIcon className="w-6 h-6 text-green-400" />}
-                />
-                <InsightCard
-                    title="Lowest Session Count"
-                    description={
-                        <>
-                            <span className="font-bold text-white">{leastActive?.artist_name || 'N/A'}</span> has the fewest sessions with <span className="font-bold text-white">{leastActive?.total_sessions || 0}</span>.
-                        </>
-                    }
-                    icon={<TrendingDownIcon className="w-6 h-6 text-red-400" />}
-                />
-                <InsightCard
-                    title="Most Efficient"
-                    description={
-                        <>
-                            <span className="font-bold text-white">{bestCompletionRate?.artist_name || 'N/A'}</span> has the best completion rate at <span className="font-bold text-white">{((bestCompletionRate?.rate || 0) * 100).toFixed(0)}%</span>.
-                        </>
-                    }
-                    icon={<UsersIcon className="w-6 h-6 text-blue-400" />}
-                />
-                <InsightCard
-                    title="Average Session Cost"
-                    description={
-                        <>
-                            The average session cost across all active artists is <span className="font-bold text-white">${avgCost.toFixed(2)}</span>.
-                        </>
-                    }
-                    icon={<DollarSignIcon className="w-6 h-6 text-purple-400" />}
-                />
+                {insights.map((text, i) => (
+                    <InsightCard 
+                        key={i}
+                        title={`Insight #${i + 1}`}
+                        description={text}
+                        icon={<ChartBarIcon className="w-6 h-6 text-orange-400" />}
+                    />
+                ))}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-zinc-800">
