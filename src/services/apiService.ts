@@ -1419,18 +1419,17 @@ export const removeArtistFromLabelRoster = async (labelId: string, rosterId: str
 
 export async function fetchLabelPerformance(labelId: string) {
     const supabase = getSupabase();
-    if (!supabase || !labelId) return [];
+    if (!supabase) return [];
 
     const { data, error } = await supabase
-        .from("label_artist_performance")
-        .select("*")
-        .eq("label_id", labelId);
+        .from('label_artist_performance')
+        .select('*')
+        .eq('label_id', labelId);
 
     if (error) {
         console.error("fetchLabelPerformance error:", error);
         return [];
     }
-
     return data || [];
 }
 
