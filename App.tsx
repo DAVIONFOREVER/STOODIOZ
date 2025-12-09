@@ -1,6 +1,6 @@
 
-import React, { useEffect, lazy, Suspense, useCallback } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
+import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label, BaseUser } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
@@ -94,6 +94,21 @@ const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     );
 };
 
+const normalizeUserProfile = (profile: any): any => {
+    if (!profile) return null;
+    const p = profile as { [key: string]: any };
+    return {
+        ...p,
+        imageUrl: p.image_url,
+        companyName: p.company_name,
+        contactPhone: p.contact_phone,
+        walletBalance: p.wallet_balance,
+        sessionsCompleted: p.sessions_completed,
+        rankingTier: p.ranking_tier,
+        followerIds: p.follower_ids,
+    };
+};
+
 const App: React.FC = () => {
     const state = useAppState();
     const dispatch = useAppDispatch();
@@ -108,6 +123,8 @@ const App: React.FC = () => {
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
+    
+    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
     
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
@@ -126,15 +143,13 @@ const App: React.FC = () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
         try {
-            if (role === UserRole.LABEL) {
-                // The userData object comes in with snake_case from the LABEL_SETUP case.
-                // The createUser function expects camelCase. We must map it here to fix the broken flow.
+             if (role === UserRole.LABEL) {
                 userData = {
                     ...userData,
                     bio: userData.bio || "",
-                    companyName: userData.company_name || null, // Map snake_case to camelCase
+                    company_name: userData.company_name || userData.companyName || null,
                     website: userData.website || null,
-                    contactPhone: userData.contact_phone || null, // Map snake_case to camelCase
+                    contact_phone: userData.contact_phone || userData.contactPhone || null,
                     image_url: userData.image_url || null
                 };
             }
@@ -165,7 +180,6 @@ const App: React.FC = () => {
             }
             
             alert(`Setup failed:\n${errorMessage}`);
-            // Re-throw to be caught by component-level state
             throw error;
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
@@ -198,10 +212,23 @@ const App: React.FC = () => {
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
+        const path = window.location.pathname;
+        if (path.startsWith('/claim/')) {
+            const pathParts = path.split('/');
+            const token = pathParts[2];
+            if (token) {
+                setClaimToken(token);
+                if (path.includes('/confirm')) {
+                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
+                } else {
+                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
+                }
+            }
+        }
+
         const supabase = getSupabase();
         if (!supabase) return;
 
-        // Fetch Global Directory
         const fetchDirectory = async () => {
             const directory = await apiService.getAllPublicUsers();
             dispatch({ 
@@ -212,96 +239,76 @@ const App: React.FC = () => {
                     producers: directory.producers,
                     stoodioz: directory.stoodioz,
                     labels: directory.labels,
-                    reviews: [] // Fetch reviews later if needed
+                    reviews: [] 
                 }
             });
         };
         
         fetchDirectory();
+        
+        const fetchUserProfile = async (userId: string) => {
+            const tables = [
+                { name: 'artists', role: UserRole.ARTIST },
+                { name: 'engineers', role: UserRole.ENGINEER },
+                { name: 'producers', role: UserRole.PRODUCER },
+                { name: 'stoodioz', role: UserRole.STOODIO },
+                { name: 'labels', role: UserRole.LABEL }
+            ];
 
-        // Helper to fetch and hydrate CURRENT logged-in user profile data
-        const fetchAndHydrateUser = async (userId: string) => {
+            for (const table of tables) {
+                const { data } = await supabase
+                    .from(table.name)
+                    .select('*')
+                    .eq('id', userId)
+                    .maybeSingle();
+                
+                if (data) {
+                    const normalizedProfile = normalizeUserProfile(data);
+                    return { profile: normalizedProfile, role: table.role };
+                }
+            }
+            return null;
+        };
+
+        const hydrateUser = async (userId: string) => {
             if (!currentUser) {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             }
-
-            const fetchProfiles = async () => {
-                // Check all tables to find where this user exists.
-                const tableMap = {
-                    stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
-                    producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
-                    engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
-                    artists: { query: '*', role: UserRoleEnum.ARTIST },
-                    labels: { 
-                        query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier',
-                        role: UserRoleEnum.LABEL 
-                    },
-                };
-                
-                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
-                    try {
-                        const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
-                        
-                        if (error) {
-                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
-                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                             
-                             if (!basicError && basicData) {
-                                 return { data: basicData, role: config.role };
-                             }
-                             return null;
-                        }
-                        return data ? { data, role: config.role } : null;
-                    } catch (e) {
-                        console.warn(`Hydration error for ${tableName}:`, e);
-                        return null;
-                    }
-                });
-                
-                const idResults = await Promise.all(idPromises);
-                const found = idResults.find(result => result !== null);
-                
-                return found;
-            };
-            
             try {
-                let userProfileResult = await fetchProfiles();
-                
-                // Retry logic for race conditions on signup
-                if (!userProfileResult) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        userProfileResult = await fetchProfiles();
+                let result = await fetchUserProfile(userId);
+                // Retry for race conditions on signup
+                if (!result) {
+                    await new Promise(resolve => setTimeout(resolve, 1200));
+                    result = await fetchUserProfile(userId);
                 }
 
-                if (userProfileResult && userProfileResult.data) {
+                if (result?.profile) {
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
                         payload: { 
-                            user: userProfileResult.data as any,
-                            role: userProfileResult.role 
+                            user: result.profile,
+                            role: result.role 
                         } 
                     });
                 } else {
-                    // CRITICAL FIX: If we authenticated but found no profile, we MUST tell the user
-                    console.error("User authenticated but profile not found in any table.");
-                    dispatch({ 
+                     console.error("User authenticated but profile not found.");
+                     dispatch({ 
                         type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
+                        payload: { error: "Your profile data could not be loaded. Please try again." } 
                     });
                 }
             } catch (error) {
-                console.error("Error hydrating user profile:", error);
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
+                 console.error("Error hydrating user:", error);
+                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
             } finally {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
 
-        // 1. Immediate Session Check on Mount (Fixes Refresh Logout)
         const initSession = async () => {
             const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
-                await fetchAndHydrateUser(session.user.id);
+                await hydrateUser(session.user.id);
             } else {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -309,14 +316,12 @@ const App: React.FC = () => {
         
         initSession();
 
-        // 2. Listen for Auth Changes (Login, Logout, etc.)
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
             } else if (event === 'SIGNED_IN' && session?.user) {
-                // Only fetch if current user is not set or different
                 if (!currentUser || currentUser.id !== session.user.id) {
-                    await fetchAndHydrateUser(session.user.id);
+                    await hydrateUser(session.user.id);
                 }
             }
         });
@@ -325,6 +330,12 @@ const App: React.FC = () => {
             subscription?.unsubscribe();
         };
     }, [dispatch]); 
+
+    useEffect(() => {
+        if (currentUser && localStorage.getItem('pending_claim_token')) {
+            dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
+        }
+    }, [currentUser, dispatch]);
 
     useEffect(() => {
         let timerId: number;
@@ -499,7 +510,6 @@ return (
                 </Suspense>
             </main>
 
-            {/* Permission Error Modal for Messaging */}
             {permissionError && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
                     <div className="bg-zinc-900 p-6 rounded-xl max-w-md w-full text-center border border-zinc-700 animate-fade-in">
@@ -561,7 +571,6 @@ return (
                 </Suspense>
             )}
 
-            {/* Global UI Elements */}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
              {isAriaCantataOpen && (
                 <Suspense fallback={<div />}>
