@@ -266,18 +266,21 @@ const App: React.FC = () => {
             try {
                 let result = await fetchUserProfile(userId);
 
-                if (result?.profile) {
-                    dispatch({ 
-                        type: ActionTypes.LOGIN_SUCCESS, 
-                        payload: { 
-                            user: result.profile as any,
-                            role: result.role 
-                        } 
-                    });
-                } else {
-                     console.warn("User authenticated but profile not found. Forcing logout.");
-                     // This prevents the infinite spinner for users who exist in auth but not in public tables.
-                     await logout();
+                        if (result?.profile) {
+            dispatch({ 
+                type: ActionTypes.LOGIN_SUCCESS, 
+                payload: { 
+                    user: result.profile as any,
+                    role: result.role 
+                } 
+            });
+        } else {
+            console.warn(
+                "User authenticated but profile not found in public tables. Skipping auto-logout."
+            );
+            return; // DO NOT LOG OUT
+        }
+
                 }
             } catch (error) {
                  console.error("Error hydrating user:", error);

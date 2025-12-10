@@ -11,28 +11,30 @@ export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
-        dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
+    dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
+    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
-        const supabase = getSupabase();
-        if (!supabase) {
-             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
-             return;
-        }
+    const supabase = getSupabase();
+    if (!supabase) {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
+        return;
+    }
 
-        const { data, error } = await (supabase.auth as any).signInWithPassword({
-            email,
-            password,
-        });
-    
-        if (error) {
-            dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
-            return;
-        }
-    
-        // Successful Supabase login, but hydration will be handled by onAuthStateChange in App.tsx
-        // This prevents race conditions and ensures profile data is fully loaded before navigating.
-    
-    }, [dispatch, navigate]);
+    const { data, error } = await (supabase.auth as any).signInWithPassword({
+        email,
+        password,
+    });
+
+    if (error) {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
+        return;
+    }
+
+    // Hydration handled by App.tsx onAuthStateChange()
+}, [dispatch, navigate]);
+
 
     const logout = useCallback(async () => {
         // 1. Navigate to a safe, public view immediately to unmount protected components.
