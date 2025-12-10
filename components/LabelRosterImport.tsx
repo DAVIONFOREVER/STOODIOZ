@@ -27,8 +27,8 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId, onAdded,
 
         setLoading(true);
         try {
-            // FIX: Corrected function name from 'addArtistToLabelRoster' to 'addArtistToRoster'.
-            await apiService.addArtistToRoster({
+            // FIX: Corrected function name from 'addArtistToRoster' to 'addArtistToLabelRoster'.
+            await apiService.addArtistToLabelRoster({
                 labelId,
                 email: email.trim() || undefined,
                 artistId: artistId.trim() || undefined,

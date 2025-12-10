@@ -106,8 +106,8 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         if (!currentUser) return;
         if (window.confirm("Are you sure you want to remove this member from your roster?")) {
             try {
-                // FIX: Corrected function name from 'removeArtistFromLabelRoster' to 'removeArtistFromRoster'.
-                await apiService.removeArtistFromRoster(currentUser.id, rosterId, artistId);
+                // FIX: Corrected function name from 'removeArtistFromRoster' to 'removeArtistFromLabelRoster'.
+                await apiService.removeArtistFromLabelRoster(currentUser.id, rosterId, artistId);
                 setRoster(prev => prev.filter(m => m.roster_id !== rosterId));
                  if (selectedArtist?.id === artistId) setSelectedArtist(null);
             } catch (e) {

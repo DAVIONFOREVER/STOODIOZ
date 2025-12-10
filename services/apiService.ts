@@ -188,8 +188,8 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
             email: userData.email,
             image_url: imageUrl,
             bio: userData.bio,
-            company_name: userData.company_name || userData.companyName || null,
-            contact_phone: userData.contact_phone || userData.contactPhone || null,
+            company_name: userData.company_name || null,
+            contact_phone: userData.contact_phone || null,
             website: userData.website || null,
             wallet_balance: 0,
             wallet_transactions: [],
@@ -1227,8 +1227,7 @@ export const deleteMixingSample = async (sampleId: string) => {
 
 // --- LABEL ROSTER MANAGEMENT ---
 
-// FIX: Rename fetchLabelRoster to fetchRoster to match hint, and add back alias for compatibility.
-export const fetchRoster = async (labelId: string): Promise<RosterMember[]> => {
+export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
@@ -1396,8 +1395,7 @@ export const createShadowProfile = async (
     return { profileId: shadowId, roleId: shadowId };
 };
 
-// FIX: Rename addArtistToLabelRoster to addArtistToRoster
-export const addArtistToRoster = async (params: { labelId: string, artistId?: string, email?: string, role?: string }) => {
+export const addArtistToLabelRoster = async (params: { labelId: string, artistId?: string, email?: string, role?: string }) => {
     const supabase = getSupabase();
     if (!supabase) return null;
 
@@ -1433,8 +1431,7 @@ export const addArtistToRoster = async (params: { labelId: string, artistId?: st
     return data;
 };
 
-// FIX: Rename removeArtistFromLabelRoster to removeArtistFromRoster
-export const removeArtistFromRoster = async (labelId: string, rosterId: string, artistId?: string) => {
+export const removeArtistFromLabelRoster = async (labelId: string, rosterId: string, artistId?: string) => {
     const supabase = getSupabase();
     if (!supabase) return false;
 
@@ -1490,8 +1487,6 @@ export const getRosterActivity = async (labelId: string) => {
 
     return data || [];
 };
-
-export const fetchLabelRoster = fetchRoster;
 
 const getTableNameFromRole = (role: UserRole | null): string | null => {
     if (!role) return null;
