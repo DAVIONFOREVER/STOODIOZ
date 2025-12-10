@@ -160,7 +160,7 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         return { email_confirmation_required: true };
     }
 
-    let imageUrl = USER_SILHOUETTE_URL;
+    let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
     if (userData.imageFile && authUser) {
         try {
             // Using a more specific path for label logos
