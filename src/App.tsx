@@ -1,6 +1,6 @@
 
 import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label, BaseUser } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
@@ -62,7 +62,7 @@ const StoodioSetup = lazy(() => import('./components/StoodioSetup.tsx'));
 const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
-const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx'));
+const LabelRosterImport = lazy(() => import('./pages/LabelRosterImport.tsx'));
 const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
 const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
 const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
@@ -103,7 +103,7 @@ const App: React.FC = () => {
     const state = useAppState();
     const dispatch = useAppDispatch();
     const { 
-        history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
+        history, historyIndex, currentUser, userRole, loginError,
         latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
@@ -133,6 +133,16 @@ const App: React.FC = () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
         try {
+             if (role === UserRole.LABEL) {
+                userData = {
+                    ...userData,
+                    bio: userData.bio || "",
+                    company_name: userData.company_name || userData.companyName || null,
+                    website: userData.website || null,
+                    contact_phone: userData.contact_phone || userData.contactPhone || null,
+                    image_url: userData.image_url || null
+                };
+            }
             const result = await apiService.createUser(userData, role);
 
             if (result && 'email_confirmation_required' in result) {
@@ -154,8 +164,14 @@ const App: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
-            let errorMessage = error.message || "Unknown error";
+            
+            let errorMessage = "An unknown error occurred during setup.";
+            if (error && typeof error.message === 'string') {
+                errorMessage = error.message;
+            }
+            
             alert(`Setup failed:\n${errorMessage}`);
+            throw error;
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
@@ -187,7 +203,6 @@ const App: React.FC = () => {
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
-        // 1. Handle Token Routes (e.g., invites)
         const path = window.location.pathname;
         if (path.startsWith('/claim/')) {
             const pathParts = path.split('/');
@@ -205,7 +220,6 @@ const App: React.FC = () => {
         const supabase = getSupabase();
         if (!supabase) return;
 
-        // Fetch Global Directory
         const fetchDirectory = async () => {
             const directory = await apiService.getAllPublicUsers();
             dispatch({ 
@@ -223,73 +237,59 @@ const App: React.FC = () => {
         
         fetchDirectory();
 
-        const fetchAndHydrateUser = async (userId: string) => {
+        const fetchUserProfile = async (userId: string) => {
+            const tables = [
+                { name: 'artists', role: UserRole.ARTIST, query: '*' },
+                { name: 'engineers', role: UserRole.ENGINEER, query: '*, mixing_samples(*)' },
+                { name: 'producers', role: UserRole.PRODUCER, query: '*, instrumentals(*)' },
+                { name: 'stoodioz', role: UserRole.STOODIO, query: '*, rooms(*), in_house_engineers(*)' },
+                { name: 'labels', role: UserRole.LABEL, query: 'id, name, bio, image_url, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier' }
+            ];
+
+            for (const table of tables) {
+                try {
+                    const { data } = await supabase.from(table.name).select(table.query).eq('id', userId).maybeSingle();
+                    if (data) {
+                        return { profile: data, role: table.role };
+                    }
+                } catch (e) {
+                    console.warn(`Could not query ${table.name}`);
+                }
+            }
+            return null;
+        };
+
+        const hydrateUser = async (userId: string) => {
             if (!currentUser) {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             }
-
-            const fetchProfiles = async () => {
-                const tableMap = {
-                    stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
-                    producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
-                    engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
-                    artists: { query: '*', role: UserRoleEnum.ARTIST },
-                    labels: { query: '*', role: UserRoleEnum.LABEL },
-                };
-                
-                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
-                    try {
-                        const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
-                        
-                        if (error) {
-                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                             if (!basicError && basicData) return { data: basicData, role: config.role };
-                             return null;
-                        }
-                        return data ? { data, role: config.role } : null;
-                    } catch (e) {
-                        return null;
-                    }
-                });
-                
-                const idResults = await Promise.all(idPromises);
-                return idResults.find(result => result !== null);
-            };
-            
             try {
-                let userProfileResult = await fetchProfiles();
-                
-                if (!userProfileResult) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        userProfileResult = await fetchProfiles();
-                }
+                let result = await fetchUserProfile(userId);
 
-                if (userProfileResult && userProfileResult.data) {
+                if (result?.profile) {
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
                         payload: { 
-                            user: userProfileResult.data as any,
-                            role: userProfileResult.role 
+                            user: result.profile as any,
+                            role: result.role 
                         } 
                     });
                 } else {
-                    dispatch({ 
-                        type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Login successful, but your profile data could not be found." } 
-                    });
+                     console.warn("User authenticated but profile not found. Forcing logout.");
+                     await logout();
                 }
             } catch (error) {
-                console.error("Error hydrating user profile:", error);
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
+                 console.error("Error hydrating user:", error);
+                 await logout();
             } finally {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
 
         const initSession = async () => {
             const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
-                await fetchAndHydrateUser(session.user.id);
+                await hydrateUser(session.user.id);
             } else {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -299,10 +299,10 @@ const App: React.FC = () => {
 
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
-                dispatch({ type: ActionTypes.LOGOUT });
+                // This is now handled by the logout hook for consistency
             } else if (event === 'SIGNED_IN' && session?.user) {
                 if (!currentUser || currentUser.id !== session.user.id) {
-                    await fetchAndHydrateUser(session.user.id);
+                    await hydrateUser(session.user.id);
                 }
             }
         });
@@ -312,7 +312,6 @@ const App: React.FC = () => {
         };
     }, [dispatch]); 
 
-    // Post-Login Redirect for Claim Flow
     useEffect(() => {
         if (currentUser && localStorage.getItem('pending_claim_token')) {
             dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
@@ -373,7 +372,8 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.LABEL)} onNavigate={navigate} />;
+                // FIX: Pass a lambda to onCompleteSetup to correctly call completeSetup with the role.
+                return <LabelSetup onCompleteSetup={(data) => completeSetup(data, UserRole.LABEL)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -507,9 +507,9 @@ const App: React.FC = () => {
             {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
             {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
             {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.wallet_balance} />}
-            {isMixingModalOpen && (selectedEngineer || bookingIntent?.engineer) && 
+            {isMixingModalOpen && (state.selectedEngineer || bookingIntent?.engineer) && 
                 <MixingRequestModal 
-                    engineer={selectedEngineer || bookingIntent!.engineer!} 
+                    engineer={state.selectedEngineer || bookingIntent!.engineer!} 
                     onClose={closeMixingModal} 
                     onConfirm={confirmRemoteMix}
                     onInitiateInStudio={initiateInStudioMix}

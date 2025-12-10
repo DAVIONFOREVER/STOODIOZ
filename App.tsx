@@ -62,6 +62,11 @@ const StoodioSetup = lazy(() => import('./components/StoodioSetup.tsx'));
 const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
+const LabelRosterImport = lazy(() => import('./pages/LabelRosterImport.tsx'));
+const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
+const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
+const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
+const ClaimLabelProfile = lazy(() => import('./components/ClaimLabelProfile.tsx'));
 const Login = lazy(() => import('./components/Login.tsx'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.tsx'));
 const TheStage = lazy(() => import('./components/TheStage.tsx'));
@@ -94,26 +99,11 @@ const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     );
 };
 
-const normalizeUserProfile = (profile: any): any => {
-    if (!profile) return null;
-    const p = profile as { [key: string]: any };
-    return {
-        ...p,
-        imageUrl: p.image_url,
-        companyName: p.company_name,
-        contactPhone: p.contact_phone,
-        walletBalance: p.wallet_balance,
-        sessionsCompleted: p.sessions_completed,
-        rankingTier: p.ranking_tier,
-        followerIds: p.follower_ids,
-    };
-};
-
 const App: React.FC = () => {
     const state = useAppState();
     const dispatch = useAppDispatch();
     const { 
-        history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
+        history, historyIndex, currentUser, userRole, loginError,
         latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
@@ -245,26 +235,24 @@ const App: React.FC = () => {
         };
         
         fetchDirectory();
-        
+
         const fetchUserProfile = async (userId: string) => {
             const tables = [
-                { name: 'artists', role: UserRole.ARTIST },
-                { name: 'engineers', role: UserRole.ENGINEER },
-                { name: 'producers', role: UserRole.PRODUCER },
-                { name: 'stoodioz', role: UserRole.STOODIO },
-                { name: 'labels', role: UserRole.LABEL }
+                { name: 'artists', role: UserRole.ARTIST, query: '*' },
+                { name: 'engineers', role: UserRole.ENGINEER, query: '*, mixing_samples(*)' },
+                { name: 'producers', role: UserRole.PRODUCER, query: '*, instrumentals(*)' },
+                { name: 'stoodioz', role: UserRole.STOODIO, query: '*, rooms(*), in_house_engineers(*)' },
+                { name: 'labels', role: UserRole.LABEL, query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier' }
             ];
 
             for (const table of tables) {
-                const { data } = await supabase
-                    .from(table.name)
-                    .select('*')
-                    .eq('id', userId)
-                    .maybeSingle();
-                
-                if (data) {
-                    const normalizedProfile = normalizeUserProfile(data);
-                    return { profile: normalizedProfile, role: table.role };
+                try {
+                    const { data } = await supabase.from(table.name).select(table.query).eq('id', userId).maybeSingle();
+                    if (data) {
+                        return { profile: data, role: table.role };
+                    }
+                } catch (e) {
+                    console.warn(`Could not query ${table.name}`);
                 }
             }
             return null;
@@ -276,30 +264,23 @@ const App: React.FC = () => {
             }
             try {
                 let result = await fetchUserProfile(userId);
-                // Retry for race conditions on signup
-                if (!result) {
-                    await new Promise(resolve => setTimeout(resolve, 1200));
-                    result = await fetchUserProfile(userId);
-                }
 
                 if (result?.profile) {
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
                         payload: { 
-                            user: result.profile,
+                            user: result.profile as any,
                             role: result.role 
                         } 
                     });
                 } else {
-                     console.error("User authenticated but profile not found.");
-                     dispatch({ 
-                        type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Your profile data could not be loaded. Please try again." } 
-                    });
+                     console.warn("User authenticated but profile not found. Forcing logout.");
+                     // This prevents the infinite spinner for users who exist in auth but not in public tables.
+                     await logout();
                 }
             } catch (error) {
                  console.error("Error hydrating user:", error);
-                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
+                 await logout(); // Force logout on error as well
             } finally {
                  dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -318,7 +299,7 @@ const App: React.FC = () => {
 
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
-                dispatch({ type: ActionTypes.LOGOUT });
+                // This is now handled by the logout hook for consistency
             } else if (event === 'SIGNED_IN' && session?.user) {
                 if (!currentUser || currentUser.id !== session.user.id) {
                     await hydrateUser(session.user.id);
@@ -391,27 +372,7 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
-                return (
-                    <LabelSetup 
-                        onCompleteSetup={(data) =>
-                            completeSetup(
-                                {
-                                    name: data.name,
-                                    bio: data.bio,
-                                    email: data.email,
-                                    password: data.password,
-                                    image_url: null,
-                                    imageFile: data.imageFile,
-                                    company_name: data.companyName,
-                                    contact_phone: data.contactPhone,
-                                    website: data.website
-                                },
-                                UserRole.LABEL
-                            )
-                        }
-                        onNavigate={navigate}
-                    />
-                );
+                return <LabelSetup onCompleteSetup={completeSetup} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -474,6 +435,16 @@ const App: React.FC = () => {
                 return <LabelDashboard />;
             case AppView.LABEL_SCOUTING:
                 return <LabelScouting onNavigate={navigate} />;
+            case AppView.LABEL_IMPORT:
+                return <LabelRosterImport />;
+            case AppView.CLAIM_PROFILE:
+                return <ClaimProfile token={claimToken} />;
+            case AppView.CLAIM_ENTRY:
+                return <ClaimEntryScreen token={claimToken || ''} />;
+            case AppView.CLAIM_CONFIRM:
+                return <ClaimConfirmScreen />;
+            case AppView.CLAIM_LABEL_PROFILE:
+                return <ClaimLabelProfile onNavigate={navigate} />;
             case AppView.ACTIVE_SESSION:
                 return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
             case AppView.ADMIN_RANKINGS:
@@ -487,7 +458,7 @@ const App: React.FC = () => {
         }
     };
     
-return (
+    return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header
                 onNavigate={navigate}
@@ -535,9 +506,9 @@ return (
             {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
             {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
             {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.wallet_balance} />}
-            {isMixingModalOpen && (selectedEngineer || bookingIntent?.engineer) && 
+            {isMixingModalOpen && (state.selectedEngineer || bookingIntent?.engineer) && 
                 <MixingRequestModal 
-                    engineer={selectedEngineer || bookingIntent!.engineer!} 
+                    engineer={state.selectedEngineer || bookingIntent!.engineer!} 
                     onClose={closeMixingModal} 
                     onConfirm={confirmRemoteMix}
                     onInitiateInStudio={initiateInStudioMix}
