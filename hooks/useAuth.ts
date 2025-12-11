@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
+// FIX: Import missing Stoodio type
 import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { UserRole as UserRoleEnum } from '../types';
 import { getSupabase } from '../lib/supabase';
@@ -11,53 +12,142 @@ export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
-    dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
-    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+        dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
-    const supabase = getSupabase();
-    if (!supabase) {
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
-        return;
-    }
+        const supabase = getSupabase();
+        if (!supabase) {
+             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
+             return;
+        }
 
-    const { data, error } = await (supabase.auth as any).signInWithPassword({
-        email,
-        password,
-    });
+        const { data, error } = await (supabase.auth as any).signInWithPassword({
+            email,
+            password,
+        });
+    
+        if (error) {
+            dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
+            return;
+        }
+    
+        // Login successful → find user profile, set user & navigate via dispatch
+        if (data.user) {
+            const userId = data.user.id; // CRITICAL: Use ID, not email, to find the profile
+            
+            const { data: profileRole } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', userId)
+                .single();
 
-    if (error) {
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
-        return;
-    }
+            if (profileRole?.role === 'LABEL') {
+                const { data: labelProfile } = await supabase
+                    .from('labels')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
 
-    // Hydration handled by App.tsx onAuthStateChange()
-}, [dispatch, navigate]);
+                dispatch({
+                    type: ActionTypes.LOGIN_SUCCESS,
+                    payload: { user: labelProfile, role: UserRoleEnum.LABEL }
+                });
 
+                navigate(AppView.LABEL_DASHBOARD);
+                return;
+            }
+            
+            const roleMap: Record<string, UserRole> = {
+                'artists': UserRoleEnum.ARTIST,
+                'engineers': UserRoleEnum.ENGINEER,
+                'producers': UserRoleEnum.PRODUCER,
+                'stoodioz': UserRoleEnum.STOODIO,
+                'labels': UserRoleEnum.LABEL
+            };
+            
+            // Prioritize finding specialized roles first.
+            const tables = ['stoodioz', 'producers', 'engineers', 'artists', 'labels'];
+            
+            let userProfile: Artist | Engineer | Stoodio | Producer | Label | null = null;
+            let detectedRole: UserRole | undefined;
+    
+            for (const table of tables) {
+                // Adjust select query based on table for relational data
+                let selectQuery = '*';
+                if (table === 'stoodioz') selectQuery = '*, rooms(*), in_house_engineers(*)';
+                if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
+                if (table === 'producers') selectQuery = '*, instrumentals(*)';
+
+                // Look up by ID to ensure exact match
+                let { data: profileData, error: profileError } = await supabase
+                    .from(table)
+                    .select(selectQuery)
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
+                if (profileError) {
+                    console.warn(`Complex fetch failed for ${table}, retrying basic...`);
+                    const retry = await supabase
+                        .from(table)
+                        .select('*')
+                        .eq('id', userId)
+                        .maybeSingle();
+                    profileData = retry.data;
+                    profileError = retry.error;
+                }
+
+                if (profileError) {
+                    console.error(`Error finding user profile in ${table}:`, profileError);
+                    continue;
+                }
+
+                if (profileData) {
+                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
+                    userProfile = profileData as unknown as Artist | Engineer | Stoodio | Producer | Label;
+                    detectedRole = roleMap[table];
+                    break; // Stop searching once found
+                }
+            }
+    
+            if (userProfile && detectedRole) {
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile, role: detectedRole } });
+                if ('Notification' in window && Notification.permission !== 'denied') {
+                    Notification.requestPermission();
+                }
+                
+                // Explicitly navigate based on detected role
+                if (detectedRole === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
+                else if (detectedRole === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
+
+            } else {
+                console.warn(`Login successful (Auth ID: ${userId}), but no profile found in public tables.`);
+                // If the user exists in Auth but has no profile, checking "artists" table specifically as a last ditch fallback
+                // or just fail gracefully.
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Login successful, but profile data is missing. Please contact support." } });
+            }
+        } else {
+             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "An unknown error occurred during login." } });
+        }
+    }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // 1. Navigate to a safe, public view immediately to unmount protected components.
-        navigate(AppView.LOGIN);
+        // FIX: Navigate away FIRST to unmount dashboard components that might depend on currentUser.
+        navigate(AppView.LANDING_PAGE);
 
-        // 2. Clear local state and session.
-        // Use a short timeout to allow navigation to complete visually before state is wiped.
+        // Perform cleanup
         setTimeout(async () => {
             try {
                 const supabase = getSupabase();
                 if (supabase) await (supabase.auth as any).signOut();
-                
-                // Clear any session/local storage if used for tokens (Supabase handles its own)
-                localStorage.clear();
-                sessionStorage.clear();
-
             } catch (e) {
                 console.warn("Supabase signout error (ignoring):", e);
             }
             
-            // 3. Dispatch the logout action to reset AppContext.
             dispatch({ type: ActionTypes.LOGOUT });
-        }, 50); // 50ms delay is usually sufficient
+        }, 50);
     }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
@@ -91,9 +181,12 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
 
             if (result) {
+                // Supabase automatically signs the user in after signUp if no verification required,
+                // so we just need to update the application state.
                 const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 
+                // Force navigation based on role
                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);

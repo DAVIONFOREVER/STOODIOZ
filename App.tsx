@@ -1,6 +1,6 @@
 
-import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label, BaseUser } from './types';
+import React, { useEffect, lazy, Suspense, useCallback } from 'react';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
@@ -62,11 +62,6 @@ const StoodioSetup = lazy(() => import('./components/StoodioSetup.tsx'));
 const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
-const LabelRosterImport = lazy(() => import('./pages/LabelRosterImport.tsx'));
-const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
-const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
-const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
-const ClaimLabelProfile = lazy(() => import('./components/ClaimLabelProfile.tsx'));
 const Login = lazy(() => import('./components/Login.tsx'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.tsx'));
 const TheStage = lazy(() => import('./components/TheStage.tsx'));
@@ -103,7 +98,7 @@ const App: React.FC = () => {
     const state = useAppState();
     const dispatch = useAppDispatch();
     const { 
-        history, historyIndex, currentUser, userRole, loginError,
+        history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
         latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
@@ -113,8 +108,6 @@ const App: React.FC = () => {
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
-    
-    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
     
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
@@ -133,13 +126,15 @@ const App: React.FC = () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
         try {
-             if (role === UserRole.LABEL) {
+            if (role === UserRole.LABEL) {
+                // The userData object comes in with snake_case from the LABEL_SETUP case.
+                // The createUser function expects camelCase. We must map it here to fix the broken flow.
                 userData = {
                     ...userData,
                     bio: userData.bio || "",
-                    company_name: userData.company_name || userData.companyName || null,
+                    companyName: userData.company_name || null, // Map snake_case to camelCase
                     website: userData.website || null,
-                    contact_phone: userData.contact_phone || userData.contactPhone || null,
+                    contactPhone: userData.contact_phone || null, // Map snake_case to camelCase
                     image_url: userData.image_url || null
                 };
             }
@@ -170,6 +165,7 @@ const App: React.FC = () => {
             }
             
             alert(`Setup failed:\n${errorMessage}`);
+            // Re-throw to be caught by component-level state
             throw error;
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
@@ -202,23 +198,10 @@ const App: React.FC = () => {
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
-        const path = window.location.pathname;
-        if (path.startsWith('/claim/')) {
-            const pathParts = path.split('/');
-            const token = pathParts[2];
-            if (token) {
-                setClaimToken(token);
-                if (path.includes('/confirm')) {
-                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
-                } else {
-                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
-                }
-            }
-        }
-
         const supabase = getSupabase();
         if (!supabase) return;
 
+        // Fetch Global Directory
         const fetchDirectory = async () => {
             const directory = await apiService.getAllPublicUsers();
             dispatch({ 
@@ -229,67 +212,96 @@ const App: React.FC = () => {
                     producers: directory.producers,
                     stoodioz: directory.stoodioz,
                     labels: directory.labels,
-                    reviews: [] 
+                    reviews: [] // Fetch reviews later if needed
                 }
             });
         };
         
         fetchDirectory();
 
-        const fetchUserProfile = async (userId: string) => {
-            const tables = [
-                { name: 'artists', role: UserRole.ARTIST, query: '*' },
-                { name: 'engineers', role: UserRole.ENGINEER, query: '*, mixing_samples(*)' },
-                { name: 'producers', role: UserRole.PRODUCER, query: '*, instrumentals(*)' },
-                { name: 'stoodioz', role: UserRole.STOODIO, query: '*, rooms(*), in_house_engineers(*)' },
-                { name: 'labels', role: UserRole.LABEL, query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier' }
-            ];
-
-            for (const table of tables) {
-                try {
-                    const { data } = await supabase.from(table.name).select(table.query).eq('id', userId).maybeSingle();
-                    if (data) {
-                        return { profile: data, role: table.role };
-                    }
-                } catch (e) {
-                    console.warn(`Could not query ${table.name}`);
-                }
-            }
-            return null;
-        };
-
-        const hydrateUser = async (userId: string) => {
+        // Helper to fetch and hydrate CURRENT logged-in user profile data
+        const fetchAndHydrateUser = async (userId: string) => {
             if (!currentUser) {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             }
-            try {
-                let result = await fetchUserProfile(userId);
 
-                if (result?.profile) {
+            const fetchProfiles = async () => {
+                // Check all tables to find where this user exists.
+                const tableMap = {
+                    stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
+                    producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
+                    engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
+                    artists: { query: '*', role: UserRoleEnum.ARTIST },
+                    labels: { 
+                        query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier',
+                        role: UserRoleEnum.LABEL 
+                    },
+                };
+                
+                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
+                    try {
+                        const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
+                        
+                        if (error) {
+                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
+                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
+                             
+                             if (!basicError && basicData) {
+                                 return { data: basicData, role: config.role };
+                             }
+                             return null;
+                        }
+                        return data ? { data, role: config.role } : null;
+                    } catch (e) {
+                        console.warn(`Hydration error for ${tableName}:`, e);
+                        return null;
+                    }
+                });
+                
+                const idResults = await Promise.all(idPromises);
+                const found = idResults.find(result => result !== null);
+                
+                return found;
+            };
+            
+            try {
+                let userProfileResult = await fetchProfiles();
+                
+                // Retry logic for race conditions on signup
+                if (!userProfileResult) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        userProfileResult = await fetchProfiles();
+                }
+
+                if (userProfileResult && userProfileResult.data) {
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
                         payload: { 
-                            user: result.profile as any,
-                            role: result.role 
+                            user: userProfileResult.data as any,
+                            role: userProfileResult.role 
                         } 
                     });
                 } else {
-                     console.warn("User authenticated but profile not found. Forcing logout.");
-                     // This prevents the infinite spinner for users who exist in auth but not in public tables.
-                     await logout();
+                    // CRITICAL FIX: If we authenticated but found no profile, we MUST tell the user
+                    console.error("User authenticated but profile not found in any table.");
+                    dispatch({ 
+                        type: ActionTypes.LOGIN_FAILURE, 
+                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
+                    });
                 }
             } catch (error) {
-                 console.error("Error hydrating user:", error);
-                 await logout(); // Force logout on error as well
+                console.error("Error hydrating user profile:", error);
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
             } finally {
-                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
 
+        // 1. Immediate Session Check on Mount (Fixes Refresh Logout)
         const initSession = async () => {
             const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
-                await hydrateUser(session.user.id);
+                await fetchAndHydrateUser(session.user.id);
             } else {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -297,12 +309,14 @@ const App: React.FC = () => {
         
         initSession();
 
+        // 2. Listen for Auth Changes (Login, Logout, etc.)
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
-                // This is now handled by the logout hook for consistency
+                dispatch({ type: ActionTypes.LOGOUT });
             } else if (event === 'SIGNED_IN' && session?.user) {
+                // Only fetch if current user is not set or different
                 if (!currentUser || currentUser.id !== session.user.id) {
-                    await hydrateUser(session.user.id);
+                    await fetchAndHydrateUser(session.user.id);
                 }
             }
         });
@@ -311,12 +325,6 @@ const App: React.FC = () => {
             subscription?.unsubscribe();
         };
     }, [dispatch]); 
-
-    useEffect(() => {
-        if (currentUser && localStorage.getItem('pending_claim_token')) {
-            dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
-        }
-    }, [currentUser, dispatch]);
 
     useEffect(() => {
         let timerId: number;
@@ -372,7 +380,27 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup onCompleteSetup={completeSetup} onNavigate={navigate} />;
+                return (
+                    <LabelSetup 
+                        onCompleteSetup={(data) =>
+                            completeSetup(
+                                {
+                                    name: data.name,
+                                    bio: data.bio,
+                                    email: data.email,
+                                    password: data.password,
+                                    image_url: null,
+                                    imageFile: data.imageFile,
+                                    company_name: data.companyName,
+                                    contact_phone: data.contactPhone,
+                                    website: data.website
+                                },
+                                UserRole.LABEL
+                            )
+                        }
+                        onNavigate={navigate}
+                    />
+                );
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -435,16 +463,6 @@ const App: React.FC = () => {
                 return <LabelDashboard />;
             case AppView.LABEL_SCOUTING:
                 return <LabelScouting onNavigate={navigate} />;
-            case AppView.LABEL_IMPORT:
-                return <LabelRosterImport />;
-            case AppView.CLAIM_PROFILE:
-                return <ClaimProfile token={claimToken} />;
-            case AppView.CLAIM_ENTRY:
-                return <ClaimEntryScreen token={claimToken || ''} />;
-            case AppView.CLAIM_CONFIRM:
-                return <ClaimConfirmScreen />;
-            case AppView.CLAIM_LABEL_PROFILE:
-                return <ClaimLabelProfile onNavigate={navigate} />;
             case AppView.ACTIVE_SESSION:
                 return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
             case AppView.ADMIN_RANKINGS:
@@ -458,7 +476,7 @@ const App: React.FC = () => {
         }
     };
     
-    return (
+return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header
                 onNavigate={navigate}
@@ -481,6 +499,7 @@ const App: React.FC = () => {
                 </Suspense>
             </main>
 
+            {/* Permission Error Modal for Messaging */}
             {permissionError && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
                     <div className="bg-zinc-900 p-6 rounded-xl max-w-md w-full text-center border border-zinc-700 animate-fade-in">
@@ -506,9 +525,9 @@ const App: React.FC = () => {
             {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
             {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
             {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.wallet_balance} />}
-            {isMixingModalOpen && (state.selectedEngineer || bookingIntent?.engineer) && 
+            {isMixingModalOpen && (selectedEngineer || bookingIntent?.engineer) && 
                 <MixingRequestModal 
-                    engineer={state.selectedEngineer || bookingIntent!.engineer!} 
+                    engineer={selectedEngineer || bookingIntent!.engineer!} 
                     onClose={closeMixingModal} 
                     onConfirm={confirmRemoteMix}
                     onInitiateInStudio={initiateInStudioMix}
@@ -542,6 +561,7 @@ const App: React.FC = () => {
                 </Suspense>
             )}
 
+            {/* Global UI Elements */}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
              {isAriaCantataOpen && (
                 <Suspense fallback={<div />}>
