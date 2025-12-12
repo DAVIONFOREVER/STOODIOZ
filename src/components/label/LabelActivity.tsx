@@ -165,7 +165,7 @@ const LabelActivity: React.FC = () => {
                         <div key={dateLabel}>
                             <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-3 px-2">{dateLabel}</h2>
                             <div className="cardSurface divide-y divide-zinc-800">
-                                {dayEvents.map(e => (
+                                {(dayEvents as ActivityEvent[]).map(e => (
                                     <div key={e.id} className="flex items-start p-4 gap-4 hover:bg-zinc-900/50 transition-colors">
                                         <div className="p-2 bg-zinc-800 rounded-full mt-1">{e.icon}</div>
                                         <div className="flex-grow">
