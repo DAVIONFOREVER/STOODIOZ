@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
@@ -63,6 +64,7 @@ const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
 const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx'));
+const LabelProfile = lazy(() => import('./components/LabelProfile.tsx'));
 const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
 const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
 const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
@@ -116,7 +118,7 @@ const App: React.FC = () => {
     
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
     
-    const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
+    const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewLabelProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
@@ -133,6 +135,16 @@ const App: React.FC = () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
         try {
+            if (role === UserRole.LABEL) {
+                userData = {
+                    ...userData,
+                    bio: userData.bio || "",
+                    companyName: userData.company_name || null,
+                    website: userData.website || null,
+                    contactPhone: userData.contact_phone || null,
+                    image_url: userData.image_url || null
+                };
+            }
             const result = await apiService.createUser(userData, role);
 
             if (result && 'email_confirmation_required' in result) {
@@ -145,7 +157,6 @@ const App: React.FC = () => {
                 const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 
-                // Force navigation based on role
                 if (role === UserRole.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRole.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRole.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
@@ -156,6 +167,7 @@ const App: React.FC = () => {
             console.error("Complete setup failed:", error);
             let errorMessage = error.message || "Unknown error";
             alert(`Setup failed:\n${errorMessage}`);
+            throw error;
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
@@ -223,6 +235,7 @@ const App: React.FC = () => {
         
         fetchDirectory();
 
+        // Helper to fetch and hydrate CURRENT logged-in user profile data
         const fetchAndHydrateUser = async (userId: string) => {
             if (!currentUser) {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -234,7 +247,10 @@ const App: React.FC = () => {
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
                     engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
                     artists: { query: '*', role: UserRoleEnum.ARTIST },
-                    labels: { query: '*', role: UserRoleEnum.LABEL },
+                    labels: { 
+                        query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier',
+                        role: UserRoleEnum.LABEL 
+                    },
                 };
                 
                 const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
@@ -312,7 +328,6 @@ const App: React.FC = () => {
         };
     }, [dispatch]); 
 
-    // Post-Login Redirect for Claim Flow
     useEffect(() => {
         if (currentUser && localStorage.getItem('pending_claim_token')) {
             dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
@@ -373,7 +388,27 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
-                return <LabelSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.LABEL)} onNavigate={navigate} />;
+                return (
+                    <LabelSetup 
+                        onCompleteSetup={(data) =>
+                            completeSetup(
+                                {
+                                    name: data.name,
+                                    bio: data.bio,
+                                    email: data.email,
+                                    password: data.password,
+                                    image_url: null,
+                                    imageFile: data.imageFile,
+                                    company_name: data.companyName,
+                                    contact_phone: data.contactPhone,
+                                    website: data.website
+                                },
+                                UserRole.LABEL
+                            )
+                        }
+                        onNavigate={navigate}
+                    />
+                );
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -438,6 +473,8 @@ const App: React.FC = () => {
                 return <LabelScouting onNavigate={navigate} />;
             case AppView.LABEL_IMPORT:
                 return <LabelRosterImport />;
+            case AppView.LABEL_PROFILE:
+                return <LabelProfile />;
             case AppView.CLAIM_PROFILE:
                 return <ClaimProfile token={claimToken} />;
             case AppView.CLAIM_ENTRY:
@@ -459,7 +496,7 @@ const App: React.FC = () => {
         }
     };
     
-    return (
+return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header
                 onNavigate={navigate}

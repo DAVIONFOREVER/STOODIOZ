@@ -1,3 +1,4 @@
+
 import React, { useState, lazy, Suspense } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { AppView } from '../types';
@@ -13,10 +14,11 @@ import LabelPolicies from './label/LabelPolicies';
 import LabelMessaging from './label/LabelMessaging';
 import LabelReports from './label/LabelReports';
 import LabelQAReview from './label/LabelQAReview';
-import LabelActivity from './label/LabelActivity'; // Import new component
+import LabelActivity from './label/LabelActivity';
 import LabelInsights from './label/LabelInsights';
 import LabelApprovals from './label/LabelApprovals';
 import LabelPerformance from './label/LabelPerformance';
+import LabelSettings from './LabelSettings';
 import { useAppState } from '../contexts/AppContext';
 import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
 
@@ -57,17 +59,17 @@ const LabelDashboard: React.FC = () => {
             case 'qa': return <LabelQAReview />;
             case 'activity': return <LabelActivity />;
             case 'insights': return <LabelInsights />;
+            case 'settings': return <LabelSettings />;
             case 'documents': 
                 return (
                     <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading Documents...</div>}>
                         <Documents conversations={conversations} />
                     </Suspense>
                 );
-            case 'settings':
             default:
                 return (
                     <div className="p-20 text-center cardSurface">
-                        <p className="text-zinc-400 text-lg">Settings coming soon.</p>
+                        <p className="text-zinc-400 text-lg">Tab content not found.</p>
                     </div>
                 );
         }

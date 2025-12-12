@@ -1,7 +1,7 @@
 
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import type { Stoodio, Artist, Engineer, Producer, Location, Booking } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Location, Booking, Label } from '../types';
 import { AppView } from '../types';
 
 export const useNavigation = () => {
@@ -37,6 +37,11 @@ export const useNavigation = () => {
         navigate(AppView.PRODUCER_PROFILE);
     }, [dispatch, navigate]);
     
+    const viewLabelProfile = useCallback((label: Label) => {
+        dispatch({ type: ActionTypes.VIEW_LABEL_PROFILE, payload: { label } });
+        navigate(AppView.LABEL_PROFILE);
+    }, [dispatch, navigate]);
+    
     const navigateToStudio = useCallback((location: Location) => {
         const { lat, lon } = location;
         const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
@@ -60,6 +65,7 @@ export const useNavigation = () => {
         viewArtistProfile, 
         viewEngineerProfile, 
         viewProducerProfile, 
+        viewLabelProfile,
         navigateToStudio,
         startNavigationForBooking,
         viewBooking,
