@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { CheckCircleIcon, CloseCircleIcon } from '../../icons';
+import { CheckCircleIcon, CloseCircleIcon } from '../icons';
 
 const StatusItem: React.FC<{ label: string; status: 'pass' | 'warn' | 'fail' }> = ({ label, status }) => {
     let icon;

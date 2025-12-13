@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { PaperAirplaneIcon } from '../../icons';
+import { PaperAirplaneIcon } from '../icons';
 
 const LabelMessaging: React.FC = () => {
     const [message, setMessage] = useState('');

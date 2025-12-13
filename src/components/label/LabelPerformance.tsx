@@ -1,9 +1,25 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAppState } from '../contexts/AppContext';
-import * as apiService from '../services/apiService';
+import { useAppState } from '../../contexts/AppContext';
+import * as apiService from '../../services/apiService';
 import type { RosterMember, Booking, LabelBudgetOverview } from '../../types';
-import { CalendarIcon, DollarSignIcon, TrendingUpIcon, TrendingDownIcon } from '../icons';
+import { CalendarIcon, DollarSignIcon } from '../icons';
 import { USER_SILHOUETTE_URL } from '../../constants';
+import { useNavigation } from '../../hooks/useNavigation';
+import { AppView } from '../../types';
+
+// Local icon definitions to avoid modifying icons.tsx
+const TrendingUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+    </svg>
+);
+
+const TrendingDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6L9 12.75l4.306-4.307a11.95 11.95 0 015.814 5.519l2.74 1.22m0 0l-5.94 2.28m5.94-2.28l-2.28 5.941" />
+    </svg>
+);
 
 const StatCard: React.FC<{ label: string; value: string | React.ReactNode; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800 border border-zinc-700/50 p-6 rounded-xl flex items-center gap-4 shadow-lg">
@@ -19,17 +35,25 @@ const StatCard: React.FC<{ label: string; value: string | React.ReactNode; icon:
 
 const LabelPerformance: React.FC = () => {
     const { currentUser } = useAppState();
+    const { navigate } = useNavigation();
     const [roster, setRoster] = useState<RosterMember[]>([]);
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [budget, setBudget] = useState<LabelBudgetOverview | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
+    // Initial data fetch
     useEffect(() => {
-        if (!currentUser) return;
-        const load = async () => {
+        async function load() {
+            if (!currentUser?.id) {
+                setLoading(false);
+                setError("Cannot load performance data without a logged-in label user.");
+                return;
+            };
             setLoading(true);
+            setError(null);
             try {
-                const [rosterData, bookingsData, budgetData] = await Promise.all([
+                 const [rosterData, bookingsData, budgetData] = await Promise.all([
                     apiService.fetchLabelRoster(currentUser.id),
                     apiService.fetchLabelBookings(currentUser.id),
                     apiService.getLabelBudgetOverview(currentUser.id),
@@ -38,13 +62,13 @@ const LabelPerformance: React.FC = () => {
                 setBookings(bookingsData || []);
                 setBudget(budgetData || null);
             } catch (err) {
-                console.error("Error loading performance data:", err);
-            } finally {
-                setLoading(false);
+                console.error("Error in load performance:", err);
+                setError("Failed to fetch performance data.");
             }
-        };
+            setLoading(false);
+        }
         load();
-    }, [currentUser]);
+    }, [currentUser?.id]);
 
     const performanceData = useMemo(() => {
         if (roster.length === 0) {
@@ -113,6 +137,25 @@ const LabelPerformance: React.FC = () => {
     if (loading) {
         return <div className="p-20 text-center text-zinc-500">Calculating performance metrics...</div>;
     }
+    
+    if (error) {
+        return <div className="text-center text-red-400 p-10">{error}</div>;
+    }
+
+    if (!loading && roster.length === 0) {
+        return (
+            <div className="cardSurface p-10 text-center text-zinc-500">
+                <p className="font-semibold text-lg text-zinc-400 mb-4">You haven't added any artists yet.</p>
+                <p className="mb-6">Add artists to your roster to start tracking their performance.</p>
+                <button 
+                    onClick={() => navigate(AppView.LABEL_IMPORT)}
+                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold"
+                >
+                    Add Artists to Roster
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 animate-fade-in">
@@ -152,13 +195,13 @@ const LabelPerformance: React.FC = () => {
                                 <p className="text-2xl font-bold text-zinc-100">${(Number(artist.avgSessionCost) || 0).toFixed(0)}</p>
                             </div>
                             <div className="bg-zinc-800/50 p-3 rounded-lg border border-zinc-700/50">
-                                <p className="text-xs font-bold text-zinc-500 uppercase">Allocation</p>
+                                <p className="text-xs font-bold text-zinc-500 uppercase">Allocation Rem.</p>
                                 <p className="text-2xl font-bold text-orange-400">{artist.allocationRemaining !== null ? `$${artist.allocationRemaining.toLocaleString()}`: 'N/A'}</p>
                             </div>
                         </div>
                         <div className="flex items-center justify-end gap-2 text-sm">
                             <span className="text-zinc-500">Activity Trend:</span>
-                            {artist.totalSessions === 0 && artist.completedSessions === 0 ? (
+                            {(artist.totalSessions === 0) && (artist.completedSessions === 0) ? (
                                 <span className="text-zinc-500 font-semibold text-xs">Inactive</span>
                             ) : artist.trend === 'up' ? (
                                 <TrendingUpIcon className="w-5 h-5 text-green-500"/>

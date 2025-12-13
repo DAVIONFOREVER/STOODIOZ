@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { DollarSignIcon, BellIcon, CheckCircleIcon } from '../../icons';
+import { DollarSignIcon, BellIcon, CheckCircleIcon } from '../icons';
 
 // Local icon definitions to strictly adhere to "DO NOT modify icons.tsx" rule
 const LockClosedIcon: React.FC<{ className?: string }> = ({ className }) => (

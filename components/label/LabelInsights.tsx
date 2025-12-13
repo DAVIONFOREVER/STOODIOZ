@@ -1,7 +1,8 @@
+
 import React, { useMemo, useEffect, useState } from 'react';
 import { useAppState } from '../../contexts/AppContext';
 import { fetchLabelPerformance, getRosterActivity } from '../../services/apiService';
-import { ChartBarIcon, UsersIcon, DollarSignIcon, TrendingUpIcon } from '../../icons';
+import { ChartBarIcon, UsersIcon, DollarSignIcon, TrendingUpIcon } from '../icons';
 
 // Local icon to avoid modifying icons.tsx
 const TrendingDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (

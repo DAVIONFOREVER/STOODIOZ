@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { DownloadIcon, ChartBarIcon, CalendarIcon, DollarSignIcon } from '../../icons';
+import { DownloadIcon, ChartBarIcon, CalendarIcon, DollarSignIcon } from '../icons';
 
 const ReportCard: React.FC<{ title: string; description: string; icon: React.ReactNode; onExport: (type: string) => void }> = ({ title, description, icon, onExport }) => (
     <div className="cardSurface p-6 flex flex-col h-full hover:border-orange-500/30 transition-colors">
