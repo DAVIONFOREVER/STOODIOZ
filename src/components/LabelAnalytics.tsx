@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -37,8 +38,12 @@ const LabelAnalytics: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!currentUser || userRole !== 'LABEL') {
+            setLoading(false);
+            return;
+        }
+        
         const loadData = async () => {
-            if (!currentUser || userRole !== 'LABEL') return;
             setLoading(true);
             try {
                 const [budgetData, bookingsData, transactionsData] = await Promise.all([

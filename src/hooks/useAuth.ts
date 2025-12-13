@@ -47,13 +47,14 @@ export const useAuth = (navigate: (view: any) => void) => {
                     .eq('id', userId)
                     .single();
 
-                dispatch({
-                    type: ActionTypes.LOGIN_SUCCESS,
-                    payload: { user: labelProfile, role: UserRoleEnum.LABEL }
-                });
-
-                navigate(AppView.LABEL_DASHBOARD);
-                return;
+                if (labelProfile) {
+                    dispatch({
+                        type: ActionTypes.LOGIN_SUCCESS,
+                        payload: { user: labelProfile, role: UserRoleEnum.LABEL }
+                    });
+                    navigate(AppView.LABEL_DASHBOARD);
+                    return;
+                }
             }
             
             const roleMap: Record<string, UserRole> = {
@@ -124,8 +125,6 @@ export const useAuth = (navigate: (view: any) => void) => {
 
             } else {
                 console.warn(`Login successful (Auth ID: ${userId}), but no profile found in public tables.`);
-                // If the user exists in Auth but has no profile, checking "artists" table specifically as a last ditch fallback
-                // or just fail gracefully.
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Login successful, but profile data is missing. Please contact support." } });
             }
         } else {
@@ -180,8 +179,6 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
 
             if (result) {
-                // Supabase automatically signs the user in after signUp if no verification required,
-                // so we just need to update the application state.
                 const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
                 

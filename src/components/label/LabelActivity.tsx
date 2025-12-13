@@ -67,7 +67,10 @@ const LabelActivity: React.FC = () => {
     }, [events]);
 
     useEffect(() => {
-        if (!currentUser || userRole !== 'LABEL') return;
+        if (!currentUser || userRole !== 'LABEL') {
+            setLoading(false);
+            return;
+        }
 
         const loadActivity = async () => {
             setLoading(true);

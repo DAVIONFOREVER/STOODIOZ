@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
@@ -117,8 +116,8 @@ const App: React.FC = () => {
     const canGoForward = historyIndex < history.length - 1;
     
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
-    
-    const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewLabelProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
+
+    const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
@@ -136,12 +135,14 @@ const App: React.FC = () => {
 
         try {
             if (role === UserRole.LABEL) {
+                // The userData object comes in with snake_case from the LABEL_SETUP case.
+                // The createUser function expects camelCase. We must map it here to fix the broken flow.
                 userData = {
                     ...userData,
                     bio: userData.bio || "",
-                    companyName: userData.company_name || null,
+                    companyName: userData.company_name || null, // Map snake_case to camelCase
                     website: userData.website || null,
-                    contactPhone: userData.contact_phone || null,
+                    contactPhone: userData.contact_phone || null, // Map snake_case to camelCase
                     image_url: userData.image_url || null
                 };
             }
@@ -165,8 +166,14 @@ const App: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
-            let errorMessage = error.message || "Unknown error";
+            
+            let errorMessage = "An unknown error occurred during setup.";
+            if (error && typeof error.message === 'string') {
+                errorMessage = error.message;
+            }
+            
             alert(`Setup failed:\n${errorMessage}`);
+            // Re-throw to be caught by component-level state
             throw error;
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
@@ -228,7 +235,7 @@ const App: React.FC = () => {
                     producers: directory.producers,
                     stoodioz: directory.stoodioz,
                     labels: directory.labels,
-                    reviews: [] 
+                    reviews: [] // Fetch reviews later if needed
                 }
             });
         };
@@ -242,6 +249,7 @@ const App: React.FC = () => {
             }
 
             const fetchProfiles = async () => {
+                // Check all tables to find where this user exists.
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
                     producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
@@ -258,23 +266,31 @@ const App: React.FC = () => {
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
                         
                         if (error) {
+                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
                              const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                             if (!basicError && basicData) return { data: basicData, role: config.role };
+                             
+                             if (!basicError && basicData) {
+                                 return { data: basicData, role: config.role };
+                             }
                              return null;
                         }
                         return data ? { data, role: config.role } : null;
                     } catch (e) {
+                        console.warn(`Hydration error for ${tableName}:`, e);
                         return null;
                     }
                 });
                 
                 const idResults = await Promise.all(idPromises);
-                return idResults.find(result => result !== null);
+                const found = idResults.find(result => result !== null);
+                
+                return found;
             };
             
             try {
                 let userProfileResult = await fetchProfiles();
                 
+                // Retry logic for race conditions on signup
                 if (!userProfileResult) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         userProfileResult = await fetchProfiles();
@@ -289,9 +305,11 @@ const App: React.FC = () => {
                         } 
                     });
                 } else {
+                    // CRITICAL FIX: If we authenticated but found no profile, we MUST tell the user
+                    console.error("User authenticated but profile not found in any table.");
                     dispatch({ 
                         type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Login successful, but your profile data could not be found." } 
+                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
                     });
                 }
             } catch (error) {
@@ -302,6 +320,7 @@ const App: React.FC = () => {
             }
         };
 
+        // 1. Immediate Session Check on Mount (Fixes Refresh Logout)
         const initSession = async () => {
             const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
@@ -313,10 +332,14 @@ const App: React.FC = () => {
         
         initSession();
 
+        // 2. Listen for Auth Changes (Login, Logout, etc.)
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
+                // Explicitly navigate to prevent ghost UI state
+                navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
+                // Only fetch if current user is not set or different
                 if (!currentUser || currentUser.id !== session.user.id) {
                     await fetchAndHydrateUser(session.user.id);
                 }
@@ -327,12 +350,6 @@ const App: React.FC = () => {
             subscription?.unsubscribe();
         };
     }, [dispatch]); 
-
-    useEffect(() => {
-        if (currentUser && localStorage.getItem('pending_claim_token')) {
-            dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
-        }
-    }, [currentUser, dispatch]);
 
     useEffect(() => {
         let timerId: number;
@@ -519,6 +536,7 @@ return (
                 </Suspense>
             </main>
 
+            {/* Permission Error Modal for Messaging */}
             {permissionError && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
                     <div className="bg-zinc-900 p-6 rounded-xl max-w-md w-full text-center border border-zinc-700 animate-fade-in">
@@ -580,6 +598,7 @@ return (
                 </Suspense>
             )}
 
+            {/* Global UI Elements */}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
              {isAriaCantataOpen && (
                 <Suspense fallback={<div />}>

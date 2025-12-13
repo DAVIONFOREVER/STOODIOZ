@@ -67,7 +67,10 @@ const LabelActivity: React.FC = () => {
     }, [events]);
 
     useEffect(() => {
-        if (!currentUser || userRole !== 'LABEL') return;
+        if (!currentUser || userRole !== 'LABEL') {
+            setLoading(false);
+            return;
+        }
 
         const loadActivity = async () => {
             setLoading(true);
@@ -119,7 +122,7 @@ const LabelActivity: React.FC = () => {
                         type: 'roster',
                         title: 'Artist Added to Roster',
                         description: a.name,
-                        date: 'N/A', // timestamp might not be available on roster object
+                        date: 'N/A', // As per prompt, timestamp might not be available.
                         icon: <UsersIcon className="w-5 h-5 text-blue-400"/>
                     });
                 });
@@ -130,7 +133,7 @@ const LabelActivity: React.FC = () => {
                         type: 'system',
                         title: 'Budget Updated',
                         description: `Total budget is now $${budgetData.budget.total_budget.toLocaleString()}`,
-                        date: 'N/A',
+                        date: 'N/A', // No reliable timestamp for this derived event
                         icon: <BellIcon className="w-5 h-5 text-zinc-400"/>
                     });
                 }

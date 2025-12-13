@@ -62,6 +62,12 @@ const StoodioSetup = lazy(() => import('./components/StoodioSetup.tsx'));
 const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
+const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx'));
+const LabelProfile = lazy(() => import('./components/LabelProfile.tsx'));
+const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
+const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
+const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
+const ClaimLabelProfile = lazy(() => import('./components/ClaimLabelProfile.tsx'));
 const Login = lazy(() => import('./components/Login.tsx'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.tsx'));
 const TheStage = lazy(() => import('./components/TheStage.tsx'));
@@ -313,6 +319,8 @@ const App: React.FC = () => {
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
+                // Explicitly navigate to prevent ghost UI state
+                navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
                 // Only fetch if current user is not set or different
                 if (!currentUser || currentUser.id !== session.user.id) {
@@ -463,6 +471,18 @@ const App: React.FC = () => {
                 return <LabelDashboard />;
             case AppView.LABEL_SCOUTING:
                 return <LabelScouting onNavigate={navigate} />;
+            case AppView.LABEL_IMPORT:
+                return <LabelRosterImport />;
+            case AppView.LABEL_PROFILE:
+                return <LabelProfile />;
+            case AppView.CLAIM_PROFILE:
+                return <ClaimProfile token={claimToken} />;
+            case AppView.CLAIM_ENTRY:
+                return <ClaimEntryScreen token={claimToken || ''} />;
+            case AppView.CLAIM_CONFIRM:
+                return <ClaimConfirmScreen />;
+            case AppView.CLAIM_LABEL_PROFILE:
+                return <ClaimLabelProfile onNavigate={navigate} />;
             case AppView.ACTIVE_SESSION:
                 return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
             case AppView.ADMIN_RANKINGS:
