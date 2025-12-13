@@ -136,21 +136,22 @@ export const useAuth = (navigate: (view: any) => void) => {
         try {
             const supabase = getSupabase();
             if (supabase) {
-                // 1. Tell Supabase to invalidate the session on the server & local storage
+                // 1. Remove all realtime subscriptions to prevent updates on unmounted components
+                await supabase.removeAllChannels();
+                
+                // 2. Tell Supabase to invalidate the session on the server & local storage
                 await (supabase.auth as any).signOut();
             }
         } catch (e) {
             console.warn("Supabase signout error (ignoring):", e);
         } finally {
-            // 2. Clear Redux/Context state
+            // 3. Clear Redux/Context state
             dispatch({ type: ActionTypes.LOGOUT });
 
-            // 3. NUCLEAR OPTION: Force a hard refresh of the page.
-            // This ensures all memory states, sockets, and cached data are completely wiped.
-            // It effectively "closes out the session fully" as requested.
-            window.location.href = '/'; 
+            // 4. Redirect using router replace (Landing Page)
+            navigate(AppView.LANDING_PAGE);
         }
-    }, [dispatch]);
+    }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
