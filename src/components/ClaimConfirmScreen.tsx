@@ -49,7 +49,7 @@ const ClaimConfirmScreen: React.FC = () => {
         navigate(AppView.ARTIST_DASHBOARD);
     };
 
-    if (!currentUser) return null; // Should be handled by parent logic
+    if (!currentUser) return null;
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">

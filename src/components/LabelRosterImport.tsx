@@ -1,11 +1,12 @@
 
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
-import { AppView } from '../types';
-import { useLabel } from '../hooks/useLabel';
+import { AppView, RosterImportRow } from '../types';
+import * as labelService from '../services/labelService';
 import { useAppState } from '../contexts/AppContext';
-import { ChevronLeftIcon, CloseIcon, CheckCircleIcon, UsersIcon } from '../components/icons';
+import { ChevronLeftIcon, CloseIcon, CheckCircleIcon, UsersIcon, PaperclipIcon } from './icons';
+// @ts-ignore
+import * as XLSX from 'xlsx';
 
 interface LabelRosterImportProps {
     labelId?: string;
@@ -21,32 +22,45 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
     const labelId = propLabelId || currentUser?.id || '';
     const isModal = !!propLabelId;
 
-    const { importRoster, loading } = useLabel(labelId);
-
-    const [csvText, setCsvText] = useState('');
-    const [parsedRows, setParsedRows] = useState<{ name: string; email: string; role: 'artist' | 'producer' | 'engineer' }[]>([]);
-    const [step, setStep] = useState<'input' | 'preview' | 'success'>('input');
+    const [parsedRows, setParsedRows] = useState<RosterImportRow[]>([]);
+    const [step, setStep] = useState<'upload' | 'preview' | 'success'>('upload');
     const [importedCount, setImportedCount] = useState(0);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [fileName, setFileName] = useState<string | null>(null);
 
-    const handleParse = () => {
-        const lines = csvText.split('\n');
-        const rows: { name: string; email: string; role: 'artist' | 'producer' | 'engineer' }[] = [];
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const processData = (data: any[]) => {
+        const rows: RosterImportRow[] = [];
         
-        lines.forEach(line => {
-            const parts = line.split(',').map(s => s.trim());
-            if (parts.length >= 3) {
-                // Expected format: Name, Email, Role
-                const [name, email, role] = parts;
-                if (name && role) {
-                    const normalizedRole = role.toLowerCase();
-                    if (['artist', 'producer', 'engineer'].includes(normalizedRole)) {
-                        rows.push({
-                            name,
-                            email: email || '',
-                            role: normalizedRole as 'artist' | 'producer' | 'engineer'
-                        });
-                    }
-                }
+        data.forEach((row: any) => {
+            const normalizedRow: any = {};
+            Object.keys(row).forEach(key => {
+                normalizedRow[key.toLowerCase().trim()] = row[key];
+            });
+
+            const name = normalizedRow['name'] || normalizedRow['artist name'] || normalizedRow['artist'] || normalizedRow['full name'];
+            const email = normalizedRow['email'] || normalizedRow['e-mail'] || normalizedRow['email address'];
+            let role = normalizedRow['role'] || normalizedRow['type'] || 'artist';
+            
+            role = role.toLowerCase();
+            if (!['artist', 'producer', 'engineer'].includes(role)) {
+                role = 'artist'; 
+            }
+
+            const phone = normalizedRow['phone'] || normalizedRow['phone number'];
+            const instagram = normalizedRow['instagram'] || normalizedRow['ig'] || normalizedRow['handle'];
+            const notes = normalizedRow['notes'] || normalizedRow['bio'] || normalizedRow['description'];
+
+            if (name && email) {
+                rows.push({
+                    name,
+                    email,
+                    role: role as 'artist' | 'producer' | 'engineer',
+                    phone,
+                    instagram,
+                    notes
+                });
             }
         });
 
@@ -54,19 +68,46 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
             setParsedRows(rows);
             setStep('preview');
         } else {
-            alert("No valid rows found. Please check format: Name, Email, Role");
+            alert("No valid rows found. Please ensure your file has columns for 'Name' and 'Email'.");
+            setStep('upload');
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setFileName(file.name);
+        setIsProcessing(true);
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer);
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            processData(jsonData);
+        } catch (error) {
+            console.error("Error parsing file:", error);
+            alert("Failed to parse file. Please make sure it is a valid CSV or Excel file.");
+        } finally {
+            setIsProcessing(false);
         }
     };
 
     const handleImport = async () => {
         if (!labelId) return;
+        setIsProcessing(true);
         try {
-            await importRoster(parsedRows);
+            await labelService.importRoster(labelId, parsedRows);
             setImportedCount(parsedRows.length);
             if (onAdded) onAdded();
             setStep('success');
         } catch (e: any) {
             alert(`Import failed: ${e.message}`);
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -86,6 +127,18 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
         }
     };
 
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && fileInputRef.current) {
+             const dataTransfer = new DataTransfer();
+             dataTransfer.items.add(file);
+             fileInputRef.current.files = dataTransfer.files;
+             const event = { target: { files: dataTransfer.files } } as React.ChangeEvent<HTMLInputElement>;
+             handleFileUpload(event);
+        }
+    };
+
     return (
         <div className={`max-w-4xl mx-auto ${!isModal ? 'p-8 animate-fade-in' : 'w-full'}`}>
             {!isModal && (
@@ -98,7 +151,7 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
             {!isModal && (
                 <>
                     <h1 className="text-4xl font-extrabold text-zinc-100 mb-2">Import Roster</h1>
-                    <p className="text-zinc-400 mb-8">Bulk upload artists, producers, and engineers to create shadow profiles.</p>
+                    <p className="text-zinc-400 mb-8">Bulk upload artists using CSV or Excel spreadsheets.</p>
                 </>
             )}
 
@@ -110,35 +163,52 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
                     </div>
                 )}
 
-                {step === 'input' && (
-                    <div className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-bold text-zinc-300 mb-2">
-                                Paste CSV Data
-                            </label>
-                            <p className="text-xs text-zinc-500 mb-2">
-                                Format: Name, Email, Role (artist/producer/engineer)
-                            </p>
-                            <textarea
-                                className="w-full h-64 bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-200 font-mono text-sm focus:ring-2 focus:ring-orange-500 outline-none"
-                                placeholder={`Luna Vance, luna@example.com, artist\nJaxson Beats, jax@example.com, producer`}
-                                value={csvText}
-                                onChange={e => setCsvText(e.target.value)}
+                {step === 'upload' && (
+                    <div className="space-y-8">
+                        <div 
+                            className="border-2 border-dashed border-zinc-600 rounded-xl p-12 text-center hover:border-orange-500 hover:bg-zinc-800/30 transition-all cursor-pointer group"
+                            onClick={() => fileInputRef.current?.click()}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={handleDrop}
+                        >
+                            <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-orange-500/20 transition-colors">
+                                <UsersIcon className="w-8 h-8 text-zinc-400 group-hover:text-orange-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-zinc-200 mb-2">Upload Roster File</h3>
+                            <p className="text-zinc-400 mb-6">Drag & drop or click to upload <br/> <span className="font-mono text-orange-400">.xlsx</span>, <span className="font-mono text-orange-400">.xls</span>, or <span className="font-mono text-orange-400">.csv</span></p>
+                            
+                            <input 
+                                type="file" 
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                className="hidden"
                             />
+                            
+                            <button className="bg-zinc-700 text-zinc-200 px-6 py-2 rounded-lg font-bold group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                                Select File
+                            </button>
                         </div>
-                        <div className="flex justify-end gap-4">
-                            <button 
+
+                        <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg flex items-start gap-3">
+                            <div className="p-1 bg-blue-500/20 rounded">
+                                <PaperclipIcon className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-blue-200 text-sm mb-1">Required Columns</h4>
+                                <p className="text-zinc-400 text-xs">
+                                    Your file must include <strong>Name</strong> and <strong>Email</strong> headers. 
+                                    Optional columns: <strong>Role</strong> (Artist/Producer/Engineer), <strong>Phone</strong>, <strong>Instagram</strong>.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                             <button 
                                 onClick={handleCancel}
-                                className="px-6 py-3 rounded-lg font-bold text-zinc-400 hover:bg-zinc-800 transition-colors"
+                                className="px-6 py-3 text-zinc-400 hover:text-zinc-200 font-bold transition-colors"
                             >
                                 Cancel
-                            </button>
-                            <button 
-                                onClick={handleParse}
-                                disabled={!csvText.trim()}
-                                className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Preview Import
                             </button>
                         </div>
                     </div>
@@ -147,9 +217,12 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
                 {step === 'preview' && (
                     <div className="space-y-6">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-xl font-bold text-zinc-100">Preview ({parsedRows.length} members)</h3>
-                            <button onClick={() => setStep('input')} className="text-sm text-orange-400 hover:underline">
-                                Edit Data
+                            <div>
+                                <h3 className="text-xl font-bold text-zinc-100">Preview Import</h3>
+                                <p className="text-sm text-zinc-400">Found {parsedRows.length} valid entries in <span className="text-zinc-200 font-mono">{fileName}</span></p>
+                            </div>
+                            <button onClick={() => setStep('upload')} className="text-sm text-orange-400 hover:underline">
+                                Choose Different File
                             </button>
                         </div>
                         
@@ -177,7 +250,7 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
                                                     {row.role}
                                                 </span>
                                             </td>
-                                            <td className="p-3 text-zinc-500 italic">Create Shadow Profile</td>
+                                            <td className="p-3 text-zinc-500 italic">Create Account & Invite</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -186,17 +259,22 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
 
                         <div className="flex justify-end gap-4 border-t border-zinc-700/50 pt-6">
                             <button 
-                                onClick={() => setStep('input')}
+                                onClick={handleCancel}
                                 className="px-6 py-3 rounded-lg font-bold text-zinc-400 hover:bg-zinc-800 transition-colors"
                             >
-                                Back
+                                Cancel
                             </button>
                             <button 
                                 onClick={handleImport}
-                                disabled={loading}
+                                disabled={isProcessing}
                                 className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                                {loading ? 'Importing...' : 'Confirm Import'}
+                                {isProcessing ? 'Importing...' : (
+                                    <>
+                                        <CheckCircleIcon className="w-5 h-5" />
+                                        Import & Send Invites
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -208,8 +286,8 @@ const LabelRosterImport: React.FC<LabelRosterImportProps> = ({ labelId: propLabe
                             <CheckCircleIcon className="w-10 h-10 text-green-500" />
                         </div>
                         <h2 className="text-3xl font-bold text-zinc-100 mb-2">Import Successful!</h2>
-                        <p className="text-zinc-400 mb-8">
-                            Successfully created {importedCount} shadow profiles. They are now available in your roster.
+                        <p className="text-zinc-400 mb-8 max-w-md mx-auto">
+                            Successfully created {importedCount} accounts. Invite emails have been queued for sending to the provided addresses.
                         </p>
                         <button 
                             onClick={handleFinish}

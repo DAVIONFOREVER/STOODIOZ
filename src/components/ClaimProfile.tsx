@@ -1,12 +1,12 @@
+
 import React, { useState } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { AppView, UserRole } from '../types';
 import * as apiService from '../services/apiService';
 import { useAppState } from '../contexts/AppContext';
-import { ChevronLeftIcon, CheckCircleIcon } from './icons';
+import { CheckCircleIcon } from './icons';
 
 interface ClaimProfileProps {
-    // If rendered with a token in URL (handled by parent/router logic ideally, or parsed here)
     token?: string; 
 }
 
@@ -14,12 +14,10 @@ const ClaimProfile: React.FC<ClaimProfileProps> = ({ token }) => {
     const { navigate } = useNavigation();
     const { currentUser } = useAppState();
     
-    // Simple state for manual code entry
     const [code, setCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // If we have a token passed via prop (from URL routing)
     const effectiveToken = token;
 
     const handleClaimByCode = async (e?: React.FormEvent) => {
@@ -104,7 +102,6 @@ const ClaimProfile: React.FC<ClaimProfileProps> = ({ token }) => {
                 </div>
             ) : (
                 <div className="space-y-8">
-                    {/* Token Flow */}
                     {effectiveToken && (
                         <div className="bg-zinc-800/50 p-6 rounded-xl border border-zinc-700 text-center">
                             <p className="text-zinc-200 font-semibold mb-4">You have a valid claim link.</p>
@@ -123,7 +120,6 @@ const ClaimProfile: React.FC<ClaimProfileProps> = ({ token }) => {
                         </div>
                     )}
 
-                    {/* Code Flow */}
                     <div>
                         <div className="flex items-center gap-4 mb-4">
                             <div className="h-px bg-zinc-700 flex-grow"></div>
