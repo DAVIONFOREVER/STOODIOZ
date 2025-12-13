@@ -334,6 +334,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             const { newUser, role } = action.payload;
             let updatedState = { ...state };
             
+            // Use temporary array update, but logic in UPDATE_USERS is better for uniqueness
             if (role === UserRole.ARTIST) updatedState.artists = [...state.artists, newUser as Artist];
             else if (role === UserRole.ENGINEER) updatedState.engineers = [...state.engineers, newUser as Engineer];
             else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];

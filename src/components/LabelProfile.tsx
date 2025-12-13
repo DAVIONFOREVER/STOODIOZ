@@ -4,14 +4,14 @@ import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useMessaging } from '../hooks/useMessaging';
 import * as apiService from '../services/apiService';
-import { ChevronLeftIcon, PhotoIcon, LinkIcon, UsersIcon, CheckCircleIcon, UserPlusIcon, MessageIcon, ChartBarIcon, MapIcon } from './icons';
+import { ChevronLeftIcon, PhotoIcon, LinkIcon, UsersIcon, UserPlusIcon, MessageIcon, ChartBarIcon, MapIcon } from './icons';
 import type { Label, RosterMember } from '../types';
 import { USER_SILHOUETTE_URL } from '../constants';
 
 const LabelProfile: React.FC = () => {
     const { selectedLabel, currentUser } = useAppState();
-    const { goBack, navigate } = useNavigation();
-    const { startConversation } = useMessaging(navigate);
+    const { goBack, viewArtistProfile } = useNavigation();
+    const { startConversation } = useMessaging(useNavigation().navigate);
     
     // Determine which label to show: selectedLabel (if viewing others) or currentUser (if viewing self as label)
     const label = (currentUser?.role === 'LABEL' && !selectedLabel) 
@@ -27,6 +27,7 @@ const LabelProfile: React.FC = () => {
             setLoading(true);
             try {
                 const data = await apiService.fetchLabelRoster(label.id);
+                // Only show public/claimed members on public profile usually
                 setRoster(data.filter(m => !m.is_pending && !m.shadow_profile)); 
             } catch (error) {
                 console.error("Error fetching roster:", error);
@@ -37,7 +38,12 @@ const LabelProfile: React.FC = () => {
         fetchRoster();
     }, [label]);
 
-    if (!label) return <div className="p-20 text-center text-zinc-500">Label not found.</div>;
+    if (!label) return (
+        <div className="p-20 text-center text-zinc-500">
+            <p>Label profile not found.</p>
+            <button onClick={goBack} className="mt-4 text-orange-400 hover:underline">Go Back</button>
+        </div>
+    );
 
     const isSelf = currentUser?.id === label.id;
     const visibility = label.section_visibility || {
@@ -55,11 +61,6 @@ const LabelProfile: React.FC = () => {
         );
     }
 
-    const displayedRoster = roster.filter(m => {
-        if (!label.roster_display_settings) return true; // Default show all if no settings
-        return label.roster_display_settings[m.id]?.display !== false;
-    });
-
     return (
         <div className="max-w-5xl mx-auto pb-20 animate-fade-in">
             <button onClick={goBack} className="flex items-center gap-2 text-zinc-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
@@ -70,9 +71,8 @@ const LabelProfile: React.FC = () => {
             {/* Header / Banner */}
             <div className="relative rounded-2xl overflow-hidden cardSurface mb-8">
                 <div className="h-48 bg-gradient-to-r from-zinc-800 to-zinc-900 flex items-center justify-center relative">
-                     {/* Abstract background pattern */}
                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-500 via-zinc-900 to-black"></div>
-                    <div className="text-zinc-700 font-bold text-4xl opacity-20 uppercase tracking-widest z-10">{label.company_name || label.name}</div>
+                    <div className="text-zinc-700 font-bold text-4xl opacity-20 uppercase tracking-widest z-10 truncate px-4">{label.company_name || label.name}</div>
                 </div>
                 
                 <div className="px-8 pb-8 -mt-16 flex flex-col md:flex-row items-end md:items-end gap-6 relative z-10">
@@ -83,15 +83,15 @@ const LabelProfile: React.FC = () => {
                             <PhotoIcon className="w-12 h-12 text-zinc-600" />
                         )}
                     </div>
-                    <div className="flex-grow mb-2">
+                    <div className="flex-grow mb-2 text-center md:text-left">
                         <h1 className="text-4xl font-extrabold text-zinc-100">{label.name}</h1>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-zinc-400">
+                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-2 mt-2 text-sm text-zinc-400">
                              {label.parent_company && <span>part of <strong className="text-zinc-300">{label.parent_company}</strong></span>}
                              {label.years_active && <span>• Est. {new Date().getFullYear() - label.years_active}</span>}
                              {label.primary_regions && label.primary_regions.length > 0 && <span>• {label.primary_regions[0]}</span>}
                         </div>
                          {label.primary_genres && (
-                            <div className="flex gap-2 mt-3">
+                            <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
                                 {label.primary_genres.map(g => (
                                     <span key={g} className="text-xs font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">{g}</span>
                                 ))}
@@ -155,7 +155,7 @@ const LabelProfile: React.FC = () => {
                     {/* Info Card */}
                     <div className="cardSurface p-6">
                         <h3 className="text-lg font-bold text-zinc-100 mb-4 border-b border-zinc-700 pb-2">About</h3>
-                        {visibility.mission && label.bio && (
+                        {label.bio && (
                             <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap mb-6">
                                 {label.bio}
                             </p>
@@ -230,18 +230,25 @@ const LabelProfile: React.FC = () => {
                                 <h3 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
                                     Active Roster
                                 </h3>
-                                <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full">{displayedRoster.length}</span>
+                                <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full">{roster.length}</span>
                             </div>
 
                             {loading ? (
                                 <div className="py-12 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full"></div></div>
-                            ) : displayedRoster.length > 0 ? (
+                            ) : roster.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {displayedRoster.map(artist => {
-                                        const meta = label.roster_display_settings?.[artist.id] || { status: 'Established', highlight_metric: '' };
+                                    {roster.map(artist => {
+                                        const meta = label.roster_display_settings?.[artist.id] || { display: true, status: 'Established', highlight_metric: '' };
                                         
+                                        // Skip if set to hidden in metadata
+                                        if (meta.display === false) return null;
+
                                         return (
-                                            <div key={artist.id} className="bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl p-4 flex items-center gap-4 transition-all group cursor-pointer">
+                                            <div 
+                                                key={artist.id} 
+                                                onClick={() => !isSelf && viewArtistProfile(artist as any)} // Only navigate if viewing as visitor
+                                                className={`bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl p-4 flex items-center gap-4 transition-all group ${!isSelf ? 'cursor-pointer' : ''}`}
+                                            >
                                                 <img 
                                                     src={artist.image_url || USER_SILHOUETTE_URL} 
                                                     alt={artist.name} 
@@ -249,7 +256,7 @@ const LabelProfile: React.FC = () => {
                                                 />
                                                 <div>
                                                     <h4 className="font-bold text-lg text-zinc-100 group-hover:text-orange-400 transition-colors">{artist.name}</h4>
-                                                    <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex flex-wrap items-center gap-2 mt-1">
                                                         <span className="text-xs text-zinc-500 uppercase font-bold tracking-wide">{meta.status}</span>
                                                         {meta.highlight_metric && <span className="text-xs bg-orange-500/10 text-orange-400 px-1.5 py-0.5 rounded">{meta.highlight_metric}</span>}
                                                     </div>

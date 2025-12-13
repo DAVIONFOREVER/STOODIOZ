@@ -115,6 +115,7 @@ const App: React.FC = () => {
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
+    // Explicitly define claimToken state to be available in renderView closure
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
