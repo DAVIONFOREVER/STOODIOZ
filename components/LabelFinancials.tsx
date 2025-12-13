@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { DollarSignIcon, ChartBarIcon, CalendarIcon, UsersIcon, BanknotesIcon, ArrowUpCircleIcon, BriefcaseIcon, CheckCircleIcon, PlusCircleIcon } from './icons';
+import { DollarSignIcon, ChartBarIcon, CalendarIcon, UsersIcon, BanknotesIcon, ArrowUpCircleIcon, BriefcaseIcon, CheckCircleIcon, PlusCircleIcon, CloseCircleIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode } from '../types';
@@ -208,6 +207,30 @@ const LabelFinancials: React.FC = () => {
                             </select>
                         </div>
 
+                        {(budgetMode === 'MONTHLY_FIXED' || budgetMode === 'MONTHLY_ROLLING') && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-400 mb-1">Monthly Amount ($)</label>
+                                    <input 
+                                        type="number" 
+                                        value={monthlyAllowance} 
+                                        onChange={(e) => setMonthlyAllowance(Number(e.target.value))}
+                                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-orange-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-400 mb-1">Reset Day (1-31)</label>
+                                    <input 
+                                        type="number" 
+                                        value={resetDay} 
+                                        min="1" max="31"
+                                        onChange={(e) => setResetDay(Number(e.target.value))}
+                                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-orange-500"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         <button 
                             onClick={handleSaveBudgetSettings}
                             className="w-full bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
@@ -255,8 +278,89 @@ const LabelFinancials: React.FC = () => {
                 </div>
             </div>
 
+            {/* SECTION D: Transaction History */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
+                    <BanknotesIcon className="w-5 h-5 text-purple-400" /> Transaction History
+                </h2>
+                
+                {transactions.length === 0 ? (
+                    <p className="text-zinc-500 text-sm py-4 text-center">No transactions recorded.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-zinc-400">
+                            <thead className="bg-zinc-800/50 uppercase font-bold text-xs">
+                                <tr>
+                                    <th className="p-3">Date</th>
+                                    <th className="p-3">Description</th>
+                                    <th className="p-3">Category</th>
+                                    <th className="p-3 text-right">Amount</th>
+                                    <th className="p-3 text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800">
+                                {transactions.map(tx => (
+                                    <tr key={tx.id} className="hover:bg-zinc-800/30 transition-colors">
+                                        <td className="p-3 whitespace-nowrap">{new Date(tx.date).toLocaleDateString()}</td>
+                                        <td className="p-3 text-zinc-300">{tx.description}</td>
+                                        <td className="p-3">
+                                            <span className="bg-zinc-800 px-2 py-1 rounded text-xs">{tx.category.replace(/_/g, ' ')}</span>
+                                        </td>
+                                        <td className={`p-3 text-right font-mono font-bold ${tx.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {tx.amount > 0 ? '+' : ''}${tx.amount.toLocaleString()}
+                                        </td>
+                                        <td className="p-3 text-right">
+                                            <span className={`text-xs uppercase font-bold ${tx.status === 'COMPLETED' ? 'text-green-500' : 'text-yellow-500'}`}>
+                                                {tx.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* SECTION E: Contracts (Existing logic kept or minimized if needed, but visually secondary now) */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
+                    <BriefcaseIcon className="w-5 h-5 text-orange-400" /> Active Contracts
+                </h2>
+                {contracts.length === 0 ? (
+                    <p className="text-zinc-500 text-sm">No active contracts found.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-zinc-400">
+                            <thead className="bg-zinc-800/50 uppercase font-bold text-xs">
+                                <tr>
+                                    <th className="p-3">Talent ID</th>
+                                    <th className="p-3">Role</th>
+                                    <th className="p-3">Type</th>
+                                    <th className="p-3">Split %</th>
+                                    <th className="p-3">Recoup Bal</th>
+                                    <th className="p-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800">
+                                {contracts.map(c => (
+                                    <tr key={c.id}>
+                                        <td className="p-3 font-mono text-zinc-300">{c.talent_user_id.slice(0, 8)}...</td>
+                                        <td className="p-3">{c.talent_role}</td>
+                                        <td className="p-3">{c.contract_type}</td>
+                                        <td className="p-3">{c.split_percent}%</td>
+                                        <td className="p-3 font-mono text-orange-400">${c.recoup_balance.toFixed(2)}</td>
+                                        <td className="p-3 uppercase text-xs font-bold">{c.status}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* SECTION F: Revenue by Artist */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* SECTION E: Revenue by Artist */}
                 <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                         <UsersIcon className="w-5 h-5 text-orange-400" /> Top Grossing Artists (YTD)
@@ -286,7 +390,7 @@ const LabelFinancials: React.FC = () => {
                     </div>
                 </div>
 
-                {/* SECTION F: Income Sources */}
+                {/* SECTION G: Income Sources */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                         <ChartBarIcon className="w-5 h-5 text-purple-400" /> Revenue Streams
@@ -311,7 +415,7 @@ const LabelFinancials: React.FC = () => {
                 </div>
             </div>
 
-            {/* SECTION G: Payout Requests */}
+            {/* SECTION H: Payout Requests */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                 <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                     <BanknotesIcon className="w-5 h-5 text-green-400" /> Royalty & Advance Requests
