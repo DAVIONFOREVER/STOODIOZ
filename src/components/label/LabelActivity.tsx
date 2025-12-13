@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
-import { useAppState } from '../contexts/AppContext';
-import * as apiService from '../services/apiService';
+import { useAppState } from '../../contexts/AppContext';
+import * as apiService from '../../services/apiService';
 import { CalendarIcon, UsersIcon, DollarSignIcon, BellIcon, CheckCircleIcon } from '../icons';
-import type { Booking, RosterMember, Transaction, LabelBudgetOverview } from '../types';
+import type { Booking, RosterMember, Transaction, LabelBudgetOverview } from '../../types';
 
 type ActivityEvent = {
     id: string;
