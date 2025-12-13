@@ -24,6 +24,7 @@ export interface AppState {
     selectedArtist: Artist | null;
     selectedEngineer: Engineer | null;
     selectedProducer: Producer | null;
+    selectedLabel: Label | null;
     latestBooking: Booking | null;
     isLoading: boolean;
     bookingTime: { date: string; time: string; room: Room } | null;
@@ -78,6 +79,7 @@ export enum ActionTypes {
     VIEW_ARTIST_PROFILE = 'VIEW_ARTIST_PROFILE',
     VIEW_ENGINEER_PROFILE = 'VIEW_ENGINEER_PROFILE',
     VIEW_PRODUCER_PROFILE = 'VIEW_PRODUCER_PROFILE',
+    VIEW_LABEL_PROFILE = 'VIEW_LABEL_PROFILE',
     OPEN_BOOKING_MODAL = 'OPEN_BOOKING_MODAL',
     CLOSE_BOOKING_MODAL = 'CLOSE_BOOKING_MODAL',
     CONFIRM_BOOKING_SUCCESS = 'CONFIRM_BOOKING_SUCCESS',
@@ -137,6 +139,7 @@ type Payload = {
     [ActionTypes.VIEW_ARTIST_PROFILE]: { artist: Artist };
     [ActionTypes.VIEW_ENGINEER_PROFILE]: { engineer: Engineer };
     [ActionTypes.VIEW_PRODUCER_PROFILE]: { producer: Producer };
+    [ActionTypes.VIEW_LABEL_PROFILE]: { label: Label };
     [ActionTypes.OPEN_BOOKING_MODAL]: { date: string; time: string; room: Room };
     [ActionTypes.CLOSE_BOOKING_MODAL]: undefined;
     [ActionTypes.CONFIRM_BOOKING_SUCCESS]: { booking: Booking };
@@ -205,6 +208,7 @@ const initialState: AppState = {
     selectedArtist: null,
     selectedEngineer: null,
     selectedProducer: null,
+    selectedLabel: null,
     latestBooking: null,
     isLoading: true,
     bookingTime: null,
@@ -263,6 +267,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 selectedArtist: null,
                 selectedEngineer: null,
                 selectedProducer: null,
+                selectedLabel: null,
             };
 
         case ActionTypes.SET_INITIAL_DATA:
@@ -372,6 +377,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, selectedEngineer: action.payload.engineer };
         case ActionTypes.VIEW_PRODUCER_PROFILE:
             return { ...state, selectedProducer: action.payload.producer };
+        case ActionTypes.VIEW_LABEL_PROFILE:
+            return { ...state, selectedLabel: action.payload.label };
         case ActionTypes.OPEN_BOOKING_MODAL:
             return { ...state, bookingTime: action.payload };
         case ActionTypes.CLOSE_BOOKING_MODAL:
@@ -386,18 +393,13 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookings: [...state.bookings, action.payload.booking] };
         
         case ActionTypes.UPDATE_USERS: {
-            // REINFORCED DEDUPLICATION LOGIC
             const newUsers = action.payload.users;
             const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
             
-            // 1. Populate map with EXISTING state to preserve what we have
-            // This ensures we don't lose users not present in the update
             [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz, ...state.labels].forEach(u => {
                 if(u.id) allUsersMap.set(u.id, u);
             });
             
-            // 2. Add/Overwrite with NEW users from the payload
-            // Using a Map guarantees that if an ID exists, it gets overwritten, preventing duplicates.
             newUsers.forEach(u => {
                 if(u.id) allUsersMap.set(u.id, u);
             });
@@ -406,7 +408,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
             const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
 
-            // 3. Re-distribute unique users into their respective arrays based on type guards
             return {
                 ...state,
                 artists: uniqueUsers.filter(u => 'bio' in u && 'is_seeking_session' in u) as Artist[],
@@ -419,6 +420,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 selectedEngineer: findUser(state.selectedEngineer?.id) as Engineer || state.selectedEngineer,
                 selectedProducer: findUser(state.selectedProducer?.id) as Producer || state.selectedProducer,
                 selectedStoodio: findUser(state.selectedStoodio?.id) as Stoodio || state.selectedStoodio,
+                selectedLabel: findUser(state.selectedLabel?.id) as Label || state.selectedLabel,
             };
         }
         case ActionTypes.SET_CURRENT_USER:
