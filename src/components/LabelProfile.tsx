@@ -13,6 +13,7 @@ const LabelProfile: React.FC = () => {
     const { goBack, navigate } = useNavigation();
     const { startConversation } = useMessaging(navigate);
     
+    // Determine which label to show: selectedLabel (if viewing others) or currentUser (if viewing self as label)
     const label = (currentUser?.role === 'LABEL' && !selectedLabel) 
         ? (currentUser as Label) 
         : selectedLabel;
