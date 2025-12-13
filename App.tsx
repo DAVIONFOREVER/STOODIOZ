@@ -1,5 +1,5 @@
 
-import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
+import React, { useEffect, lazy, Suspense, useCallback } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { getAriaNudge } from './services/geminiService.ts';
@@ -63,7 +63,7 @@ const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
 const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx'));
-const LabelProfile = lazy(() => import('./components/LabelProfile.tsx')); // Added import
+const LabelProfile = lazy(() => import('./components/LabelProfile.tsx'));
 const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
 const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
 const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
@@ -115,9 +115,6 @@ const App: React.FC = () => {
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
-    // Explicitly define claimToken state to be available in renderView closure
-    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
-
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
@@ -207,21 +204,6 @@ const App: React.FC = () => {
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
-        // 1. Handle Token Routes (e.g., invites)
-        const path = window.location.pathname;
-        if (path.startsWith('/claim/')) {
-            const pathParts = path.split('/');
-            const token = pathParts[2];
-            if (token) {
-                setClaimToken(token);
-                if (path.includes('/confirm')) {
-                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
-                } else {
-                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
-                }
-            }
-        }
-
         const supabase = getSupabase();
         if (!supabase) return;
 

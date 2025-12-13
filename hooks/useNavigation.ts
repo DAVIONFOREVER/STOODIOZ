@@ -1,7 +1,6 @@
-
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import type { Stoodio, Artist, Engineer, Producer, Location, Booking, Label } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Location, Booking } from '../types';
 import { AppView } from '../types';
 
 export const useNavigation = () => {
@@ -9,7 +8,7 @@ export const useNavigation = () => {
     
     const navigate = useCallback((view: AppView) => {
         dispatch({ type: ActionTypes.NAVIGATE, payload: { view } });
-        if ([AppView.STOODIO_LIST, AppView.ARTIST_LIST, AppView.ENGINEER_LIST, AppView.PRODUCER_LIST, AppView.MAP_VIEW, AppView.LABEL_IMPORT].includes(view)) {
+        if ([AppView.STOODIO_LIST, AppView.ARTIST_LIST, AppView.ENGINEER_LIST, AppView.PRODUCER_LIST, AppView.MAP_VIEW].includes(view)) {
             dispatch({ type: ActionTypes.RESET_PROFILE_SELECTIONS });
         }
     }, [dispatch]);
@@ -37,11 +36,6 @@ export const useNavigation = () => {
         navigate(AppView.PRODUCER_PROFILE);
     }, [dispatch, navigate]);
     
-    const viewLabelProfile = useCallback((label: Label) => {
-        dispatch({ type: ActionTypes.VIEW_LABEL_PROFILE, payload: { label } });
-        navigate(AppView.LABEL_PROFILE);
-    }, [dispatch, navigate]);
-    
     const navigateToStudio = useCallback((location: Location) => {
         const { lat, lon } = location;
         const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
@@ -55,8 +49,6 @@ export const useNavigation = () => {
 
     const viewBooking = (bookingId: string) => navigate(AppView.MY_BOOKINGS);
     
-    const goToLabelImport = useCallback(() => navigate(AppView.LABEL_IMPORT), [navigate]);
-
     return { 
         navigate, 
         goBack, 
@@ -65,10 +57,8 @@ export const useNavigation = () => {
         viewArtistProfile, 
         viewEngineerProfile, 
         viewProducerProfile, 
-        viewLabelProfile,
         navigateToStudio,
         startNavigationForBooking,
-        viewBooking,
-        goToLabelImport
+        viewBooking
     };
 };
