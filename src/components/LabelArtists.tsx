@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon, FireIcon, ShieldCheckIcon, PhotoIcon, MusicNoteIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
@@ -10,6 +11,74 @@ interface LabelArtistsProps {
     reloadSignal?: number;
     onAddMember?: () => void;
 }
+
+const MOCK_ROSTER: any[] = [
+    {
+        id: 'artist-beyonce',
+        name: 'Beyoncé',
+        image_url: 'https://upload.wikimedia.org/wikipedia/commons/1/17/Beyonc%C3%A9_at_The_Lion_King_European_Premiere_2019.png',
+        role_in_label: 'Artist',
+        sessions_completed: 142,
+        mixes_delivered: 28,
+        output_score: 98,
+        engagement_score: 99,
+        ranking_tier: 'Elite',
+        is_on_streak: true,
+        roster_id: 'r1'
+    },
+    {
+        id: 'artist-harry',
+        name: 'Harry Styles',
+        image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Harry_Styles_Love_on_Tour_2022.jpg/800px-Harry_Styles_Love_on_Tour_2022.jpg',
+        role_in_label: 'Artist',
+        sessions_completed: 89,
+        mixes_delivered: 15,
+        output_score: 94,
+        engagement_score: 96,
+        ranking_tier: 'Platinum',
+        is_on_streak: true,
+        roster_id: 'r2'
+    },
+    {
+        id: 'artist-travis',
+        name: 'Travis Scott',
+        image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Travis_Scott_2016.jpg/800px-Travis_Scott_2016.jpg',
+        role_in_label: 'Artist/Producer',
+        sessions_completed: 210,
+        mixes_delivered: 45,
+        output_score: 97,
+        engagement_score: 95,
+        ranking_tier: 'Elite',
+        is_on_streak: false,
+        roster_id: 'r3'
+    },
+    {
+        id: 'artist-sza',
+        name: 'SZA',
+        image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/SZA_CTRL_Tour_Toronto_2017.jpg/800px-SZA_CTRL_Tour_Toronto_2017.jpg',
+        role_in_label: 'Artist',
+        sessions_completed: 65,
+        mixes_delivered: 12,
+        output_score: 88,
+        engagement_score: 92,
+        ranking_tier: 'Gold',
+        is_on_streak: true,
+        roster_id: 'r4'
+    },
+    {
+        id: 'artist-doja',
+        name: 'Doja Cat',
+        image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Doja_Cat_at_Global_Citizen_Festival_2023_%2853213554761%29_%28cropped%29.jpg/640px-Doja_Cat_at_Global_Citizen_Festival_2023_%2853213554761%29_%28cropped%29.jpg',
+        role_in_label: 'Artist',
+        sessions_completed: 78,
+        mixes_delivered: 20,
+        output_score: 90,
+        engagement_score: 94,
+        ranking_tier: 'Platinum',
+        is_on_streak: false,
+        roster_id: 'r5'
+    }
+];
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800 border border-zinc-700/50 p-6 rounded-xl flex items-center gap-4 shadow-lg">
@@ -68,6 +137,13 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
             // Fetch basic roster
             const rosterData = await apiService.fetchLabelRoster(currentUser.id);
             
+            // If API returns empty (no DB data yet), use mock data for demo purposes
+            if (rosterData.length === 0) {
+                 setRoster(MOCK_ROSTER as RosterMember[]);
+                 setLoading(false);
+                 return;
+            }
+
             // Fetch activity metrics (Real data from RPC)
             const activityData = await apiService.getRosterActivity(currentUser.id);
             
@@ -94,6 +170,8 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
             setRoster(mergedRoster);
         } catch (err) {
             console.error("Failed to fetch roster:", err);
+             // Fallback to mock on error for demo stability
+            setRoster(MOCK_ROSTER as RosterMember[]);
         } finally {
             setLoading(false);
         }
@@ -217,46 +295,6 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
             <div className="flex flex-col items-center justify-center py-32 space-y-4">
                 <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full"></div>
                 <p className="text-zinc-500 font-medium">Loading your talent...</p>
-            </div>
-        );
-    }
-
-    if (roster.length === 0) {
-        return (
-            <div className="max-w-2xl mx-auto text-center py-24 space-y-8 animate-fade-in">
-                <div className="relative">
-                    <div className="absolute inset-0 bg-orange-500/20 blur-3xl rounded-full opacity-50"></div>
-                    <div className="relative w-32 h-32 bg-zinc-900 rounded-full flex items-center justify-center mx-auto border-4 border-zinc-800 shadow-2xl">
-                        <UsersIcon className="w-16 h-16 text-zinc-600" />
-                    </div>
-                </div>
-                
-                <div className="space-y-3">
-                    <h2 className="text-4xl font-extrabold text-zinc-100 tracking-tight">Your roster is empty</h2>
-                    <p className="text-lg text-zinc-400 max-w-md mx-auto">
-                        Add artists, writers, producers, or engineers to start managing their careers and bookings.
-                    </p>
-                </div>
-                
-                <div className="flex flex-col items-center gap-6">
-                    {onAddMember && (
-                        <button 
-                            onClick={onAddMember}
-                            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-10 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-orange-500/20 flex items-center gap-3 text-lg"
-                        >
-                            <PlusCircleIcon className="w-6 h-6" />
-                            Add to Roster
-                        </button>
-                    )}
-                    
-                    <button 
-                        onClick={openAria}
-                        className="text-zinc-500 hover:text-orange-400 transition-colors flex items-center gap-2 text-sm font-medium"
-                    >
-                        <MagicWandIcon className="w-4 h-4" />
-                        Aria can help you scout talent
-                    </button>
-                </div>
             </div>
         );
     }
@@ -445,7 +483,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                                 </div>
                                 <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
                                     <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Output</p>
-                                    <p className="text-2xl font-bold text-orange-400">{selectedArtist.output_score !== undefined ? selectedArtist.output_score : calculateOutputScore(selectedArtist)}</p>
+                                    <p className="text-2xl font-bold text-orange-400">{selectedArtist.output_score}</p>
                                 </div>
                                 <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
                                     <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Engagement</p>

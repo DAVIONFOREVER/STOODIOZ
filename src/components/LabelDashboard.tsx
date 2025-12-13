@@ -1,5 +1,5 @@
 
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, lazy, Suspense, useRef } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { AppView } from '../types';
 import LabelArtists from './LabelArtists';
@@ -20,7 +20,8 @@ import LabelApprovals from './label/LabelApprovals';
 import LabelPerformance from './label/LabelPerformance';
 import LabelSettings from './LabelSettings';
 import { useAppState } from '../contexts/AppContext';
-import { PhotoIcon, PlusCircleIcon, UsersIcon } from './icons';
+import { useProfile } from '../hooks/useProfile';
+import { PhotoIcon, UsersIcon, EditIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
@@ -39,8 +40,37 @@ const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ t
 const LabelDashboard: React.FC = () => {
     const { navigate } = useNavigation();
     const { conversations, currentUser, userRole } = useAppState();
+    const { updateProfile } = useProfile();
     const [activeTab, setActiveTab] = useState<LabelTab>('roster');
     const [showRosterImport, setShowRosterImport] = useState(false);
+
+    // Refs for image uploads
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const coverInputRef = useRef<HTMLInputElement>(null);
+
+    const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageUrl = e.target?.result as string;
+                updateProfile({ image_url: imageUrl });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCoverChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const coverUrl = e.target?.result as string;
+                updateProfile({ cover_image_url: coverUrl });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const renderContent = () => {
         switch (activeTab) {
@@ -78,23 +108,69 @@ const LabelDashboard: React.FC = () => {
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
             {/* Header Section */}
-            <div className="cardSurface p-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                        {/* Logo */}
-                        <div className="w-24 h-24 rounded-full bg-zinc-800 border-4 border-zinc-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <div className="relative rounded-2xl overflow-hidden cardSurface group">
+                {/* Cover Image */}
+                <div className="h-48 md:h-64 bg-zinc-800 relative">
+                     {currentUser?.cover_image_url ? (
+                        <img 
+                            src={currentUser.cover_image_url} 
+                            alt="Cover" 
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-zinc-800 to-zinc-900 flex items-center justify-center">
+                            <p className="text-zinc-700 font-bold text-4xl opacity-20 uppercase tracking-widest">Label Dashboard</p>
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors"></div>
+                    
+                    {/* Edit Cover Button */}
+                    <button 
+                        onClick={() => coverInputRef.current?.click()}
+                        className="absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold py-1.5 px-3 rounded-full hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100 flex items-center gap-2"
+                    >
+                        <PhotoIcon className="w-4 h-4" /> Edit Cover
+                    </button>
+                    <input
+                        type="file"
+                        ref={coverInputRef}
+                        onChange={handleCoverChange}
+                        className="hidden"
+                        accept="image/*"
+                    />
+                </div>
+                
+                <div className="px-6 pb-6 md:px-8 md:pb-8 -mt-12 md:-mt-16 flex flex-col md:flex-row items-end md:items-end gap-6 relative z-10">
+                    {/* Avatar / Logo */}
+                    <div className="relative group/avatar flex-shrink-0">
+                        <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-zinc-900 bg-zinc-800 flex items-center justify-center overflow-hidden shadow-xl">
                             {currentUser?.image_url ? (
                                 <img src={currentUser.image_url} alt={currentUser.name} className="w-full h-full object-cover" />
                             ) : (
                                 <PhotoIcon className="w-10 h-10 text-zinc-600" />
                             )}
                         </div>
-                        <div>
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{currentUser?.name || 'Label Name'}</h1>
-                            <p className="text-zinc-400 mt-1">Label Dashboard</p>
-                        </div>
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer"
+                        >
+                            <EditIcon className="w-8 h-8 text-white" />
+                        </button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleAvatarChange}
+                            className="hidden"
+                            accept="image/*"
+                        />
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-3">
+
+                    <div className="flex-grow mb-2 text-center md:text-left">
+                        <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{currentUser?.name || 'Label Name'}</h1>
+                        <p className="text-zinc-400 mt-1">Label Dashboard</p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 mb-2 w-full md:w-auto">
                         <ImportRosterButton 
                             text="Import Roster"
                             onClick={() => navigate(AppView.LABEL_IMPORT)}
