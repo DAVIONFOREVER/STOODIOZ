@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useMessaging } from '../hooks/useMessaging';
+import { useSocial } from '../hooks/useSocial';
 import * as apiService from '../services/apiService';
-import { ChevronLeftIcon, PhotoIcon, LinkIcon, UsersIcon, UserPlusIcon, MessageIcon, ChartBarIcon, MapIcon } from './icons';
+import { ChevronLeftIcon, PhotoIcon, LinkIcon, UsersIcon, UserPlusIcon, UserCheckIcon, MessageIcon, ChartBarIcon, MapIcon } from './icons';
 import type { Label, RosterMember } from '../types';
 import { USER_SILHOUETTE_URL } from '../constants';
 
@@ -12,6 +13,7 @@ const LabelProfile: React.FC = () => {
     const { selectedLabel, currentUser } = useAppState();
     const { goBack, viewArtistProfile } = useNavigation();
     const { startConversation } = useMessaging(useNavigation().navigate);
+    const { toggleFollow } = useSocial();
     
     // Determine which label to show: selectedLabel (if viewing others) or currentUser (if viewing self as label)
     const label = (currentUser?.role === 'LABEL' && !selectedLabel) 
@@ -20,14 +22,21 @@ const LabelProfile: React.FC = () => {
 
     const [roster, setRoster] = useState<RosterMember[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isFollowing, setIsFollowing] = useState(false);
 
     useEffect(() => {
         if (!label) return;
+        
+        // Check following status
+        if (currentUser && 'following' in currentUser) {
+            setIsFollowing((currentUser.following.labels || []).includes(label.id));
+        }
+
         const fetchRoster = async () => {
             setLoading(true);
             try {
                 const data = await apiService.fetchLabelRoster(label.id);
-                // Only show public/claimed members on public profile usually
+                // Only show public/claimed members on public profile usually, or all if viewing self
                 setRoster(data.filter(m => !m.is_pending && !m.shadow_profile)); 
             } catch (error) {
                 console.error("Error fetching roster:", error);
@@ -36,7 +45,7 @@ const LabelProfile: React.FC = () => {
             }
         };
         fetchRoster();
-    }, [label]);
+    }, [label, currentUser]);
 
     if (!label) return (
         <div className="p-20 text-center text-zinc-500">
@@ -100,8 +109,12 @@ const LabelProfile: React.FC = () => {
                     </div>
                     {!isSelf && (
                         <div className="flex gap-3 mb-2 w-full md:w-auto">
-                            <button className="flex-1 md:flex-none px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-colors shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2">
-                                <UserPlusIcon className="w-5 h-5" /> Follow
+                            <button 
+                                onClick={() => toggleFollow('label', label.id)}
+                                className={`flex-1 md:flex-none px-6 py-2 font-bold rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2 ${isFollowing ? 'bg-zinc-700 text-zinc-300' : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20'}`}
+                            >
+                                {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
+                                {isFollowing ? 'Following' : 'Follow'}
                             </button>
                             <button 
                                 onClick={() => startConversation(label)}
