@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { AppView, ArtistScoutingData, AandRNote } from '../types';
 import { ChevronLeftIcon, SearchIcon, StarIcon, ChartBarIcon, UsersIcon, EyeIcon, PlusCircleIcon, CloseIcon, CheckCircleIcon } from './icons';
@@ -6,56 +7,57 @@ interface LabelScoutingProps {
     onNavigate: (view: AppView) => void;
 }
 
+// Mocking high-potential "next up" artists relevant to Sony's A&R interests
 const mockArtists: ArtistScoutingData[] = [
     {
         id: '1',
-        name: 'Nova Rae',
-        image_url: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=200&auto=format&fit=crop',
-        city: 'Atlanta',
-        genre: ['R&B', 'Soul'],
-        followers: 12800,
-        growth_30d: 42,
-        engagement_score: 87
+        name: 'Tyla',
+        image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+        city: 'Johannesburg',
+        genre: ['Amapiano', 'Pop'],
+        followers: 4200000,
+        growth_30d: 145,
+        engagement_score: 98
     },
     {
         id: '2',
-        name: 'Kid Astro',
-        image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop',
-        city: 'Los Angeles',
-        genre: ['Hip-Hop'],
-        followers: 55000,
-        growth_30d: 23,
-        engagement_score: 92
+        name: '4batz',
+        image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
+        city: 'Dallas',
+        genre: ['R&B', 'Soul'],
+        followers: 850000,
+        growth_30d: 320,
+        engagement_score: 95
     },
     {
         id: '3',
-        name: 'Echo & The Vibe',
-        image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop',
-        city: 'New York',
-        genre: ['Indie', 'Alternative'],
-        followers: 8900,
+        name: 'Dominic Fike',
+        image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop',
+        city: 'Naples, FL',
+        genre: ['Alternative', 'Rock'],
+        followers: 3100000,
         growth_30d: 15,
-        engagement_score: 75
+        engagement_score: 88
     },
     {
         id: '4',
-        name: 'Lil Zay',
-        image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop',
-        city: 'Chicago',
-        genre: ['Trap', 'Hip-Hop'],
-        followers: 22000,
-        growth_30d: 58,
-        engagement_score: 81
+        name: 'PinkPantheress',
+        image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop',
+        city: 'London',
+        genre: ['Pop', 'Electronic'],
+        followers: 2800000,
+        growth_30d: 22,
+        engagement_score: 91
     },
     {
         id: '5',
-        name: 'Serena Moon',
-        image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
-        city: 'Nashville',
-        genre: ['Pop', 'Singer-Songwriter'],
-        followers: 4500,
-        growth_30d: 12,
-        engagement_score: 68
+        name: 'Teezo Touchdown',
+        image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop',
+        city: 'Beaumont, TX',
+        genre: ['Alternative', 'Hip-Hop'],
+        followers: 1200000,
+        growth_30d: 45,
+        engagement_score: 89
     }
 ];
 
@@ -134,8 +136,8 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
                         <ChevronLeftIcon className="w-5 h-5" />
                         Back to Dashboard
                     </button>
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">A&R Talent Discovery</h1>
-                    <p className="text-zinc-400 mt-1">Scout emerging talent, track growth, and manage your pipeline.</p>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Sony A&R Discovery</h1>
+                    <p className="text-zinc-400 mt-1">Scout emerging talent, track growth, and manage pipeline.</p>
                 </div>
             </div>
 
@@ -231,7 +233,7 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
                             <div className="grid grid-cols-3 gap-2 mb-6 text-center">
                                 <div className="bg-zinc-800/50 rounded-lg p-2">
                                     <p className="text-xs text-zinc-500 uppercase font-bold">Followers</p>
-                                    <p className="text-sm font-bold text-zinc-200">{artist.followers.toLocaleString()}</p>
+                                    <p className="text-sm font-bold text-zinc-200">{(artist.followers / 1000).toFixed(1)}k</p>
                                 </div>
                                 <div className="bg-zinc-800/50 rounded-lg p-2">
                                     <p className="text-xs text-zinc-500 uppercase font-bold">Growth</p>

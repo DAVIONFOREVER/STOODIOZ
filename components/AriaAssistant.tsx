@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label, RosterMember, LabelBudgetOverview } from '../types';
 import { askAriaCantata } from '../services/geminiService';
 import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
+import * as apiService from '../services/apiService';
 
 interface AriaCantataAssistantProps {
     isOpen: boolean;
@@ -32,15 +33,31 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
     initialPrompt,
     clearInitialPrompt
 }) => {
-    const { currentUser, artists, engineers, stoodioz, producers, bookings } = useAppState();
+    const { currentUser, artists, engineers, stoodioz, producers, bookings, userRole } = useAppState();
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [labelContext, setLabelContext] = useState<{ roster: RosterMember[], budget: LabelBudgetOverview | null }>({ roster: [], budget: null });
+    
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
+
+    // Lazy load label context if the user is a label
+    useEffect(() => {
+        if (isOpen && currentUser && userRole === 'LABEL') {
+            const fetchContext = async () => {
+                const [roster, budget] = await Promise.all([
+                    apiService.fetchLabelRoster(currentUser.id),
+                    apiService.getLabelBudgetOverview(currentUser.id)
+                ]);
+                setLabelContext({ roster, budget });
+            };
+            fetchContext();
+        }
+    }, [isOpen, currentUser, userRole]);
 
     useEffect(() => {
         if (isOpen) {
@@ -66,7 +83,16 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
         setIsLoading(true);
 
         try {
-            const context = { artists, engineers, producers, stoodioz, bookings };
+            const context = { 
+                artists, 
+                engineers, 
+                producers, 
+                stoodioz, 
+                bookings,
+                roster: labelContext.roster,
+                budget: labelContext.budget
+            };
+            
             // Ensure currentUser is typed correctly for the service call
             const response = await askAriaCantata(newHistory, text, currentUser as (Artist | Engineer | Stoodio | Producer | Label | null), context);
 
@@ -133,10 +159,21 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                             <MagicWandIcon className="w-12 h-12 opacity-20" />
                             <p>How can I help with your music career today?</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm w-full max-w-lg">
-                                <button onClick={() => handleSendMessage("Find me a studio in Atlanta")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Find a studio in Atlanta</button>
-                                <button onClick={() => handleSendMessage("Who is the best engineer for Trap?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Best engineer for Trap?</button>
-                                <button onClick={() => handleSendMessage("Help me write a hook about summer")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Write a hook about summer</button>
-                                <button onClick={() => handleSendMessage("Draft a split sheet agreement")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Draft a split sheet</button>
+                                {userRole === 'LABEL' ? (
+                                    <>
+                                        <button onClick={() => handleSendMessage("How do I import my roster?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Import roster from CSV</button>
+                                        <button onClick={() => handleSendMessage("Show me my budget breakdown")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Check budget</button>
+                                        <button onClick={() => handleSendMessage("Find new trending artists")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Scout talent</button>
+                                        <button onClick={() => handleSendMessage("Draft a contract for a new signee")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Draft contract</button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button onClick={() => handleSendMessage("Find me a studio in Atlanta")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Find a studio in Atlanta</button>
+                                        <button onClick={() => handleSendMessage("Who is the best engineer for Trap?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Best engineer for Trap?</button>
+                                        <button onClick={() => handleSendMessage("Help me write a hook about summer")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Write a hook about summer</button>
+                                        <button onClick={() => handleSendMessage("Draft a split sheet agreement")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Draft a split sheet</button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

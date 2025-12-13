@@ -30,7 +30,7 @@ export const useAria = (deps: AriaHookDependencies) => {
                     deps.navigate(command.target as AppView);
                     
                     if (command.value && typeof command.value === 'object' && command.value.tab) {
-                        // Handle dashboard tab navigation
+                        // Handle dashboard tab navigation (Works for Label Dashboard too)
                         dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: command.value.tab } });
                     }
                     
@@ -59,6 +59,10 @@ export const useAria = (deps: AriaHookDependencies) => {
                         deps.viewStoodioDetails(stoodio);
                         onClose();
                     }
+                } else if (command.target === 'LABEL_IMPORT') {
+                    // Specific shortcut for label import
+                    deps.navigate(AppView.LABEL_IMPORT);
+                    onClose();
                 }
                 break;
 

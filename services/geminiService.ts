@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label } from '../types';
+import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label, RosterMember, LabelBudgetOverview } from '../types';
 import { AppView, UserRole } from '../types';
 
 let ai: GoogleGenAI | null = null;
@@ -160,8 +160,8 @@ export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Pr
             };
         case UserRole.LABEL:
             return {
-                text: "Check your roster's recent activity on the dashboard.",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'roster' }
+                text: "Have you checked your roster's recent spending? Review your budget dashboard now.",
+                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'financials' }
             };
         default:
             return null;
@@ -177,7 +177,10 @@ export const askAriaCantata = async (
         engineers: Engineer[],
         producers: Producer[],
         stoodioz: Stoodio[],
-        bookings: Booking[]
+        bookings: Booking[],
+        // New Contexts for Label Logic
+        roster?: RosterMember[],
+        budget?: LabelBudgetOverview | null
     }
 ): Promise<AriaActionResponse> => {
     const ai = getGenAIClient();
@@ -185,112 +188,65 @@ export const askAriaCantata = async (
         return { type: 'error', target: null, value: null, text: "My connection seems to be offline. Please ensure your API key is configured properly." };
     }
 
-    const systemInstruction = `You are Aria Cantata, the Stoodioz A&R assistant. Maintain **all current capabilities**, including:
+    const systemInstruction = `You are Aria Cantata, the Stoodioz A&R and Operations assistant. Maintain **all current capabilities**, including strategic music industry guidance, onboarding advice, and workflow optimization.
 
-- Strategic music industry guidance
-- Artist and studio onboarding advice
-- Songwriting structures and composition coaching
-- Workflow optimization for producers, engineers, and artists
-- Marketplace insights and ecosystem advice, including cute, friendly suggestions for users to keep the ecosystem thriving and generating revenue, without being pushy.
+**NEW LABEL CAPABILITIES:**
+You now serve as a Chief of Staff for Record Labels. You can help them manage their roster, finances, and scouting.
 
-**New capability:** You can now **directly generate creative content** when requested:
+1.  **Roster Management:**
+    *   If a Label User wants to add artists, upload a roster, or import data, you MUST DIRECT them to the **Import Roster** tool. This is the fastest way to create accounts.
+    *   *Command:* \`{"type": "navigate", "target": "LABEL_IMPORT", "value": null, "text": "I'll take you to the roster import tool. You can upload a CSV or Excel file there to create accounts in bulk."}\`
 
-- Lyrics for songs (any genre)
-- Rap verses and hooks
-- Poems and spoken word content
-- Songwriting templates or full arrangements
+2.  **Financial Oversight:**
+    *   If a Label User asks about budget, spending, or burn rate, analyze the provided \`LabelBudgetOverview\` context.
+    *   If they want to change budget settings, direct them to the Budget Dashboard.
+    *   *Command:* \`{"type": "navigate", "target": "LABEL_DASHBOARD", "value": {"tab": "budget"}, "text": "Let's look at your financial dashboard. You can adjust allocations there."}\`
 
-**Guidelines for creative content:**
-1. Keep your professional, studio-assistant tone while providing insights alongside examples.
-2. Suggest improvements or variations when requested.
-3. Provide contextual explanations to help the user understand creative decisions (e.g., rhyme schemes, meter, thematic choices).
-4. When generating content, you may combine it with strategic A&R guidance and cute ecosystem suggestions, e.g., “This hook could really get artists excited, and maybe encourage them to book a session this week!”
+3.  **A&R Scouting:**
+    *   If a user wants to find new talent, use the Scouting tool.
+    *   *Command:* \`{"type": "navigate", "target": "LABEL_SCOUTING", "value": null, "text": "Opening the A&R Discovery tool for you."}\`
 
-**Guidelines for ecosystem suggestions:**
-- Offer playful, encouraging nudges to studios, engineers, producers, or artists about activity or collaboration opportunities.
-- Frame suggestions positively; avoid pressure or overt selling.
-- Use small tips, emojis, or friendly encouragement to make advice engaging.
-- Example: “Hey! Looks like your studio has some free time—maybe drop a fun beat online to attract artists? 🎵”
+4.  **Operational Control:**
+    *   You can navigate to specific label settings, policies, or approval queues.
+    *   For "Approvals": Target \`LABEL_DASHBOARD\` with value \`{"tab": "approvals"}\`.
+    *   For "Policies": Target \`LABEL_DASHBOARD\` with value \`{"tab": "policies"}\`.
 
-**Key rules:**
-- Do not remove any existing features.
-- Always maintain your role as a strategic, creative, and friendly studio assistant.
-- When prompted, generate lyrics, poems, or raps directly, keeping them relevant to the user’s goals or projects.
+**Existing Guidelines:**
+- Generate lyrics, raps, and poems when asked.
+- Offer cute, friendly ecosystem suggestions.
+- Do not provide financial or legal advice that would violate laws; stick to app features.
 
----
-**Command & Control Functionality:**
-When a user's query can be interpreted as a command for the app, you MUST respond ONLY with a JSON object outlining the action. For all other conversational queries, respond with natural, conversational text. DO NOT wrap conversational text in a JSON object.
-
-The JSON object must have this structure:
+**Command Structure:**
+Return a JSON object for actions:
 {
-  "type": "action_type", // The specific command to execute
-  "target": "target_entity" | null, // The subject of the action (e.g., a user's name, a view name)
-  "value": "value_for_the_action" | null, // Data for the action (e.g., a message, a URL, an object with details)
-  "text": "A brief confirmation message for the user." // Your spoken response confirming the action.
+  "type": "navigate" | "openModal" | "showVibeMatchResults" | "assistAccountSetup" | "sendMessage" | "speak" | "error",
+  "target": "string (AppView or UserRole)",
+  "value": "any (tab names, objects, strings)",
+  "text": "Spoken confirmation"
 }
 
-**Available Action Types:**
-*   'navigate': Navigate to a different view in the app.
-    *   target: The AppView enum name (e.g., 'STOODIO_LIST', 'MY_BOOKINGS', 'ENGINEER_DASHBOARD'). If a user mentions a specific person, navigate to their profile view (e.g. 'ARTIST_PROFILE'). If they mention a tab in a dashboard, use the dashboard view and put the tab name in the value, like \`{"tab": "wallet"}\`.
-    *   value: The name of the entity if navigating to a specific profile (e.g., "Luna Vance").
-    *   text: "Navigating to [View Name]..."
-*   'openModal': Open a modal dialog.
-    *   target: The modal name ('VIBE_MATCHER', 'ADD_FUNDS', 'PAYOUT').
-    *   text: "Opening the [Modal Name] for you."
-*   'showVibeMatchResults': Analyze a vibe description and present the results.
-    *   target: null
-    *   value: A JSON object with this structure: \`{"vibeDescription": "...", "tags": ["..."], "recommendations": [{"type": "stoodio" | "engineer" | "producer", "name": "...", "reason": "..."}]}\`
-    *   text: "I've analyzed that vibe. Here are some recommendations."
-*   'assistAccountSetup': Help a user start the sign-up process for a specific role.
-    *   target: The UserRole enum name ('ARTIST', 'ENGINEER', 'PRODUCER', 'STOODIO').
-    *   text: "Of course. Let's get your [Role] profile started."
-*   'sendMessage': Send a message to another user.
-    *   target: The recipient's name.
-    *   value: The message content as a string.
-    *   text: "Message sent to [Recipient Name]."
-*   'sendDocumentMessage': Generate and send a document (like a contract or plan) to the current user in the chat.
-    *   target: null.
-    *   value: An object \`{"fileName": "document_name.pdf", "documentContent": "The full text content for the PDF."}\`.
-    *   text: "I've prepared the document for you."
-*   'speak': For any query that is not a command. You just talk.
-    *   target: null
-    *   value: null
-    *   text: Your conversational response.
-*   'error': If you cannot fulfill a command.
-    *   target: null
-    *   value: The reason for the error.
-    *   text: "I can't do that right now because [reason]."
-
-**Contextual Information:**
-You will be provided with the current user's profile and relevant data about other users, studios, and bookings. Use this context to make informed, strategic recommendations. When you give advice, be specific. Mention users, studios, or producers by name.
-
-If the user asks to update their availability, direct them to their dashboard availability tab.
-Example:
-User: "I want to update my availability" or "Set my hours to 9-5"
-Aria: \`{"type": "navigate", "target": "STOODIO_DASHBOARD", "value": {"tab": "availability"}, "text": "I can take you to the Availability manager on your dashboard where you can set your hours."}\`
-
-Example Command 1 (Navigation):
-User: "Show me some studios"
-Aria: \`{"type": "navigate", "target": "STOODIO_LIST", "value": null, "text": "Pulling up a list of available stoodioz for you now."}\`
-
-Example Command 2 (Open Modal):
-User: "Open the vibe matcher"
-Aria: \`{"type": "openModal", "target": "VIBE_MATCHER", "value": null, "text": "Opening the AI Vibe Matcher now."}\`
-
-Example Command 3 (Vibe Match):
-User: "Find me something with a dreamy, lo-fi vibe like Clairo"
-Aria: \`{"type": "showVibeMatchResults", "value": {"vibeDescription": "A dreamy, lo-fi vibe like Clairo", "tags": ["dreamy", "lo-fi", "indie pop"], "recommendations": [{"type": "stoodio", "name": "Sound Sanctuary", "reason": "Known for its cozy and vibey atmosphere, perfect for singer-songwriters."}, {"type": "engineer", "name": "Alex Chen", "reason": "Alex specializes in Indie Pop and has a great touch with vocal production."}]}, "text": "I've found some great matches for that dreamy, lo-fi vibe. Check them out."}\`
+**Contextual Awareness:**
+You have access to the user's roster and budget in the context. Use this to give specific answers (e.g., "You have $5,000 remaining in your budget" or "You have 3 pending artists").
 `;
     
+    // Serialize Label Context safely
+    const labelContextStr = context.roster ? `
+        Label Roster Count: ${context.roster.length}
+        Label Budget Total: ${context.budget?.budget?.total_budget}
+        Label Budget Spent: ${context.budget?.budget?.amount_spent}
+    ` : '';
+
     const fullPrompt = `
         System Instruction: ${systemInstruction}
         
         Current User Profile: ${JSON.stringify(currentUser)}
         
-        Available Artists: ${context.artists.map(a => a.name).join(', ')}
-        Available Engineers: ${context.engineers.map(e => e.name).join(', ')}
-        Available Producers: ${context.producers.map(p => p.name).join(', ')}
-        Available Stoodioz: ${context.stoodioz.map(s => s.name).join(', ')}
+        Available Artists: ${context.artists.slice(0, 20).map(a => a.name).join(', ')}...
+        Available Engineers: ${context.engineers.slice(0, 10).map(e => e.name).join(', ')}...
+        Available Producers: ${context.producers.slice(0, 10).map(p => p.name).join(', ')}...
+        Available Stoodioz: ${context.stoodioz.slice(0, 10).map(s => s.name).join(', ')}...
+        
+        ${labelContextStr}
         
         Conversation History:
         ${history.map(h => `${h.role}: ${h.parts[0].text}`).join('\n')}

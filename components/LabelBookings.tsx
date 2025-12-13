@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 
 // --- Types ---
@@ -18,21 +19,23 @@ interface MockBooking {
     status: 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
 }
 
-// --- Mock Data ---
+// --- Sony Music Mock Data ---
 const MOCK_ARTISTS: MockArtist[] = [
-    { id: 'a1', name: 'Luna Vance', image_url: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=200&auto=format&fit=crop' },
-    { id: 'a2', name: 'The Midnight Echo', image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop' },
-    { id: 'a3', name: 'Jaxson Beats', image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop' },
-    { id: 'a4', name: 'Velvet Voices', image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' },
+    { id: 'a1', name: 'Beyoncé', image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' },
+    { id: 'a2', name: 'Travis Scott', image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop' },
+    { id: 'a3', name: 'Harry Styles', image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop' },
+    { id: 'a4', name: 'Doja Cat', image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop' },
+    { id: 'a5', name: 'Future', image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop' },
 ];
 
 const MOCK_BOOKINGS: MockBooking[] = [
-    { id: 'b1', artist_id: 'a1', stoodio_name: 'Echo Chamber Studios', date: '2023-11-15', time: '14:00', duration: 4, price: 300, status: 'COMPLETED' },
-    { id: 'b2', artist_id: 'a2', stoodio_name: 'SoundLab', date: '2023-12-01', time: '10:00', duration: 8, price: 800, status: 'COMPLETED' },
-    { id: 'b3', artist_id: 'a1', stoodio_name: 'Vibe Central', date: '2024-01-20', time: '18:00', duration: 3, price: 250, status: 'CANCELLED' },
-    { id: 'b4', artist_id: 'a3', stoodio_name: 'The Basement', date: '2024-05-10', time: '12:00', duration: 2, price: 100, status: 'UPCOMING' },
-    { id: 'b5', artist_id: 'a4', stoodio_name: 'Skyline Recording', date: '2024-05-15', time: '15:00', duration: 5, price: 600, status: 'UPCOMING' },
-    { id: 'b6', artist_id: 'a2', stoodio_name: 'Echo Chamber Studios', date: '2024-06-01', time: '09:00', duration: 10, price: 1200, status: 'UPCOMING' },
+    { id: 'b1', artist_id: 'a1', stoodio_name: 'Electric Lady Studios (NYC)', date: '2024-05-15', time: '14:00', duration: 8, price: 4500, status: 'UPCOMING' },
+    { id: 'b2', artist_id: 'a2', stoodio_name: 'Abbey Road Studios (London)', date: '2024-05-18', time: '10:00', duration: 12, price: 12000, status: 'UPCOMING' },
+    { id: 'b3', artist_id: 'a3', stoodio_name: 'Shangri-La (Malibu)', date: '2024-04-20', time: '09:00', duration: 10, price: 8500, status: 'COMPLETED' },
+    { id: 'b4', artist_id: 'a4', stoodio_name: 'Jungle City Studios (NYC)', date: '2024-05-20', time: '20:00', duration: 6, price: 3200, status: 'UPCOMING' },
+    { id: 'b5', artist_id: 'a5', stoodio_name: 'Patchwerk Recording (ATL)', date: '2024-05-22', time: '22:00', duration: 8, price: 4000, status: 'UPCOMING' },
+    { id: 'b6', artist_id: 'a1', stoodio_name: 'Conway Recording Studios (LA)', date: '2024-03-15', time: '11:00', duration: 8, price: 5000, status: 'COMPLETED' },
+    { id: 'b7', artist_id: 'a2', stoodio_name: 'Criteria Studios (Miami)', date: '2024-06-01', time: '12:00', duration: 12, price: 9000, status: 'UPCOMING' },
 ];
 
 // --- Components ---
@@ -68,7 +71,7 @@ const BookingDetailsModal = ({ booking, artist, onClose }: { booking: MockBookin
 
                 <div className="space-y-4">
                     <div className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50">
-                        <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Location</p>
+                        <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Studio / Facility</p>
                         <p className="font-semibold text-zinc-200">{booking.stoodio_name}</p>
                     </div>
                     
@@ -85,8 +88,8 @@ const BookingDetailsModal = ({ booking, artist, onClose }: { booking: MockBookin
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50">
-                            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Price</p>
-                            <p className="font-bold text-green-400 text-lg">${booking.price}</p>
+                            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Cost (Est.)</p>
+                            <p className="font-bold text-green-400 text-lg">${booking.price.toLocaleString()}</p>
                         </div>
                         <div className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50 flex items-center justify-center">
                             <StatusBadge status={booking.status} />
@@ -130,8 +133,8 @@ const LabelBookings: React.FC = () => {
         <div className="max-w-6xl mx-auto p-6 space-y-8 animate-fade-in">
             {/* Header */}
             <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Label Bookings</h1>
-                <p className="text-zinc-400 mt-2">Track all sessions across your roster.</p>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Global Session Schedule</h1>
+                <p className="text-zinc-400 mt-2">Manage tracking, mixing, and writing sessions for Sony Music artists.</p>
             </div>
 
             {/* Filters */}
@@ -186,9 +189,9 @@ const LabelBookings: React.FC = () => {
                         <thead className="bg-zinc-800/50 text-zinc-400 text-xs uppercase font-bold tracking-wider">
                             <tr>
                                 <th className="p-4">Artist</th>
-                                <th className="p-4">Stoodio</th>
+                                <th className="p-4">Facility</th>
                                 <th className="p-4">Date & Time</th>
-                                <th className="p-4">Price</th>
+                                <th className="p-4">Budget</th>
                                 <th className="p-4">Status</th>
                             </tr>
                         </thead>
@@ -212,7 +215,7 @@ const LabelBookings: React.FC = () => {
                                             <div>{new Date(booking.date).toLocaleDateString()}</div>
                                             <div className="text-xs opacity-70">{booking.time} ({booking.duration}h)</div>
                                         </td>
-                                        <td className="p-4 font-mono text-zinc-300">${booking.price}</td>
+                                        <td className="p-4 font-mono text-zinc-300">${booking.price.toLocaleString()}</td>
                                         <td className="p-4">
                                             <StatusBadge status={booking.status} />
                                         </td>
