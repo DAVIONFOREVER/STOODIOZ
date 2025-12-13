@@ -133,20 +133,24 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // 1. Sign out from Supabase first
         try {
             const supabase = getSupabase();
-            if (supabase) await (supabase.auth as any).signOut();
+            if (supabase) {
+                // 1. Tell Supabase to invalidate the session on the server & local storage
+                await (supabase.auth as any).signOut();
+            }
         } catch (e) {
             console.warn("Supabase signout error (ignoring):", e);
-        }
-        
-        // 2. Clear Application State
-        dispatch({ type: ActionTypes.LOGOUT });
+        } finally {
+            // 2. Clear Redux/Context state
+            dispatch({ type: ActionTypes.LOGOUT });
 
-        // 3. Force Navigation to Landing Page
-        navigate(AppView.LANDING_PAGE);
-    }, [dispatch, navigate]);
+            // 3. NUCLEAR OPTION: Force a hard refresh of the page.
+            // This ensures all memory states, sockets, and cached data are completely wiped.
+            // It effectively "closes out the session fully" as requested.
+            window.location.href = '/'; 
+        }
+    }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
