@@ -45,6 +45,7 @@ export enum AppView {
     CLAIM_ENTRY = 'CLAIM_ENTRY',
     CLAIM_CONFIRM = 'CLAIM_CONFIRM',
     CLAIM_LABEL_PROFILE = 'CLAIM_LABEL_PROFILE',
+    LABEL_PROFILE = 'LABEL_PROFILE',
 }
 
 export enum UserRole {
@@ -271,10 +272,27 @@ export interface BaseUser {
     role?: string;
 }
 
-export interface Artist extends BaseUser {
-    bio: string;
-    is_seeking_session: boolean;
-    label_id?: string | null;
+export interface LabelPublicMetrics {
+    total_streams?: number;
+    charted_records?: number;
+    countries_distributed?: number;
+    certifications?: number;
+}
+
+export interface LabelRosterMetadata {
+    [artistId: string]: {
+        display: boolean;
+        status: 'Developing' | 'Breakout' | 'Established';
+        highlight_metric?: string;
+    };
+}
+
+export interface LabelOpportunities {
+    accepting_demos: boolean;
+    hiring_producers: boolean;
+    hiring_engineers: boolean;
+    booking_studios: boolean;
+    scouting: boolean;
 }
 
 export interface Label extends BaseUser {
@@ -282,6 +300,31 @@ export interface Label extends BaseUser {
     company_name?: string;
     contact_phone?: string;
     website?: string;
+    parent_company?: string;
+    primary_genres?: string[];
+    primary_regions?: string[];
+    years_active?: number;
+    mission_statement?: string;
+    public_metrics?: LabelPublicMetrics;
+    services_offered?: string[];
+    affiliations?: string[];
+    opportunities?: LabelOpportunities;
+    roster_display_settings?: LabelRosterMetadata;
+    is_public_profile_enabled?: boolean;
+    section_visibility?: {
+        mission?: boolean;
+        roster?: boolean;
+        metrics?: boolean;
+        services?: boolean;
+        partnerships?: boolean;
+        opportunities?: boolean;
+    };
+}
+
+export interface Artist extends BaseUser {
+    bio: string;
+    is_seeking_session: boolean;
+    label_id?: string | null;
 }
 
 export interface Engineer extends BaseUser {
