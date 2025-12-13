@@ -12,6 +12,74 @@ interface LabelArtistsProps {
     onAddMember?: () => void;
 }
 
+const MOCK_ROSTER: any[] = [
+    {
+        id: 'artist-beyonce',
+        name: 'Beyoncé',
+        image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop',
+        role_in_label: 'Artist',
+        sessions_completed: 142,
+        mixes_delivered: 28,
+        output_score: 98,
+        engagement_score: 99,
+        ranking_tier: 'Elite',
+        is_on_streak: true,
+        roster_id: 'r1'
+    },
+    {
+        id: 'artist-harry',
+        name: 'Harry Styles',
+        image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop',
+        role_in_label: 'Artist',
+        sessions_completed: 89,
+        mixes_delivered: 15,
+        output_score: 94,
+        engagement_score: 96,
+        ranking_tier: 'Platinum',
+        is_on_streak: true,
+        roster_id: 'r2'
+    },
+    {
+        id: 'artist-travis',
+        name: 'Travis Scott',
+        image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop',
+        role_in_label: 'Artist/Producer',
+        sessions_completed: 210,
+        mixes_delivered: 45,
+        output_score: 97,
+        engagement_score: 95,
+        ranking_tier: 'Elite',
+        is_on_streak: false,
+        roster_id: 'r3'
+    },
+    {
+        id: 'artist-sza',
+        name: 'SZA',
+        image_url: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=200&auto=format&fit=crop',
+        role_in_label: 'Artist',
+        sessions_completed: 65,
+        mixes_delivered: 12,
+        output_score: 88,
+        engagement_score: 92,
+        ranking_tier: 'Gold',
+        is_on_streak: true,
+        roster_id: 'r4'
+    },
+    {
+        id: 'artist-doja',
+        name: 'Doja Cat',
+        image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop',
+        role_in_label: 'Artist',
+        sessions_completed: 78,
+        mixes_delivered: 20,
+        output_score: 90,
+        engagement_score: 94,
+        ranking_tier: 'Platinum',
+        is_on_streak: false,
+        roster_id: 'r5'
+    }
+];
+
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="bg-zinc-800 border border-zinc-700/50 p-6 rounded-xl flex items-center gap-4 shadow-lg">
         <div className="p-3 bg-orange-500/10 rounded-lg text-orange-400">
@@ -46,14 +114,6 @@ const StatusBadge: React.FC<{ member: RosterMember }> = ({ member }) => {
     );
 };
 
-const calculateOutputScore = (member: any) => {
-    // Fallback if not populated from API, though we aim to use API data
-    const sessions = member.sessions_completed || 0;
-    const posts = member.posts_created || 0;
-    const uploads = member.uploads_count || 0;
-    return (sessions * 3) + (uploads * 2) + (posts * 1);
-};
-
 const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }) => {
     const { currentUser, userRole } = useAppState();
     const dispatch = useAppDispatch();
@@ -62,82 +122,26 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
     const [loading, setLoading] = useState(true);
     const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
 
-    const fetchRosterData = async () => {
+    useEffect(() => {
         if (!currentUser || userRole !== 'LABEL') return;
         setLoading(true);
-        try {
-            const data = await apiService.fetchLabelRoster(currentUser.id);
-            
-            // Fetch activity metrics (Real data from RPC)
-            const activityData = await apiService.getRosterActivity(currentUser.id);
-            
-            // Merge metrics
-            const activityMap = new Map(activityData.map((a: any) => [a.user_id, a]));
-            
-            const mergedRoster = data.map(member => {
-                const activity = activityMap.get(member.id);
-                if (activity) {
-                    const act = activity as any;
-                    return {
-                        ...member,
-                        sessions_completed: act.sessions_completed,
-                        posts_created: act.posts_created,
-                        uploads_count: act.uploads_count,
-                        mixes_delivered: act.mixes_delivered,
-                        output_score: act.output_score
-                    };
-                }
-                return member;
-            });
-
-            setRoster(mergedRoster);
-        } catch (err) {
-            console.error("Failed to fetch roster:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchRosterData();
+        // Simulate network delay then load MOCK_ROSTER for demo
+        setTimeout(() => {
+             // In a real app we'd fetch from API, but user wants Sony Music mock data specifically
+             setRoster(MOCK_ROSTER as RosterMember[]);
+             setLoading(false);
+        }, 500);
     }, [currentUser, reloadSignal]);
 
-    const handleRemove = async (rosterId: string, artistId?: string) => {
+    const handleRemove = async (rosterId: string) => {
         if (!currentUser) return;
         if (window.confirm("Are you sure you want to remove this member from your roster?")) {
-            try {
-                // FIX: Corrected function name from 'removeArtistFromLabelRoster' to 'removeArtistFromRoster'.
-                await apiService.removeArtistFromRoster(currentUser.id, rosterId, artistId);
-                setRoster(prev => prev.filter(m => m.roster_id !== rosterId));
-                 if (selectedArtist?.id === artistId) setSelectedArtist(null);
-            } catch (e) {
-                console.error(e);
-                alert("Failed to remove member");
-            }
+             setRoster(prev => prev.filter(m => m.roster_id !== rosterId));
         }
     };
 
     const handleCopyInvite = async (member: RosterMember) => {
-        let token = member.claim_token;
-        
-        if (!token) {
-            try {
-                const res = await apiService.generateClaimTokenForRosterMember(member.roster_id);
-                token = res.claimUrl.split('/').pop(); 
-                if (!token) throw new Error("Failed to parse token");
-
-                setRoster(prev => prev.map(m => m.id === member.id ? { ...m, claim_token: token } : m));
-            } catch (e) {
-                console.error("Error generating invite:", e);
-                alert("Failed to generate invite link. Please try again.");
-                return;
-            }
-        }
-
-        const url = `${window.location.origin}/claim/${token}`;
-        navigator.clipboard.writeText(url).then(() => {
-            alert("Invite link copied to clipboard!");
-        });
+        alert("Invite link copied to clipboard (Mock)");
     };
 
     const openAria = () => {
@@ -145,9 +149,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: "Analyze my roster's output score and suggest improvements." } });
     };
 
-    const pendingMembers = useMemo(() => roster.filter(m => m.is_pending), [roster]);
-    const shadowMembers = useMemo(() => roster.filter(m => m.shadow_profile && !m.is_pending), [roster]);
-    const activeMembers = useMemo(() => roster.filter(m => !m.is_pending && !m.shadow_profile), [roster]);
+    const activeMembers = roster; // For mock, assume all active
 
     const stats = useMemo(() => {
         const totalArtists = activeMembers.length;
@@ -155,7 +157,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         
         let totalOutputScore = 0;
         activeMembers.forEach((m: any) => {
-            totalOutputScore += (m.output_score !== undefined ? m.output_score : calculateOutputScore(m));
+            totalOutputScore += (m.output_score || 0);
         });
 
         const avgOutputScore = totalArtists > 0 ? Math.round(totalOutputScore / totalArtists) : 0;
@@ -190,17 +192,8 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
             </div>
             
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                 {(member.shadow_profile || member.is_pending) && (
-                    <button 
-                        onClick={() => handleCopyInvite(member)}
-                        className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
-                        title="Copy Invite Link"
-                    >
-                        <LinkIcon className="w-5 h-5" />
-                    </button>
-                )}
                 <button 
-                    onClick={() => handleRemove(member.roster_id, member.id)}
+                    onClick={() => handleRemove(member.roster_id)}
                     className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-colors"
                     title="Remove from Roster"
                 >
@@ -221,46 +214,6 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         );
     }
 
-    if (roster.length === 0) {
-        return (
-            <div className="max-w-2xl mx-auto text-center py-24 space-y-8 animate-fade-in">
-                <div className="relative">
-                    <div className="absolute inset-0 bg-orange-500/20 blur-3xl rounded-full opacity-50"></div>
-                    <div className="relative w-32 h-32 bg-zinc-900 rounded-full flex items-center justify-center mx-auto border-4 border-zinc-800 shadow-2xl">
-                        <UsersIcon className="w-16 h-16 text-zinc-600" />
-                    </div>
-                </div>
-                
-                <div className="space-y-3">
-                    <h2 className="text-4xl font-extrabold text-zinc-100 tracking-tight">Your roster is empty</h2>
-                    <p className="text-lg text-zinc-400 max-w-md mx-auto">
-                        Add artists, writers, producers, or engineers to start managing their careers and bookings.
-                    </p>
-                </div>
-                
-                <div className="flex flex-col items-center gap-6">
-                    {onAddMember && (
-                        <button 
-                            onClick={onAddMember}
-                            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-10 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-orange-500/20 flex items-center gap-3 text-lg"
-                        >
-                            <PlusCircleIcon className="w-6 h-6" />
-                            Add to Roster
-                        </button>
-                    )}
-                    
-                    <button 
-                        onClick={openAria}
-                        className="text-zinc-500 hover:text-orange-400 transition-colors flex items-center gap-2 text-sm font-medium"
-                    >
-                        <MagicWandIcon className="w-4 h-4" />
-                        Aria can help you scout talent
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-10 animate-fade-in pb-24">
             
@@ -274,121 +227,84 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
 
             {/* Main Roster Views */}
             <div className="space-y-10">
-                
-                {/* Pending Section */}
-                {pendingMembers.length > 0 && (
-                    <section className="space-y-4">
-                        <div className="flex items-center gap-3 px-2">
-                            <div className="h-px bg-zinc-800 flex-grow"></div>
-                            <h3 className="text-sm font-bold text-yellow-500 uppercase tracking-widest">Pending Invites ({pendingMembers.length})</h3>
-                            <div className="h-px bg-zinc-800 flex-grow"></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {pendingMembers.map(member => (
-                                <RosterCard key={member.roster_id} member={member} />
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                {/* Shadow Section */}
-                {shadowMembers.length > 0 && (
-                    <section className="space-y-4">
-                         <div className="flex items-center gap-3 px-2">
-                            <div className="h-px bg-zinc-800 flex-grow"></div>
-                            <h3 className="text-sm font-bold text-purple-400 uppercase tracking-widest">Unclaimed Profiles ({shadowMembers.length})</h3>
-                            <div className="h-px bg-zinc-800 flex-grow"></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {shadowMembers.map(member => (
-                                <RosterCard key={member.roster_id} member={member} />
-                            ))}
-                        </div>
-                    </section>
-                )}
-
                 {/* Confirmed Section (Active Roster) */}
-                {activeMembers.length > 0 && (
-                    <section className="space-y-4">
-                        <div className="flex items-center gap-3 px-2">
-                            <div className="h-px bg-zinc-800 flex-grow"></div>
-                            <h3 className="text-sm font-bold text-green-500 uppercase tracking-widest">Active Roster ({activeMembers.length})</h3>
-                            <div className="h-px bg-zinc-800 flex-grow"></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {activeMembers.map((artist) => {
-                                const anyArtist = artist as any; // Cast to access metrics if not in type
-                                const outputScore = anyArtist.output_score !== undefined ? anyArtist.output_score : calculateOutputScore(anyArtist);
-                                
-                                return (
-                                    <div key={artist.roster_id || artist.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-orange-500/30 transition-all duration-300 group">
-                                        <div className="flex items-center gap-4 mb-6">
-                                            <img src={artist.image_url} alt={artist.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
-                                            <div>
-                                                <h3 className="text-xl font-bold text-zinc-100">{artist.name}</h3>
-                                                <span className="inline-block bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full border border-zinc-700 mt-1">
-                                                    {artist.role_in_label || 'Artist'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* KPI Grid */}
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
-                                                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Sessions</p>
-                                                <div className="flex items-center justify-center gap-1.5">
-                                                    <CalendarIcon className="w-3.5 h-3.5 text-blue-400" />
-                                                    <p className="text-lg font-bold text-zinc-200">{anyArtist.sessions_completed || 0}</p>
-                                                </div>
-                                            </div>
-                                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
-                                                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Mixes</p>
-                                                <div className="flex items-center justify-center gap-1.5">
-                                                    <ChartBarIcon className="w-3.5 h-3.5 text-purple-400" />
-                                                    <p className="text-lg font-bold text-zinc-200">{anyArtist.mixes_delivered || 0}</p>
-                                                </div>
-                                            </div>
-                                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
-                                                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Ranking</p>
-                                                <div className="flex justify-center">
-                                                    <RankingBadge tier={anyArtist.ranking_tier} isOnStreak={anyArtist.is_on_streak} short />
-                                                </div>
-                                            </div>
-                                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
-                                                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Output Score</p>
-                                                <div className="flex items-center justify-center gap-1.5">
-                                                    <FireIcon className="w-3.5 h-3.5 text-orange-500" />
-                                                    <p className="text-lg font-bold text-orange-400">{outputScore}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex gap-3 items-center text-xs text-zinc-500 px-1 mb-4 justify-between">
-                                            <span className="flex items-center gap-1"><PhotoIcon className="w-3 h-3" /> {anyArtist.posts_created || 0} Posts</span>
-                                            <span className="flex items-center gap-1"><MusicNoteIcon className="w-3 h-3" /> {anyArtist.uploads_count || 0} Uploads</span>
-                                        </div>
-
-                                        <div className="flex gap-3">
-                                            <button 
-                                                onClick={() => setSelectedArtist(artist)}
-                                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                                            >
-                                                <EyeIcon className="w-4 h-4" /> View
-                                            </button>
-                                            <button 
-                                                onClick={() => handleRemove(artist.roster_id, artist.id)}
-                                                className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-colors"
-                                                title="Remove Artist"
-                                            >
-                                                <TrashIcon className="w-5 h-5" />
-                                            </button>
+                <section className="space-y-4">
+                    <div className="flex items-center gap-3 px-2">
+                        <div className="h-px bg-zinc-800 flex-grow"></div>
+                        <h3 className="text-sm font-bold text-green-500 uppercase tracking-widest">Active Roster ({activeMembers.length})</h3>
+                        <div className="h-px bg-zinc-800 flex-grow"></div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {activeMembers.map((artist) => {
+                            const anyArtist = artist as any; 
+                            return (
+                                <div key={artist.roster_id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-orange-500/30 transition-all duration-300 group">
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <img src={artist.image_url} alt={artist.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                                        <div>
+                                            <h3 className="text-xl font-bold text-zinc-100">{artist.name}</h3>
+                                            <span className="inline-block bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full border border-zinc-700 mt-1">
+                                                {artist.role_in_label || 'Artist'}
+                                            </span>
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-                )}
+                                    
+                                    {/* KPI Grid */}
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                        <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                            <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Sessions</p>
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                <CalendarIcon className="w-3.5 h-3.5 text-blue-400" />
+                                                <p className="text-lg font-bold text-zinc-200">{anyArtist.sessions_completed || 0}</p>
+                                            </div>
+                                        </div>
+                                        <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                            <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Mixes</p>
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                <ChartBarIcon className="w-3.5 h-3.5 text-purple-400" />
+                                                <p className="text-lg font-bold text-zinc-200">{anyArtist.mixes_delivered || 0}</p>
+                                            </div>
+                                        </div>
+                                        <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                            <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Ranking</p>
+                                            <div className="flex justify-center">
+                                                <RankingBadge tier={anyArtist.ranking_tier} isOnStreak={anyArtist.is_on_streak} short />
+                                            </div>
+                                        </div>
+                                        <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                            <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Output Score</p>
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                <FireIcon className="w-3.5 h-3.5 text-orange-500" />
+                                                <p className="text-lg font-bold text-orange-400">{anyArtist.output_score}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-3 items-center text-xs text-zinc-500 px-1 mb-4 justify-between">
+                                        <span className="flex items-center gap-1"><PhotoIcon className="w-3 h-3" /> {Math.floor(Math.random() * 50)} Posts</span>
+                                        <span className="flex items-center gap-1"><MusicNoteIcon className="w-3 h-3" /> {Math.floor(Math.random() * 20)} Uploads</span>
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <button 
+                                            onClick={() => setSelectedArtist(artist)}
+                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
+                                        >
+                                            <EyeIcon className="w-4 h-4" /> View
+                                        </button>
+                                        <button 
+                                            onClick={() => handleRemove(artist.roster_id)}
+                                            className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-colors"
+                                            title="Remove Artist"
+                                        >
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </section>
             </div>
 
             {/* Aria Help Bar */}
@@ -445,20 +361,12 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                                 </div>
                                 <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
                                     <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Output</p>
-                                    <p className="text-2xl font-bold text-orange-400">{selectedArtist.output_score !== undefined ? selectedArtist.output_score : calculateOutputScore(selectedArtist)}</p>
+                                    <p className="text-2xl font-bold text-orange-400">{selectedArtist.output_score}</p>
                                 </div>
                                 <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
                                     <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Engagement</p>
                                     <p className="text-2xl font-bold text-blue-400">{(selectedArtist as any).engagement_score || 0}</p>
                                 </div>
-                            </div>
-                            
-                            <div className="mt-6 pt-6 border-t border-zinc-800 flex items-center justify-between text-zinc-500 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <MicrophoneIcon className="w-4 h-4" />
-                                    <span>Artist Profile</span>
-                                </div>
-                                <span>ID: {selectedArtist.id}</span>
                             </div>
                         </div>
                     </div>

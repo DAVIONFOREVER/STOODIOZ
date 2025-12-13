@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { DollarSignIcon, ChartBarIcon, CalendarIcon, UsersIcon, BanknotesIcon, ArrowUpCircleIcon, BriefcaseIcon, CheckCircleIcon, PlusCircleIcon, CloseCircleIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
@@ -5,7 +6,7 @@ import * as apiService from '../services/apiService';
 import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode } from '../types';
 import { TransactionCategory } from '../types';
 
-// --- Sony Music Data Simulation ---
+// --- Sony Music Mock Data ---
 const MOCK_FINANCIALS = {
     totalRevenue: 245000000.00, // $245 Million
     monthlyRevenue: 18500000.00, // $18.5 Million

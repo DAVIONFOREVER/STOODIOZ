@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer, UserRole } from '../types';
+import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer, type Label, UserRole } from '../types';
 import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon, DollarSignIcon, EyeIcon } from './icons.tsx';
 import NotificationPanel from './NotificationPanel.tsx';
 import UniversalSearch from './UniversalSearch.tsx';
@@ -90,8 +90,8 @@ const Header: React.FC<HeaderProps> = (props) => {
         } else if (userRole === UserRole.ARTIST) {
             onSelectArtist(currentUser as Artist);
         } else if (userRole === UserRole.LABEL) {
-            // Label profile viewing is pending, route to dashboard for now
-            onNavigate(AppView.LABEL_DASHBOARD);
+            // FIX: Correctly navigate to the Label Profile view instead of dashboard
+            onNavigate(AppView.LABEL_PROFILE);
         }
         setIsMobileMenuOpen(false);
     };
