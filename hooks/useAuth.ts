@@ -47,13 +47,14 @@ export const useAuth = (navigate: (view: any) => void) => {
                     .eq('id', userId)
                     .single();
 
-                dispatch({
-                    type: ActionTypes.LOGIN_SUCCESS,
-                    payload: { user: labelProfile, role: UserRoleEnum.LABEL }
-                });
-
-                navigate(AppView.LABEL_DASHBOARD);
-                return;
+                if (labelProfile) {
+                    dispatch({
+                        type: ActionTypes.LOGIN_SUCCESS,
+                        payload: { user: labelProfile, role: UserRoleEnum.LABEL }
+                    });
+                    navigate(AppView.LABEL_DASHBOARD);
+                    return;
+                }
             }
             
             const roleMap: Record<string, UserRole> = {
@@ -124,8 +125,6 @@ export const useAuth = (navigate: (view: any) => void) => {
 
             } else {
                 console.warn(`Login successful (Auth ID: ${userId}), but no profile found in public tables.`);
-                // If the user exists in Auth but has no profile, checking "artists" table specifically as a last ditch fallback
-                // or just fail gracefully.
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Login successful, but profile data is missing. Please contact support." } });
             }
         } else {
@@ -140,14 +139,15 @@ export const useAuth = (navigate: (view: any) => void) => {
             if (supabase) await (supabase.auth as any).signOut();
         } catch (e) {
             console.warn("Supabase signout error (ignoring):", e);
-        }
-        
-        // 2. Clear Application State
-        dispatch({ type: ActionTypes.LOGOUT });
+        } finally {
+            // 2. Clear Application State
+            dispatch({ type: ActionTypes.LOGOUT });
 
-        // 3. Force Navigation to Landing Page
-        navigate(AppView.LANDING_PAGE);
-    }, [dispatch, navigate]);
+            // 3. Force Hard Navigation/Refresh
+            // This ensures the browser completely clears memory state, sockets, and context.
+            window.location.href = '/'; 
+        }
+    }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
