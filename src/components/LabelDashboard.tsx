@@ -19,9 +19,9 @@ import LabelInsights from './label/LabelInsights';
 import LabelApprovals from './label/LabelApprovals';
 import LabelPerformance from './label/LabelPerformance';
 import LabelSettings from './LabelSettings';
-import { useAppState } from '../contexts/AppContext';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useProfile } from '../hooks/useProfile';
-import { PhotoIcon, UsersIcon, EditIcon } from './icons';
+import { PhotoIcon, UsersIcon, EditIcon, EyeIcon, DollarSignIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
@@ -30,9 +30,9 @@ type LabelTab = 'roster' | 'bookings' | 'approvals' | 'performance' | 'budget' |
 const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
     <button
         onClick={onClick}
-        className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 rounded-lg font-bold transition-colors shadow-lg flex items-center justify-center gap-2"
+        className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 rounded-lg font-bold transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"
     >
-        <UsersIcon className="w-5 h-5"/>
+        <UsersIcon className="w-4 h-4"/>
         {text}
     </button>
 );
@@ -40,6 +40,7 @@ const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ t
 const LabelDashboard: React.FC = () => {
     const { navigate } = useNavigation();
     const { conversations, currentUser, userRole } = useAppState();
+    const dispatch = useAppDispatch();
     const { updateProfile } = useProfile();
     const [activeTab, setActiveTab] = useState<LabelTab>('roster');
     const [showRosterImport, setShowRosterImport] = useState(false);
@@ -70,6 +71,14 @@ const LabelDashboard: React.FC = () => {
             };
             reader.readAsDataURL(file);
         }
+    };
+    
+    const handleViewProfile = () => {
+        navigate(AppView.LABEL_PROFILE);
+    };
+
+    const handleAddFunds = () => {
+        dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
     };
 
     const renderContent = () => {
@@ -171,16 +180,24 @@ const LabelDashboard: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3 mb-2 w-full md:w-auto">
+                        <button
+                           onClick={handleViewProfile}
+                           className="px-4 py-2 bg-zinc-800 text-zinc-200 border border-zinc-700 hover:bg-zinc-700 rounded-lg font-bold transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"
+                        >
+                           <EyeIcon className="w-4 h-4"/>
+                           View Profile
+                        </button>
+                        <button
+                           onClick={handleAddFunds}
+                           className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"
+                        >
+                           <DollarSignIcon className="w-4 h-4"/>
+                           Add Funds
+                        </button>
                         <ImportRosterButton 
                             text="Import Roster"
                             onClick={() => navigate(AppView.LABEL_IMPORT)}
                         />
-                        <button
-                           onClick={() => navigate(AppView.LABEL_SCOUTING)}
-                           className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-bold transition-colors shadow-lg shadow-orange-500/20"
-                        >
-                           A&R Talent Discovery
-                        </button>
                     </div>
                 </div>
             </div>
