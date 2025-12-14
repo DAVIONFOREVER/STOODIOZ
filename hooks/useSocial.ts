@@ -12,33 +12,55 @@ export const useSocial = () => {
 
     const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
     
-    const toggleFollow = useCallback(async (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => {
+    const toggleFollow = useCallback(async (type: 'stoodio' | 'engineer' | 'artist' | 'producer' | 'label', id: string) => {
         if (!currentUser) return;
-        try {
-            const targetUser = allUsers.find(u => u.id === id);
-            if (!targetUser) return;
+        
+        // 1. OPTIMISTIC UPDATE: Calculate new state immediately
+        const targetUser = allUsers.find(u => u.id === id);
+        
+        let isFollowing = false;
+        if ('following' in currentUser) {
+             const key = `${type}s` as keyof typeof currentUser.following;
+             isFollowing = (currentUser.following[key] || []).includes(id);
+        }
+
+        // Create optimistic copy
+        const optimisticUser = { ...currentUser };
+        if ('following' in optimisticUser) {
+            const key = `${type}s` as keyof typeof optimisticUser.following;
+            const currentList = optimisticUser.following[key] || [];
             
-            const isFollowing = (currentUser.following[`${type}s` as keyof typeof currentUser.following] || []).includes(id);
+            if (isFollowing) {
+                // Unfollow
+                optimisticUser.following = {
+                    ...optimisticUser.following,
+                    [key]: currentList.filter((uid: string) => uid !== id)
+                };
+            } else {
+                // Follow
+                optimisticUser.following = {
+                    ...optimisticUser.following,
+                    [key]: [...currentList, id]
+                };
+            }
+            // Dispatch update immediately
+            dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: optimisticUser } });
+        }
 
-            const { updatedCurrentUser, updatedTargetUser } = await apiService.toggleFollow(currentUser, targetUser, type, isFollowing);
-
-            const newAllUsers = allUsers.map(u => {
-                if (u.id === updatedCurrentUser.id) return { ...u, ...updatedCurrentUser };
-                if (u.id === updatedTargetUser.id) return { ...u, ...updatedTargetUser };
-                return u;
-            });
-            dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: newAllUsers } });
+        // 2. Perform API Call in Background
+        try {
+            await apiService.toggleFollow(currentUser, { id } as any, type, isFollowing);
         } catch(error) {
             console.error("Failed to toggle follow:", error);
+            // Revert on error
+            dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: currentUser } });
+            alert("Failed to update follow status.");
         }
     }, [currentUser, allUsers, dispatch]);
 
     const createPost = useCallback(async (postData: { text: string; imageFile?: File; imageUrl?: string; videoFile?: File; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }, roleOverride?: UserRole) => {
         const roleToUse = roleOverride || userRole;
-        if (!currentUser || !roleToUse) {
-            console.error("createPost failed: Missing user or role", { currentUser, roleToUse });
-            return;
-        }
+        if (!currentUser || !roleToUse) return;
 
         try {
             const moderationResult = await moderatePostContent(postData.text);
@@ -55,7 +77,6 @@ export const useSocial = () => {
                 video_thumbnail_url: postData.videoThumbnailUrl
             };
 
-            // Handle file uploads to Supabase Storage
             if (postData.imageFile) {
                 try {
                     const uploadedUrl = await apiService.uploadPostAttachment(postData.imageFile, currentUser.id);
@@ -66,7 +87,6 @@ export const useSocial = () => {
                     return;
                 }
             } else if (postData.imageUrl) {
-                // Fallback if a URL was passed but no file (e.g. from a link scraper or other source)
                 finalPostData.image_url = postData.imageUrl;
             }
 
@@ -82,7 +102,6 @@ export const useSocial = () => {
             } else if (postData.videoUrl) {
                  finalPostData.video_url = postData.videoUrl;
             }
-
 
             if (urls && urls[0] && !finalPostData.image_url && !finalPostData.video_url) {
                 const metadata = await fetchLinkMetadata(urls[0]);

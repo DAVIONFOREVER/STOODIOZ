@@ -18,16 +18,19 @@ const SectionHeader: React.FC<{ title: string; subtitle: string; icon: React.Rea
     </div>
 );
 
-const InputField: React.FC<{ label: string; value: string; onChange: (val: string) => void; type?: string; placeholder?: string; help?: string }> = ({ label, value, onChange, type = "text", placeholder, help }) => (
+const InputField: React.FC<{ label: string; value: string; onChange: (val: string) => void; type?: string; placeholder?: string; help?: string; prefix?: string }> = ({ label, value, onChange, type = "text", placeholder, help, prefix }) => (
     <div className="mb-4">
         <label className="block text-sm font-medium text-zinc-400 mb-1">{label}</label>
-        <input
-            type={type}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 outline-none transition-all"
-            placeholder={placeholder}
-        />
+        <div className="relative">
+            {prefix && <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-500">{prefix}</span>}
+            <input
+                type={type}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className={`w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 outline-none transition-all ${prefix ? 'pl-8' : ''}`}
+                placeholder={placeholder}
+            />
+        </div>
         {help && <p className="text-xs text-zinc-500 mt-1">{help}</p>}
     </div>
 );
