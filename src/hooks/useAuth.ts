@@ -111,24 +111,16 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // 1. INSTANT UI UPDATE: Clear state immediately so the user sees action.
+        // 1. Clear state immediately
         dispatch({ type: ActionTypes.LOGOUT });
         
-        // 2. Clear Persistence
-        localStorage.removeItem('last_view');
-        
-        // 3. Force Navigation to Landing
+        // 2. Navigate away
         navigate(AppView.LANDING_PAGE);
 
-        // 4. Perform Network Cleanup (Background)
-        try {
-            const supabase = getSupabase();
-            if (supabase) {
-                await supabase.removeAllChannels();
-                await (supabase.auth as any).signOut();
-            }
-        } catch (e) {
-            console.warn("Supabase signout error (background):", e);
+        // 3. Simple Supabase Sign Out (Reverted from complex performLogout)
+        const supabase = getSupabase();
+        if (supabase) {
+            await (supabase.auth as any).signOut();
         }
     }, [dispatch, navigate]);
 

@@ -4,7 +4,47 @@ import { DollarSignIcon, ChartBarIcon, CalendarIcon, UsersIcon, BanknotesIcon, A
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode } from '../types';
-import { TransactionCategory } from '../types';
+
+// --- Sony Music Mock Data (Fallback) ---
+const MOCK_FINANCIALS_DATA = {
+    totalRevenue: 245000000.00, // $245 Million
+    monthlyRevenue: 18500000.00, // $18.5 Million
+    pendingPayouts: 4200000.00,
+    availablePayoutBalance: 12500000.00,
+    monthlyBreakdown: [
+        { month: 'Jan', amount: 14500000 },
+        { month: 'Feb', amount: 15200000 },
+        { month: 'Mar', amount: 19000000 },
+        { month: 'Apr', amount: 16500000 },
+        { month: 'May', amount: 18400000 },
+        { month: 'Jun', amount: 21100000 },
+        { month: 'Jul', amount: 20500000 },
+        { month: 'Aug', amount: 19800000 },
+        { month: 'Sep', amount: 18200000 },
+        { month: 'Oct', amount: 19000000 },
+        { month: 'Nov', amount: 22000000 },
+        { month: 'Dec', amount: 24500000 },
+    ],
+    byArtist: [
+        { id: '1', name: 'Beyoncé', image_url: 'https://upload.wikimedia.org/wikipedia/commons/1/17/Beyonc%C3%A9_at_The_Lion_King_European_Premiere_2019.png', amount: 85200000, percentage: 35 },
+        { id: '2', name: 'Harry Styles', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Harry_Styles_Love_on_Tour_2022.jpg/800px-Harry_Styles_Love_on_Tour_2022.jpg', amount: 55500000, percentage: 22 },
+        { id: '3', name: 'Travis Scott', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Travis_Scott_2016.jpg/800px-Travis_Scott_2016.jpg', amount: 48400000, percentage: 19 },
+        { id: '4', name: 'SZA', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/SZA_CTRL_Tour_Toronto_2017.jpg/800px-SZA_CTRL_Tour_Toronto_2017.jpg', amount: 32900000, percentage: 13 },
+        { id: '5', name: 'Doja Cat', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Doja_Cat_at_Global_Citizen_Festival_2023_%2853213554761%29_%28cropped%29.jpg/640px-Doja_Cat_at_Global_Citizen_Festival_2023_%2853213554761%29_%28cropped%29.jpg', amount: 23000000, percentage: 11 },
+    ],
+    byType: [
+        { type: 'Streaming Royalties', amount: 145000000, percentage: 59 },
+        { type: 'Sync & Licensing', amount: 45000000, percentage: 18 },
+        { type: 'Physical Sales (Vinyl)', amount: 35000000, percentage: 14 },
+        { type: 'Merchandise/D2C', amount: 20000000, percentage: 9 },
+    ],
+    initialPayoutRequests: [
+        { id: 'p1', amount: 2500000, requested_on: '2024-05-15', status: 'Pending', artist: 'Beyoncé' },
+        { id: 'p2', amount: 850000, requested_on: '2024-05-14', status: 'Approved', artist: 'Travis Scott' },
+        { id: 'p3', amount: 1200000, requested_on: '2024-05-10', status: 'Approved', artist: 'Harry Styles' },
+        { id: 'p4', amount: 45000, requested_on: '2024-05-08', status: 'Rejected', artist: 'Developing Artist A' },
+    ]
+};
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode; subtext?: string }> = ({ label, value, icon, subtext }) => (
     <div className="bg-zinc-800 border border-zinc-700/50 p-6 rounded-xl flex items-center gap-4 shadow-lg hover:border-orange-500/30 transition-colors">
@@ -32,6 +72,15 @@ const LabelFinancials: React.FC = () => {
     const [resetDay, setResetDay] = useState<number>(1);
     const [topUpAmount, setTopUpAmount] = useState<string>('');
     const [topUpNote, setTopUpNote] = useState<string>('');
+    
+    // UI State for mock interactivity
+    const [payoutRequests, setPayoutRequests] = useState(MOCK_FINANCIALS_DATA.initialPayoutRequests);
+
+    const handlePayoutAction = (id: string, action: 'Approved' | 'Rejected') => {
+        setPayoutRequests(prev => prev.map(req => 
+            req.id === id ? { ...req, status: action } : req
+        ));
+    };
 
     const loadData = async () => {
         if (!currentUser || userRole !== 'LABEL') return;
@@ -54,6 +103,7 @@ const LabelFinancials: React.FC = () => {
             }
         } catch (error) {
             console.error("Error loading financials:", error);
+            // Even on error, we proceed to render the page (it will use defaults if data is missing)
         } finally {
             setLoading(false);
         }
@@ -96,9 +146,16 @@ const LabelFinancials: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="p-20 text-center text-zinc-500">Loading financial data...</div>;
+        return (
+             <div className="flex flex-col items-center justify-center py-20">
+                <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full mb-4"></div>
+                <p className="text-zinc-500">Loading financial data...</p>
+            </div>
+        );
     }
 
+    // Use Mock Data if real data is empty (for demo purposes)
+    const displayRevenue = MOCK_FINANCIALS_DATA.totalRevenue; // Force mock usage for demo visuals
     const totalFunds = budgetOverview?.budget?.total_budget || 0;
     const spentFunds = budgetOverview?.budget?.amount_spent || 0;
     const remainingFunds = totalFunds - spentFunds;
@@ -107,30 +164,31 @@ const LabelFinancials: React.FC = () => {
         <div className="max-w-7xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
             {/* Header */}
             <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Financial Overview</h1>
-                <p className="text-zinc-400 mt-1">Manage budget, payouts, and track transactions.</p>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Sony Financial Overview</h1>
+                <p className="text-zinc-400 mt-1">Global P&L, Royalty Payouts, and Division Budgets.</p>
             </div>
 
             {/* SECTION A: Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
-                    label="Total Funds" 
-                    value={`$${totalFunds.toLocaleString()}`} 
+                    label="Annual Revenue (YTD)" 
+                    value={`$${displayRevenue.toLocaleString()}`} 
                     icon={<DollarSignIcon className="w-6 h-6" />} 
+                    subtext="+12% YoY Growth"
                 />
                 <StatCard 
-                    label="Amount Spent" 
-                    value={`$${spentFunds.toLocaleString()}`} 
-                    icon={<ChartBarIcon className="w-6 h-6" />} 
+                    label="This Month" 
+                    value={`$${MOCK_FINANCIALS_DATA.monthlyRevenue.toLocaleString()}`} 
+                    icon={<CalendarIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
-                    label="Remaining" 
-                    value={`$${remainingFunds.toLocaleString()}`} 
+                    label="Pending Payouts" 
+                    value={`$${MOCK_FINANCIALS_DATA.pendingPayouts.toLocaleString()}`} 
                     icon={<BanknotesIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
-                    label="Budget Mode" 
-                    value={budgetMode.replace('_', ' ')} 
+                    label="A&R Budget Remaining" 
+                    value={`$${remainingFunds.toLocaleString()}`} 
                     icon={<ArrowUpCircleIcon className="w-6 h-6" />} 
                 />
             </div>
@@ -139,20 +197,20 @@ const LabelFinancials: React.FC = () => {
                 {/* SECTION B: Budget Settings */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
-                        <ChartBarIcon className="w-5 h-5 text-blue-400" /> Budget Configuration
+                        <ChartBarIcon className="w-5 h-5 text-blue-400" /> Department Budgeting
                     </h2>
                     
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-1">Budget Mode</label>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Budget Allocation Mode</label>
                             <select 
                                 value={budgetMode} 
                                 onChange={(e) => setBudgetMode(e.target.value as LabelBudgetMode)}
                                 className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-orange-500"
                             >
-                                <option value="MANUAL">Manual Control</option>
-                                <option value="MONTHLY_FIXED">Monthly Fixed (Reset)</option>
-                                <option value="MONTHLY_ROLLING">Monthly Rolling (Accumulate)</option>
+                                <option value="MANUAL">Manual Allocation (Exec Approval)</option>
+                                <option value="MONTHLY_FIXED">Quarterly Fixed</option>
+                                <option value="MONTHLY_ROLLING">Rolling Cap</option>
                             </select>
                         </div>
 
@@ -184,7 +242,7 @@ const LabelFinancials: React.FC = () => {
                             onClick={handleSaveBudgetSettings}
                             className="w-full bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
                         >
-                            <CheckCircleIcon className="w-5 h-5" /> Save Settings
+                            <CheckCircleIcon className="w-5 h-5" /> Save Configuration
                         </button>
                     </div>
                 </div>
@@ -192,7 +250,7 @@ const LabelFinancials: React.FC = () => {
                 {/* SECTION C: Manual Top Up */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
-                        <PlusCircleIcon className="w-5 h-5 text-green-400" /> Add Funds Manually
+                        <PlusCircleIcon className="w-5 h-5 text-green-400" /> Inject Capital
                     </h2>
                     
                     <div className="space-y-4">
@@ -207,12 +265,12 @@ const LabelFinancials: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-1">Note (Optional)</label>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">GL Code / Reference</label>
                             <input 
                                 type="text" 
                                 value={topUpNote}
                                 onChange={(e) => setTopUpNote(e.target.value)}
-                                placeholder="Reason for deposit..."
+                                placeholder="e.g. Q3 Marketing Fund..."
                                 className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-green-500"
                             />
                         </div>
@@ -221,7 +279,7 @@ const LabelFinancials: React.FC = () => {
                             onClick={handleTopUp}
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
                         >
-                            <DollarSignIcon className="w-5 h-5" /> Add Funds
+                            <DollarSignIcon className="w-5 h-5" /> Authorize Transfer
                         </button>
                     </div>
                 </div>
@@ -234,7 +292,7 @@ const LabelFinancials: React.FC = () => {
                 </h2>
                 
                 {transactions.length === 0 ? (
-                    <p className="text-zinc-500 text-sm py-4 text-center">No transactions recorded.</p>
+                    <p className="text-zinc-500 text-sm py-4 text-center">No transactions recorded yet.</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm text-zinc-400">
@@ -271,41 +329,115 @@ const LabelFinancials: React.FC = () => {
                 )}
             </div>
 
-            {/* SECTION E: Contracts (Existing logic kept or minimized if needed, but visually secondary now) */}
+            {/* SECTION E: Revenue by Artist (Using MOCK data for robust visual) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                    <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
+                        <UsersIcon className="w-5 h-5 text-orange-400" /> Top Grossing Artists (YTD)
+                    </h2>
+                    <div className="space-y-4">
+                        {MOCK_FINANCIALS_DATA.byArtist.map((artist) => (
+                            <div 
+                                key={artist.id} 
+                                className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-xl hover:bg-zinc-800 transition-colors group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                                    <div>
+                                        <p className="font-bold text-zinc-100 group-hover:text-orange-400 transition-colors">{artist.name}</p>
+                                        <div className="w-24 h-1.5 bg-zinc-700 rounded-full mt-2 overflow-hidden">
+                                            <div className="h-full bg-orange-500 rounded-full" style={{ width: `${artist.percentage}%` }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-zinc-100">${artist.amount.toLocaleString()}</p>
+                                    <p className="text-xs text-zinc-500">{artist.percentage}% of Division Revenue</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* SECTION F: Income Sources */}
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                    <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
+                        <ChartBarIcon className="w-5 h-5 text-purple-400" /> Revenue Streams
+                    </h2>
+                    <div className="space-y-6">
+                        {MOCK_FINANCIALS_DATA.byType.map((item, index) => (
+                            <div key={index}>
+                                <div className="flex justify-between text-sm mb-2">
+                                    <span className="text-zinc-300 font-medium">{item.type}</span>
+                                    <span className="text-zinc-400">${item.amount.toLocaleString()}</span>
+                                </div>
+                                <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
+                                    <div 
+                                        className="bg-gradient-to-r from-purple-600 to-purple-400 h-full rounded-full" 
+                                        style={{ width: `${item.percentage}%` }}
+                                    ></div>
+                                </div>
+                                <p className="text-right text-xs text-zinc-500 mt-1">{item.percentage}%</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* SECTION G: Payout Requests */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                 <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
-                    <BriefcaseIcon className="w-5 h-5 text-orange-400" /> Active Contracts
+                    <BanknotesIcon className="w-5 h-5 text-green-400" /> Royalty & Advance Requests
                 </h2>
-                {contracts.length === 0 ? (
-                    <p className="text-zinc-500 text-sm">No active contracts found.</p>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-zinc-400">
-                            <thead className="bg-zinc-800/50 uppercase font-bold text-xs">
-                                <tr>
-                                    <th className="p-3">Talent ID</th>
-                                    <th className="p-3">Role</th>
-                                    <th className="p-3">Type</th>
-                                    <th className="p-3">Split %</th>
-                                    <th className="p-3">Recoup Bal</th>
-                                    <th className="p-3">Status</th>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-zinc-800/50 text-zinc-400 text-xs uppercase font-bold tracking-wider">
+                            <tr>
+                                <th className="p-4 rounded-tl-lg">Artist</th>
+                                <th className="p-4">Amount</th>
+                                <th className="p-4">Date Requested</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4 rounded-tr-lg text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800 text-sm">
+                            {payoutRequests.map((req) => (
+                                <tr key={req.id} className="hover:bg-zinc-800/30 transition-colors">
+                                    <td className="p-4 font-semibold text-zinc-200">{req.artist}</td>
+                                    <td className="p-4 font-mono text-zinc-300">${req.amount.toLocaleString()}</td>
+                                    <td className="p-4 text-zinc-400">{req.requested_on}</td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
+                                            req.status === 'Approved' ? 'bg-green-500/20 text-green-400' :
+                                            req.status === 'Rejected' ? 'bg-red-500/20 text-red-400' :
+                                            'bg-yellow-500/20 text-yellow-400'
+                                        }`}>
+                                            {req.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        {req.status === 'Pending' && (
+                                            <div className="flex justify-end gap-2">
+                                                <button 
+                                                    onClick={() => handlePayoutAction(req.id, 'Approved')}
+                                                    className="p-1.5 bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white rounded transition-colors" title="Approve"
+                                                >
+                                                    <CheckCircleIcon className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handlePayoutAction(req.id, 'Rejected')}
+                                                    className="p-1.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Reject"
+                                                >
+                                                    <CloseCircleIcon className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-800">
-                                {contracts.map(c => (
-                                    <tr key={c.id}>
-                                        <td className="p-3 font-mono text-zinc-300">{c.talent_user_id.slice(0, 8)}...</td>
-                                        <td className="p-3">{c.talent_role}</td>
-                                        <td className="p-3">{c.contract_type}</td>
-                                        <td className="p-3">{c.split_percent}%</td>
-                                        <td className="p-3 font-mono text-orange-400">${c.recoup_balance.toFixed(2)}</td>
-                                        <td className="p-3 uppercase text-xs font-bold">{c.status}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

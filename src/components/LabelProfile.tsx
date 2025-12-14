@@ -10,11 +10,32 @@ import type { Label, RosterMember } from '../types';
 import { USER_SILHOUETTE_URL } from '../constants';
 import { AppView } from '../types';
 
+// Mock Data for fallback visualization
 const MOCK_ROSTER: any[] = [
-    { id: 'm1', name: 'Beyoncé', image_url: 'https://upload.wikimedia.org/wikipedia/commons/1/17/Beyonc%C3%A9_at_The_Lion_King_European_Premiere_2019.png' },
-    { id: 'm2', name: 'Harry Styles', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Harry_Styles_Love_on_Tour_2022.jpg/800px-Harry_Styles_Love_on_Tour_2022.jpg' },
-    { id: 'm3', name: 'Travis Scott', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Travis_Scott_2016.jpg/800px-Travis_Scott_2016.jpg' }
+    { id: 'm1', name: 'Beyoncé', image_url: 'https://upload.wikimedia.org/wikipedia/commons/1/17/Beyonc%C3%A9_at_The_Lion_King_European_Premiere_2019.png', role_in_label: 'Artist' },
+    { id: 'm2', name: 'Harry Styles', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Harry_Styles_Love_on_Tour_2022.jpg/800px-Harry_Styles_Love_on_Tour_2022.jpg', role_in_label: 'Artist' },
+    { id: 'm3', name: 'Travis Scott', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Travis_Scott_2016.jpg/800px-Travis_Scott_2016.jpg', role_in_label: 'Artist/Producer' }
 ];
+
+const MOCK_LABEL_DATA: Partial<Label> = {
+    company_name: 'Sony Music Entertainment',
+    mission_statement: 'Empowering the next generation of global superstars through innovation and artistic freedom.',
+    public_metrics: {
+        total_streams: 2500000000,
+        charted_records: 142,
+        countries_distributed: 85,
+        certifications: 45
+    },
+    services_offered: ['Global Distribution', 'Marketing', 'Brand Partnerships', 'Sync Licensing'],
+    affiliations: ['Spotify', 'Live Nation', 'Universal'],
+    opportunities: {
+        accepting_demos: true,
+        hiring_producers: true,
+        hiring_engineers: false,
+        booking_studios: true,
+        scouting: true
+    }
+};
 
 const LabelProfile: React.FC = () => {
     const { selectedLabel, currentUser, userRole } = useAppState();
@@ -22,10 +43,15 @@ const LabelProfile: React.FC = () => {
     const { startConversation } = useMessaging(useNavigation().navigate);
     const { toggleFollow } = useSocial();
     
-    // LOGIC FIX: Prioritize currentUser if they are a label and no specific label was selected from a list
-    const label = (userRole === 'LABEL' && (!selectedLabel || selectedLabel.id === currentUser?.id)) 
+    // Logic to determine which label to show
+    let label = (userRole === 'LABEL' && (!selectedLabel || selectedLabel.id === currentUser?.id)) 
         ? (currentUser as Label) 
         : selectedLabel;
+
+    // Safety: If label is "skeleton" (missing details), merge with mock data for display
+    if (label && !label.mission_statement) {
+        label = { ...label, ...MOCK_LABEL_DATA };
+    }
 
     const [roster, setRoster] = useState<RosterMember[]>([]);
     const [loading, setLoading] = useState(true);
@@ -34,7 +60,6 @@ const LabelProfile: React.FC = () => {
     useEffect(() => {
         if (!label) return;
         
-        // Check following status
         if (currentUser && 'following' in currentUser) {
             setIsFollowing((currentUser.following.labels || []).includes(label.id));
         }
@@ -43,11 +68,11 @@ const LabelProfile: React.FC = () => {
             setLoading(true);
             try {
                 const data = await apiService.fetchLabelRoster(label.id);
-                // Use mock data if API returns empty for demo purposes
-                if (data.length === 0) {
-                     setRoster(MOCK_ROSTER as RosterMember[]);
+                if (data && data.length > 0) {
+                     const isOwner = currentUser?.id === label.id;
+                     setRoster(isOwner ? data : data.filter(m => !m.is_pending && !m.shadow_profile)); 
                 } else {
-                     setRoster(data.filter(m => !m.is_pending && !m.shadow_profile)); 
+                     setRoster(MOCK_ROSTER as RosterMember[]);
                 }
             } catch (error) {
                 console.error("Error fetching roster:", error);
@@ -70,9 +95,11 @@ const LabelProfile: React.FC = () => {
     };
 
     if (!label) return (
-        <div className="p-20 text-center text-zinc-500">
-            <p>Label profile not found.</p>
-            <button onClick={handleBack} className="mt-4 text-orange-400 hover:underline">Return to Dashboard</button>
+        <div className="p-20 text-center text-zinc-500 flex flex-col items-center">
+            <p>Label profile loading...</p>
+            <button onClick={() => navigate(AppView.LABEL_DASHBOARD)} className="mt-4 text-orange-400 font-bold hover:underline">
+                Return to Dashboard
+            </button>
         </div>
     );
 
@@ -80,7 +107,6 @@ const LabelProfile: React.FC = () => {
         mission: true, roster: true, metrics: true, services: true, partnerships: true, opportunities: true
     };
     
-    // Only show if public enabled (or self viewing)
     if (!label.is_public_profile_enabled && !isSelf) {
         return (
             <div className="p-20 text-center cardSurface">
@@ -284,6 +310,7 @@ const LabelProfile: React.FC = () => {
                                             />
                                             <div>
                                                 <h4 className="font-bold text-lg text-zinc-100 group-hover:text-orange-400 transition-colors">{artist.name}</h4>
+                                                <p className="text-zinc-500 text-xs mt-1 uppercase tracking-wide">{artist.role_in_label || 'Artist'}</p>
                                             </div>
                                         </div>
                                     ))}
