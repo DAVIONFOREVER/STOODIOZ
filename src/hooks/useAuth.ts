@@ -1,12 +1,10 @@
-
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
-// FIX: Import missing Stoodio type
 import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { UserRole as UserRoleEnum } from '../types';
-import { getSupabase } from '../lib/supabase';
+import { getSupabase, performLogout } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
@@ -53,8 +51,6 @@ export const useAuth = (navigate: (view: any) => void) => {
                         type: ActionTypes.LOGIN_SUCCESS,
                         payload: { user: labelProfile, role: UserRoleEnum.LABEL }
                     });
-                    // Note: Navigation is handled by the App component reacting to state, 
-                    // or explicitly here if needed, but App state takes precedence.
                     return;
                 }
             }
@@ -111,18 +107,21 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // 1. Clear state immediately
-        dispatch({ type: ActionTypes.LOGOUT });
-        
-        // 2. Navigate away
-        navigate(AppView.LANDING_PAGE);
-
-        // 3. Simple Supabase Sign Out (Reverted from complex performLogout)
-        const supabase = getSupabase();
-        if (supabase) {
-            await (supabase.auth as any).signOut();
+        try {
+            // 1. Clear state immediately
+            dispatch({ type: ActionTypes.LOGOUT });
+            
+            // 2. Perform deep cleanup (storage purge + auth signout)
+            await performLogout();
+            
+            // 3. Hard Reload to clear memory/hooks and reset the SPA state completely
+            window.location.assign('/'); 
+        } catch (e) {
+            console.error("Logout failed", e);
+            // Fallback: force reload anyway
+            window.location.assign('/'); 
         }
-    }, [dispatch, navigate]);
+    }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
@@ -157,7 +156,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             if (result) {
                 const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
-                // Note: Persistence logic in App.tsx will handle routing, or explicit navigation here:
+                
                  if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
