@@ -17,9 +17,13 @@ export const getSupabase = () => supabase
 
 function purgeLocalStorage(projectRef = 'ijcxeispefnbfwiviyux') {
   try {
+    // 1. Target specific project keys
     for (const k of Object.keys(localStorage)) {
       if (k.startsWith(`sb-${projectRef}-`)) localStorage.removeItem(k)
     }
+    // 2. Target exact auth key (redundancy check)
+    localStorage.removeItem('sb-ijcxeispefnbfwiviyux-auth')
+    // 3. Clear app state
     localStorage.removeItem('last_view')
   } catch (e) {
     console.warn('Storage purge warning:', e)
@@ -30,19 +34,24 @@ export async function performLogout() {
   const client = getSupabase()
   try {
     // 1) Remove channels and disconnect Realtime
-    await Promise.allSettled(client.getChannels().map((ch) => client.removeChannel(ch)))
-    client.removeAllChannels?.()
-    await client.realtime.disconnect()
+    const channels = client.getChannels()
+    if (channels.length > 0) {
+        await Promise.allSettled(channels.map((ch) => client.removeChannel(ch)))
+    }
+    
+    // 2) Disconnect socket
+    if (client.realtime) {
+        await client.realtime.disconnect()
+    }
 
-    // 2) Clear Realtime auth so reconnections aren’t authenticated
-    await client.realtime.setAuth(null as unknown as string)
-
-    // 3) Destroy auth session (global optional)
+    // 3) Attempt Server-Side Sign Out
+    // We await this, but if it fails, we catch it so we can still purge local data
     await (client.auth as any).signOut({ scope: 'global' })
-
-    // 4) Purge Supabase storage keys for this project
-    purgeLocalStorage('ijcxeispefnbfwiviyux')
+    
   } catch (e) {
-    console.warn('Logout cleanup warning:', e)
+    console.warn('Logout network/cleanup warning (non-fatal):', e)
+  } finally {
+    // 4) ALWAYS Purge Storage, even if the above errors out
+    purgeLocalStorage('ijcxeispefnbfwiviyux')
   }
 }
