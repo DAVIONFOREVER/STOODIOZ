@@ -32,8 +32,9 @@ export const useAuth = (navigate: (view: any) => void) => {
     
         // Login successful → find user profile, set user & navigate via dispatch
         if (data.user) {
-            const userId = data.user.id; // CRITICAL: Use ID, not email, to find the profile
+            const userId = data.user.id; 
             
+            // Check Label Table First (Optimization)
             const { data: profileRole } = await supabase
                 .from('profiles')
                 .select('role')
@@ -52,7 +53,8 @@ export const useAuth = (navigate: (view: any) => void) => {
                         type: ActionTypes.LOGIN_SUCCESS,
                         payload: { user: labelProfile, role: UserRoleEnum.LABEL }
                     });
-                    navigate(AppView.LABEL_DASHBOARD);
+                    // Note: Navigation is handled by the App component reacting to state, 
+                    // or explicitly here if needed, but App state takes precedence.
                     return;
                 }
             }
@@ -65,48 +67,33 @@ export const useAuth = (navigate: (view: any) => void) => {
                 'labels': UserRoleEnum.LABEL
             };
             
-            // Prioritize finding specialized roles first.
             const tables = ['stoodioz', 'producers', 'engineers', 'artists', 'labels'];
             
             let userProfile: Artist | Engineer | Stoodio | Producer | Label | null = null;
             let detectedRole: UserRole | undefined;
     
             for (const table of tables) {
-                // Adjust select query based on table for relational data
                 let selectQuery = '*';
                 if (table === 'stoodioz') selectQuery = '*, rooms(*), in_house_engineers(*)';
                 if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
                 if (table === 'producers') selectQuery = '*, instrumentals(*)';
 
-                // Look up by ID to ensure exact match
                 let { data: profileData, error: profileError } = await supabase
                     .from(table)
                     .select(selectQuery)
                     .eq('id', userId)
                     .maybeSingle();
 
-                // FALLBACK: If the complex query fails (e.g. RLS on relation), try basic fetch
                 if (profileError) {
-                    console.warn(`Complex fetch failed for ${table}, retrying basic...`);
-                    const retry = await supabase
-                        .from(table)
-                        .select('*')
-                        .eq('id', userId)
-                        .maybeSingle();
+                    // Retry basic
+                    const retry = await supabase.from(table).select('*').eq('id', userId).maybeSingle();
                     profileData = retry.data;
-                    profileError = retry.error;
-                }
-
-                if (profileError) {
-                    console.error(`Error finding user profile in ${table}:`, profileError);
-                    continue;
                 }
 
                 if (profileData) {
-                    // FIX: Cast to 'unknown' first to handle potential type mismatch from Supabase.
                     userProfile = profileData as unknown as Artist | Engineer | Stoodio | Producer | Label;
                     detectedRole = roleMap[table];
-                    break; // Stop searching once found
+                    break; 
                 }
             }
     
@@ -115,17 +102,8 @@ export const useAuth = (navigate: (view: any) => void) => {
                 if ('Notification' in window && Notification.permission !== 'denied') {
                     Notification.requestPermission();
                 }
-                
-                // Explicitly navigate based on detected role
-                if (detectedRole === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
-                else if (detectedRole === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
-                else if (detectedRole === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
-                else if (detectedRole === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-                else if (detectedRole === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
-
             } else {
-                console.warn(`Login successful (Auth ID: ${userId}), but no profile found in public tables.`);
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Login successful, but profile data is missing. Please contact support." } });
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Profile not found. Please contact support." } });
             }
         } else {
              dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "An unknown error occurred during login." } });
@@ -133,23 +111,24 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
+        // 1. INSTANT UI UPDATE: Clear state immediately so the user sees action.
+        dispatch({ type: ActionTypes.LOGOUT });
+        
+        // 2. Clear Persistence
+        localStorage.removeItem('last_view');
+        
+        // 3. Force Navigation to Landing
+        navigate(AppView.LANDING_PAGE);
+
+        // 4. Perform Network Cleanup (Background)
         try {
             const supabase = getSupabase();
             if (supabase) {
-                // 1. Remove all realtime subscriptions to prevent updates on unmounted components
                 await supabase.removeAllChannels();
-                
-                // 2. Tell Supabase to invalidate the session on the server & local storage
                 await (supabase.auth as any).signOut();
             }
         } catch (e) {
-            console.warn("Supabase signout error (ignoring):", e);
-        } finally {
-            // 3. Clear Redux/Context state
-            dispatch({ type: ActionTypes.LOGOUT });
-
-            // 4. Redirect using router replace (Landing Page)
-            navigate(AppView.LANDING_PAGE);
+            console.warn("Supabase signout error (background):", e);
         }
     }, [dispatch, navigate]);
 
@@ -186,9 +165,8 @@ export const useAuth = (navigate: (view: any) => void) => {
             if (result) {
                 const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
-                
-                // Force navigation based on role
-                if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
+                // Note: Persistence logic in App.tsx will handle routing, or explicit navigation here:
+                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
                 else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
                 else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
                 else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);

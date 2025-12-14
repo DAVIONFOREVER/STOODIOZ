@@ -284,25 +284,35 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             let role = explicitRole;
 
             if (!role) {
-                if ('amenities' in user) {
-                    role = UserRole.STOODIO;
-                } else if ('specialties' in user) {
-                    role = UserRole.ENGINEER;
-                } else if ('instrumentals' in user) {
-                    role = UserRole.PRODUCER;
-                } else if ('bio' in user && !('is_seeking_session' in user)) {
-                    role = UserRole.LABEL;
-                } else {
-                    role = UserRole.ARTIST;
-                }
+                if ('amenities' in user) role = UserRole.STOODIO;
+                else if ('specialties' in user) role = UserRole.ENGINEER;
+                else if ('instrumentals' in user) role = UserRole.PRODUCER;
+                else if ('bio' in user && !('is_seeking_session' in user)) role = UserRole.LABEL;
+                else role = UserRole.ARTIST;
             }
 
+            // PERSISTENCE LOGIC:
+            // 1. Determine Default Dashboard
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
+
+            // 2. Check LocalStorage for last visited view
+            const storedView = localStorage.getItem('last_view');
+            const restricted = [
+                AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+                AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+                AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.CLAIM_ENTRY, 
+                AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
+            ];
+            
+            // 3. If stored view is valid and NOT a setup/login page, restore it.
+            if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
+                landingView = storedView as AppView;
+            }
             
             return {
                 ...state,
@@ -317,6 +327,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.LOGIN_FAILURE:
             return { ...state, loginError: action.payload.error };
         case ActionTypes.LOGOUT:
+            // Ensure local storage is cleared on logout action in reducer as well
             return {
                 ...initialState,
                 history: [AppView.LANDING_PAGE],
@@ -334,7 +345,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             const { newUser, role } = action.payload;
             let updatedState = { ...state };
             
-            // Use temporary array update, but logic in UPDATE_USERS is better for uniqueness
             if (role === UserRole.ARTIST) updatedState.artists = [...state.artists, newUser as Artist];
             else if (role === UserRole.ENGINEER) updatedState.engineers = [...state.engineers, newUser as Engineer];
             else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];

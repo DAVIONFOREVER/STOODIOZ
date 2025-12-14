@@ -11,13 +11,14 @@ import { USER_SILHOUETTE_URL } from '../constants';
 import { AppView } from '../types';
 
 const LabelProfile: React.FC = () => {
-    const { selectedLabel, currentUser } = useAppState();
+    const { selectedLabel, currentUser, userRole } = useAppState();
     const { navigate, goBack, viewArtistProfile } = useNavigation();
     const { startConversation } = useMessaging(useNavigation().navigate);
     const { toggleFollow } = useSocial();
     
-    // Determine which label to show: selectedLabel (if viewing others) or currentUser (if viewing self as label)
-    const label = (currentUser?.role === 'LABEL' && !selectedLabel) 
+    // Correctly determine if we are viewing our own profile or another label
+    // If selectedLabel is null AND current user is a label, show current user.
+    const label = (userRole === 'LABEL' && !selectedLabel) 
         ? (currentUser as Label) 
         : selectedLabel;
 

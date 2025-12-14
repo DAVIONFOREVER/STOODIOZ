@@ -63,7 +63,7 @@ const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
 const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx'));
-const LabelProfile = lazy(() => import('./components/LabelProfile.tsx'));
+const LabelProfile = lazy(() => import('./components/LabelProfile.tsx')); 
 const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
 const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
 const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
@@ -84,14 +84,14 @@ const MasterclassReviewModal = lazy(() => import('./components/MasterclassReview
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
         return (
-            <div className="flex justify-center items-center py-20 min-h-[50vh]">
+            <div className="flex justify-center items-center py-20">
                 <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
             </div>
         );
     }
 
     return (
-        <div className="flex justify-center items-center py-20 min-h-[50vh]">
+        <div className="flex justify-center items-center py-20">
             <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -121,6 +121,22 @@ const App: React.FC = () => {
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
+    // EFFECT: Save current view to localStorage for persistence across refreshes
+    useEffect(() => {
+        if (currentView && currentUser) {
+             const excludedViews = [
+                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE,
+                 AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+                 AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.CLAIM_ENTRY, 
+                 AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
+             ];
+             
+             if (!excludedViews.includes(currentView)) {
+                 localStorage.setItem('last_view', currentView);
+             }
+        }
+    }, [currentView, currentUser]);
+
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         const supabase = getSupabase();
         if (!supabase) {
@@ -390,6 +406,25 @@ const App: React.FC = () => {
     const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const renderView = () => {
+        // --- GUARD: Prevent logged-in users from seeing the Landing Page ---
+        const isAuthPage = [
+            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+            AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.CLAIM_ENTRY, 
+            AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
+        ].includes(currentView);
+
+        if (currentUser && isAuthPage) {
+            // Force redirect to appropriate dashboard based on role
+            switch(userRole) {
+                case UserRole.LABEL: return <LabelDashboard />;
+                case UserRole.STOODIO: return <StoodioDashboard />;
+                case UserRole.ENGINEER: return <EngineerDashboard />;
+                case UserRole.PRODUCER: return <ProducerDashboard />;
+                default: return <ArtistDashboard />;
+            }
+        }
+    
         switch (currentView) {
             case AppView.LANDING_PAGE:
                 return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
@@ -533,7 +568,7 @@ return (
 
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
                 <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {isLoading ? <LoadingSpinner currentUser={currentUser} /> : renderView()}
+                    {renderView()}
                 </Suspense>
             </main>
 
