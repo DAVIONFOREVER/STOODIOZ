@@ -115,12 +115,12 @@ const App: React.FC = () => {
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
+    // Explicitly define claimToken state to be available in renderView closure
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
-    // --- AUTHENTICATION & SETUP HANDLERS ---
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         const supabase = getSupabase();
         if (!supabase) {
@@ -136,14 +136,12 @@ const App: React.FC = () => {
 
         try {
             if (role === UserRole.LABEL) {
-                // The userData object comes in with snake_case from the LABEL_SETUP case.
-                // The createUser function expects camelCase. We must map it here to fix the broken flow.
                 userData = {
                     ...userData,
                     bio: userData.bio || "",
-                    companyName: userData.company_name || null, // Map snake_case to camelCase
+                    companyName: userData.company_name || null,
                     website: userData.website || null,
-                    contactPhone: userData.contact_phone || null, // Map snake_case to camelCase
+                    contactPhone: userData.contact_phone || null,
                     image_url: userData.image_url || null
                 };
             }
@@ -174,14 +172,12 @@ const App: React.FC = () => {
             }
             
             alert(`Setup failed:\n${errorMessage}`);
-            // Re-throw to be caught by component-level state
             throw error;
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch, navigate]);
 
-    // --- HOOKS ---
     const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
     const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
     const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
@@ -191,8 +187,6 @@ const App: React.FC = () => {
     const { handleSubscribe } = useSubscription(navigate);
     const { startConversation, permissionError, setPermissionError } = useMessaging(navigate);
     const { confirmMasterclassPurchase, submitMasterclassReview } = useMasterclass();
-    
-    // --- ARIA ASSISTANT HOOK ---
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
         startConversation,
         navigate,
@@ -208,8 +202,177 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    // --- MODAL CLOSE HANDLERS ---
-    // Defined BEFORE renderView to be accessible
+    // --- DATA FETCHING & INITIALIZATION ---
+    useEffect(() => {
+        const path = window.location.pathname;
+        if (path.startsWith('/claim/')) {
+            const pathParts = path.split('/');
+            const token = pathParts[2];
+            if (token) {
+                setClaimToken(token);
+                if (path.includes('/confirm')) {
+                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_CONFIRM } });
+                } else {
+                     dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
+                }
+            }
+        }
+
+        const supabase = getSupabase();
+        if (!supabase) return;
+
+        const fetchDirectory = async () => {
+            const directory = await apiService.getAllPublicUsers();
+            dispatch({ 
+                type: ActionTypes.SET_INITIAL_DATA, 
+                payload: {
+                    artists: directory.artists,
+                    engineers: directory.engineers,
+                    producers: directory.producers,
+                    stoodioz: directory.stoodioz,
+                    labels: directory.labels,
+                    reviews: [] 
+                }
+            });
+        };
+        fetchDirectory();
+
+        const fetchAndHydrateUser = async (userId: string) => {
+            if (!currentUser) {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            }
+
+            const fetchProfiles = async () => {
+                const tableMap = {
+                    stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
+                    producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
+                    engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
+                    artists: { query: '*', role: UserRoleEnum.ARTIST },
+                    labels: { 
+                        query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier',
+                        role: UserRoleEnum.LABEL 
+                    },
+                };
+                
+                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
+                    try {
+                        const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
+                        if (error) {
+                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
+                             if (!basicError && basicData) {
+                                 return { data: basicData, role: config.role };
+                             }
+                             return null;
+                        }
+                        return data ? { data, role: config.role } : null;
+                    } catch (e) {
+                        return null;
+                    }
+                });
+                
+                const idResults = await Promise.all(idPromises);
+                return idResults.find(result => result !== null);
+            };
+            
+            try {
+                let userProfileResult = await fetchProfiles();
+                if (!userProfileResult) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        userProfileResult = await fetchProfiles();
+                }
+
+                if (userProfileResult && userProfileResult.data) {
+                    dispatch({ 
+                        type: ActionTypes.LOGIN_SUCCESS, 
+                        payload: { 
+                            user: userProfileResult.data as any,
+                            role: userProfileResult.role 
+                        } 
+                    });
+                } else {
+                    console.error("User authenticated but profile not found in any table.");
+                    dispatch({ 
+                        type: ActionTypes.LOGIN_FAILURE, 
+                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
+                    });
+                }
+            } catch (error) {
+                console.error("Error hydrating user profile:", error);
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
+            } finally {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            }
+        };
+
+        const initSession = async () => {
+            const { data: { session } } = await (supabase.auth as any).getSession();
+            if (session?.user) {
+                await fetchAndHydrateUser(session.user.id);
+            } else {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            }
+        };
+        
+        initSession();
+
+        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
+            if (event === 'SIGNED_OUT') {
+                dispatch({ type: ActionTypes.LOGOUT });
+                navigate(AppView.LANDING_PAGE);
+            } else if (event === 'SIGNED_IN' && session?.user) {
+                if (!currentUser || currentUser.id !== session.user.id) {
+                    await fetchAndHydrateUser(session.user.id);
+                }
+            }
+        });
+
+        return () => {
+            subscription?.unsubscribe();
+        };
+    }, [dispatch]); 
+
+    // --- AUTOMATIC REDIRECT FOR "LOCKED OUT" USERS ---
+    useEffect(() => {
+        // If loading is done, and no user is found, but we are on a protected view...
+        if (!isLoading && !currentUser) {
+             const publicViews = [
+                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE,
+                 AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+                 AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.PRIVACY_POLICY, 
+                 AppView.SUBSCRIPTION_PLANS, AppView.CLAIM_ENTRY, AppView.CLAIM_CONFIRM, 
+                 AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
+             ];
+             // Public Lists / Map are semi-public (have guest view), so we exclude them from forced redirect
+             // However, Dashboards are strictly protected.
+             const protectedViews = [
+                 AppView.ARTIST_DASHBOARD, AppView.ENGINEER_DASHBOARD, AppView.PRODUCER_DASHBOARD,
+                 AppView.STOODIO_DASHBOARD, AppView.LABEL_DASHBOARD, AppView.INBOX, 
+                 AppView.MY_BOOKINGS, AppView.ACTIVE_SESSION, AppView.CONFIRMATION,
+                 AppView.STUDIO_INSIGHTS, AppView.ADMIN_RANKINGS
+             ];
+
+             if (protectedViews.includes(currentView)) {
+                 // Force redirect to landing page to escape "Loading..." limbo
+                 navigate(AppView.LANDING_PAGE);
+             }
+        }
+    }, [isLoading, currentUser, currentView, navigate]);
+
+    useEffect(() => {
+        let timerId: number;
+        if (currentUser && userRole) {
+            getAriaNudge(currentUser, userRole).then(nudge => {
+                if (nudge) {
+                    dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
+                    timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
+                }
+            });
+        }
+        return () => {
+            if (timerId) clearTimeout(timerId);
+        };
+    }, [currentUser, userRole, dispatch]);
+
     const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
     const closeTipModal = () => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
     const closeCancelModal = () => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL });
@@ -224,17 +387,14 @@ const App: React.FC = () => {
     const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
     const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
 
-    // --- MODAL OPEN HELPERS ---
-    const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
-    const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
-
     const handleOpenAriaFromFAB = () => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
     };
 
-    // --- VIEW RENDERING LOGIC ---
-    // Defined BEFORE renderViewProxy
+    const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
+    const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
+
     const renderView = () => {
         switch (currentView) {
             case AppView.LANDING_PAGE:
@@ -360,10 +520,7 @@ const App: React.FC = () => {
         }
     };
 
-    // --- VIEW PROXY ---
-    // Defined AFTER renderView because it calls renderView
     const renderViewProxy = () => {
-        // --- GUARD: Prevent logged-in users from seeing the Landing Page ---
         const isAuthPage = [
             AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
             AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
@@ -382,148 +539,6 @@ const App: React.FC = () => {
         }
         return renderView();
     };
-
-    // --- EFFECTS ---
-    useEffect(() => {
-        if (currentView && currentUser) {
-             const excludedViews = [
-                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE,
-                 AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-                 AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.CLAIM_ENTRY, 
-                 AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
-             ];
-             if (!excludedViews.includes(currentView)) {
-                 localStorage.setItem('last_view', currentView);
-             }
-        }
-    }, [currentView, currentUser]);
-
-    useEffect(() => {
-        const supabase = getSupabase();
-        if (!supabase) return;
-
-        const fetchDirectory = async () => {
-            const directory = await apiService.getAllPublicUsers();
-            dispatch({ 
-                type: ActionTypes.SET_INITIAL_DATA, 
-                payload: {
-                    artists: directory.artists,
-                    engineers: directory.engineers,
-                    producers: directory.producers,
-                    stoodioz: directory.stoodioz,
-                    labels: directory.labels,
-                    reviews: [] 
-                }
-            });
-        };
-        fetchDirectory();
-
-        const fetchAndHydrateUser = async (userId: string) => {
-            if (!currentUser) {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            }
-
-            const fetchProfiles = async () => {
-                const tableMap = {
-                    stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
-                    producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
-                    engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
-                    artists: { query: '*', role: UserRoleEnum.ARTIST },
-                    labels: { 
-                        query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier',
-                        role: UserRoleEnum.LABEL 
-                    },
-                };
-                
-                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
-                    try {
-                        const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
-                        if (error) {
-                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                             if (!basicError && basicData) {
-                                 return { data: basicData, role: config.role };
-                             }
-                             return null;
-                        }
-                        return data ? { data, role: config.role } : null;
-                    } catch (e) {
-                        return null;
-                    }
-                });
-                
-                const idResults = await Promise.all(idPromises);
-                return idResults.find(result => result !== null);
-            };
-            
-            try {
-                let userProfileResult = await fetchProfiles();
-                if (!userProfileResult) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        userProfileResult = await fetchProfiles();
-                }
-
-                if (userProfileResult && userProfileResult.data) {
-                    dispatch({ 
-                        type: ActionTypes.LOGIN_SUCCESS, 
-                        payload: { 
-                            user: userProfileResult.data as any,
-                            role: userProfileResult.role 
-                        } 
-                    });
-                } else {
-                    dispatch({ 
-                        type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
-                    });
-                }
-            } catch (error) {
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
-            } finally {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            }
-        };
-
-        const initSession = async () => {
-            const { data: { session } } = await (supabase.auth as any).getSession();
-            if (session?.user) {
-                await fetchAndHydrateUser(session.user.id);
-            } else {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            }
-        };
-        
-        initSession();
-
-        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
-            if (event === 'SIGNED_OUT') {
-                dispatch({ type: ActionTypes.LOGOUT });
-                navigate(AppView.LANDING_PAGE);
-            } else if (event === 'SIGNED_IN' && session?.user) {
-                if (!currentUser || currentUser.id !== session.user.id) {
-                    await fetchAndHydrateUser(session.user.id);
-                }
-            }
-        });
-
-        return () => {
-            subscription?.unsubscribe();
-        };
-    }, [dispatch]); 
-
-    useEffect(() => {
-        let timerId: number;
-        if (currentUser && userRole) {
-            getAriaNudge(currentUser, userRole).then(nudge => {
-                if (nudge) {
-                    dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
-                    timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
-                }
-            });
-        }
-        return () => {
-            if (timerId) clearTimeout(timerId);
-        };
-    }, [currentUser, userRole, dispatch]);
     
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
@@ -548,7 +563,6 @@ const App: React.FC = () => {
                 </Suspense>
             </main>
 
-            {/* Permission Error Modal for Messaging */}
             {permissionError && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
                     <div className="bg-zinc-900 p-6 rounded-xl max-w-md w-full text-center border border-zinc-700 animate-fade-in">
@@ -567,7 +581,6 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            {/* Modals */}
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}
             {isVibeMatcherOpen && <VibeMatcherModal onClose={closeVibeMatcher} onAnalyze={vibeMatch} isLoading={isVibeMatcherLoading} />}
@@ -610,7 +623,6 @@ const App: React.FC = () => {
                 </Suspense>
             )}
 
-            {/* Global UI Elements */}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
              {isAriaCantataOpen && (
                 <Suspense fallback={<div />}>

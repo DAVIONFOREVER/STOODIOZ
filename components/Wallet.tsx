@@ -1,11 +1,12 @@
+
 import React from 'react';
-import type { Artist, Engineer, Stoodio, Transaction, Producer } from '../types';
+import type { Artist, Engineer, Stoodio, Transaction, Producer, Label } from '../types';
 import { TransactionCategory, TransactionStatus, UserRole } from '../types';
 import { BanknotesIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, CalendarIcon, DollarSignIcon, HeartIcon, PlusCircleIcon, BriefcaseIcon } from './icons';
 import { format } from 'date-fns';
 
 interface WalletProps {
-    user: Artist | Engineer | Stoodio | Producer;
+    user: Artist | Engineer | Stoodio | Producer | Label;
     onAddFunds: () => void;
     onRequestPayout?: () => void;
     onViewBooking: (bookingId: string) => void;
@@ -16,8 +17,10 @@ const TransactionIcon: React.FC<{ category: TransactionCategory }> = ({ category
     const iconClass = "w-6 h-6";
     switch (category) {
         case TransactionCategory.ADD_FUNDS:
+        case TransactionCategory.LABEL_TOP_UP:
             return <div className="bg-blue-500/10 text-blue-400 p-2 rounded-full"><PlusCircleIcon className={iconClass} /></div>;
         case TransactionCategory.SESSION_PAYMENT:
+        case TransactionCategory.CONTRACT_PAYOUT:
             return <div className="bg-red-500/10 text-red-400 p-2 rounded-full"><CalendarIcon className={iconClass} /></div>;
         case TransactionCategory.SESSION_PAYOUT:
             return <div className="bg-green-500/10 text-green-400 p-2 rounded-full"><BriefcaseIcon className={iconClass} /></div>;
