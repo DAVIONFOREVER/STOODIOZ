@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import type { BookingRequest, Room, Instrumental, Artist, PaymentSource, LabelBudgetOverview } from '../types';
 import { BookingRequestType, UserRole } from '../types';
@@ -16,9 +15,10 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     const { onClose, onConfirm } = props;
     const { stoodioz, engineers, producers, currentUser, userRole, isLoading, bookingTime, bookingIntent, selectedStoodio } = useAppState();
 
+    // Use selectedStoodio if available, otherwise it's a direct booking
     const stoodio = selectedStoodio;
 
-    if (!stoodio || !bookingTime) {
+    if (!bookingTime) {
         return null;
     }
 
@@ -45,6 +45,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 
     const artist = currentUser && userRole === UserRole.ARTIST ? (currentUser as Artist) : null;
     const hasLabel = !!artist?.label_id;
+    const isLabelUser = userRole === UserRole.LABEL;
 
     useEffect(() => {
         if (hasLabel && paymentSource === 'LABEL' && artist?.label_id) {
@@ -52,8 +53,15 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
             apiService.getLabelBudgetOverview(artist.label_id)
                 .then(data => setLabelBudget(data))
                 .finally(() => setIsCheckingBudget(false));
+        } else if (isLabelUser && currentUser) {
+            // If user is label, they pay directly (effectively LABEL source)
+             setPaymentSource('LABEL');
+             setIsCheckingBudget(true);
+             apiService.getLabelBudgetOverview(currentUser.id)
+                .then(data => setLabelBudget(data))
+                .finally(() => setIsCheckingBudget(false));
         }
-    }, [hasLabel, paymentSource, artist]);
+    }, [hasLabel, paymentSource, artist, isLabelUser, currentUser]);
 
 
     const selectedProducer = useMemo(() => {
@@ -79,9 +87,9 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     const { stoodioCost, engineerFee, serviceFee, totalCost, subtotal, effectivePayRate, beatsCost, pullUpFee, mixingCost } = useMemo(() => {
         const stoodioCost = initialRoom.hourly_rate * duration;
         
-        let currentEngineerPayRate = stoodio.engineer_pay_rate;
+        let currentEngineerPayRate = stoodio?.engineer_pay_rate || 0;
 
-        if (requestType === BookingRequestType.SPECIFIC_ENGINEER && requestedEngineerId) {
+        if (requestType === BookingRequestType.SPECIFIC_ENGINEER && requestedEngineerId && stoodio) {
             const inHouseEngineerInfo = stoodio.in_house_engineers?.find(
                 e => e.engineer_id === requestedEngineerId
             );
@@ -106,10 +114,13 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
         const totalCost = subtotal + serviceFee;
         
         return { stoodioCost, engineerFee, serviceFee, totalCost, subtotal, effectivePayRate: currentEngineerPayRate, beatsCost, pullUpFee, mixingCost };
-    }, [initialRoom.hourly_rate, stoodio.engineer_pay_rate, stoodio.in_house_engineers, duration, requestType, requestedEngineerId, selectedBeats, selectedProducer, addMixing, mixTrackCount, canOfferMixing, selectedEngineerForMixing, includeProducer]);
+    }, [initialRoom.hourly_rate, stoodio, duration, requestType, requestedEngineerId, selectedBeats, selectedProducer, addMixing, mixTrackCount, canOfferMixing, selectedEngineerForMixing, includeProducer]);
 
     // Label Budget Validation
     const isLabelFundsSufficient = useMemo(() => {
+        // If logged in as label, allow booking (budget check is advisory here for now, or strict if required)
+        if (isLabelUser) return true;
+
         if (paymentSource !== 'LABEL' || !labelBudget || !labelBudget.budget) return true;
         
         // Check total remaining first
@@ -126,7 +137,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
         }
 
         return true;
-    }, [paymentSource, labelBudget, totalCost, artist]);
+    }, [paymentSource, labelBudget, totalCost, artist, isLabelUser]);
 
     const handleBeatToggle = (beat: Instrumental) => {
         setSelectedBeats(prev => 
@@ -182,7 +193,9 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
             <div className="w-full max-w-4xl transform animate-slide-up flex flex-col max-h-[90vh] sm:max-h-[85vh] cardSurface" >
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center flex-shrink-0">
                     <div>
-                        <h2 className="text-2xl font-bold text-zinc-100">Book {stoodio.name}</h2>
+                        <h2 className="text-2xl font-bold text-zinc-100">
+                            {stoodio ? `Book ${stoodio.name}` : `Book ${selectedProducer?.name || 'Session'}`}
+                        </h2>
                         <p className="text-orange-400 font-semibold">{initialRoom.name}</p>
                     </div>
                     <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200 transition-colors">
@@ -309,7 +322,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 
                             {/* Right Column: Cost Summary */}
                             <div className="lg:col-span-1">
-                                {hasLabel && (
+                                {hasLabel && !isLabelUser && (
                                     <div className="bg-zinc-800/80 p-4 rounded-lg border border-zinc-700 mb-4">
                                         <h3 className="text-sm font-bold text-zinc-200 mb-3 flex items-center gap-2"><BriefcaseIcon className="w-4 h-4 text-blue-400"/> Payment Source</h3>
                                         <div className="space-y-2">
@@ -338,6 +351,14 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                                 )}
                                             </div>
                                         )}
+                                    </div>
+                                )}
+                                
+                                {isLabelUser && (
+                                    <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/30 mb-4">
+                                        <p className="text-sm font-bold text-blue-400 flex items-center gap-2">
+                                            <BriefcaseIcon className="w-4 h-4" /> Paying as Label
+                                        </p>
                                     </div>
                                 )}
 
