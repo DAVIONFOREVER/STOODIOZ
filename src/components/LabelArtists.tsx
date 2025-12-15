@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon, FireIcon, ShieldCheckIcon, PhotoIcon, MusicNoteIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
@@ -427,28 +426,6 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
                         </div>
                     </section>
                 )}
-            </div>
-
-            {/* Aria Help Bar - Collapsible */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 group"> 
-                <div className="bg-zinc-900/90 backdrop-blur-md border border-orange-500/20 p-1.5 rounded-full group-hover:rounded-2xl shadow-2xl flex items-center transition-all duration-500 ease-out max-w-[3.5rem] group-hover:max-w-xl overflow-hidden ring-1 ring-white/5">
-                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-orange-500/20 cursor-pointer">
-                        <MagicWandIcon className="w-5 h-5 text-white" />
-                    </div>
-                    
-                    <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 pl-3 pr-2">
-                        <div className="flex flex-col min-w-[180px]">
-                            <p className="text-sm font-bold text-zinc-100 whitespace-nowrap">Need performance insights?</p>
-                            <p className="text-xs text-zinc-400 whitespace-nowrap">Ask Aria to analyze output scores.</p>
-                        </div>
-                        <button 
-                            onClick={openAria}
-                            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-bold rounded-lg transition-all border border-zinc-700 hover:border-zinc-600 whitespace-nowrap"
-                        >
-                            Ask Aria
-                        </button>
-                    </div>
-                </div>
             </div>
 
             {/* SECTION D: View Artist Modal */}
