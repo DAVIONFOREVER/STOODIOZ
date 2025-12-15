@@ -4,7 +4,7 @@ import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio
 import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon, DollarSignIcon, EyeIcon } from './icons.tsx';
 import NotificationPanel from './NotificationPanel.tsx';
 import UniversalSearch from './UniversalSearch.tsx';
-import { useAppState } from '../contexts/AppContext.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 
 interface HeaderProps {
     onNavigate: (view: AppView) => void;
@@ -27,6 +27,7 @@ const Header: React.FC<HeaderProps> = (props) => {
         onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio
     } = props;
     const { userRole, notifications, artists, engineers, producers, stoodioz, currentUser } = useAppState();
+    const dispatch = useAppDispatch();
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -80,6 +81,9 @@ const Header: React.FC<HeaderProps> = (props) => {
     const handleViewProfile = () => {
         if (!currentUser || !userRole) return;
         
+        // Ensure we are viewing OUR profile, not someone else's we clicked previously
+        dispatch({ type: ActionTypes.RESET_PROFILE_SELECTIONS });
+
         // Strict role checking to ensure correct profile view
         if (userRole === UserRole.STOODIO) {
             onSelectStoodio(currentUser as Stoodio);
@@ -90,7 +94,6 @@ const Header: React.FC<HeaderProps> = (props) => {
         } else if (userRole === UserRole.ARTIST) {
             onSelectArtist(currentUser as Artist);
         } else if (userRole === UserRole.LABEL) {
-            // FIX: Correctly navigate to the Label Profile view instead of dashboard
             onNavigate(AppView.LABEL_PROFILE);
         }
         setIsMobileMenuOpen(false);

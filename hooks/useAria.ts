@@ -2,7 +2,9 @@
 import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaActionResponse, AriaCantataMessage, Location, FileAttachment, Label } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaActionResponse, AriaCantataMessage, Location, FileAttachment, Label, BookingRequest } from '../types';
+import * as apiService from '../services/apiService';
+import { createPdfBytes } from '../lib/pdf';
 
 interface AriaHookDependencies {
     startConversation: (participant: Artist | Engineer | Stoodio | Producer | Label) => void;
@@ -12,14 +14,14 @@ interface AriaHookDependencies {
     viewProducerProfile: (producer: Producer) => void;
     viewArtistProfile: (artist: Artist) => void;
     navigateToStudio: (location: Location) => void;
-    confirmBooking: (request: any) => void; // Using any for brevity, strictly it's BookingRequest
+    confirmBooking: (request: BookingRequest) => void; 
     updateProfile: (updates: any) => void;
     selectRoleToSetup: (role: UserRole) => void;
 }
 
 export const useAria = (deps: AriaHookDependencies) => {
     const dispatch = useAppDispatch();
-    const { artists, engineers, producers, stoodioz } = useAppState();
+    const { artists, engineers, producers, stoodioz, currentUser, userRole } = useAppState();
 
     const executeCommand = useCallback(async (command: AriaActionResponse, onClose: () => void) => {
         console.log("Aria Executing Command:", command);
@@ -30,39 +32,23 @@ export const useAria = (deps: AriaHookDependencies) => {
                     deps.navigate(command.target as AppView);
                     
                     if (command.value && typeof command.value === 'object' && command.value.tab) {
-                        // Handle dashboard tab navigation (Works for Label Dashboard too)
                         dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: command.value.tab } });
                     }
-                    
                     onClose();
                 } else if (command.target === 'ARTIST_PROFILE' && command.value) {
                     const artist = artists.find(a => a.name.toLowerCase().includes(command.value.toLowerCase()));
-                    if (artist) {
-                        deps.viewArtistProfile(artist);
-                        onClose();
-                    }
+                    if (artist) { deps.viewArtistProfile(artist); onClose(); }
                 } else if (command.target === 'ENGINEER_PROFILE' && command.value) {
                     const engineer = engineers.find(e => e.name.toLowerCase().includes(command.value.toLowerCase()));
-                    if (engineer) {
-                        deps.viewEngineerProfile(engineer);
-                        onClose();
-                    }
+                    if (engineer) { deps.viewEngineerProfile(engineer); onClose(); }
                 } else if (command.target === 'PRODUCER_PROFILE' && command.value) {
                     const producer = producers.find(p => p.name.toLowerCase().includes(command.value.toLowerCase()));
-                    if (producer) {
-                        deps.viewProducerProfile(producer);
-                        onClose();
-                    }
+                    if (producer) { deps.viewProducerProfile(producer); onClose(); }
                 } else if (command.target === 'STOODIO_DETAIL' && command.value) {
                     const stoodio = stoodioz.find(s => s.name.toLowerCase().includes(command.value.toLowerCase()));
-                    if (stoodio) {
-                        deps.viewStoodioDetails(stoodio);
-                        onClose();
-                    }
+                    if (stoodio) { deps.viewStoodioDetails(stoodio); onClose(); }
                 } else if (command.target === 'LABEL_IMPORT') {
-                    // Specific shortcut for label import
-                    deps.navigate(AppView.LABEL_IMPORT);
-                    onClose();
+                    deps.navigate(AppView.LABEL_IMPORT); onClose();
                 }
                 break;
 
@@ -83,10 +69,120 @@ export const useAria = (deps: AriaHookDependencies) => {
                 if (command.value) {
                     dispatch({ type: ActionTypes.SET_VIBE_RESULTS, payload: { results: command.value } });
                     deps.navigate(AppView.VIBE_MATCHER_RESULTS);
-                    // We don't close Aria here so user can ask follow up questions about results
                 }
                 break;
             
+            case 'createBooking': 
+                // { type: 'createBooking', value: { targetId: '...', date: '...', time: '...' } }
+                if (command.value && currentUser) {
+                    const { targetId, date, time } = command.value;
+                    const allTargets = [...engineers, ...producers, ...stoodioz];
+                    const target = allTargets.find(t => t.id === targetId || t.name.toLowerCase() === targetId.toLowerCase());
+                    
+                    if (target) {
+                        // Construct minimal request
+                        const request: BookingRequest = {
+                            date: date || new Date().toISOString().split('T')[0],
+                            start_time: time || '12:00',
+                            duration: 2,
+                            total_cost: 0, // Calculated in modal usually, relying on API default
+                            engineer_pay_rate: 0,
+                            request_type: 'FIND_AVAILABLE' as any, // Placeholder
+                            ...( 'specialties' in target ? { requested_engineer_id: target.id } : {} ),
+                            ...( 'amenities' in target ? { room: (target as any).rooms?.[0] } : {} )
+                        };
+                        
+                        // We can either open the modal pre-filled OR execute. 
+                        // Prompt said "Direct Booking Execution" so let's execute via API
+                        try {
+                           const newBooking = await apiService.createBooking(request, target as any, currentUser, userRole!);
+                           dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: newBooking } });
+                           alert(`Booking request sent to ${target.name}!`);
+                           onClose();
+                        } catch (e) {
+                           alert("Failed to create booking automatically.");
+                        }
+                    } else {
+                        alert("Could not find that artist/studio.");
+                    }
+                }
+                break;
+
+            case 'socialAction':
+                if (command.target === 'post' && command.value && currentUser) {
+                     await apiService.createPost({ text: command.value }, currentUser, userRole!);
+                     // Refresh handled by realtime subscription in TheStage
+                     onClose();
+                } else if (command.target === 'follow' && command.value) {
+                     const target = [...artists, ...engineers, ...stoodioz].find(u => u.id === command.value);
+                     if (target && currentUser) {
+                         await apiService.toggleFollow(currentUser, target, 'artist', false); // Assuming follow
+                     }
+                }
+                break;
+
+            case 'updateProfile':
+                if (command.value && currentUser) {
+                    deps.updateProfile(command.value);
+                    alert("Profile updated via Aria.");
+                }
+                break;
+
+            case 'search':
+                // { type: 'search', value: { role: 'STOODIO', city: 'Atlanta' } }
+                if (command.value) {
+                    const { role, city, maxRate } = command.value;
+                    let results: any[] = [];
+                    if (role === 'STOODIO') results = stoodioz;
+                    else if (role === 'ENGINEER') results = engineers;
+                    
+                    if (city) results = results.filter(r => r.location.toLowerCase().includes(city.toLowerCase()));
+                    // Simple filter, could enable a filter view in UI
+                    if (results.length > 0) {
+                        if (role === 'STOODIO') deps.viewStoodioDetails(results[0]);
+                        else if (role === 'ENGINEER') deps.viewEngineerProfile(results[0]);
+                        onClose();
+                    } else {
+                        alert("No matches found.");
+                    }
+                }
+                break;
+
+            case 'generateDocument':
+                if (command.value && currentUser) {
+                    const { title, content } = command.value;
+                    try {
+                        const pdfBytes = await createPdfBytes(content);
+                        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                        // Create a file from blob
+                        const file = new File([blob], `${title}.pdf`, { type: 'application/pdf' });
+                        await apiService.uploadDocument(file, title, currentUser.id);
+                        
+                        // Navigate to documents to show it
+                        deps.navigate(AppView.ARTIST_DASHBOARD); // Assuming dashboard has docs tab
+                        dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
+                        onClose();
+                    } catch (e) {
+                        console.error("Doc Gen Error", e);
+                    }
+                }
+                break;
+
+            case 'labelControl':
+                if (command.target && command.value !== undefined && currentUser && userRole === 'LABEL') {
+                     // e.g. target: 'opportunities.accepting_demos', value: true
+                     // We need to fetch current profile, merge update
+                     const keys = command.target.split('.');
+                     let update = {};
+                     if (keys.length === 2 && keys[0] === 'opportunities') {
+                         update = { opportunities: { ...((currentUser as any).opportunities), [keys[1]]: command.value } };
+                     } else {
+                         update = { [command.target]: command.value };
+                     }
+                     deps.updateProfile(update);
+                }
+                break;
+                
             case 'assistAccountSetup':
                 if (command.target && command.target in UserRole) {
                     deps.selectRoleToSetup(command.target as UserRole);
@@ -100,16 +196,9 @@ export const useAria = (deps: AriaHookDependencies) => {
                     const recipient = allUsers.find(u => u.name.toLowerCase().includes(command.target!.toLowerCase()));
                     if (recipient) {
                         deps.startConversation(recipient);
-                        // We might want to pre-fill the message or send it directly.
-                        // For now, startConversation navigates to inbox.
                         onClose();
                     }
                 }
-                break;
-            
-            case 'sendDocumentMessage':
-                // Handled in UI layer (AriaAssistant.tsx) primarily by adding to history
-                // This hook just acknowledges it.
                 break;
 
             case 'error':
@@ -119,11 +208,9 @@ export const useAria = (deps: AriaHookDependencies) => {
             default:
                 break;
         }
-    }, [dispatch, deps, artists, engineers, producers, stoodioz]);
+    }, [dispatch, deps, artists, engineers, producers, stoodioz, currentUser, userRole]);
 
     const handleAriaNudgeClick = useCallback(() => {
-        // Logic to handle when the user clicks on a nudge toast
-        // This usually just opens Aria with context
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
     }, [dispatch]);

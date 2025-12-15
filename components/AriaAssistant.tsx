@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label, RosterMember, LabelBudgetOverview } from '../types';
 import { askAriaCantata } from '../services/geminiService';
-import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIcon } from './icons';
+import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIcon, MicrophoneIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 
@@ -24,6 +24,13 @@ const TypingIndicator: React.FC = () => (
     </div>
 );
 
+// Voice Icon Component (Locally defined to ensure it works)
+const SpeakerWaveIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+    </svg>
+);
+
 const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({ 
     isOpen, 
     onClose, 
@@ -37,6 +44,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [labelContext, setLabelContext] = useState<{ roster: RosterMember[], budget: LabelBudgetOverview | null }>({ roster: [], budget: null });
+    const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -44,6 +52,31 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
+
+    // Text-to-Speech Function
+    const speak = (text: string) => {
+        if (!isVoiceEnabled || !('speechSynthesis' in window)) return;
+        
+        window.speechSynthesis.cancel(); // Stop current speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Try to find a good female voice
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => v.name.includes('Google US English') || v.name.includes('Samantha'));
+        if (preferredVoice) utterance.voice = preferredVoice;
+        
+        utterance.rate = 1.1; // Slightly faster for natural feel
+        utterance.pitch = 1.0;
+        
+        window.speechSynthesis.speak(utterance);
+    };
+
+    // Ensure voices are loaded (Chrome quirk)
+    useEffect(() => {
+        const loadVoices = () => window.speechSynthesis.getVoices();
+        loadVoices();
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }, []);
 
     // Lazy load label context if the user is a label
     useEffect(() => {
@@ -63,6 +96,9 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
         if (isOpen) {
             scrollToBottom();
             inputRef.current?.focus();
+        } else {
+            // Stop speaking when closed
+            window.speechSynthesis.cancel();
         }
     }, [isOpen, history]);
 
@@ -93,13 +129,15 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                 budget: labelContext.budget
             };
             
-            // Ensure currentUser is typed correctly for the service call
             const response = await askAriaCantata(newHistory, text, currentUser as (Artist | Engineer | Stoodio | Producer | Label | null), context);
 
             if (response.type !== 'speak' && response.type !== 'error') {
                 // It's a command
                 await onExecuteCommand(response, onClose);
                 
+                // Speak the confirmation text for commands
+                if (response.text) speak(response.text);
+
                 // Add a system message indicating the action was taken, unless it was a navigation which closes the modal
                 if (response.type !== 'navigate' && response.type !== 'showVibeMatchResults') {
                      const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
@@ -109,6 +147,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                 // It's just text
                 const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
                 setHistory([...newHistory, modelMessage]);
+                speak(response.text);
             }
 
         } catch (error) {
@@ -147,9 +186,18 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                             <p className="text-xs text-zinc-400">AI A&R Assistant</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
-                        <CloseIcon className="w-6 h-6" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
+                            className={`p-2 rounded-full transition-colors ${isVoiceEnabled ? 'bg-orange-500/20 text-orange-400' : 'text-zinc-600 hover:text-zinc-400'}`}
+                            title={isVoiceEnabled ? "Voice Enabled" : "Enable Voice"}
+                        >
+                            <SpeakerWaveIcon className="w-5 h-5" />
+                        </button>
+                        <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
+                            <CloseIcon className="w-6 h-6" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Messages Area */}
@@ -162,14 +210,14 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                                 {userRole === 'LABEL' ? (
                                     <>
                                         <button onClick={() => handleSendMessage("How do I import my roster?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Import roster from CSV</button>
-                                        <button onClick={() => handleSendMessage("Show me my budget breakdown")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Check budget</button>
+                                        <button onClick={() => handleSendMessage("What is my current budget balance?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Check wallet balance</button>
                                         <button onClick={() => handleSendMessage("Find new trending artists")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Scout talent</button>
                                         <button onClick={() => handleSendMessage("Draft a contract for a new signee")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Draft contract</button>
                                     </>
                                 ) : (
                                     <>
                                         <button onClick={() => handleSendMessage("Find me a studio in Atlanta")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Find a studio in Atlanta</button>
-                                        <button onClick={() => handleSendMessage("Who is the best engineer for Trap?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Best engineer for Trap?</button>
+                                        <button onClick={() => handleSendMessage("How much money do I have?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Check my balance</button>
                                         <button onClick={() => handleSendMessage("Help me write a hook about summer")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Write a hook about summer</button>
                                         <button onClick={() => handleSendMessage("Draft a split sheet agreement")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Draft a split sheet</button>
                                     </>

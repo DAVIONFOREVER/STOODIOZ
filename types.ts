@@ -524,7 +524,7 @@ export interface AppNotification {
 }
 
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'socialAction' | 'updateProfile' | 'search' | 'generateDocument' | 'labelControl' | 'mediaControl';
     target: string | null;
     value: any;
     text: string;

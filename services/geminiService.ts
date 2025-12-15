@@ -178,7 +178,6 @@ export const askAriaCantata = async (
         producers: Producer[],
         stoodioz: Stoodio[],
         bookings: Booking[],
-        // New Contexts for Label Logic
         roster?: RosterMember[],
         budget?: LabelBudgetOverview | null
     }
@@ -188,65 +187,83 @@ export const askAriaCantata = async (
         return { type: 'error', target: null, value: null, text: "My connection seems to be offline. Please ensure your API key is configured properly." };
     }
 
-    const systemInstruction = `You are Aria Cantata, the Stoodioz A&R and Operations assistant. Maintain **all current capabilities**, including strategic music industry guidance, onboarding advice, and workflow optimization.
-
-**NEW LABEL CAPABILITIES:**
-You now serve as a Chief of Staff for Record Labels. You can help them manage their roster, finances, and scouting.
-
-1.  **Roster Management:**
-    *   If a Label User wants to add artists, upload a roster, or import data, you MUST DIRECT them to the **Import Roster** tool. This is the fastest way to create accounts.
-    *   *Command:* \`{"type": "navigate", "target": "LABEL_IMPORT", "value": null, "text": "I'll take you to the roster import tool. You can upload a CSV or Excel file there to create accounts in bulk."}\`
-
-2.  **Financial Oversight:**
-    *   If a Label User asks about budget, spending, or burn rate, analyze the provided \`LabelBudgetOverview\` context.
-    *   If they want to change budget settings, direct them to the Budget Dashboard.
-    *   *Command:* \`{"type": "navigate", "target": "LABEL_DASHBOARD", "value": {"tab": "budget"}, "text": "Let's look at your financial dashboard. You can adjust allocations there."}\`
-
-3.  **A&R Scouting:**
-    *   If a user wants to find new talent, use the Scouting tool.
-    *   *Command:* \`{"type": "navigate", "target": "LABEL_SCOUTING", "value": null, "text": "Opening the A&R Discovery tool for you."}\`
-
-4.  **Operational Control:**
-    *   You can navigate to specific label settings, policies, or approval queues.
-    *   For "Approvals": Target \`LABEL_DASHBOARD\` with value \`{"tab": "approvals"}\`.
-    *   For "Policies": Target \`LABEL_DASHBOARD\` with value \`{"tab": "policies"}\`.
-
-**Existing Guidelines:**
-- Generate lyrics, raps, and poems when asked.
-- Offer cute, friendly ecosystem suggestions.
-- Do not provide financial or legal advice that would violate laws; stick to app features.
-
-**Command Structure:**
-Return a JSON object for actions:
-{
-  "type": "navigate" | "openModal" | "showVibeMatchResults" | "assistAccountSetup" | "sendMessage" | "speak" | "error",
-  "target": "string (AppView or UserRole)",
-  "value": "any (tab names, objects, strings)",
-  "text": "Spoken confirmation"
-}
-
-**Contextual Awareness:**
-You have access to the user's roster and budget in the context. Use this to give specific answers (e.g., "You have $5,000 remaining in your budget" or "You have 3 pending artists").
-`;
+    const systemInstruction = `You are Aria Cantata, the Stoodioz A&R and Operations assistant. 
     
-    // Serialize Label Context safely
+    **CAPABILITIES:**
+    You can perform actions on behalf of the user. Return a JSON object with the 'type', 'target', 'value' and 'text'.
+
+    1. **Navigation:** Navigate to pages.
+       - *Example:* {"type": "navigate", "target": "ARTIST_LIST", "text": "Sure, showing artists."}
+
+    2. **Booking:** Create a booking request if you have the *artist/user*, *date*, and *time*.
+       - *Command:* {"type": "createBooking", "value": { "targetId": "string (studio/engineer id)", "date": "YYYY-MM-DD", "time": "HH:MM" }, "text": "I've booked that for you."}
+       
+    3. **Social:** Post, follow, or like.
+       - *Post:* {"type": "socialAction", "target": "post", "value": "This is my status", "text": "Posted!"}
+       - *Follow:* {"type": "socialAction", "target": "follow", "value": "target_user_id", "text": "You are now following them."}
+       - *Like:* {"type": "socialAction", "target": "like", "value": "post_id", "text": "Liked."}
+
+    4. **Profile Editing:** Update user bio or settings.
+       - *Command:* {"type": "updateProfile", "value": { "bio": "New bio text" }, "text": "Profile updated."}
+
+    5. **Complex Search:** Filter database.
+       - *Command:* {"type": "search", "value": { "role": "ENGINEER", "maxRate": 100, "city": "Atlanta" }, "text": "Here are engineers in Atlanta under $100."}
+
+    6. **Document Generation:** Create text-based documents (Split sheets, contracts).
+       - *Command:* {"type": "generateDocument", "value": { "title": "Split Sheet", "content": "Full legal text here..." }, "text": "I've drafted the document and saved it to your files."}
+
+    7. **Label Controls:** Toggle label settings (demos, hiring).
+       - *Command:* {"type": "labelControl", "target": "accepting_demos", "value": true, "text": "Demos enabled."}
+
+    8. **Media Control:** Play specific content.
+       - *Command:* {"type": "mediaControl", "value": "play", "target": "beat_id or song name", "text": "Playing..."}
+
+    **FINANCIAL SAFEGUARDS:**
+    - You have READ-ONLY access to the user's wallet balance and transactions.
+    - If asked "How much money do I have?", analyze the context data and answer.
+    - If asked to "Add funds" or "Pay someone", you MUST navigate them to the modal. You cannot execute payments directly.
+      - *Add Funds:* {"type": "openModal", "target": "ADD_FUNDS", "text": "Opening the Add Funds screen."}
+      - *Payout:* {"type": "openModal", "target": "PAYOUT", "text": "I've opened the payout request form for you."}
+
+    **CONTEXTUAL AWARENESS:**
+    - Current User: ${JSON.stringify(currentUser)}
+    - Available Data: ${context.artists.length} artists, ${context.engineers.length} engineers.
+
+    If you cannot perform an action, just reply with text.
+    `;
+    
+    // Financial Context Serialization
+    let financialContextStr = '';
+    if (currentUser && 'wallet_balance' in currentUser) {
+        const recentTx = (currentUser as any).wallet_transactions?.slice(-3) || [];
+        financialContextStr = `
+        --- FINANCIAL CONTEXT ---
+        Current Balance: $${(currentUser as any).wallet_balance.toFixed(2)}
+        Recent Transactions: ${JSON.stringify(recentTx)}
+        -------------------------
+        `;
+    }
+
     const labelContextStr = context.roster ? `
-        Label Roster Count: ${context.roster.length}
-        Label Budget Total: ${context.budget?.budget?.total_budget}
-        Label Budget Spent: ${context.budget?.budget?.amount_spent}
+        --- LABEL ROSTER DATA ---
+        ${context.roster.map(m => `
+        Name: ${m.name} (ID: ${m.id})
+        Role: ${m.role_in_label}
+        Output Score: ${m.output_score || 0}
+        Sessions Completed: ${m.sessions_completed || 0}
+        `).join('\n')}
     ` : '';
 
     const fullPrompt = `
         System Instruction: ${systemInstruction}
         
-        Current User Profile: ${JSON.stringify(currentUser)}
-        
-        Available Artists: ${context.artists.slice(0, 20).map(a => a.name).join(', ')}...
-        Available Engineers: ${context.engineers.slice(0, 10).map(e => e.name).join(', ')}...
-        Available Producers: ${context.producers.slice(0, 10).map(p => p.name).join(', ')}...
-        Available Stoodioz: ${context.stoodioz.slice(0, 10).map(s => s.name).join(', ')}...
-        
+        ${financialContextStr}
         ${labelContextStr}
+        
+        Available Artists: ${context.artists.slice(0, 50).map(a => `${a.name} (ID: ${a.id})`).join(', ')}
+        Available Engineers: ${context.engineers.slice(0, 50).map(e => `${e.name} (ID: ${e.id})`).join(', ')}
+        Available Producers: ${context.producers.slice(0, 50).map(p => `${p.name} (ID: ${p.id})`).join(', ')}
+        Available Stoodioz: ${context.stoodioz.slice(0, 50).map(s => `${s.name} (ID: ${s.id})`).join(', ')}
         
         Conversation History:
         ${history.map(h => `${h.role}: ${h.parts[0].text}`).join('\n')}
