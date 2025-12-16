@@ -352,6 +352,33 @@ const App: React.FC = () => {
         };
     }, [dispatch]); 
 
+    // --- AUTOMATIC REDIRECT FOR "LOCKED OUT" USERS ---
+    useEffect(() => {
+        // If loading is done, and no user is found, but we are on a protected view...
+        if (!isLoading && !currentUser) {
+             const publicViews = [
+                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE,
+                 AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+                 AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.PRIVACY_POLICY, 
+                 AppView.SUBSCRIPTION_PLANS, AppView.CLAIM_ENTRY, AppView.CLAIM_CONFIRM, 
+                 AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
+             ];
+             // Public Lists / Map are semi-public (have guest view), so we exclude them from forced redirect
+             // However, Dashboards are strictly protected.
+             const protectedViews = [
+                 AppView.ARTIST_DASHBOARD, AppView.ENGINEER_DASHBOARD, AppView.PRODUCER_DASHBOARD,
+                 AppView.STOODIO_DASHBOARD, AppView.LABEL_DASHBOARD, AppView.INBOX, 
+                 AppView.MY_BOOKINGS, AppView.ACTIVE_SESSION, AppView.CONFIRMATION,
+                 AppView.STUDIO_INSIGHTS, AppView.ADMIN_RANKINGS
+             ];
+
+             if (protectedViews.includes(currentView)) {
+                 // Force redirect to landing page to escape "Loading..." limbo
+                 navigate(AppView.LANDING_PAGE);
+             }
+        }
+    }, [isLoading, currentUser, currentView, navigate]);
+
     useEffect(() => {
         let timerId: number;
         if (currentUser && userRole) {
@@ -513,8 +540,37 @@ const App: React.FC = () => {
                 return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
         }
     };
+
+    const renderViewProxy = () => {
+        const isAuthPage = [
+            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+            AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.CLAIM_ENTRY, 
+            AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
+        ].includes(currentView);
+
+        if (currentUser && isAuthPage) {
+            switch(userRole) {
+                case UserRole.LABEL: return <LabelDashboard />;
+                case UserRole.STOODIO: return <StoodioDashboard />;
+                case UserRole.ENGINEER: return <EngineerDashboard />;
+                case UserRole.PRODUCER: return <ProducerDashboard />;
+                default: return <ArtistDashboard />;
+            }
+        }
+        return renderView();
+    };
+
+    // FIX: Block rendering of the main app until loading is complete to prevent "Flash of Landing Page" on refresh.
+    if (isLoading) {
+        return (
+            <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
+                <LoadingSpinner currentUser={currentUser} />
+            </div>
+        );
+    }
     
-return (
+    return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header
                 onNavigate={navigate}
@@ -533,7 +589,7 @@ return (
 
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
                 <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {renderView()}
+                    {renderViewProxy()}
                 </Suspense>
             </main>
 
@@ -599,7 +655,6 @@ return (
                 </Suspense>
             )}
 
-            {/* Global UI Elements */}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
              {isAriaCantataOpen && (
                 <Suspense fallback={<div />}>

@@ -8,6 +8,9 @@ export const useNavigation = () => {
     const dispatch = useAppDispatch();
     
     const navigate = useCallback((view: AppView) => {
+        // FIX: Persist the view to localStorage so it survives page refreshes
+        localStorage.setItem('last_view', view);
+        
         dispatch({ type: ActionTypes.NAVIGATE, payload: { view } });
         if ([AppView.STOODIO_LIST, AppView.ARTIST_LIST, AppView.ENGINEER_LIST, AppView.PRODUCER_LIST, AppView.MAP_VIEW, AppView.LABEL_IMPORT].includes(view)) {
             dispatch({ type: ActionTypes.RESET_PROFILE_SELECTIONS });
