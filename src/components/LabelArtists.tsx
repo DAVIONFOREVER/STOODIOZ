@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon, FireIcon, ShieldCheckIcon, PhotoIcon, MusicNoteIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
@@ -214,11 +215,6 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         navigator.clipboard.writeText(url).then(() => {
             alert("Invite link copied to clipboard!");
         });
-    };
-
-    const openAria = () => {
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
-        dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: "Analyze my roster's output score and suggest improvements." } });
     };
 
     const pendingMembers = useMemo(() => roster.filter(m => m.is_pending), [roster]);
