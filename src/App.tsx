@@ -115,6 +115,7 @@ const App: React.FC = () => {
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
+    // Explicitly define claimToken state to be available in renderView closure
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
@@ -220,7 +221,6 @@ const App: React.FC = () => {
         const supabase = getSupabase();
         if (!supabase) return;
 
-        // Fetch Global Directory using Optimized Function
         const fetchDirectory = async () => {
             const directory = await apiService.getAllPublicUsers();
             dispatch({ 
@@ -231,40 +231,77 @@ const App: React.FC = () => {
                     producers: directory.producers,
                     stoodioz: directory.stoodioz,
                     labels: directory.labels,
-                    reviews: [] 
+                    reviews: []
                 }
             });
         };
         fetchDirectory();
 
-        // Optimized User Hydration
         const fetchAndHydrateUser = async (userId: string) => {
             if (!currentUser) {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             }
 
-            try {
-                // PERFORMANCE FIX: Use the optimized fetchCurrentUserProfile function
-                const userProfileResult = await apiService.fetchCurrentUserProfile(userId);
+            const fetchProfiles = async () => {
+                const tableMap = {
+                    stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
+                    producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
+                    engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
+                    artists: { query: '*', role: UserRoleEnum.ARTIST },
+                    labels: { 
+                        query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier',
+                        role: UserRoleEnum.LABEL 
+                    },
+                };
                 
-                if (userProfileResult && userProfileResult.user) {
+                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
+                    try {
+                        const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
+                        if (error) {
+                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
+                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
+                             if (!basicError && basicData) {
+                                 return { data: basicData, role: config.role };
+                             }
+                             return null;
+                        }
+                        return data ? { data, role: config.role } : null;
+                    } catch (e) {
+                        return null;
+                    }
+                });
+                
+                const idResults = await Promise.all(idPromises);
+                const found = idResults.find(result => result !== null);
+                return found;
+            };
+            
+            try {
+                let userProfileResult = await fetchProfiles();
+                
+                if (!userProfileResult) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        userProfileResult = await fetchProfiles();
+                }
+
+                if (userProfileResult && userProfileResult.data) {
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
                         payload: { 
-                            user: userProfileResult.user,
+                            user: userProfileResult.data as any,
                             role: userProfileResult.role 
                         } 
                     });
                 } else {
-                    console.error("User authenticated but profile not found.");
+                    console.error("User authenticated but profile not found in any table.");
                     dispatch({ 
                         type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Login successful, but your profile data could not be found." } 
+                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
                     });
                 }
             } catch (error) {
                 console.error("Error hydrating user profile:", error);
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
             } finally {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -278,7 +315,6 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
-        
         initSession();
 
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
@@ -360,7 +396,13 @@ const App: React.FC = () => {
     const renderView = () => {
         switch (currentView) {
             case AppView.LANDING_PAGE:
-                return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
+                return <LandingPage 
+                    onNavigate={navigate} 
+                    onSelectStoodio={viewStoodioDetails} 
+                    onSelectProducer={viewProducerProfile} 
+                    onOpenAriaCantata={toggleAriaCantata} 
+                    onLogout={logout}
+                />;
             case AppView.LOGIN:
                 return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.CHOOSE_PROFILE:
@@ -478,7 +520,7 @@ const App: React.FC = () => {
             case AppView.LEADERBOARD:
                 return <Leaderboard />;
             default:
-                return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} />;
+                return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
         }
     };
 
@@ -540,6 +582,7 @@ const App: React.FC = () => {
                     <p className="text-zinc-300 mb-6">
                         You cannot message this label unless they have added you to their roster.
                     </p>
+
                     <button
                         className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-white transition-colors font-semibold"
                         onClick={() => setPermissionError(null)}
