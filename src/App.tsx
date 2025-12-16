@@ -202,6 +202,43 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
+    // --- CROSS-TAB LOGOUT SYNCHRONIZATION ---
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'app:logout') {
+                // Another tab has logged out, perform hard redirect immediately
+                window.location.replace('/login');
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    // --- RE-AUTH REALTIME ON FOCUS ---
+    useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState === 'visible') {
+                const supabase = getSupabase();
+                if (!supabase) return;
+                
+                // Refresh the session token
+                const { data } = await supabase.auth.getSession();
+                
+                if (data.session) {
+                    // Re-authenticate Realtime connection
+                    supabase.realtime.setAuth(data.session.access_token);
+                } else if (currentUser) {
+                    // Session is invalid but we still have user state -> FORCE LOGOUT
+                    dispatch({ type: ActionTypes.LOGOUT });
+                    window.location.replace('/login');
+                }
+            }
+        };
+        
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [currentUser, dispatch]);
+
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
         const path = window.location.pathname;
@@ -316,12 +353,16 @@ const App: React.FC = () => {
         initSession();
 
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
-            if (event === 'SIGNED_OUT') {
+            if (event === 'SIGNED_OUT' || !session) {
+                // If session is null (or specific logout event), handle logout
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
                 if (!currentUser || currentUser.id !== session.user.id) {
                     await fetchAndHydrateUser(session.user.id);
+                } else {
+                    // Re-auth realtime if session is valid
+                    supabase.realtime.setAuth(session.access_token);
                 }
             }
         });

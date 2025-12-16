@@ -149,7 +149,10 @@ export const useAuth = (navigate: (view: any) => void) => {
             await tryOrSilence(supabase.auth.signOut());
         }
         
-        // 4) Clear all app/browser caches safely
+        // 4) Signal other tabs to log out immediately
+        localStorage.setItem('app:logout', String(Date.now()));
+
+        // 5) Clear all app/browser caches safely
         try {
             localStorage.clear();
             sessionStorage.clear();
@@ -174,11 +177,11 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
         } catch {}
         
-        // 5. Reset Global State
+        // 6. Reset Global State
         dispatch({ type: ActionTypes.LOGOUT });
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
 
-        // 6) Hard redirect to login (no spinner)
+        // 7) Hard redirect to login (no spinner)
         window.location.replace('/login');
 
     }, [dispatch]);
