@@ -5,7 +5,7 @@ import * as apiService from '../services/apiService';
 import { AppView } from '../types';
 import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { UserRole as UserRoleEnum } from '../types';
-import { getSupabase, performLogout } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
@@ -110,36 +110,77 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // 1. Show loading state briefly so user knows something is happening
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
-        try {
-            // 2. Attempt server-side logout
-            await performLogout();
-        } catch (e) {
-            console.warn("Server logout warning", e);
-        } finally {
-            // 3. NUCLEAR OPTION: Clear everything client-side regardless of API success
-            // This guarantees the user is "logged out" in the browser
-            try {
-                localStorage.clear();
-                sessionStorage.clear();
-            } catch (e) {
-                console.error("Storage clear failed", e);
-            }
+        const timeout = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+        const tryOrSilence = async <T>(p: Promise<T>) => {
+            try { return await Promise.race([p, timeout(2500)]); }
+            catch { /* ignore */ }
+        };
 
-            // 4. Reset Global State
-            dispatch({ type: ActionTypes.LOGOUT });
-            
-            // 5. Navigate to Landing Page (SPA Navigation, NOT reload)
-            // Hard reloading (window.location.href) can cause race conditions where 
-            // the old cookie resurrects the session before the server kills it.
-            navigate(AppView.LANDING_PAGE);
-            
-            // 6. Turn off the spinner
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        const supabase = getSupabase();
+  
+        // 1) Stop Realtime immediately
+        if (supabase) {
+            await tryOrSilence(Promise.resolve().then(() => supabase.realtime.disconnect()));
         }
-    }, [dispatch, navigate]);
+        
+        // 2) Server-side revoke of refresh sessions (fast-return)
+        // Note: This endpoint must exist on your Supabase Edge Functions for this to work effectively.
+        // If it doesn't exist, tryOrSilence will catch the 404/error and proceed.
+        if (supabase) {
+            try {
+                 const { data } = await supabase.auth.getSession();
+                 if (data.session?.access_token) {
+                    await tryOrSilence(fetch('/functions/v1/force-logout', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { Authorization: `Bearer ${data.session.access_token}` }
+                    }));
+                 }
+            } catch { /* ignore */ }
+        }
+        
+        // 3) Local sign out
+        if (supabase) {
+            await tryOrSilence(supabase.auth.signOut());
+        }
+        
+        // 4) Clear all app/browser caches safely
+        try {
+            localStorage.clear();
+            sessionStorage.clear();
+        } catch {}
+        
+        try {
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map((k) => caches.delete(k)));
+            }
+        } catch {}
+        
+        try {
+            // Clear IndexedDB (optional, but good hygiene if you cache data)
+            if ('indexedDB' in window) {
+                const dbs = await (indexedDB as any).databases?.() || [];
+                await Promise.all(
+                    dbs.map((d: any) => d?.name && new Promise<void>((res) => {
+                        const req = indexedDB.deleteDatabase(d.name);
+                        req.onsuccess = req.onerror = req.onblocked = () => res();
+                    }))
+                );
+            }
+        } catch {}
+        
+        // 5. Reset Global State
+        dispatch({ type: ActionTypes.LOGOUT });
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+
+        // 6) Hard redirect to login (no spinner)
+        // We use window.location.replace to clear history stack and ensure a fresh load
+        window.location.replace('/');
+
+    }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
         // Simple navigation. Do NOT attempt to check auth status here, 
