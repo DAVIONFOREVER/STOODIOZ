@@ -18,7 +18,7 @@ interface TheStageProps {
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
+    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer' | 'label', id: string) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
@@ -45,7 +45,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         onSelectProducer,
         onNavigate
     } = props;
-    const { currentUser, userRole, artists, engineers, stoodioz, producers } = useAppState();
+    const { currentUser, userRole, artists, engineers, stoodioz, producers, labels } = useAppState();
 
     // Local state for the infinite feed
     const [posts, setPosts] = useState<Post[]>([]);
@@ -56,30 +56,34 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     // Combine all users for author lookup, INCLUDING the current user to ensure immediate availability
     const authorsMap = useMemo(() => {
-        const allUsers: (Artist | Engineer | Stoodio | Producer | Label)[] = [...artists, ...engineers, ...stoodioz, ...producers];
+        // Ensure we check if labels exist in state (might be undefined in older context versions)
+        const currentLabels = labels || [];
+        const allUsers: (Artist | Engineer | Stoodio | Producer | Label)[] = [...artists, ...engineers, ...stoodioz, ...producers, ...currentLabels];
         if (currentUser) allUsers.push(currentUser); 
         
         const map = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
         allUsers.forEach(u => map.set(u.id, u));
         return map;
-    }, [artists, engineers, stoodioz, producers, currentUser]);
+    }, [artists, engineers, stoodioz, producers, labels, currentUser]);
 
     // Suggestions logic - Safe for Labels now
     const suggestions = useMemo(() => {
-        const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+        const currentLabels = labels || [];
+        const allUsers = [...artists, ...engineers, ...stoodioz, ...producers, ...currentLabels];
         if (currentUser && 'following' in currentUser) {
             const followedIds = new Set([
                 ...(currentUser.following.artists || []),
                 ...(currentUser.following.engineers || []),
                 ...(currentUser.following.stoodioz || []),
                 ...(currentUser.following.producers || []),
+                ...(currentUser.following.labels || []),
                 currentUser.id
             ]);
             return allUsers.filter(u => !followedIds.has(u.id) && u.email !== ARIA_EMAIL).slice(0, 4);
         }
         // Fallback for users without 'following' prop (e.g. some label states initially)
         return allUsers.filter(u => u.email !== ARIA_EMAIL && u.id !== currentUser?.id).slice(0, 4);
-    }, [currentUser, artists, engineers, stoodioz, producers]);
+    }, [currentUser, artists, engineers, stoodioz, producers, labels]);
 
     // Trending Logic
     const { trendingPost, trendingPostAuthor } = useMemo(() => {
@@ -87,11 +91,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         const trending = [...posts].sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0];
         
         const author = authorsMap.get(trending.authorId);
-        if (author && 'bio' in author && !('is_seeking_session' in author) && !('specialties' in author) && !('instrumentals' in author) && !('amenities' in author)) {
-             // Exclude labels from trending logic for now if type mismatch
-             return { trendingPost: null, trendingPostAuthor: null };
-        }
-        return { trendingPost: trending, trendingPostAuthor: author as Artist | Engineer | Stoodio | Producer | undefined };
+        
+        return { trendingPost: trending, trendingPostAuthor: author };
     }, [posts, authorsMap]);
 
     // Infinite Scroll Loader
@@ -181,9 +182,12 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
-        else if ('bio' in user && !('is_seeking_session' in user)) {
-             // Label view - currently just logs, can navigate to profile
-             console.log("Selected Label:", user.name);
+        else if ('company_name' in user || ('bio' in user && !('is_seeking_session' in user))) {
+             // For now, handle labels with simple navigation if needed, or expand profile view
+             onNavigate(AppView.LABEL_PROFILE);
+             // Note: Ideally we'd set selectedLabel here, but App.tsx handles that better via navigation props/state
+             // If App architecture allows setting selectedLabel:
+             // dispatch({ type: ActionTypes.VIEW_LABEL_PROFILE, payload: { label: user as Label } });
         }
         else onSelectArtist(user as Artist);
     };
