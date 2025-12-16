@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { DollarSignIcon, ChartBarIcon, EditIcon, CheckCircleIcon, UsersIcon } from './icons';
-import type { LabelBudgetOverview, ArtistBudget } from '../types';
+import type { LabelBudgetOverview, ArtistBudget, RosterMember } from '../types';
 import { USER_SILHOUETTE_URL } from '../constants';
 
 const LabelBudgetDashboard: React.FC = () => {
     const { currentUser } = useAppState();
     const [overview, setOverview] = useState<LabelBudgetOverview | null>(null);
+    const [roster, setRoster] = useState<RosterMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [isEditingTotal, setIsEditingTotal] = useState(false);
     const [newTotalBudget, setNewTotalBudget] = useState<number>(0);
@@ -18,12 +19,24 @@ const LabelBudgetDashboard: React.FC = () => {
     const loadData = async () => {
         if (!currentUser) return;
         setLoading(true);
-        const data = await apiService.getLabelBudgetOverview(currentUser.id);
-        setOverview(data);
-        if (data?.budget) {
-            setNewTotalBudget(data.budget.total_budget);
+        try {
+            // Fetch both budget data and the full roster to ensure everyone is listed
+            const [budgetData, rosterData] = await Promise.all([
+                apiService.getLabelBudgetOverview(currentUser.id),
+                apiService.fetchLabelRoster(currentUser.id)
+            ]);
+
+            setOverview(budgetData);
+            setRoster(rosterData);
+
+            if (budgetData?.budget) {
+                setNewTotalBudget(budgetData.budget.total_budget);
+            }
+        } catch (e) {
+            console.error("Failed to load budget data", e);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     useEffect(() => {
@@ -54,7 +67,7 @@ const LabelBudgetDashboard: React.FC = () => {
         }
     };
 
-    const startEditingArtist = (artist: ArtistBudget) => {
+    const startEditingArtist = (artist: { artist_id: string; allocation_amount: number }) => {
         setEditingArtistId(artist.artist_id);
         setNewAllocation(artist.allocation_amount);
     };
@@ -67,6 +80,20 @@ const LabelBudgetDashboard: React.FC = () => {
     const totalSpent = overview?.budget?.amount_spent || 0;
     const remainingBudget = totalBudget - totalSpent;
     const percentSpent = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+
+    // Merge roster with budget data. Filter out pending invites as they can't have budgets yet.
+    const mergedArtists = roster
+        .filter(m => !m.is_pending) 
+        .map(member => {
+            const budgetEntry = overview?.artists.find(a => a.artist_id === member.id);
+            return {
+                artist_id: member.id,
+                artist_name: member.name,
+                artist_image_url: member.image_url || USER_SILHOUETTE_URL,
+                allocation_amount: budgetEntry?.allocation_amount || 0,
+                amount_spent: budgetEntry?.amount_spent || 0,
+            };
+        });
 
     return (
         <div className="space-y-8 animate-fade-in">
@@ -151,7 +178,7 @@ const LabelBudgetDashboard: React.FC = () => {
                     <UsersIcon className="w-5 h-5 text-orange-400" /> Artist Allocations
                 </h3>
                 <div className="grid grid-cols-1 gap-4">
-                    {overview?.artists.map((artist) => {
+                    {mergedArtists.map((artist) => {
                         const artistPercent = artist.allocation_amount > 0 ? (artist.amount_spent / artist.allocation_amount) * 100 : 0;
                         const isEditing = editingArtistId === artist.artist_id;
                         const remaining = artist.allocation_amount - artist.amount_spent;
@@ -207,9 +234,9 @@ const LabelBudgetDashboard: React.FC = () => {
                             </div>
                         );
                     })}
-                    {(!overview?.artists || overview.artists.length === 0) && (
+                    {mergedArtists.length === 0 && (
                         <div className="p-8 text-center bg-zinc-900 rounded-lg border border-zinc-800 border-dashed">
-                            <p className="text-zinc-500">No artists have budget allocations yet. Add them to your roster first.</p>
+                            <p className="text-zinc-500">No active artists found in your roster. Add artists via the "Roster" tab to allocate budget.</p>
                         </div>
                     )}
                 </div>
