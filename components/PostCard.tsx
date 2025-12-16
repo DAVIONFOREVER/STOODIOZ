@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer, Label } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon } from './icons.tsx';
+import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon, UsersIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
 import { useOnScreen } from '../hooks/useOnScreen.ts';
 import StageMediaFrame from './StageMediaFrame';

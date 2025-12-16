@@ -1,20 +1,21 @@
 
 import React from 'react';
-import type { Artist, Engineer, Stoodio, Producer } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { UserPlusIcon } from './icons';
 
 interface WhoToFollowProps {
-    suggestions: (Artist | Engineer | Stoodio | Producer)[];
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
-    onSelectUser: (user: Artist | Engineer | Stoodio | Producer) => void;
+    suggestions: (Artist | Engineer | Stoodio | Producer | Label)[];
+    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer' | 'label', id: string) => void;
+    onSelectUser: (user: Artist | Engineer | Stoodio | Producer | Label) => void;
 }
 
 const WhoToFollow: React.FC<WhoToFollowProps> = ({ suggestions, onToggleFollow, onSelectUser }) => {
     
-    const getRole = (user: Artist | Engineer | Stoodio | Producer): 'artist' | 'engineer' | 'stoodio' | 'producer' => {
+    const getRole = (user: Artist | Engineer | Stoodio | Producer | Label): 'artist' | 'engineer' | 'stoodio' | 'producer' | 'label' => {
         if ('amenities' in user) return 'stoodio';
         if ('specialties' in user) return 'engineer';
         if ('instrumentals' in user) return 'producer';
+        if ('company_name' in user || ('bio' in user && !('is_seeking_session' in user))) return 'label';
         return 'artist';
     };
 
