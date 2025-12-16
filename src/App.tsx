@@ -115,7 +115,6 @@ const App: React.FC = () => {
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
-    // Explicitly define claimToken state to be available in renderView closure
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
@@ -221,6 +220,7 @@ const App: React.FC = () => {
         const supabase = getSupabase();
         if (!supabase) return;
 
+        // Fetch Global Directory using Optimized Function
         const fetchDirectory = async () => {
             const directory = await apiService.getAllPublicUsers();
             dispatch({ 
@@ -237,68 +237,34 @@ const App: React.FC = () => {
         };
         fetchDirectory();
 
+        // Optimized User Hydration
         const fetchAndHydrateUser = async (userId: string) => {
             if (!currentUser) {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             }
 
-            const fetchProfiles = async () => {
-                const tableMap = {
-                    stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
-                    producers: { query: '*, instrumentals(*)', role: UserRoleEnum.PRODUCER },
-                    engineers: { query: '*, mixing_samples(*)', role: UserRoleEnum.ENGINEER },
-                    artists: { query: '*', role: UserRoleEnum.ARTIST },
-                    labels: { 
-                        query: 'id, name, bio, image_url, company_name, contact_phone, website, followers, follower_ids, following, wallet_balance, wallet_transactions, rating_overall, sessions_completed, ranking_tier',
-                        role: UserRoleEnum.LABEL 
-                    },
-                };
-                
-                const idPromises = Object.entries(tableMap).map(async ([tableName, config]) => {
-                    try {
-                        const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
-                        if (error) {
-                             const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                             if (!basicError && basicData) {
-                                 return { data: basicData, role: config.role };
-                             }
-                             return null;
-                        }
-                        return data ? { data, role: config.role } : null;
-                    } catch (e) {
-                        return null;
-                    }
-                });
-                
-                const idResults = await Promise.all(idPromises);
-                return idResults.find(result => result !== null);
-            };
-            
             try {
-                let userProfileResult = await fetchProfiles();
-                if (!userProfileResult) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        userProfileResult = await fetchProfiles();
-                }
-
-                if (userProfileResult && userProfileResult.data) {
+                // PERFORMANCE FIX: Use the optimized fetchCurrentUserProfile function
+                const userProfileResult = await apiService.fetchCurrentUserProfile(userId);
+                
+                if (userProfileResult && userProfileResult.user) {
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
                         payload: { 
-                            user: userProfileResult.data as any,
+                            user: userProfileResult.user,
                             role: userProfileResult.role 
                         } 
                     });
                 } else {
-                    console.error("User authenticated but profile not found in any table.");
+                    console.error("User authenticated but profile not found.");
                     dispatch({ 
                         type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
+                        payload: { error: "Login successful, but your profile data could not be found." } 
                     });
                 }
             } catch (error) {
                 console.error("Error hydrating user profile:", error);
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
             } finally {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -333,7 +299,6 @@ const App: React.FC = () => {
 
     // --- AUTOMATIC REDIRECT FOR "LOCKED OUT" USERS ---
     useEffect(() => {
-        // If loading is done, and no user is found, but we are on a protected view...
         if (!isLoading && !currentUser) {
              const publicViews = [
                  AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE,
@@ -342,8 +307,6 @@ const App: React.FC = () => {
                  AppView.SUBSCRIPTION_PLANS, AppView.CLAIM_ENTRY, AppView.CLAIM_CONFIRM, 
                  AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
              ];
-             // Public Lists / Map are semi-public (have guest view), so we exclude them from forced redirect
-             // However, Dashboards are strictly protected.
              const protectedViews = [
                  AppView.ARTIST_DASHBOARD, AppView.ENGINEER_DASHBOARD, AppView.PRODUCER_DASHBOARD,
                  AppView.STOODIO_DASHBOARD, AppView.LABEL_DASHBOARD, AppView.INBOX, 
@@ -352,7 +315,6 @@ const App: React.FC = () => {
              ];
 
              if (protectedViews.includes(currentView)) {
-                 // Force redirect to landing page to escape "Loading..." limbo
                  navigate(AppView.LANDING_PAGE);
              }
         }
@@ -539,6 +501,14 @@ const App: React.FC = () => {
         }
         return renderView();
     };
+
+    if (isLoading) {
+        return (
+            <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
+                <LoadingSpinner currentUser={currentUser} />
+            </div>
+        );
+    }
     
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
@@ -570,7 +540,6 @@ const App: React.FC = () => {
                     <p className="text-zinc-300 mb-6">
                         You cannot message this label unless they have added you to their roster.
                     </p>
-
                     <button
                         className="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-white transition-colors font-semibold"
                         onClick={() => setPermissionError(null)}
