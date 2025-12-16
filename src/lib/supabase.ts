@@ -1,58 +1,62 @@
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  (import.meta as any).env.VITE_SUPABASE_URL!,
-  (import.meta as any).env.VITE_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: 'sb-ijcxeispefnbfwiviyux-auth',
-    },
-  }
-)
+const supabaseUrl = "https://ijcxeispefnbfwiviyux.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqY3hlaXNwZWZuYmZ3aXZpeXV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3OTgyNDcsImV4cCI6MjA3NjM3NDI0N30.2ILPIMF6rqsLZimqWHm5txhB3q_3fbXIlQUMKEhV37g";
 
-export const getSupabase = () => supabase
-
-function purgeLocalStorage(projectRef = 'ijcxeispefnbfwiviyux') {
-  try {
-    // 1. Aggressively clear ALL Supabase keys (starts with 'sb-')
-    // This fixes the issue if the Project ID doesn't match the hardcoded string
-    for (const k of Object.keys(localStorage)) {
-      if (k.startsWith('sb-')) localStorage.removeItem(k);
-    }
-    
-    // 2. Clear app state
-    localStorage.removeItem('last_view');
-  } catch (e) {
-    console.warn('Storage purge warning:', e);
-  }
+// Global variable to prevent duplicate instances in HMR (Hot Module Replacement) during dev
+declare global {
+    var __supabase__: SupabaseClient | undefined;
 }
 
+// Create a single, stable client with explicit options
+export const supabase: SupabaseClient = globalThis.__supabase__ ?? createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        // Ensures the session persists across reloads and refreshes tokens
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'sb-ijcxeispefnbfwiviyux-auth', // Unique storage key per project
+    },
+    realtime: {
+        params: {
+            eventsPerSecond: 5,
+        },
+    },
+});
+
+if (typeof window !== 'undefined') {
+    globalThis.__supabase__ = supabase;
+}
+
+// Backward compatibility wrapper for existing files calling getSupabase()
+export const getSupabase = (): SupabaseClient | null => {
+    return supabase;
+};
+
+// Robust Logout Handler
 export async function performLogout() {
   const client = getSupabase()
+  if (!client) return;
+
   try {
-    // 1) Remove channels and disconnect Realtime
-    const channels = client.getChannels()
-    if (channels.length > 0) {
-        await Promise.allSettled(channels.map((ch) => client.removeChannel(ch)))
-    }
-    
-    // 2) Disconnect socket
-    if (client.realtime) {
-        await client.realtime.disconnect()
+    // 1. Disconnect Realtime to stop incoming events
+    // We catch individual errors here to ensure we proceed to auth signout
+    try {
+        const channels = client.getChannels();
+        if (channels.length > 0) {
+            await Promise.all(channels.map((ch) => client.removeChannel(ch)));
+        }
+        await client.realtime.disconnect();
+    } catch (wsError) {
+        console.warn('Realtime disconnect warning:', wsError);
     }
 
-    // 3) Attempt Server-Side Sign Out
-    // We await this, but if it fails, we catch it so we can still purge local data
-    await (client.auth as any).signOut({ scope: 'global' })
-    
+    // 2. Sign out from Auth (Invalidates token on server)
+    const { error } = await client.auth.signOut({ scope: 'global' });
+    if (error) throw error;
+
   } catch (e) {
-    console.warn('Logout network/cleanup warning (non-fatal):', e)
-  } finally {
-    // 4) ALWAYS Purge Storage, even if the above errors out
-    purgeLocalStorage() // Use the updated aggressive purge
+    console.warn('Logout API warning (non-fatal):', e);
   }
 }

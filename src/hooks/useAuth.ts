@@ -110,30 +110,36 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // 1. CRITICAL: Clear LocalStorage synchronously first. 
-        try {
-            localStorage.removeItem('sb-ijcxeispefnbfwiviyux-auth');
-            localStorage.removeItem('last_view');
-            Object.keys(localStorage).forEach(key => {
-                if(key.startsWith('sb-')) localStorage.removeItem(key);
-            });
-        } catch (e) {
-            console.warn("Manual storage clear failed", e);
-        }
+        // 1. Show loading state briefly so user knows something is happening
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
-        // 2. Clear App State
-        dispatch({ type: ActionTypes.LOGOUT });
-
-        // 3. Attempt server-side cleanup
         try {
+            // 2. Attempt server-side logout
             await performLogout();
         } catch (e) {
             console.warn("Server logout warning", e);
         } finally {
-            // 4. Force reload to Landing Page
-            window.location.href = '/'; 
+            // 3. NUCLEAR OPTION: Clear everything client-side regardless of API success
+            // This guarantees the user is "logged out" in the browser
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+            } catch (e) {
+                console.error("Storage clear failed", e);
+            }
+
+            // 4. Reset Global State
+            dispatch({ type: ActionTypes.LOGOUT });
+            
+            // 5. Navigate to Landing Page (SPA Navigation, NOT reload)
+            // Hard reloading (window.location.href) can cause race conditions where 
+            // the old cookie resurrects the session before the server kills it.
+            navigate(AppView.LANDING_PAGE);
+            
+            // 6. Turn off the spinner
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch]);
+    }, [dispatch, navigate]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
         // Simple navigation. Do NOT attempt to check auth status here, 

@@ -238,10 +238,8 @@ const App: React.FC = () => {
         fetchDirectory();
 
         const fetchAndHydrateUser = async (userId: string) => {
-            if (!currentUser) {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            }
-
+            // We do NOT set loading to true here if we are already loading to avoid flicker
+            // But we ensure it is handled
             const fetchProfiles = async () => {
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
@@ -258,7 +256,7 @@ const App: React.FC = () => {
                     try {
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
                         if (error) {
-                             console.warn(`Hydration warning for ${tableName} (relations failed), retrying basic fetch...`, error.message);
+                             console.warn(`Hydration warning for ${tableName}, retrying basic fetch...`);
                              const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
                              if (!basicError && basicData) {
                                  return { data: basicData, role: config.role };
@@ -293,25 +291,29 @@ const App: React.FC = () => {
                         } 
                     });
                 } else {
-                    console.error("User authenticated but profile not found in any table.");
+                    console.error("User authenticated but profile not found.");
                     dispatch({ 
                         type: ActionTypes.LOGIN_FAILURE, 
-                        payload: { error: "Login successful, but your profile data could not be found. Please contact support or try creating a new account." } 
+                        payload: { error: "Login successful, but your profile data could not be found." } 
                     });
                 }
             } catch (error) {
                 console.error("Error hydrating user profile:", error);
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile. Please check your connection." } });
-            } finally {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
             }
         };
 
         const initSession = async () => {
-            const { data: { session } } = await (supabase.auth as any).getSession();
-            if (session?.user) {
-                await fetchAndHydrateUser(session.user.id);
-            } else {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            try {
+                const { data: { session } } = await (supabase.auth as any).getSession();
+                if (session?.user) {
+                    await fetchAndHydrateUser(session.user.id);
+                }
+            } catch (error) {
+                console.error("Session init error", error);
+            } finally {
+                // CRITICAL: Always turn off loading, even if no user found or error occurs
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
