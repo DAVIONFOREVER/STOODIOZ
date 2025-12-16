@@ -8,6 +8,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { fetchUserPosts } from '../services/apiService';
+import { ARIA_EMAIL } from '../constants';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -130,7 +131,7 @@ const ArtistProfile: React.FC = () => {
                             </button>
                             <button 
                                 onClick={() => currentUser && toggleFollow('artist', artist.id)}
-                                disabled={!currentUser || currentUser.id === artist.id || artist.id === 'artist-aria-cantata'}
+                                disabled={!currentUser || currentUser.id === artist.id || artist.email === ARIA_EMAIL}
                                 className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
                             >
                                 {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}

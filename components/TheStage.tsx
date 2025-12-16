@@ -12,6 +12,7 @@ import { useAppState } from '../contexts/AppContext.tsx';
 import { fetchGlobalFeed } from '../services/apiService';
 import { useOnScreen } from '../hooks/useOnScreen';
 import { getSupabase } from '../lib/supabase';
+import { ARIA_EMAIL } from '../constants';
 
 interface TheStageProps {
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
@@ -63,7 +64,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         return map;
     }, [artists, engineers, stoodioz, producers, currentUser]);
 
-    // Suggestions logic
+    // Suggestions logic - Safe for Labels now
     const suggestions = useMemo(() => {
         const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
         if (currentUser && 'following' in currentUser) {
@@ -74,19 +75,20 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 ...(currentUser.following.producers || []),
                 currentUser.id
             ]);
-            return allUsers.filter(u => !followedIds.has(u.id) && u.id !== 'artist-aria-cantata').slice(0, 4);
+            return allUsers.filter(u => !followedIds.has(u.id) && u.email !== ARIA_EMAIL).slice(0, 4);
         }
-        return allUsers.filter(u => u.id !== 'artist-aria-cantata').slice(0, 4);
+        // Fallback for users without 'following' prop (e.g. some label states initially)
+        return allUsers.filter(u => u.email !== ARIA_EMAIL && u.id !== currentUser?.id).slice(0, 4);
     }, [currentUser, artists, engineers, stoodioz, producers]);
 
-    // Trending Logic (simplified for performance)
+    // Trending Logic
     const { trendingPost, trendingPostAuthor } = useMemo(() => {
         if (posts.length === 0) return { trendingPost: null, trendingPostAuthor: null };
         const trending = [...posts].sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0];
-        // Cast author to specific types for compatibility with TrendingPost component prop
+        
         const author = authorsMap.get(trending.authorId);
         if (author && 'bio' in author && !('is_seeking_session' in author) && !('specialties' in author) && !('instrumentals' in author) && !('amenities' in author)) {
-             // If label, exclude from trending post for now as TrendingPost expects Artist|Engineer|Stoodio|Producer
+             // Exclude labels from trending logic for now if type mismatch
              return { trendingPost: null, trendingPostAuthor: null };
         }
         return { trendingPost: trending, trendingPostAuthor: author as Artist | Engineer | Stoodio | Producer | undefined };
@@ -143,7 +145,6 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 { event: 'INSERT', schema: 'public', table: 'posts' },
                 async (payload) => {
                     const newPost = payload.new as any;
-                    // Format correctly matching DB columns to Post interface
                     const formattedPost: Post = {
                          id: newPost.id,
                          authorId: newPost.author_id,
@@ -161,15 +162,10 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                     };
                     
                     setPosts(prev => {
-                        // If we already have this exact ID, ignore (dupe prevention)
                         if (prev.some(p => p.id === formattedPost.id)) return prev;
-
-                        // Remove any 'temp-' optimistic posts from this author to prevent duplication
-                        // This swaps the optimistic "temp" post for the real DB confirmed post
                         const filteredPrev = prev.filter(p => 
                             !(p.id.startsWith('temp-') && p.authorId === formattedPost.authorId && p.text === formattedPost.text)
                         );
-                        
                         return [formattedPost, ...filteredPrev];
                     });
                 }
@@ -186,15 +182,14 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
         else if ('bio' in user && !('is_seeking_session' in user)) {
-             // TODO: Add Label profile view
+             // Label view - currently just logs, can navigate to profile
              console.log("Selected Label:", user.name);
         }
         else onSelectArtist(user as Artist);
     };
 
-    // Optimistic updates for likes/comments to keep UI snappy
     const handleLocalLike = (postId: string) => {
-        onLikePost(postId); // Update server/global state
+        onLikePost(postId); 
         if (!currentUser) return;
         setPosts(prev => prev.map(p => {
             if (p.id === postId) {
@@ -211,7 +206,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     };
 
     const handleLocalComment = (postId: string, text: string) => {
-        onCommentOnPost(postId, text); // Update server/global state
+        onCommentOnPost(postId, text);
         if (!currentUser) return;
         setPosts(prev => prev.map(p => {
             if (p.id === postId) {
@@ -230,7 +225,6 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     }
 
     const handleNewPost = async (postData: any) => {
-        // 1. Create temp post object for immediate feedback (Optimistic UI)
         if (currentUser && userRole) {
             const tempPost: Post = {
                 id: `temp-${Date.now()}`,
@@ -245,13 +239,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 likes: [],
                 comments: []
             };
-            
             setPosts(prev => [tempPost, ...prev]);
         }
-
-        // 2. Trigger API call
-        // The Realtime subscription defined in useEffect above will handle the "real" post arrival
-        // and replace this temp post.
         await onPost(postData);
     }
 
@@ -263,7 +252,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Left Sidebar */}
                 <aside className="hidden lg:block lg:col-span-3">
                     <div className="lg:sticky lg:top-28 space-y-6">
-                       <UserProfileCard user={currentUser as Artist | Engineer | Stoodio | Producer} userRole={userRole} onNavigate={onNavigate} />
+                       <UserProfileCard user={currentUser as Artist | Engineer | Stoodio | Producer | Label} userRole={userRole} onNavigate={onNavigate} />
                        <div className="cardSurface p-4">
                            <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
                            <nav className="space-y-1">
@@ -280,15 +269,15 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Main Content */}
                 <main className="col-span-12 lg:col-span-6">
                     <div className="space-y-8">
-                        <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer} onPost={handleNewPost} />
+                        <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label} onPost={handleNewPost} />
                         
                         <PostFeed 
                             posts={posts} 
-                            authors={authorsMap as Map<string, Artist | Engineer | Stoodio | Producer>}
+                            authors={authorsMap}
                             onLikePost={handleLocalLike}
                             onCommentOnPost={handleLocalComment}
                             onSelectAuthor={(author) => handleSelectUser(author as Artist | Engineer | Stoodio | Producer | Label)}
-                            useFixedFrame={true} // Enable new frame design only here
+                            useFixedFrame={true} 
                         />
                         
                         {/* Infinite Scroll Sentinel */}

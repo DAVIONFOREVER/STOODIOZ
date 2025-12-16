@@ -1,10 +1,8 @@
 
-
-
-
 import React from 'react';
 import type { Artist } from '../types';
 import { UserPlusIcon, UserCheckIcon } from './icons';
+import { ARIA_EMAIL } from '../constants';
 
 interface ArtistCardProps {
     artist: Artist;
@@ -31,7 +29,7 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSelectArtist, onToggl
             </button>
             <p className="text-slate-400 text-sm mt-1 h-10 overflow-hidden">{artist.bio}</p>
             <div className="mt-4 h-9">
-                {isLoggedIn && !isSelf && artist.id !== 'artist-aria-cantata' && (
+                {isLoggedIn && !isSelf && artist.email !== ARIA_EMAIL && (
                     <button
                         onClick={handleFollowClick}
                         className={`w-full py-2 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${isFollowing ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30' : 'bg-zinc-700 hover:bg-zinc-600 text-slate-200'}`}

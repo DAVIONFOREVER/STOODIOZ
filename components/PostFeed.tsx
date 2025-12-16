@@ -1,15 +1,15 @@
 
 import React from 'react';
-import type { Post, Artist, Engineer, Stoodio, Producer } from '../types';
+import type { Post, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import PostCard from './PostCard.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
 
 interface PostFeedProps {
     posts: Post[];
-    authors: Map<string, Artist | Engineer | Stoodio | Producer>;
+    authors: Map<string, Artist | Engineer | Stoodio | Producer | Label>;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    onSelectAuthor: (author: Artist | Engineer | Stoodio | Producer) => void;
+    onSelectAuthor: (author: Artist | Engineer | Stoodio | Producer | Label) => void;
     useFixedFrame?: boolean;
 }
 

@@ -1,7 +1,9 @@
+
 import React, { useMemo } from 'react';
 import type { Artist } from '../types';
 import ArtistCard from './ArtistCard.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
+import { ARIA_EMAIL } from '../constants.ts';
 
 interface ArtistListProps {
     onSelectArtist: (artist: Artist) => void;
@@ -12,8 +14,8 @@ const ArtistList: React.FC<ArtistListProps> = ({ onSelectArtist, onToggleFollow 
     const { artists, currentUser } = useAppState();
 
     const sortedArtists = useMemo(() => {
-        const aria = artists.find(a => a.id === 'artist-aria-cantata');
-        const otherArtists = artists.filter(a => a.id !== 'artist-aria-cantata');
+        const aria = artists.find(a => a.email === ARIA_EMAIL);
+        const otherArtists = artists.filter(a => a.email !== ARIA_EMAIL);
         return [aria, ...otherArtists].filter((a): a is Artist => !!a);
     }, [artists]);
 
