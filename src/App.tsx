@@ -238,8 +238,6 @@ const App: React.FC = () => {
         fetchDirectory();
 
         const fetchAndHydrateUser = async (userId: string) => {
-            // We do NOT set loading to true here if we are already loading to avoid flicker
-            // But we ensure it is handled
             const fetchProfiles = async () => {
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
@@ -256,7 +254,6 @@ const App: React.FC = () => {
                     try {
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
                         if (error) {
-                             console.warn(`Hydration warning for ${tableName}, retrying basic fetch...`);
                              const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
                              if (!basicError && basicData) {
                                  return { data: basicData, role: config.role };
@@ -313,7 +310,6 @@ const App: React.FC = () => {
             } catch (error) {
                 console.error("Session init error", error);
             } finally {
-                // CRITICAL: Always turn off loading, even if no user found or error occurs
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
@@ -652,7 +648,8 @@ const App: React.FC = () => {
                 </Suspense>
             )}
 
-            {currentUser && !isAriaCantataOpen && (
+            {/* FIX: Hide Aria FAB for Label users to prevent UI clutter on their dashboard */}
+            {currentUser && !isAriaCantataOpen && userRole !== UserRole.LABEL && (
                 <AriaFAB onClick={handleOpenAriaFromFAB} />
             )}
 
