@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -64,8 +65,11 @@ export const useBookings = (navigate: (view: AppView) => void) => {
             
         } catch (error) {
             console.error("Failed to create Stripe checkout session:", error);
+            // CRITICAL FIX: Stop loading spinner if payment/redirect fails
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         } finally {
-            // Stripe's redirect will take over, so loading state change might not be seen
+            // We usually don't stop loading on success because the page redirects away,
+            // avoiding a flash of content. But the catch block above handles failures.
         }
     }, [selectedStoodio, currentUser, userRole, dispatch]);
 
