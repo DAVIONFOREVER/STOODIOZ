@@ -11,11 +11,13 @@ export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
         const supabase = getSupabase();
         if (!supabase) {
              dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
+             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
              return;
         }
 

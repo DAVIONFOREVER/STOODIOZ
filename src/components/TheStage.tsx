@@ -18,7 +18,7 @@ interface TheStageProps {
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
-    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer', id: string) => void;
+    onToggleFollow: (type: 'stoodio' | 'engineer' | 'artist' | 'producer' | 'label', id: string) => void;
     onSelectArtist: (artist: Artist) => void;
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
@@ -87,11 +87,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         const trending = [...posts].sort((a, b) => (b.likes.length + b.comments.length) - (a.likes.length + a.comments.length))[0];
         
         const author = authorsMap.get(trending.authorId);
-        if (author && 'bio' in author && !('is_seeking_session' in author) && !('specialties' in author) && !('instrumentals' in author) && !('amenities' in author)) {
-             // Exclude labels from trending logic for now if type mismatch
-             return { trendingPost: null, trendingPostAuthor: null };
-        }
-        return { trendingPost: trending, trendingPostAuthor: author as Artist | Engineer | Stoodio | Producer | undefined };
+        
+        return { trendingPost: trending, trendingPostAuthor: author as Artist | Engineer | Stoodio | Producer | Label | undefined };
     }, [posts, authorsMap]);
 
     // Infinite Scroll Loader
@@ -181,9 +178,13 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
-        else if ('bio' in user && !('is_seeking_session' in user)) {
-             // Label view - currently just logs, can navigate to profile
+        else if ('company_name' in user || ('bio' in user && !('is_seeking_session' in user))) {
+             // Label view - currently just logs, can navigate to profile. 
+             // Ideally we would have onSelectLabel but that requires App.tsx update. 
+             // We can use navigate to profile if we had a dedicated route or context action for selecting label.
+             // For now, logging to console as placeholder for label navigation logic if prop not available.
              console.log("Selected Label:", user.name);
+             // In a full implementation, you'd add onSelectLabel prop to TheStage
         }
         else onSelectArtist(user as Artist);
     };
@@ -269,7 +270,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 {/* Main Content */}
                 <main className="col-span-12 lg:col-span-6">
                     <div className="space-y-8">
-                        <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer} onPost={handleNewPost} />
+                        <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label} onPost={handleNewPost} />
                         
                         <PostFeed 
                             posts={posts} 
