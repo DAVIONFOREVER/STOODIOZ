@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer, Label } from '../types';
 import { AppView, UserRole } from '../types';
@@ -11,6 +12,7 @@ import { useAppState } from '../contexts/AppContext.tsx';
 import { fetchGlobalFeed } from '../services/apiService';
 import { useOnScreen } from '../hooks/useOnScreen';
 import { getSupabase } from '../lib/supabase';
+import { ARIA_EMAIL } from '../constants';
 
 interface TheStageProps {
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
@@ -271,7 +273,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                         
                         <PostFeed 
                             posts={posts} 
-                            authors={authorsMap as Map<string, Artist | Engineer | Stoodio | Producer>}
+                            authors={authorsMap}
                             onLikePost={handleLocalLike}
                             onCommentOnPost={handleLocalComment}
                             onSelectAuthor={(author) => handleSelectUser(author as Artist | Engineer | Stoodio | Producer | Label)}

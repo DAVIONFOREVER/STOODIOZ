@@ -5,7 +5,7 @@ import * as apiService from '../services/apiService';
 import { AppView } from '../types';
 import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { UserRole as UserRoleEnum } from '../types';
-import { supabase, performLogout } from '../lib/supabase'; // Import the singleton and helper
+import { getSupabase, performLogout } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
@@ -13,6 +13,7 @@ export const useAuth = (navigate: (view: any) => void) => {
     const login = useCallback(async (email: string, password: string): Promise<void> => {
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
+        const supabase = getSupabase();
         if (!supabase) {
              dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
              return;
@@ -51,7 +52,6 @@ export const useAuth = (navigate: (view: any) => void) => {
                         type: ActionTypes.LOGIN_SUCCESS,
                         payload: { user: labelProfile, role: UserRoleEnum.LABEL }
                     });
-                    // App.tsx handles persistence routing
                     return;
                 }
             }
@@ -82,6 +82,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                     .maybeSingle();
 
                 if (profileError) {
+                    // Retry basic
                     const retry = await supabase.from(table).select('*').eq('id', userId).maybeSingle();
                     profileData = retry.data;
                 }
@@ -107,40 +108,39 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // 1. INSTANT UI UPDATE: Clear state immediately
-        dispatch({ type: ActionTypes.LOGOUT });
-        
-        // 2. Navigate away immediately
-        navigate(AppView.LANDING_PAGE);
+        // 1. CRITICAL: Clear LocalStorage synchronously first. 
+        try {
+            localStorage.removeItem('sb-ijcxeispefnbfwiviyux-auth');
+            localStorage.removeItem('last_view');
+            Object.keys(localStorage).forEach(key => {
+                if(key.startsWith('sb-')) localStorage.removeItem(key);
+            });
+        } catch (e) {
+            console.warn("Manual storage clear failed", e);
+        }
 
-        // 3. Perform Deep Cleanup
+        // 2. Clear App State
+        dispatch({ type: ActionTypes.LOGOUT });
+
+        // 3. Attempt server-side cleanup
         try {
             await performLogout();
-            
-            // 4. Hard Refresh to ensure clean slate (Optional but recommended for sticky sessions)
-            window.location.href = '/'; 
         } catch (e) {
-            console.warn("Logout cleanup warning:", e);
+            console.warn("Server logout warning", e);
+        } finally {
+            // 4. Force reload to Landing Page
+            window.location.href = '/'; 
         }
-    }, [dispatch, navigate]);
+    }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
+        // Simple navigation. Do NOT attempt to check auth status here, 
+        // as the user is likely creating a NEW account.
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
         else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
         else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
         else if (role === 'PRODUCER') navigate(AppView.PRODUCER_SETUP);
-        else if (role === 'LABEL') {
-            const authUser = await (supabase as any).auth.getUser();
-
-            if (authUser?.data?.user?.id) {
-                await (supabase as any)
-                    .from('profiles')
-                    .update({ role: 'LABEL' })
-                    .eq('id', authUser.data.user.id);
-            }
-
-            navigate(AppView.LABEL_SETUP);
-        }
+        else if (role === 'LABEL') navigate(AppView.LABEL_SETUP);
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {
