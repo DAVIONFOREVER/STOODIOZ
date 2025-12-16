@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -10,11 +11,13 @@ export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
         const supabase = getSupabase();
         if (!supabase) {
              dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
+             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
              return;
         }
 
@@ -107,40 +110,39 @@ export const useAuth = (navigate: (view: any) => void) => {
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
+        // 1. CRITICAL: Clear LocalStorage synchronously first. 
         try {
-            // 1. Clear state immediately
-            dispatch({ type: ActionTypes.LOGOUT });
-            
-            // 2. Perform deep cleanup (storage purge + auth signout)
-            await performLogout();
-            
-            // 3. Hard Reload to clear memory/hooks and reset the SPA state completely
-            window.location.assign('/'); 
+            localStorage.removeItem('sb-ijcxeispefnbfwiviyux-auth');
+            localStorage.removeItem('last_view');
+            Object.keys(localStorage).forEach(key => {
+                if(key.startsWith('sb-')) localStorage.removeItem(key);
+            });
         } catch (e) {
-            console.error("Logout failed", e);
-            // Fallback: force reload anyway
-            window.location.assign('/'); 
+            console.warn("Manual storage clear failed", e);
+        }
+
+        // 2. Clear App State
+        dispatch({ type: ActionTypes.LOGOUT });
+
+        // 3. Attempt server-side cleanup
+        try {
+            await performLogout();
+        } catch (e) {
+            console.warn("Server logout warning", e);
+        } finally {
+            // 4. Force reload to Landing Page
+            window.location.href = '/'; 
         }
     }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
+        // Simple navigation. Do NOT attempt to check auth status here, 
+        // as the user is likely creating a NEW account.
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
         else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
         else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
         else if (role === 'PRODUCER') navigate(AppView.PRODUCER_SETUP);
-        else if (role === 'LABEL') {
-            const supabase = getSupabase();
-            const authUser = await (supabase as any).auth.getUser();
-
-            if (authUser?.data?.user?.id) {
-                await (supabase as any)
-                    .from('profiles')
-                    .update({ role: 'LABEL' })
-                    .eq('id', authUser.data.user.id);
-            }
-
-            navigate(AppView.LABEL_SETUP);
-        }
+        else if (role === 'LABEL') navigate(AppView.LABEL_SETUP);
     }, [navigate]);
     
     const completeSetup = async (userData: any, role: UserRole) => {

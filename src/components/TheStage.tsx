@@ -45,7 +45,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         onSelectProducer,
         onNavigate
     } = props;
-    const { currentUser, userRole, artists, engineers, stoodioz, producers } = useAppState();
+    const { currentUser, userRole, artists, engineers, stoodioz, producers, labels } = useAppState();
 
     // Local state for the infinite feed
     const [posts, setPosts] = useState<Post[]>([]);
@@ -56,30 +56,31 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     // Combine all users for author lookup, INCLUDING the current user to ensure immediate availability
     const authorsMap = useMemo(() => {
-        const allUsers: (Artist | Engineer | Stoodio | Producer | Label)[] = [...artists, ...engineers, ...stoodioz, ...producers];
+        const allUsers: (Artist | Engineer | Stoodio | Producer | Label)[] = [...artists, ...engineers, ...stoodioz, ...producers, ...labels];
         if (currentUser) allUsers.push(currentUser); 
         
         const map = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
         allUsers.forEach(u => map.set(u.id, u));
         return map;
-    }, [artists, engineers, stoodioz, producers, currentUser]);
+    }, [artists, engineers, stoodioz, producers, labels, currentUser]);
 
-    // Suggestions logic - Safe for Labels now
+    // Suggestions logic
     const suggestions = useMemo(() => {
-        const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+        const allUsers = [...artists, ...engineers, ...stoodioz, ...producers, ...labels];
         if (currentUser && 'following' in currentUser) {
             const followedIds = new Set([
                 ...(currentUser.following.artists || []),
                 ...(currentUser.following.engineers || []),
                 ...(currentUser.following.stoodioz || []),
                 ...(currentUser.following.producers || []),
+                ...(currentUser.following.labels || []),
                 currentUser.id
             ]);
             return allUsers.filter(u => !followedIds.has(u.id) && u.id !== 'artist-aria-cantata').slice(0, 4);
         }
         // Fallback for users without 'following' prop (e.g. some label states initially)
         return allUsers.filter(u => u.id !== 'artist-aria-cantata' && u.id !== currentUser?.id).slice(0, 4);
-    }, [currentUser, artists, engineers, stoodioz, producers]);
+    }, [currentUser, artists, engineers, stoodioz, producers, labels]);
 
     // Trending Logic
     const { trendingPost, trendingPostAuthor } = useMemo(() => {
@@ -179,12 +180,11 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         else if ('specialties' in user) onSelectEngineer(user as Engineer);
         else if ('instrumentals' in user) onSelectProducer(user as Producer);
         else if ('company_name' in user || ('bio' in user && !('is_seeking_session' in user))) {
-             // Label view - currently just logs, can navigate to profile. 
-             // Ideally we would have onSelectLabel but that requires App.tsx update. 
-             // We can use navigate to profile if we had a dedicated route or context action for selecting label.
-             // For now, logging to console as placeholder for label navigation logic if prop not available.
+             // Label view - Navigate to label profile via AppView if possible, or log for now.
+             // In a full implementation, we'd add onSelectLabel to props.
              console.log("Selected Label:", user.name);
-             // In a full implementation, you'd add onSelectLabel prop to TheStage
+             // Assuming onNavigate is available to handle profile view implicitly via state
+             // but we lack setLabelProfile action here directly exposed.
         }
         else onSelectArtist(user as Artist);
     };

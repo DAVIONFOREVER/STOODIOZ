@@ -183,7 +183,7 @@ type Payload = {
     [ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL]: undefined;
     [ActionTypes.SET_REVIEWS]: { reviews: Review[] };
     [ActionTypes.SET_DIRECTIONS_INTENT]: { bookingId: string | null };
-};
+}
 
 export type AppAction = ActionMap<Payload>[keyof ActionMap<Payload>];
 
@@ -322,10 +322,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 history: [landingView],
                 historyIndex: 0,
                 ariaHistory: [],
+                isLoading: false, // Ensure loading is turned off on success
             };
         }
         case ActionTypes.LOGIN_FAILURE:
-            return { ...state, loginError: action.payload.error };
+            return { ...state, loginError: action.payload.error, isLoading: false }; // Ensure loading is turned off on failure
         case ActionTypes.LOGOUT:
             // Ensure local storage is cleared on logout action in reducer as well
             return {
@@ -377,6 +378,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 userRole: role,
                 history: [landingView],
                 historyIndex: 0,
+                isLoading: false,
             };
         }
         case ActionTypes.VIEW_STOODIO_DETAILS:

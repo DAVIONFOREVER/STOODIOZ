@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -17,16 +18,16 @@ export const getSupabase = () => supabase
 
 function purgeLocalStorage(projectRef = 'ijcxeispefnbfwiviyux') {
   try {
-    // 1. Target specific project keys
+    // 1. Aggressively clear ALL Supabase keys (starts with 'sb-')
+    // This fixes the issue if the Project ID doesn't match the hardcoded string
     for (const k of Object.keys(localStorage)) {
-      if (k.startsWith(`sb-${projectRef}-`)) localStorage.removeItem(k)
+      if (k.startsWith('sb-')) localStorage.removeItem(k);
     }
-    // 2. Target exact auth key (redundancy check)
-    localStorage.removeItem('sb-ijcxeispefnbfwiviyux-auth')
-    // 3. Clear app state
-    localStorage.removeItem('last_view')
+    
+    // 2. Clear app state
+    localStorage.removeItem('last_view');
   } catch (e) {
-    console.warn('Storage purge warning:', e)
+    console.warn('Storage purge warning:', e);
   }
 }
 
@@ -52,6 +53,6 @@ export async function performLogout() {
     console.warn('Logout network/cleanup warning (non-fatal):', e)
   } finally {
     // 4) ALWAYS Purge Storage, even if the above errors out
-    purgeLocalStorage('ijcxeispefnbfwiviyux')
+    purgeLocalStorage() // Use the updated aggressive purge
   }
 }
