@@ -21,13 +21,14 @@ export const useAuth = (navigate: (view: any) => void) => {
              return;
         }
 
-        const { data, error } = await (supabase.auth as any).signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
     
         if (error) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             return;
         }
     
@@ -54,6 +55,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                         type: ActionTypes.LOGIN_SUCCESS,
                         payload: { user: labelProfile, role: UserRoleEnum.LABEL }
                     });
+                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
                     return;
                 }
             }
@@ -99,7 +101,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             if (userProfile && detectedRole) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile, role: detectedRole } });
                 if ('Notification' in window && Notification.permission !== 'denied') {
-                    Notification.requestPermission();
+                    try { Notification.requestPermission(); } catch {}
                 }
             } else {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Profile not found. Please contact support." } });
@@ -107,6 +109,10 @@ export const useAuth = (navigate: (view: any) => void) => {
         } else {
              dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "An unknown error occurred during login." } });
         }
+        
+        // Ensure loading is always cleared at the end of the process
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
@@ -126,15 +132,12 @@ export const useAuth = (navigate: (view: any) => void) => {
         }
         
         // 2) Server-side revoke of refresh sessions (fast-return)
-        // Note: This endpoint must exist on your Supabase Edge Functions for this to work effectively.
-        // If it doesn't exist, tryOrSilence will catch the 404/error and proceed.
         if (supabase) {
             try {
                  const { data } = await supabase.auth.getSession();
                  if (data.session?.access_token) {
                     await tryOrSilence(fetch('/functions/v1/force-logout', {
                         method: 'POST',
-                        credentials: 'include',
                         headers: { Authorization: `Bearer ${data.session.access_token}` }
                     }));
                  }
@@ -160,7 +163,6 @@ export const useAuth = (navigate: (view: any) => void) => {
         } catch {}
         
         try {
-            // Clear IndexedDB (optional, but good hygiene if you cache data)
             if ('indexedDB' in window) {
                 const dbs = await (indexedDB as any).databases?.() || [];
                 await Promise.all(
@@ -177,14 +179,11 @@ export const useAuth = (navigate: (view: any) => void) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
 
         // 6) Hard redirect to login (no spinner)
-        // We use window.location.replace to clear history stack and ensure a fresh load
-        window.location.replace('/');
+        window.location.replace('/login');
 
     }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
-        // Simple navigation. Do NOT attempt to check auth status here, 
-        // as the user is likely creating a NEW account.
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
         else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
         else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
