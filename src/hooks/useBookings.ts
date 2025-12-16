@@ -68,8 +68,9 @@ export const useBookings = (navigate: (view: AppView) => void) => {
             // CRITICAL FIX: Stop loading spinner if payment/redirect fails
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         } finally {
-            // We usually don't stop loading on success because the page redirects away,
-            // avoiding a flash of content. But the catch block above handles failures.
+            // FIX: Force stop loading here to prevent "frozen" spinner state if redirect is not immediate
+            // or if we are using a mock implementation that doesn't actually unload the page.
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
     }, [selectedStoodio, currentUser, userRole, dispatch]);
 

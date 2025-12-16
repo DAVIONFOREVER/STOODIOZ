@@ -6,6 +6,7 @@ import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagI
 import { useAppState } from '../contexts/AppContext.tsx';
 import { useOnScreen } from '../hooks/useOnScreen.ts';
 import StageMediaFrame from './StageMediaFrame';
+import { USER_SILHOUETTE_URL } from '../constants';
 
 interface PostCardProps {
     post: Post;
@@ -124,7 +125,11 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {/* Post Header */}
                 <div className="flex items-start justify-between gap-4 mb-4">
                     <button onClick={onSelectAuthor} className="flex items-center gap-4 group text-left">
-                        <img src={author.image_url} alt={author.name} className="w-12 h-12 rounded-xl object-cover" />
+                        <img 
+                            src={author.image_url || USER_SILHOUETTE_URL} 
+                            alt={author.name} 
+                            className="w-12 h-12 rounded-full object-cover border-2 border-transparent group-hover:border-orange-500 transition-all" 
+                        />
                         <div>
                             <p className="font-bold text-slate-100 group-hover:text-orange-400 transition-colors">{author.name}</p>
                             <p className="text-sm text-slate-400">{formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}</p>
@@ -260,7 +265,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     {post.comments.length > 0 ? (
                         post.comments.map(comment => (
                             <div key={comment.id} className="flex items-start gap-3">
-                                <img src={comment.author_image_url} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
+                                <img src={comment.author_image_url || USER_SILHOUETTE_URL} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
                                 <div>
                                     <div className="bg-zinc-700 rounded-xl p-3">
                                         <p className="font-semibold text-sm text-slate-200">{comment.authorName}</p>
@@ -275,7 +280,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     )}
                      {/* Comment Form */}
                     <form onSubmit={handleCommentSubmit} className="flex items-center gap-2 pt-4">
-                        <img src={currentUser.image_url} alt="Your profile" className="w-8 h-8 rounded-lg object-cover"/>
+                        <img src={currentUser.image_url || USER_SILHOUETTE_URL} alt="Your profile" className="w-8 h-8 rounded-lg object-cover"/>
                          <input
                             type="text"
                             value={commentText}
