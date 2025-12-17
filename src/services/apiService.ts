@@ -1,7 +1,8 @@
+
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember, LabelBudgetOverview, LabelBudgetMode, Following } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
-import { USER_SILHOUETTE_URL } from '../constants';
+import { USER_SILHOUETTE_URL, ARIA_EMAIL } from '../constants';
 import { generateInvoicePDF } from '../lib/pdf';
 
 // --- HELPER FUNCTIONS ---
@@ -93,27 +94,36 @@ export const fetchCurrentUserProfile = async (userId: string): Promise<{ user: a
     const supabase = getSupabase();
     if (!supabase) return null;
 
-    // Check lookup table first
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+    // 1. Get the Auth user to check email (Special handling for Aria)
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    
+    // 2. Check the master profiles table for the definitive role
+    const { data: profile } = await supabase.from('profiles').select('role, email').eq('id', userId).maybeSingle();
     
     const tables = [
+        { name: 'artists', role: UserRoleEnum.ARTIST, query: '*' },
         { name: 'stoodioz', role: UserRoleEnum.STOODIO, query: '*, rooms(*), in_house_engineers(*)' },
         { name: 'producers', role: UserRoleEnum.PRODUCER, query: '*, instrumentals(*)' },
         { name: 'engineers', role: UserRoleEnum.ENGINEER, query: '*, mixing_samples(*)' },
-        { name: 'artists', role: UserRoleEnum.ARTIST, query: '*' },
         { name: 'labels', role: UserRoleEnum.LABEL, query: '*' }
     ];
 
-    // Optimization: If profile tells us the role, check that table immediately
-    if (profile?.role) {
-        const t = tables.find(x => x.role === profile.role);
+    // Aria Protection: If this is Aria's email, she MUST be an artist.
+    const isAria = authUser?.email === ARIA_EMAIL || profile?.email === ARIA_EMAIL;
+
+    // 3. If profile tells us the role, check that table immediately
+    let targetRole = profile?.role;
+    if (isAria) targetRole = UserRoleEnum.ARTIST;
+
+    if (targetRole) {
+        const t = tables.find(x => x.role === targetRole);
         if (t) {
             const { data } = await supabase.from(t.name).select(t.query).eq('id', userId).maybeSingle();
             if (data) return { user: data, role: t.role };
         }
     }
 
-    // Fallback: Scan tables
+    // 4. Fallback: Scan tables in logical order (Artists first)
     for (const t of tables) {
         const { data } = await supabase.from(t.name).select(t.query).eq('id', userId).maybeSingle();
         if (data) return { user: data, role: t.role };
@@ -485,7 +495,6 @@ export const initiatePayout = async (amount: number, userId: string) => { return
 export const createCheckoutSessionForSubscription = async (plan: string, userId: string) => { return { sessionId: 'mock' }; };
 export const createCheckoutSessionForWallet = async (amount: number, userId: string) => { return { sessionId: 'mock' }; };
 
-// FIX: Add missing fetchLabelBookings function
 export const fetchLabelBookings = async (labelId: string): Promise<Booking[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
@@ -502,7 +511,6 @@ export const fetchLabelBookings = async (labelId: string): Promise<Booking[]> =>
     return data || [];
 };
 
-// FIX: Add missing removeArtistFromLabelRoster function
 export const removeArtistFromLabelRoster = async (labelId: string, rosterId: string, artistId?: string): Promise<boolean> => {
     const supabase = getSupabase();
     if (!supabase) return false;
@@ -528,7 +536,6 @@ export const removeArtistFromLabelRoster = async (labelId: string, rosterId: str
     return true;
 };
 
-// FIX: Add missing createShadowProfile function
 export const createShadowProfile = async (
     role: 'ARTIST' | 'PRODUCER' | 'ENGINEER', 
     labelId: string, 
