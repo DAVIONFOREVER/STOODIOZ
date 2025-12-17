@@ -1,4 +1,3 @@
-
 import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
@@ -63,7 +62,7 @@ const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
 const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx'));
-const LabelProfile = lazy(() => import('./components/LabelProfile.tsx'));
+const LabelProfile = lazy(() => import('./components/LabelProfile.tsx')); 
 const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
 const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
 const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
@@ -108,14 +107,13 @@ const App: React.FC = () => {
         latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
-        masterclassToPurchase, masterclassToWatch, masterclassToReview, bookings, engineers
+        masterclassToPurchase, masterclassToWatch, masterclassToReview, bookings, engineers, isAriaCantataOpen: isAriaOpen
     } = state;
 
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
-    // Explicitly define claimToken state to be available in renderView closure
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
@@ -165,12 +163,7 @@ const App: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Complete setup failed:", error);
-            
-            let errorMessage = "An unknown error occurred during setup.";
-            if (error && typeof error.message === 'string') {
-                errorMessage = error.message;
-            }
-            
+            let errorMessage = error?.message || "An unknown error occurred during setup.";
             alert(`Setup failed:\n${errorMessage}`);
             throw error;
         } finally {
@@ -202,42 +195,29 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    // --- CROSS-TAB LOGOUT SYNCHRONIZATION ---
-    useEffect(() => {
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'app:logout') {
-                // Another tab has logged out, perform hard redirect immediately
-                window.location.replace('/login');
-            }
-        };
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, []);
+    // --- MODAL HANDLERS (DEFINED BEFORE RENDERVIEW TO AVOID TDZ ERRORS) ---
+    const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
+    const closeTipModal = () => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
+    const closeCancelModal = () => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL });
+    const closeVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } });
+    const closeAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
+    const closePayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });
+    const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
+    const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
+    const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
 
-    // --- RE-AUTH REALTIME ON FOCUS ---
-    useEffect(() => {
-        const handleVisibilityChange = async () => {
-            if (document.visibilityState === 'visible') {
-                const supabase = getSupabase();
-                if (!supabase) return;
-                
-                // Refresh the session token
-                const { data } = await supabase.auth.getSession();
-                
-                if (data.session) {
-                    // Re-authenticate Realtime connection
-                    supabase.realtime.setAuth(data.session.access_token);
-                } else if (currentUser) {
-                    // Session is invalid but we still have user state -> FORCE LOGOUT
-                    dispatch({ type: ActionTypes.LOGOUT });
-                    window.location.replace('/login');
-                }
-            }
-        };
-        
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [currentUser, dispatch]);
+    const closePurchaseMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL });
+    const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
+    const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
+
+    const handleOpenAriaFromFAB = () => {
+        dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
+        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+    };
+
+    // FIX: Define openTipModal and openCancelModal before usage in renderView to fix "Cannot find name" errors.
+    const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
+    const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
@@ -272,9 +252,14 @@ const App: React.FC = () => {
                 }
             });
         };
+        
         fetchDirectory();
 
         const fetchAndHydrateUser = async (userId: string) => {
+            if (!currentUser) {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            }
+
             const fetchProfiles = async () => {
                 const tableMap = {
                     stoodioz: { query: '*, rooms(*), in_house_engineers(*)', role: UserRoleEnum.STOODIO },
@@ -292,25 +277,19 @@ const App: React.FC = () => {
                         const { data, error } = await supabase.from(tableName).select(config.query).eq('id', userId).maybeSingle();
                         if (error) {
                              const { data: basicData, error: basicError } = await supabase.from(tableName).select('*').eq('id', userId).maybeSingle();
-                             if (!basicError && basicData) {
-                                 return { data: basicData, role: config.role };
-                             }
+                             if (!basicError && basicData) return { data: basicData, role: config.role };
                              return null;
                         }
                         return data ? { data, role: config.role } : null;
-                    } catch (e) {
-                        return null;
-                    }
+                    } catch (e) { return null; }
                 });
                 
                 const idResults = await Promise.all(idPromises);
-                const found = idResults.find(result => result !== null);
-                return found;
+                return idResults.find(result => result !== null);
             };
             
             try {
                 let userProfileResult = await fetchProfiles();
-                
                 if (!userProfileResult) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         userProfileResult = await fetchProfiles();
@@ -319,79 +298,53 @@ const App: React.FC = () => {
                 if (userProfileResult && userProfileResult.data) {
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
-                        payload: { 
-                            user: userProfileResult.data as any,
-                            role: userProfileResult.role 
-                        } 
+                        payload: { user: userProfileResult.data as any, role: userProfileResult.role } 
                     });
                 } else {
-                    console.error("User authenticated but profile not found.");
                     dispatch({ 
                         type: ActionTypes.LOGIN_FAILURE, 
                         payload: { error: "Login successful, but your profile data could not be found." } 
                     });
                 }
             } catch (error) {
-                console.error("Error hydrating user profile:", error);
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Failed to load profile." } });
-            }
-        };
-
-        const initSession = async () => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            try {
-                const { data: { session } } = await (supabase.auth as any).getSession();
-                if (session?.user) {
-                    await fetchAndHydrateUser(session.user.id);
-                }
-            } catch (error) {
-                console.error("Session init error", error);
             } finally {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
+
+        const initSession = async () => {
+            const { data: { session } } = await (supabase.auth as any).getSession();
+            if (session?.user) await fetchAndHydrateUser(session.user.id);
+            else dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        };
+        
         initSession();
 
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
-            if (event === 'SIGNED_OUT' || !session) {
-                // If session is null (or specific logout event), handle logout
+            if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
                 if (!currentUser || currentUser.id !== session.user.id) {
                     await fetchAndHydrateUser(session.user.id);
-                } else {
-                    // Re-auth realtime if session is valid
-                    supabase.realtime.setAuth(session.access_token);
                 }
             }
         });
 
-        return () => {
-            subscription?.unsubscribe();
-        };
+        return () => subscription?.unsubscribe();
     }, [dispatch]); 
 
     // --- AUTOMATIC REDIRECT FOR "LOCKED OUT" USERS ---
     useEffect(() => {
         if (!isLoading && !currentUser) {
-             const publicViews = [
-                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE,
-                 AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-                 AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.PRIVACY_POLICY, 
-                 AppView.SUBSCRIPTION_PLANS, AppView.CLAIM_ENTRY, AppView.CLAIM_CONFIRM, 
-                 AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
-             ];
              const protectedViews = [
                  AppView.ARTIST_DASHBOARD, AppView.ENGINEER_DASHBOARD, AppView.PRODUCER_DASHBOARD,
                  AppView.STOODIO_DASHBOARD, AppView.LABEL_DASHBOARD, AppView.INBOX, 
                  AppView.MY_BOOKINGS, AppView.ACTIVE_SESSION, AppView.CONFIRMATION,
                  AppView.STUDIO_INSIGHTS, AppView.ADMIN_RANKINGS
              ];
-
-             if (protectedViews.includes(currentView)) {
-                 navigate(AppView.LANDING_PAGE);
-             }
+             if (protectedViews.includes(currentView)) navigate(AppView.LANDING_PAGE);
         }
     }, [isLoading, currentUser, currentView, navigate]);
 
@@ -405,43 +358,13 @@ const App: React.FC = () => {
                 }
             });
         }
-        return () => {
-            if (timerId) clearTimeout(timerId);
-        };
+        return () => { if (timerId) clearTimeout(timerId); };
     }, [currentUser, userRole, dispatch]);
-
-    const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
-    const closeTipModal = () => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
-    const closeCancelModal = () => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL });
-    const closeVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } });
-    const closeAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
-    const closePayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });
-    const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
-    const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-    const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
-
-    const closePurchaseMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL });
-    const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
-    const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
-
-    const handleOpenAriaFromFAB = () => {
-        dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
-    };
-
-    const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
-    const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const renderView = () => {
         switch (currentView) {
             case AppView.LANDING_PAGE:
-                return <LandingPage 
-                    onNavigate={navigate} 
-                    onSelectStoodio={viewStoodioDetails} 
-                    onSelectProducer={viewProducerProfile} 
-                    onOpenAriaCantata={toggleAriaCantata} 
-                    onLogout={logout}
-                />;
+                return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN:
                 return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.CHOOSE_PROFILE:
@@ -455,27 +378,7 @@ const App: React.FC = () => {
             case AppView.STOODIO_SETUP:
                 return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.LABEL_SETUP:
-                return (
-                    <LabelSetup 
-                        onCompleteSetup={(data) =>
-                            completeSetup(
-                                {
-                                    name: data.name,
-                                    bio: data.bio,
-                                    email: data.email,
-                                    password: data.password,
-                                    image_url: null,
-                                    imageFile: data.imageFile,
-                                    company_name: data.companyName,
-                                    contact_phone: data.contactPhone,
-                                    website: data.website
-                                },
-                                UserRole.LABEL
-                            )
-                        }
-                        onNavigate={navigate}
-                    />
-                );
+                return <LabelSetup onCompleteSetup={(data) => completeSetup(data, UserRole.LABEL)} onNavigate={navigate} />;
             case AppView.PRIVACY_POLICY:
                 return <PrivacyPolicy onBack={goBack} />;
             case AppView.SUBSCRIPTION_PLANS:
@@ -689,8 +592,7 @@ const App: React.FC = () => {
                 </Suspense>
             )}
 
-            {/* FIX: Hide Aria FAB for Label users to prevent UI clutter on their dashboard */}
-            {currentUser && !isAriaCantataOpen && userRole !== UserRole.LABEL && (
+            {currentUser && !isAriaCantataOpen && (
                 <AriaFAB onClick={handleOpenAriaFromFAB} />
             )}
 
