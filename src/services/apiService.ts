@@ -228,38 +228,3 @@ export const upsertInstrumental = async (i: any, id: string) => null;
 export const deleteInstrumental = async (id: string) => null;
 export const upsertMixingSample = async (s: any, id: string) => null;
 export const deleteMixingSample = async (id: string) => null;
-export const fetchUserAssets = async (userId: string): Promise<MediaAsset[]> => {
-    const supabase = getSupabase();
-    if (!supabase) return [];
-    const { data, error } = await supabase.from('media_assets').select('*').eq('owner_id', userId).order('created_at', { ascending: false });
-    if (error) {
-        console.error("Error fetching assets:", error);
-        return [];
-    }
-    return (data || []) as MediaAsset[];
-};
-
-export const uploadAsset = async (file: File, userId: string, category: AssetCategory): Promise<MediaAsset> => {
-    const ext = file.name.split('.').pop();
-    const path = `${userId}/vault/${Date.now()}.${ext}`;
-    const publicUrl = await uploadFile(file, 'vault', path);
-    const supabase = getSupabase();
-    
-    const assetData = {
-        id: crypto.randomUUID(),
-        owner_id: userId,
-        name: file.name,
-        url: publicUrl,
-        category: category,
-        size: `${(file.size / 1024).toFixed(1)} KB`,
-        type: file.type || 'application/octet-stream',
-        created_at: new Date().toISOString()
-    };
-
-    if (supabase) {
-        const { error } = await supabase.from('media_assets').insert(assetData);
-        if (error) throw error;
-    }
-    
-    return assetData as MediaAsset;
-};

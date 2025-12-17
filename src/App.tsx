@@ -80,8 +80,8 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
 const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
-const AssetVault = lazy(() => import('./components/AssetVault.tsx')); // Added
-const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); // Added
+const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
+const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
@@ -165,6 +165,7 @@ const App: React.FC = () => {
         confirmBooking,
         updateProfile,
         selectRoleToSetup,
+        logout, // Pass logout function here
     });
 
     useRealtimeLocation({ currentUser });

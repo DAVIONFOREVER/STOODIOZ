@@ -580,7 +580,7 @@ export interface LinkAttachment {
 }
 
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'updateProfile' | 'socialAction' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'search' | 'generateReport' | 'scheduleReminder' | 'manageProject' | 'scoutMarket';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'updateProfile' | 'socialAction' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'search' | 'generateReport' | 'scheduleReminder' | 'manageProject' | 'scoutMarket' | 'logout';
     target: string | null;
     value: any;
     text: string;

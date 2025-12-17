@@ -17,6 +17,7 @@ interface AriaHookDependencies {
     confirmBooking: (request: BookingRequest) => void; 
     updateProfile: (updates: any) => void;
     selectRoleToSetup: (role: UserRole) => void;
+    logout: () => void;
 }
 
 export const useAria = (deps: AriaHookDependencies) => {
@@ -27,11 +28,14 @@ export const useAria = (deps: AriaHookDependencies) => {
         console.log("Aria Executing Command:", command);
 
         switch (command.type) {
+            case 'logout':
+                deps.logout();
+                onClose();
+                break;
+
             case 'scoutMarket':
-                // RESTORED: Aria can now directly scout or navigate to the suite
                 if (command.target) {
                     const insights = await apiService.scoutMarketInsights(command.target);
-                    // For now, we show the top insight as an alert, but in a full UI we'd show a dedicated drawer
                     alert(`A&R Intelligence Report (${command.target}): ${insights[0].description}`);
                 } else {
                     deps.navigate(AppView.LABEL_SCOUTING);
@@ -60,7 +64,6 @@ export const useAria = (deps: AriaHookDependencies) => {
                     try {
                         const pdfBytes = await createPdfBytes(content);
                         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                        // Closed loop: Stored in DB to appear in Documents tab
                         await apiService.uploadDocument(blob, `${title}.pdf`, currentUser.id, 'OFFICIAL');
                         
                         let dashboardView = AppView.ARTIST_DASHBOARD;
@@ -70,26 +73,6 @@ export const useAria = (deps: AriaHookDependencies) => {
                         dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
                         onClose();
                     } catch (e) { console.error("Aria Doc Gen Error:", e); }
-                }
-                break;
-
-            case 'generateReport':
-                if (command.value && currentUser) {
-                    const { artistId, type } = command.value;
-                    const artist = artists.find(a => a.id === artistId);
-                    const reportTitle = `${artist?.name || 'Artist'} - ${type} A&R Analysis`;
-                    const reportContent = `Sony Music Operations\nA&R Performance Report\nArtist: ${artist?.name}\nStatus: TRENDING\nRecommendation: Increase tour support.`;
-                    
-                    try {
-                        const pdfBytes = await createPdfBytes(reportContent);
-                        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                        await apiService.uploadDocument(blob, `${reportTitle}.pdf`, currentUser.id, 'REPORT');
-                        
-                        let dashboardView = userRole === 'LABEL' ? AppView.LABEL_DASHBOARD : AppView.ARTIST_DASHBOARD;
-                        deps.navigate(dashboardView);
-                        dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
-                        onClose();
-                    } catch (e) { console.error(e); }
                 }
                 break;
 
