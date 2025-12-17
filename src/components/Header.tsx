@@ -1,11 +1,10 @@
 
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppView, type AppNotification, type Artist, type Engineer, type Stoodio, type Producer, type Label, UserRole } from '../types';
 import { StoodiozLogoIcon, InboxIcon, MapIcon, BellIcon, ChevronLeftIcon, ChevronRightIcon, MicrophoneIcon, LogoutIcon, UserCircleIcon, BentoIcon, CloseIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, UsersIcon, ChartBarIcon, ChevronDownIcon, DollarSignIcon, EyeIcon } from './icons.tsx';
 import NotificationPanel from './NotificationPanel.tsx';
 import UniversalSearch from './UniversalSearch.tsx';
-import { useAppState } from '../contexts/AppContext.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 
 interface HeaderProps {
     onNavigate: (view: AppView) => void;
@@ -28,6 +27,7 @@ const Header: React.FC<HeaderProps> = (props) => {
         onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio
     } = props;
     const { userRole, notifications, artists, engineers, producers, stoodioz, currentUser } = useAppState();
+    const dispatch = useAppDispatch();
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -80,12 +80,8 @@ const Header: React.FC<HeaderProps> = (props) => {
 
     const handleViewProfile = () => {
         if (!currentUser || !userRole) return;
-        
-        // Use dispatch actions directly if available in scope, but here we reuse props/hooks logic.
-        // Since Header doesn't have direct access to `viewLabelProfile` prop here, we can dispatch implicitly via a prop or rely on logic below.
-        // Actually, for simplicity, we can route via AppView.LABEL_PROFILE directly for labels if we update navigation.
-        
-        // Strict role checking to ensure correct profile view
+        dispatch({ type: ActionTypes.RESET_PROFILE_SELECTIONS });
+
         if (userRole === UserRole.STOODIO) {
             onSelectStoodio(currentUser as Stoodio);
         } else if (userRole === UserRole.ENGINEER) {
@@ -95,29 +91,6 @@ const Header: React.FC<HeaderProps> = (props) => {
         } else if (userRole === UserRole.ARTIST) {
             onSelectArtist(currentUser as Artist);
         } else if (userRole === UserRole.LABEL) {
-            // Updated: Route to Label Profile View
-            // We need to trigger the context update. Since we don't have onSelectLabel prop,
-            // we will simulate navigation by setting the view directly, assuming App.tsx handles state.
-            // Ideally, pass onSelectLabel prop. For now, we rely on App.tsx finding currentUser.
-            // Wait, App.tsx passes onSelectArtist etc. but not label.
-            // Let's manually trigger the state update logic for now or just navigate.
-            // A safer bet without prop drilling right now is to use the AppContext logic in App.tsx
-            // But we can just navigate to the dashboard as a fallback OR implement `viewLabelProfile` in App.tsx and pass it down.
-            // Let's assume we update App.tsx to handle the view transition if we just navigate.
-            
-            // However, to view *self*, we need to set selectedLabel.
-            // Since we can't do that easily without a new prop here, let's look at `handleViewProfile` in `App.tsx`
-            // Actually, `App.tsx` passes `viewLabelProfile` nowhere. 
-            // We should use `onNavigate(AppView.LABEL_PROFILE)` but ensure `selectedLabel` is set.
-            // Hack: Trigger a self-select in `App.tsx` if we navigate to profile. 
-            // Better: update Header props to include `onSelectLabel` (next iteration).
-            // For now, let's keep it consistent: Dashboard is the main view. 
-            // But the user specifically asked for "forward facing profile".
-            // We'll add the prop or logic. Let's assume onSelectLabel is not here yet.
-            // We will just navigate to dashboard for now? NO, user complained about that.
-            // Okay, we will use a workaround:
-            // Since we can't easily add a prop without changing App.tsx signature too much,
-            // Let's assume the LabelProfile component can read `currentUser` if `selectedLabel` is null and `currentUser.role === LABEL`.
             onNavigate(AppView.LABEL_PROFILE);
         }
         setIsMobileMenuOpen(false);
@@ -148,7 +121,6 @@ const Header: React.FC<HeaderProps> = (props) => {
             <header className="bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-50 relative">
                 <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-20">
-                        {/* LEFT SECTION */}
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <button onClick={handleLogoClick} className="flex-shrink-0 flex items-center gap-3 group">
                                <StoodiozLogoIcon className="h-10 w-10 text-orange-500 group-hover:text-orange-400 transition-colors" />
@@ -166,7 +138,6 @@ const Header: React.FC<HeaderProps> = (props) => {
                             </div>
                         </div>
                         
-                        {/* CENTER SECTION */}
                         <div className="hidden lg:flex flex-1 justify-center items-center px-4">
                             {userRole ? (
                                 <UniversalSearch 
@@ -190,7 +161,6 @@ const Header: React.FC<HeaderProps> = (props) => {
                             )}
                         </div>
                         
-                        {/* RIGHT SECTION - DESKTOP */}
                         <div className="hidden lg:flex items-center justify-end flex-shrink-0">
                             {userRole ? (
                                 <div className="flex items-center space-x-1">
@@ -264,7 +234,6 @@ const Header: React.FC<HeaderProps> = (props) => {
                             )}
                         </div>
 
-                        {/* RIGHT SECTION - MOBILE */}
                         <div className="lg:hidden flex items-center">
                             <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-300 hover:text-orange-400">
                                 <BentoIcon className="w-6 h-6"/>
@@ -272,7 +241,6 @@ const Header: React.FC<HeaderProps> = (props) => {
                         </div>
                     </div>
                 </nav>
-                {/* The glowing line effect */}
                 <div 
                     className="absolute -bottom-px left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-indigo-500 to-sky-500 opacity-50" 
                     style={{ filter: 'blur(12px)' }}
@@ -282,9 +250,9 @@ const Header: React.FC<HeaderProps> = (props) => {
 
             {/* MOBILE MENU */}
             {isMobileMenuOpen && (
-                <div className="lg:hidden fixed inset-0 z-[100] bg-zinc-900" role="dialog" aria-modal="true">
-                    <div className="p-6 h-full flex flex-col">
-                        <div className="flex items-center justify-between mb-8">
+                <div className="lg:hidden fixed inset-0 z-[100] bg-zinc-900 flex flex-col overflow-y-auto max-h-screen" role="dialog" aria-modal="true">
+                    <div className="p-6 h-full flex flex-col min-h-full">
+                        <div className="flex items-center justify-between mb-8 flex-shrink-0">
                              <button onClick={() => handleMobileNav(userRole ? AppView.THE_STAGE : AppView.LANDING_PAGE)} className="flex-shrink-0 flex items-center gap-3 group">
                                 <StoodiozLogoIcon className="h-9 w-9 text-orange-500" />
                                 <span className="text-2xl font-bold text-slate-100">Stoodioz</span>
@@ -294,7 +262,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                             </button>
                         </div>
                         {userRole && (
-                            <div className="mb-6 px-1">
+                            <div className="mb-6 px-1 flex-shrink-0">
                                 <UniversalSearch 
                                     allArtists={artists}
                                     allEngineers={engineers}
@@ -317,27 +285,27 @@ const Header: React.FC<HeaderProps> = (props) => {
                                     <MobileNavLink icon={<MapIcon className="w-5 h-5"/>} label="Map View" onClick={() => handleMobileNav(AppView.MAP_VIEW)} />
                                     <MobileNavLink icon={<InboxIcon className="w-5 h-5"/>} label="Inbox" onClick={() => handleMobileNav(AppView.INBOX)} />
                                     
-                                    <div className="border-t border-zinc-700 my-2"></div>
-                                    <p className="px-3 pt-2 text-xs font-semibold text-zinc-500 uppercase">Discover</p>
+                                    <div className="border-t border-zinc-700 my-2 flex-shrink-0"></div>
+                                    <p className="px-3 pt-2 text-xs font-semibold text-zinc-500 uppercase flex-shrink-0">Discover</p>
                                     <MobileNavLink icon={<HouseIcon className="w-5 h-5"/>} label="Find Stoodioz" onClick={() => handleMobileNav(AppView.STOODIO_LIST)} />
                                     <MobileNavLink icon={<SoundWaveIcon className="w-5 h-5"/>} label="Find Engineers" onClick={() => handleMobileNav(AppView.ENGINEER_LIST)} />
                                     <MobileNavLink icon={<MusicNoteIcon className="w-5 h-5"/>} label="Find Producers" onClick={() => handleMobileNav(AppView.PRODUCER_LIST)} />
                                     <MobileNavLink icon={<UsersIcon className="w-5 h-5"/>} label="Find Artists" onClick={() => handleMobileNav(AppView.ARTIST_LIST)} />
                                     
-                                    <div className="border-t border-zinc-700 mt-auto pt-2">
+                                    <div className="border-t border-zinc-700 mt-auto pt-2 flex-shrink-0">
                                         <MobileNavLink icon={<LogoutIcon className="w-5 h-5"/>} label="Logout" onClick={handleMobileLogout} />
                                     </div>
                                 </>
                             ) : (
                                  <>
-                                    <div>
+                                    <div className="flex-grow">
                                         <MobileNavLink icon={<HouseIcon className="w-5 h-5"/>} label="Find Stoodioz" onClick={() => handleMobileNav(AppView.STOODIO_LIST)} />
                                         <MobileNavLink icon={<SoundWaveIcon className="w-5 h-5"/>} label="Find Engineers" onClick={() => handleMobileNav(AppView.ENGINEER_LIST)} />
                                         <MobileNavLink icon={<MusicNoteIcon className="w-5 h-5"/>} label="Find Producers" onClick={() => handleMobileNav(AppView.PRODUCER_LIST)} />
                                         <MobileNavLink icon={<UsersIcon className="w-5 h-5"/>} label="Find Artists" onClick={() => handleMobileNav(AppView.ARTIST_LIST)} />
                                         <MobileNavLink icon={<DollarSignIcon className="w-5 h-5"/>} label="Pricing" onClick={() => handleMobileNav(AppView.SUBSCRIPTION_PLANS)} />
                                     </div>
-                                     <div className="border-t border-zinc-700 pt-4 mt-auto space-y-2">
+                                     <div className="border-t border-zinc-700 pt-4 mt-auto space-y-2 flex-shrink-0 pb-10">
                                         <button onClick={() => handleMobileNav(AppView.LOGIN)} className="w-full text-center text-slate-300 hover:text-orange-400 px-4 py-3 rounded-md text-base font-semibold transition-colors">
                                             Login
                                         </button>
@@ -356,7 +324,7 @@ const Header: React.FC<HeaderProps> = (props) => {
 };
 
 const MobileNavLink: React.FC<{icon: React.ReactNode, label: string, onClick: () => void}> = ({ icon, label, onClick }) => (
-    <button onClick={onClick} className="flex items-center gap-4 text-slate-200 hover:bg-zinc-800 p-3 rounded-lg text-base font-semibold transition-colors">
+    <button onClick={onClick} className="flex items-center gap-4 text-slate-200 hover:bg-zinc-800 p-3 rounded-lg text-base font-semibold transition-colors w-full text-left">
         {icon}
         <span>{label}</span>
     </button>
