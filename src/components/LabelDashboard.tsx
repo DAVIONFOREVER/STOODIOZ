@@ -1,7 +1,7 @@
 
 import React, { useState, lazy, Suspense, useRef } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
-import { AppView } from '../types';
+import { AppView, UserRole } from '../types';
 import LabelArtists from './LabelArtists';
 import LabelBookings from './LabelBookings';
 import LabelFinancials from './LabelFinancials';
@@ -19,13 +19,15 @@ import LabelInsights from './label/LabelInsights';
 import LabelApprovals from './label/LabelApprovals';
 import LabelPerformance from './label/LabelPerformance';
 import LabelSettings from './LabelSettings';
+import Wallet from './Wallet';
+import ProjectManager from './ProjectManager'; // New
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useProfile } from '../hooks/useProfile';
-import { PhotoIcon, UsersIcon, EditIcon, EyeIcon, DollarSignIcon } from './icons';
+import { PhotoIcon, UsersIcon, EditIcon, EyeIcon, DollarSignIcon, BriefcaseIcon } from './icons';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
-type LabelTab = 'roster' | 'bookings' | 'approvals' | 'performance' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'activity' | 'insights' | 'settings' | 'documents';
+type LabelTab = 'projects' | 'roster' | 'wallet' | 'bookings' | 'approvals' | 'performance' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'activity' | 'insights' | 'settings' | 'documents';
 
 const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
     <button
@@ -42,7 +44,7 @@ const LabelDashboard: React.FC = () => {
     const { conversations, currentUser, userRole } = useAppState();
     const dispatch = useAppDispatch();
     const { updateProfile } = useProfile();
-    const [activeTab, setActiveTab] = useState<LabelTab>('roster');
+    const [activeTab, setActiveTab] = useState<LabelTab>('projects');
     const [showRosterImport, setShowRosterImport] = useState(false);
 
     // Refs for image uploads
@@ -83,6 +85,7 @@ const LabelDashboard: React.FC = () => {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'projects': return <ProjectManager />;
             case 'roster': return <LabelArtists />;
             case 'bookings': return <LabelBookings />;
             case 'approvals': return <LabelApprovals />;
@@ -99,6 +102,13 @@ const LabelDashboard: React.FC = () => {
             case 'activity': return <LabelActivity />;
             case 'insights': return <LabelInsights />;
             case 'settings': return <LabelSettings />;
+            case 'wallet': 
+                return <Wallet 
+                    user={currentUser as any} 
+                    onAddFunds={handleAddFunds} 
+                    onViewBooking={() => {}} 
+                    userRole={UserRole.LABEL} 
+                />;
             case 'documents': 
                 return (
                     <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading Documents...</div>}>
@@ -106,11 +116,7 @@ const LabelDashboard: React.FC = () => {
                     </Suspense>
                 );
             default:
-                return (
-                    <div className="p-20 text-center cardSurface">
-                        <p className="text-zinc-400 text-lg">Tab content not found.</p>
-                    </div>
-                );
+                return <ProjectManager />;
         }
     };
 
@@ -206,7 +212,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['roster', 'bookings', 'approvals', 'performance', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'activity', 'insights', 'documents', 'settings'].map((tab) => (
+                    {[ 'projects', 'roster', 'bookings', 'approvals', 'performance', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'activity', 'insights', 'documents', 'settings', 'wallet'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}

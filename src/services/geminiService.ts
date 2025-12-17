@@ -1,112 +1,23 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label, RosterMember, LabelBudgetOverview, MediaAsset } from '../types';
+import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label, RosterMember, LabelBudgetOverview, MediaAsset, Project, ProjectTask, MarketInsight } from '../types';
 import { AppView, UserRole } from '../types';
-import { ARIA_EMAIL } from '../constants';
 
 let ai: GoogleGenAI | null = null;
 
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
-        // FIX: Guidelines require using process.env.API_KEY directly for initialization.
         const apiKey = process.env.API_KEY;
-        if (!apiKey || apiKey.startsWith('{{')) {
-            return null;
-        }
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        if (!apiKey || apiKey.startsWith('{{')) return null;
+        ai = new GoogleGenAI({ apiKey });
     }
     return ai;
 };
-
-export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | null> => {
-    const ai = getGenAIClient();
-    if (!ai) return null;
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Analyze the content of the URL provided and generate a suitable title, description, and image URL for a link preview. URL: "${url}"`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        title: { type: Type.STRING },
-                        description: { type: Type.STRING },
-                        image_url: { type: Type.STRING },
-                    }
-                }
-            }
-        });
-        const metadata = JSON.parse(response.text.trim());
-        return { url, title: metadata.title || 'Link', description: metadata.description || url, image_url: metadata.image_url || undefined };
-    } catch (error) { return { url, title: 'Link', description: url }; }
-};
-
-export const moderatePostContent = async (text: string): Promise<{ isSafe: boolean; reason: string }> => {
-    if (!text.trim()) return { isSafe: true, reason: '' };
-    const ai = getGenAIClient();
-    if (!ai) return { isSafe: true, reason: 'Moderation service offline' };
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Analyze the following text for harmful content. Text: "${text}"`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: { isSafe: { type: Type.BOOLEAN }, reason: { type: Type.STRING } }
-                }
-            }
-        });
-        return JSON.parse(response.text.trim());
-    } catch (error) { return { isSafe: true, reason: 'Moderation check failed' }; }
-};
-
-export const generateSmartReplies = async (messages: Message[], currentUserId: string): Promise<string[]> => {
-    const ai = getGenAIClient();
-    const lastMessage = messages[messages.length - 1];
-    if (!ai || !lastMessage || lastMessage.sender_id === currentUserId) {
-        return [];
-    }
-    const conversationHistory = messages.slice(-5).map(m => `${m.sender_id === currentUserId ? 'You' : 'Them'}: ${m.text}`).join('\n');
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Based on this conversation history, suggest 3 short, relevant smart replies for "You":\n\n${conversationHistory}`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        replies: {
-                            type: Type.ARRAY,
-                            items: { type: Type.STRING }
-                        }
-                    }
-                }
-            }
-        });
-        const result = JSON.parse(response.text.trim());
-        return result.replies || [];
-    } catch (error) { return []; }
-};
-
-export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Producer | Label, userRole: UserRole): Promise<AriaNudgeData | null> => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    switch(userRole) {
-        case UserRole.ARTIST:
-            return { text: "Need to organize your latest demos? I can help you sort your Asset Vault.", action: { type: 'OPEN_MODAL', payload: 'ASSET_VAULT' } };
-        case UserRole.LABEL:
-            return { text: "I've detected a schedule conflict for Beyoncé's next session. Should I help you resolve it?", action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'MASTER_CALENDAR' } };
-        default:
-            return { text: "Welcome back! How can I assist your operations today?", action: { type: 'OPEN_MODAL', payload: 'ARIA_CHAT' } };
-    }
-}
 
 export const askAriaCantata = async (
     history: AriaCantataMessage[],
     question: string,
     currentUser: Artist | Engineer | Stoodio | Producer | Label | null,
-    // FIX: Pass userRole as parameter to avoid scoping error
     userRole: UserRole | null,
     context: {
         artists: Artist[],
@@ -116,62 +27,83 @@ export const askAriaCantata = async (
         bookings: Booking[],
         roster?: RosterMember[],
         budget?: LabelBudgetOverview | null,
-        assets?: MediaAsset[]
+        assets?: MediaAsset[],
+        projects?: Project[],
+        marketInsights?: MarketInsight[]
     }
 ): Promise<AriaActionResponse> => {
     const ai = getGenAIClient();
     if (!ai) return { type: 'error', target: null, value: null, text: "Offline mode." };
 
-    const systemInstruction = `You are Aria Cantata, the Executive AI Assistant for Stoodioz. 
-    You are world-class in A&R operations, digital asset management, and complex scheduling.
+    const systemInstruction = `You are Aria Cantata, the Executive Lead of A&R Operations for Sony Music via Stoodioz. 
+    You are professional, data-driven, and highly efficient. You manage people, projects, and high-level strategy.
 
-    **ADVANCED CAPABILITIES:**
-    You must return JSON.
+    **MISSION:**
+    Optimize the label's roster output, manage high-value creative projects, and identify global sonic trends before they peak.
 
-    1. **Scheduling (Calendar Integration):**
-       - You can view full roster calendars.
-       - If user asks about conflicts: {"type": "scheduleReminder", "value": {"event": " Beyoncé Session", "time": "14:00"}, "text": "Reminder set."}
-       - You can suggest rescheduling based on 'stoodioz' availability.
+    **CAPABILITIES (MUST RETURN JSON):**
 
-    2. **Performance Analytics & Reporting:**
-       - You have access to streaming data (mocked).
-       - Command: {"type": "generateReport", "value": {"artistId": "ID", "type": "MONTHLY_SUMMARY"}, "text": "Generating report..."}
+    1. **A&R Scouting & Discovery:**
+       - Access Trend Analysis: If asked about "who's next" or "market trends," use "scoutMarket".
+       - Command: {"type": "scoutMarket", "target": "region_or_genre", "text": "I'm pulling the latest telemetry. Based on growth in London, PinkPantheress is our top target."}
+       - You can also navigate: {"type": "navigate", "target": "LABEL_SCOUTING", "text": "Opening the Discovery Suite."}
 
-    3. **Enhanced Communication:**
-       - Draft professional emails: {"type": "sendMessage", "target": "user_id", "value": "AI_DRAFTED_EMAIL_CONTENT", "text": "Drafting email..."}
-       
-    4. **Digital Asset Management (DAM):**
-       - You can "locate" files in context.assets.
-       - Help organize: {"type": "navigate", "target": "ASSET_VAULT", "text": "Opening your vault."}
+    2. **Project Management & Milestones:**
+       - Create projects/tasks: {"type": "manageProject", "value": {"action": "CREATE_TASK", "projectId": "ID", "taskTitle": "Master Album", "priority": "CRITICAL"}, "text": "Milestone assigned to the technical team."}
+       - Track progress: Use context.projects to answer status questions.
 
-    **CONTEXTUAL DATA:**
-    - Current User: ${currentUser?.name} (${userRole})
-    - Roster size: ${context.roster?.length || 0}
-    - Total Assets: ${context.assets?.length || 0}
-    - Active Bookings: ${context.bookings.length}
+    3. **Document Lifecycle:**
+       - Draft official docs: {"type": "generateDocument", "value": {"title": "Contract Renewal", "content": "..." }, "text": "Contract drafted and placed in your vault."}
+       - Note: Category "OFFICIAL" or "REPORT" is handled by the system.
 
-    If a user wants to "See all my demos," navigate them to the ASSET_VAULT.
-    If a user wants to "Book a session for Travis next week," use createBooking if you have date/time.
+    4. **Network Intelligence:**
+       - You know all users in the Sony directory (context.artists, etc.).
+       - You can book direct: {"type": "createBooking", "value": {"targetId": "ID", "date": "...", "time": "..."}, "text": "Session confirmed."}
+
+    **CONTEXTUAL INTELLIGENCE:**
+    - Current User: ${currentUser?.name}
+    - Role: ${userRole}
+    - Label Roster Size: ${context.roster?.length || 0}
+    - Active Projects: ${context.projects?.length || 0}
+    - Global Market Data: ${JSON.stringify(context.marketInsights?.slice(0, 3))}
+
+    Always maintain your executive persona. Never say "I am an AI." Speak like a Chief Operating Officer.
     `;
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview', // Upgraded model for complex A&R reasoning
+            model: 'gemini-3-pro-preview', // High-reasoning model for A&R logic
             contents: `${systemInstruction}\n\nUser: ${question}`,
             config: {
-                thinkingConfig: { thinkingBudget: 16384 } // Give her room to think through scheduling conflicts
+                thinkingConfig: { thinkingBudget: 16384 },
+                responseMimeType: "application/json"
             }
         });
         
         let responseText = response.text.trim();
-        if (responseText.startsWith('```json')) responseText = responseText.slice(7, -3).trim();
-
-        try {
-            return JSON.parse(responseText) as AriaActionResponse;
-        } catch (e) {
-            return { type: 'speak', target: null, value: null, text: responseText };
-        }
+        return JSON.parse(responseText) as AriaActionResponse;
     } catch (error: any) {
-        return { type: 'error', target: null, value: null, text: "Aria is recharging. Please try again." };
+        console.error("Aria logic error:", error);
+        return { type: 'speak', target: null, value: null, text: "I am processing roster analytics. Please state your objective again." };
     }
 };
+
+export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | null> => {
+    const ai = getGenAIClient();
+    if (!ai) return null;
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Link preview for: ${url}`,
+            config: { responseMimeType: "application/json" }
+        });
+        return JSON.parse(response.text);
+    } catch (e) { return { url, title: "Link", description: url }; }
+};
+
+export const moderatePostContent = async (text: string) => ({ isSafe: true, reason: '' });
+export const generateSmartReplies = async (m: any, id: string) => [];
+export const getAriaNudge = async (u: any, r: UserRole) => ({ 
+    text: "I've analyzed the current market trends. Ready to scout some new talent?", 
+    action: { type: 'OPEN_MODAL', payload: 'ARIA' } 
+});

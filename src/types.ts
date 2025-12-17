@@ -1,3 +1,4 @@
+
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -56,6 +57,38 @@ export enum UserRole {
     LABEL = 'LABEL',
 }
 
+// --- PROJECT MANAGEMENT TYPES ---
+export interface Project {
+    id: string;
+    label_id: string;
+    artist_id: string;
+    name: string;
+    status: 'PLANNING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD';
+    deadline?: string;
+    created_at: string;
+    tasks?: ProjectTask[];
+}
+
+export interface ProjectTask {
+    id: string;
+    project_id: string;
+    title: string;
+    assignee_id?: string;
+    status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+    deadline?: string;
+    created_at: string;
+}
+
+export interface MarketInsight {
+    genre: string;
+    region: string;
+    trendScore: number; // 0-100
+    description: string;
+    suggestedArtists?: string[];
+}
+
+// --- REST OF TYPES (Unchanged) ---
 export enum AssetCategory {
     DEMO = 'DEMO',
     MASTER = 'MASTER',
@@ -137,6 +170,8 @@ export enum NotificationType {
     NEW_COMMENT = 'NEW_COMMENT',
     NEW_TIP = 'NEW_TIP',
     SCHEDULE_REMINDER = 'SCHEDULE_REMINDER',
+    TASK_ASSIGNED = 'TASK_ASSIGNED',
+    CONTRACT_EXPIRING = 'CONTRACT_EXPIRING'
 }
 
 export enum SubscriptionPlan {
@@ -155,7 +190,7 @@ export enum RankingTier {
 }
 
 export type LabelContractType = 'FULL_RECOUP' | 'PERCENTAGE';
-export type LabelContractStatus = 'active' | 'paused' | 'completed';
+export type LabelContractStatus = 'active' | 'paused' | 'completed' | 'expiring';
 export type LabelBudgetMode = 'MANUAL' | 'MONTHLY_FIXED' | 'MONTHLY_ROLLING';
 export type PaymentSource = 'ARTIST' | 'LABEL';
 
@@ -165,10 +200,11 @@ export interface LabelContract {
     talent_user_id: string;
     talent_role: string;
     contract_type: LabelContractType;
-    split_percent: number; // 0 to 100
+    split_percent: number; 
     recoup_balance: number;
     advance_amount?: number;
     status: LabelContractStatus;
+    expires_at?: string;
     created_at: string;
     updated_at: string;
 }
@@ -187,7 +223,6 @@ export interface Following {
     labels: string[];
 }
 
-// FIX: Added missing Link interface
 export interface Link {
     title: string;
     url: string;
@@ -351,7 +386,7 @@ export interface Engineer extends BaseUser {
     masterclass?: Masterclass;
     notification_preferences?: {
         enabled: boolean;
-        radius: number; // in miles
+        radius: number; 
     };
     minimum_pay_rate?: number;
     label_id?: string | null;
@@ -387,8 +422,8 @@ export interface Stoodio extends BaseUser {
     in_house_engineers: InHouseEngineerInfo[];
     availability: { date: string; times: string[] }[];
     photos: string[];
-    hourly_rate?: number; // Base rate for search display
-    engineer_pay_rate?: number; // Default pay rate for freelance engineers
+    hourly_rate?: number; 
+    engineer_pay_rate?: number; 
 }
 
 export interface Room {
@@ -431,7 +466,7 @@ export interface MixingDetails {
 }
 
 export interface BookingRequest {
-    room?: Room; // Optional for remote/beat purchase
+    room?: Room; 
     date: string;
     start_time: string;
     duration: number;
@@ -452,7 +487,7 @@ export interface Booking {
     engineer?: Engineer;
     producer?: Producer;
     room?: Room;
-    artist?: Artist; // The user who booked (if Artist)
+    artist?: Artist; 
     date: string;
     start_time: string;
     duration: number;
@@ -472,10 +507,10 @@ export interface Booking {
 export interface SessionFeedback {
     id: string;
     booking_id: string;
-    target_user_id: string; // The ID of who is being reviewed
+    target_user_id: string; 
     reviewer_id: string;
-    star_rating: number; // 1-5
-    pro_tags: string[]; // e.g. "Punctual", "Great Gear", "Fast Workflow"
+    star_rating: number; 
+    pro_tags: string[]; 
     timestamp: string;
 }
 
@@ -513,7 +548,7 @@ export interface FileAttachment {
     name: string;
     url: string;
     size: string;
-    rawContent?: Uint8Array; // For client-side generation
+    rawContent?: Uint8Array; 
 }
 
 export interface Conversation {
@@ -545,7 +580,7 @@ export interface LinkAttachment {
 }
 
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'updateProfile' | 'socialAction' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'search' | 'generateReport' | 'scheduleReminder';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'updateProfile' | 'socialAction' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'search' | 'generateReport' | 'scheduleReminder' | 'manageProject' | 'scoutMarket';
     target: string | null;
     value: any;
     text: string;

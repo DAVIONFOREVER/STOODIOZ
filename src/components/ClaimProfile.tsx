@@ -32,9 +32,10 @@ const ClaimProfile: React.FC<ClaimProfileProps> = ({ token }) => {
         setError(null);
 
         try {
+            // FIX: Explicitly cast role from apiService to UserRole to resolve type mismatch
             const { role } = await apiService.claimProfileByCode(code.trim(), currentUser.id);
             alert("Profile claimed successfully!");
-            navigateDashboard(role);
+            navigateDashboard(role as UserRole);
         } catch (err: any) {
             setError(err.message || "Failed to claim profile with this code.");
         } finally {
@@ -53,9 +54,10 @@ const ClaimProfile: React.FC<ClaimProfileProps> = ({ token }) => {
         setError(null);
 
         try {
+            // FIX: Explicitly cast role from apiService to UserRole to resolve type mismatch
             const { role } = await apiService.claimProfileByToken(effectiveToken, currentUser.id);
             alert("Profile claimed successfully!");
-            navigateDashboard(role);
+            navigateDashboard(role as UserRole);
         } catch (err: any) {
             setError(err.message || "Invalid or expired claim link.");
         } finally {
@@ -65,9 +67,9 @@ const ClaimProfile: React.FC<ClaimProfileProps> = ({ token }) => {
 
     const navigateDashboard = (role: UserRole) => {
         switch (role) {
-            case 'ARTIST': navigate(AppView.ARTIST_DASHBOARD); break;
-            case 'ENGINEER': navigate(AppView.ENGINEER_DASHBOARD); break;
-            case 'PRODUCER': navigate(AppView.PRODUCER_DASHBOARD); break;
+            case UserRole.ARTIST: navigate(AppView.ARTIST_DASHBOARD); break;
+            case UserRole.ENGINEER: navigate(AppView.ENGINEER_DASHBOARD); break;
+            case UserRole.PRODUCER: navigate(AppView.PRODUCER_DASHBOARD); break;
             default: navigate(AppView.THE_STAGE);
         }
     };

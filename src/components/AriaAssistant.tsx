@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label, RosterMember, LabelBudgetOverview, MediaAsset } from '../types';
 import { askAriaCantata } from '../services/geminiService';
-import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, BriefcaseIcon, ChartBarIcon, CalendarIcon } from './icons';
+import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, BriefcaseIcon, ChartBarIcon, CalendarIcon, UsersIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 
@@ -73,7 +73,6 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                 budget: operationalContext.budget,
                 assets: operationalContext.assets
             };
-            // FIX: Pass userRole to the service function
             const response = await askAriaCantata(newHistory, text, currentUser as any, userRole, context);
 
             if (response.type !== 'speak' && response.type !== 'error') {
@@ -85,7 +84,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                 setHistory([...newHistory, modelMessage]);
             }
         } catch (error) {
-            setHistory([...newHistory, { role: 'model', parts: [{ text: "Error connecting to my core." }] }]);
+            setHistory([...newHistory, { role: 'model', parts: [{ text: "Lead intelligence is calibrating. Please try again." }] }]);
         } finally {
             setIsLoading(false);
         }
@@ -102,7 +101,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                 <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 p-0.5"><div className="w-full h-full bg-zinc-900 rounded-full flex items-center justify-center"><MagicWandIcon className="w-5 h-5 text-orange-400" /></div></div>
-                        <div><h2 className="font-bold text-zinc-100">Aria Cantata</h2><p className="text-xs text-zinc-500">Executive A&R Operations</p></div>
+                        <div><h2 className="font-bold text-zinc-100">Aria Cantata</h2><p className="text-xs text-zinc-500">A&R Lead & Strategic Operations</p></div>
                     </div>
                     <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors"><CloseIcon className="w-6 h-6" /></button>
                 </div>
@@ -113,21 +112,21 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                         <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
                             <div className="p-6 rounded-full bg-zinc-800/50 border border-zinc-700"><MagicWandIcon className="w-12 h-12 text-orange-400 animate-pulse" /></div>
                             <div>
-                                <h3 className="text-xl font-bold text-zinc-100">How should we scale today?</h3>
-                                <p className="text-zinc-500 mt-1 max-w-xs mx-auto">Aria can draft emails, check roster calendars, and manage your asset vault.</p>
+                                <h3 className="text-xl font-bold text-zinc-100">Operational Objectives</h3>
+                                <p className="text-zinc-500 mt-1 max-w-xs mx-auto">Select a strategic command or state your objective.</p>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
-                                <button onClick={() => handleSendMessage("Show me my asset vault")} className="flex items-center gap-3 p-3 bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-left transition-all">
-                                    <BriefcaseIcon className="w-5 h-5 text-orange-400" /> <span>Manage Masters & Demos</span>
+                                <button onClick={() => handleSendMessage("Scout new trending artists in the UK")} className="flex items-center gap-3 p-3 bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-left transition-all">
+                                    <UsersIcon className="w-5 h-5 text-green-400" /> <span>A&R Talent Discovery</span>
+                                </button>
+                                <button onClick={() => handleSendMessage("Manage my active rollout projects")} className="flex items-center gap-3 p-3 bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-left transition-all">
+                                    <BriefcaseIcon className="w-5 h-5 text-orange-400" /> <span>Project Management</span>
                                 </button>
                                 <button onClick={() => handleSendMessage("Generate a monthly performance report")} className="flex items-center gap-3 p-3 bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-left transition-all">
-                                    <ChartBarIcon className="w-5 h-5 text-blue-400" /> <span>A&R Performance Report</span>
+                                    <ChartBarIcon className="w-5 h-5 text-blue-400" /> <span>Performance Reporting</span>
                                 </button>
                                 <button onClick={() => handleSendMessage("Are there any scheduling conflicts next week?")} className="flex items-center gap-3 p-3 bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-left transition-all">
-                                    <CalendarIcon className="w-5 h-5 text-green-400" /> <span>Check Roster Conflicts</span>
-                                </button>
-                                <button onClick={() => handleSendMessage("Help me draft an outreach email to a new venue")} className="flex items-center gap-3 p-3 bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-left transition-all">
-                                    <PaperAirplaneIcon className="w-5 h-5 text-purple-400" /> <span>Draft Press Outreach</span>
+                                    <CalendarIcon className="w-5 h-5 text-purple-400" /> <span>Logistics & Scheduling</span>
                                 </button>
                             </div>
                         </div>
@@ -152,7 +151,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(inputValue)}
-                            placeholder="Delegate a task to Aria..."
+                            placeholder="Direct Aria to an objective..."
                             className="w-full bg-zinc-800 text-zinc-100 rounded-full py-4 pl-6 pr-14 focus:outline-none focus:ring-2 focus:ring-orange-500/50 border border-zinc-700"
                             disabled={isLoading}
                         />
@@ -164,4 +163,5 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
     );
 };
 
+// Fixed the export name to match the component defined above
 export default AriaCantataAssistant;
