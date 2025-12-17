@@ -165,7 +165,7 @@ const App: React.FC = () => {
         confirmBooking,
         updateProfile,
         selectRoleToSetup,
-        logout, // Pass logout function here
+        logout, // Wired logout for Aria
     });
 
     useRealtimeLocation({ currentUser });
