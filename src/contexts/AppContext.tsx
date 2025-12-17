@@ -210,7 +210,7 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: true,
+    isLoading: true, // Default to true for hydration
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -274,7 +274,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return {
                 ...state,
                 ...action.payload,
-                isLoading: false,
+                // Do NOT set isLoading: false here, wait for hydration
             };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
@@ -292,7 +292,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             }
 
             // PERSISTENCE LOGIC:
-            // 1. Determine Default Dashboard
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
@@ -300,7 +299,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
 
-            // 2. Check LocalStorage for last visited view
             const storedView = localStorage.getItem('last_view');
             const restricted = [
                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
@@ -309,7 +307,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
             ];
             
-            // 3. If stored view is valid and NOT a setup/login page, restore it.
             if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
                 landingView = storedView as AppView;
             }
@@ -322,24 +319,22 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 history: [landingView],
                 historyIndex: 0,
                 ariaHistory: [],
-                isLoading: false, // Ensure loading is turned off on success
+                isLoading: false, 
             };
         }
         case ActionTypes.LOGIN_FAILURE:
-            return { ...state, loginError: action.payload.error, isLoading: false }; // Ensure loading is turned off on failure
+            return { ...state, loginError: action.payload.error, isLoading: false };
         case ActionTypes.LOGOUT:
-            // Ensure local storage is cleared on logout action in reducer as well
+            // HARD RESET: Return initialState completely to prevent crossover
             return {
                 ...initialState,
-                history: [AppView.LANDING_PAGE],
-                historyIndex: 0,
                 isLoading: false,
+                // Keep the public directory data so it doesn't have to re-fetch
                 artists: state.artists,
                 engineers: state.engineers,
                 producers: state.producers,
                 stoodioz: state.stoodioz,
                 labels: state.labels,
-                reviews: state.reviews,
             };
         
         case ActionTypes.COMPLETE_SETUP: {
@@ -351,19 +346,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];
             else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
             else if (role === UserRole.LABEL) updatedState.labels = [...state.labels, newUser as Label];
-
-            const aria = updatedState.artists.find(a => a.id === 'artist-aria-cantata');
-            if (aria) {
-                let newFollowing: Following = { ...aria.following };
-                if (role === UserRole.ARTIST && !newFollowing.artists.includes(newUser.id)) newFollowing.artists.push(newUser.id);
-                if (role === UserRole.ENGINEER && !newFollowing.engineers.includes(newUser.id)) newFollowing.engineers.push(newUser.id);
-                if (role === UserRole.PRODUCER && !newFollowing.producers.includes(newUser.id)) newFollowing.producers.push(newUser.id);
-                if (role === UserRole.STOODIO && !newFollowing.stoodioz.includes(newUser.id)) newFollowing.stoodioz.push(newUser.id);
-                if (role === UserRole.LABEL && !newFollowing.labels.includes(newUser.id)) newFollowing.labels.push(newUser.id);
-
-                const updatedAria = { ...aria, following: newFollowing };
-                updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
-            }
 
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
@@ -417,7 +399,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             });
             
             const uniqueUsers = Array.from(allUsersMap.values());
-
             const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
 
             return {

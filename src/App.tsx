@@ -104,7 +104,7 @@ const App: React.FC = () => {
     const dispatch = useAppDispatch();
     const { 
         history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
-        latestBooking, isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
+        isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
         masterclassToPurchase, masterclassToWatch, masterclassToReview, bookings, engineers
@@ -188,55 +188,26 @@ const App: React.FC = () => {
         }
     }, [dispatch, navigate]);
 
-    // --- REALTIME DIRECTORY UPDATES ---
+    // --- DATA FETCHING & HYDRATION ---
     useEffect(() => {
         const supabase = getSupabase();
         if (!supabase) return;
 
-        const tables = ['artists', 'stoodioz', 'engineers', 'producers', 'labels'];
-        const channels = tables.map(table => 
-            supabase.channel(`public:${table}-sync`)
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, async (payload) => {
-                    const newUser = payload.new as any;
-                    // JIT fetch to ensure full relations if needed
-                    const refreshedData = await apiService.getAllPublicUsers();
-                    dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...refreshedData, reviews: [] } });
-                })
-                .subscribe()
-        );
-
-        return () => { channels.forEach(ch => supabase.removeChannel(ch)); };
-    }, [dispatch]);
-
-    // --- DATA FETCHING & INITIALIZATION ---
-    useEffect(() => {
-        const path = window.location.pathname;
-        if (path.startsWith('/claim/')) {
-            const token = path.split('/')[2];
-            if (token) {
-                setClaimToken(token);
-                dispatch({ type: ActionTypes.NAVIGATE, payload: { view: path.includes('/confirm') ? AppView.CLAIM_CONFIRM : AppView.CLAIM_ENTRY } });
-            }
-        }
-        const supabase = getSupabase();
-        if (!supabase) return;
-
-        const fetchDirectory = async () => {
-            const directory = await apiService.getAllPublicUsers();
-            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
-        };
-        fetchDirectory();
-
-        const fetchAndHydrateUser = async (userId: string) => {
+        const hydrateUser = async (userId: string) => {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
         };
 
         const initSession = async () => {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             const { data: { session } } = await (supabase.auth as any).getSession();
-            if (session?.user) await fetchAndHydrateUser(session.user.id);
-            else dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            if (session?.user) {
+                await hydrateUser(session.user.id);
+            }
+            // Always set loading false at end of session check
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         };
+        
         initSession();
 
         const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event, session) => {
@@ -244,38 +215,41 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                if (!currentUser || currentUser.id !== session.user.id) await fetchAndHydrateUser(session.user.id);
+                if (!currentUser || currentUser.id !== session.user.id) {
+                    await hydrateUser(session.user.id);
+                }
             }
         });
+        
+        // Initial data fetch for guest directory
+        apiService.getAllPublicUsers().then(directory => {
+            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
+        });
+
         return () => subscription?.unsubscribe();
     }, [dispatch]); 
 
-    useEffect(() => {
-        if (!isLoading && !currentUser) {
-             const protectedViews = [
-                 AppView.ARTIST_DASHBOARD, AppView.ENGINEER_DASHBOARD, AppView.PRODUCER_DASHBOARD,
-                 AppView.STOODIO_DASHBOARD, AppView.LABEL_DASHBOARD, AppView.INBOX, 
-                 AppView.MY_BOOKINGS, AppView.ACTIVE_SESSION, AppView.CONFIRMATION,
-                 AppView.STUDIO_INSIGHTS, AppView.ADMIN_RANKINGS
-             ];
-             if (protectedViews.includes(currentView)) navigate(AppView.LANDING_PAGE);
-        }
-    }, [isLoading, currentUser, currentView, navigate]);
+    // --- ROLE GUARDS & HOME REDIRECTION ---
+    const renderViewProxy = () => {
+        // Restricted pages for logged-in users
+        const authViews = [
+            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
+        ];
 
-    useEffect(() => {
-        let timerId: number;
-        if (currentUser && userRole) {
-            getAriaNudge(currentUser, userRole).then(nudge => {
-                if (nudge) {
-                    dispatch({ type: ActionTypes.SET_ARIA_NUDGE, payload: { nudge } });
-                    timerId = window.setTimeout(() => dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: true } }), 2000);
-                }
-            });
+        if (currentUser && authViews.includes(currentView)) {
+            // Intercept and redirect to the specific dashboard for that role
+            switch(userRole) {
+                case UserRole.LABEL: return <LabelDashboard />;
+                case UserRole.STOODIO: return <StoodioDashboard />;
+                case UserRole.ENGINEER: return <EngineerDashboard />;
+                case UserRole.PRODUCER: return <ProducerDashboard />;
+                default: return <ArtistDashboard />;
+            }
         }
-        return () => { if (timerId) clearTimeout(timerId); };
-    }, [currentUser, userRole, dispatch]);
 
-    const renderView = () => {
+        // Logic for specific views
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -322,7 +296,11 @@ const App: React.FC = () => {
     };
 
     if (isLoading) {
-        return <div className="bg-zinc-950 text-slate-200 min-h-screen flex flex-col"><LoadingSpinner currentUser={currentUser} /></div>;
+        return (
+            <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col items-center justify-center">
+                <LoadingSpinner currentUser={currentUser} />
+            </div>
+        );
     }
     
     return (
@@ -330,7 +308,7 @@ const App: React.FC = () => {
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
                 <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {renderView()}
+                    {renderViewProxy()}
                 </Suspense>
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
