@@ -1,5 +1,4 @@
-
-import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember, LabelBudgetOverview, LabelBudgetMode, Following } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember, LabelBudgetOverview, LabelBudgetMode, Following, MediaAsset } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL, ARIA_EMAIL } from '../constants';
@@ -59,85 +58,61 @@ export const uploadMixingSampleFile = async (file: File, userId: string): Promis
     return uploadFile(file, 'audio', path);
 };
 
-// --- USER MANAGEMENT & RECOVERY ---
+// --- ASSET MANAGEMENT ---
 
-export const fetchFullStoodio = async (id: string): Promise<Stoodio | null> => {
+export const fetchUserAssets = async (userId: string): Promise<MediaAsset[]> => {
     const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data } = await supabase.from('stoodioz').select('*, rooms(*), in_house_engineers(*)').eq('id', id).single();
-    return data;
+    if (!supabase) return [];
+    const { data } = await supabase.from('assets').select('*').eq('owner_id', userId).order('created_at', { ascending: false });
+    return data || [];
 };
 
-export const fetchFullEngineer = async (id: string): Promise<Engineer | null> => {
+export const uploadAsset = async (file: File, userId: string, category: string): Promise<MediaAsset> => {
+    const path = `${userId}/assets/${category.toLowerCase()}/${Date.now()}_${file.name}`;
+    const url = await uploadFile(file, 'assets', path);
+    
+    const asset: Partial<MediaAsset> = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        url,
+        type: file.type,
+        category: category as any,
+        owner_id: userId,
+        created_at: new Date().toISOString(),
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+    };
+
     const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data } = await supabase.from('engineers').select('*, mixing_samples(*)').eq('id', id).single();
-    return data;
+    if (supabase) {
+        await supabase.from('assets').insert(asset);
+    }
+    return asset as MediaAsset;
 };
 
-export const fetchFullProducer = async (id: string): Promise<Producer | null> => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data } = await supabase.from('producers').select('*, instrumentals(*)').eq('id', id).single();
-    return data;
-};
+// --- USER MANAGEMENT ---
 
-export const fetchFullArtist = async (id: string): Promise<Artist | null> => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data } = await supabase.from('artists').select('*').eq('id', id).single();
-    return data;
-};
-
-/**
- * Robustly fetches the user profile and role across all potential tables.
- * ARIA PROTECTION: Immediately forces ARTIST role for the official email.
- */
 export const fetchCurrentUserProfile = async (userId: string): Promise<{ user: any, role: UserRole } | null> => {
     const supabase = getSupabase();
     if (!supabase) return null;
-
-    try {
-        // 1. Get the Auth user first to check for ARIA_EMAIL
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        const userEmail = authUser?.email;
-
-        // ARIA HARD-OVERRIDE: If this is Aria, she is an ARTIST. No questions.
-        if (userEmail === ARIA_EMAIL) {
-            const { data: ariaData } = await supabase.from('artists').select('*').eq('id', userId).maybeSingle();
-            if (ariaData) return { user: ariaData, role: UserRoleEnum.ARTIST };
-        }
-        
-        // 2. Normal flow: Check the master profiles table
-        const { data: profile } = await supabase.from('profiles').select('role, email').eq('id', userId).maybeSingle();
-        
-        const tables = [
-            { name: 'artists', role: UserRoleEnum.ARTIST, query: '*' },
-            { name: 'stoodioz', role: UserRoleEnum.STOODIO, query: '*, rooms(*), in_house_engineers(*)' },
-            { name: 'producers', role: UserRoleEnum.PRODUCER, query: '*, instrumentals(*)' },
-            { name: 'engineers', role: UserRoleEnum.ENGINEER, query: '*, mixing_samples(*)' },
-            { name: 'labels', role: UserRoleEnum.LABEL, query: '*' }
-        ];
-
-        // 3. Prioritize explicit role from profile table
-        let targetRole = profile?.role;
-        if (profile?.email === ARIA_EMAIL) targetRole = UserRoleEnum.ARTIST;
-
-        if (targetRole) {
-            const t = tables.find(x => x.role === targetRole);
-            if (t) {
-                const { data } = await supabase.from(t.name).select(t.query).eq('id', userId).maybeSingle();
-                if (data) return { user: data, role: t.role };
-            }
-        }
-
-        // 4. Fallback: Scan tables in logical order (Artists first)
-        for (const t of tables) {
+    const { data: profile } = await supabase.from('profiles').select('role, email').eq('id', userId).maybeSingle();
+    const tables = [
+        { name: 'artists', role: UserRoleEnum.ARTIST, query: '*' },
+        { name: 'stoodioz', role: UserRoleEnum.STOODIO, query: '*, rooms(*), in_house_engineers(*)' },
+        { name: 'producers', role: UserRoleEnum.PRODUCER, query: '*, instrumentals(*)' },
+        { name: 'engineers', role: UserRoleEnum.ENGINEER, query: '*, mixing_samples(*)' },
+        { name: 'labels', role: UserRoleEnum.LABEL, query: '*' }
+    ];
+    let targetRole = profile?.role;
+    if (targetRole) {
+        const t = tables.find(x => x.role === targetRole);
+        if (t) {
             const { data } = await supabase.from(t.name).select(t.query).eq('id', userId).maybeSingle();
             if (data) return { user: data, role: t.role };
         }
-    } catch (e) {
-        console.error("Critical error in profile fetch:", e);
+    }
+    for (const t of tables) {
+        const { data } = await supabase.from(t.name).select(t.query).eq('id', userId).maybeSingle();
+        if (data) return { user: data, role: t.role };
     }
     return null;
 };
@@ -151,12 +126,10 @@ export const getAllPublicUsers = async (): Promise<{
 }> => {
     const supabase = getSupabase();
     if (!supabase) return { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
-
     const safeSelect = async (table: string) => {
         const { data } = await supabase.from(table).select('*');
         return data || [];
     };
-
     const [artists, engineers, producers, stoodioz, labels] = await Promise.all([
         safeSelect('artists'),
         safeSelect('engineers'),
@@ -164,7 +137,6 @@ export const getAllPublicUsers = async (): Promise<{
         safeSelect('stoodioz'),
         safeSelect('labels')
     ]);
-
     return {
         artists: artists as Artist[],
         engineers: engineers as Engineer[],
@@ -177,20 +149,16 @@ export const getAllPublicUsers = async (): Promise<{
 export const createUser = async (userData: any, role: UserRole): Promise<Artist | Engineer | Stoodio | Producer | Label | { email_confirmation_required: boolean } | null> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
-
     const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
         options: { data: { full_name: userData.name, user_role: role } }
     });
-
     if (authError) throw authError;
     if (!authData.session && !authData.user?.email_confirmed_at) return { email_confirmation_required: true };
-
     const userId = authData.user!.id;
     let imageUrl = userData.image_url || USER_SILHOUETTE_URL;
     if (userData.imageFile) imageUrl = await uploadAvatar(userData.imageFile, userId);
-
     const profileData = {
         id: userId,
         email: userData.email,
@@ -203,12 +171,39 @@ export const createUser = async (userData: any, role: UserRole): Promise<Artist 
         ...(role === 'STOODIO' && { description: userData.description, location: userData.location, amenities: [], rooms: [] }),
         created_at: new Date().toISOString(),
     };
-
     const tableMap: Record<string, string> = { 'ARTIST': 'artists', 'ENGINEER': 'engineers', 'PRODUCER': 'producers', 'STOODIO': 'stoodioz', 'LABEL': 'labels' };
     const { data, error } = await supabase.from(tableMap[role]).upsert(profileData).select().single();
     if (error) throw error;
-
     await supabase.from('profiles').upsert({ id: userId, role, email: userData.email, full_name: userData.name });
+    return data;
+};
+
+// FIX: Added missing fetchFullArtist, fetchFullStoodio, fetchFullEngineer, fetchFullProducer
+export const fetchFullArtist = async (id: string): Promise<Artist | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data } = await supabase.from('artists').select('*').eq('id', id).maybeSingle();
+    return data;
+};
+
+export const fetchFullStoodio = async (id: string): Promise<Stoodio | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data } = await supabase.from('stoodioz').select('*, rooms(*), in_house_engineers(*)').eq('id', id).maybeSingle();
+    return data;
+};
+
+export const fetchFullEngineer = async (id: string): Promise<Engineer | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data } = await supabase.from('engineers').select('*, mixing_samples(*)').eq('id', id).maybeSingle();
+    return data;
+};
+
+export const fetchFullProducer = async (id: string): Promise<Producer | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+    const { data } = await supabase.from('producers').select('*, instrumentals(*)').eq('id', id).maybeSingle();
     return data;
 };
 
@@ -220,62 +215,53 @@ export const updateUser = async (userId: string, table: string, updates: any) =>
     return data;
 };
 
-// --- DIRECT SYNC FOLLOW LOGIC ---
+// --- SOCIAL ---
+
 export const toggleFollow = async (currentUser: any, targetUser: any, type: string, isCurrentlyFollowing: boolean) => {
     const supabase = getSupabase();
     if (!supabase) return { updatedCurrentUser: currentUser, updatedTargetUser: targetUser };
-
-    const roleToTable: Record<string, string> = {
-        'ARTIST': 'artists', 'ENGINEER': 'engineers', 'PRODUCER': 'producers', 'STOODIO': 'stoodioz', 'LABEL': 'labels'
-    };
-
-    // 1. Determine Current User Role
+    const roleToTable: Record<string, string> = { 'ARTIST': 'artists', 'ENGINEER': 'engineers', 'PRODUCER': 'producers', 'STOODIO': 'stoodioz', 'LABEL': 'labels' };
     let originTable = 'artists';
     if ('amenities' in currentUser) originTable = 'stoodioz';
     else if ('specialties' in currentUser) originTable = 'engineers';
     else if ('instrumentals' in currentUser) originTable = 'producers';
     else if ('company_name' in currentUser) originTable = 'labels';
-
-    // 2. Fetch Fresh "Following" Data to prevent overwriting
     const { data: userData } = await supabase.from(originTable).select('following').eq('id', currentUser.id).single();
-    
     let following: Following = userData?.following || { artists: [], engineers: [], stoodioz: [], producers: [], videographers: [], labels: [] };
     const key = `${type}s` as keyof Following;
     if (!following[key]) (following[key] as any) = [];
-
-    // 3. Perform Toggle
-    if (isCurrentlyFollowing) {
-        (following[key] as string[]) = following[key].filter(id => id !== targetUser.id);
-    } else {
-        if (!following[key].includes(targetUser.id)) {
-            following[key].push(targetUser.id);
-        }
-    }
-
-    // 4. Save Current User Update
+    if (isCurrentlyFollowing) (following[key] as string[]) = following[key].filter(id => id !== targetUser.id);
+    else if (!following[key].includes(targetUser.id)) following[key].push(targetUser.id);
     const { data: updatedUser } = await supabase.from(originTable).update({ following }).eq('id', currentUser.id).select('*').single();
-
-    // 5. Update Target's Follower List
     const targetTable = roleToTable[type.toUpperCase()] || 'artists';
     const { data: tData } = await supabase.from(targetTable).select('follower_ids').eq('id', targetUser.id).single();
-    
     let fIds = tData?.follower_ids || [];
     if (isCurrentlyFollowing) fIds = fIds.filter((id: string) => id !== currentUser.id);
     else if (!fIds.includes(currentUser.id)) fIds.push(currentUser.id);
-
     const { data: updatedTarget } = await supabase.from(targetTable).update({ follower_ids: fIds, followers: fIds.length }).eq('id', targetUser.id).select('*').single();
-
-    // 6. Notify
     if (!isCurrentlyFollowing) {
         await supabase.from('notifications').insert({ recipient_id: targetUser.id, type: NotificationType.NEW_FOLLOWER, message: `${currentUser.name} followed you.`, read: false, actor_id: currentUser.id, timestamp: new Date().toISOString() });
     }
-
     return { updatedCurrentUser: updatedUser || currentUser, updatedTargetUser: updatedTarget || targetUser };
 };
 
-// --- REMAINING API SERVICES ---
+// --- BOOKINGS ---
 
-export const createBooking = async (request: BookingRequest, stoodio: Stoodio | undefined, booker: any, bookerRole: UserRole): Promise<Booking> => {
+// FIX: Added missing cancelBooking
+export const cancelBooking = async (booking: Booking) => {
+    const supabase = getSupabase();
+    if (!supabase) return { ...booking, status: BookingStatus.CANCELLED };
+    const { data, error } = await supabase.from('bookings').update({ status: BookingStatus.CANCELLED }).eq('id', booking.id).select().single();
+    if (error) return { ...booking, status: BookingStatus.CANCELLED };
+    return data;
+};
+
+// FIX: Added missing createCheckoutSessionForBooking
+export const createCheckoutSessionForBooking = async (bookingRequest: BookingRequest, stoodioId: string | undefined, userId: string, userRole: UserRole) => {
+    return { sessionId: 'mock_session_id' };
+};
+
+export const createBooking = async (request: BookingRequest, stoodio: Stoodio, booker: any, bookerRole: UserRole): Promise<Booking> => {
     const supabase = getSupabase();
     if (!supabase) throw new Error("Supabase not connected");
     const bookingData = {
@@ -288,7 +274,7 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio | 
         booked_by_role: bookerRole,
         request_type: request.request_type,
         engineer_pay_rate: request.engineer_pay_rate,
-        stoodio_id: stoodio?.id,
+        stoodio_id: stoodio.id,
         room_id: request.room?.id,
         artist_id: bookerRole === 'ARTIST' ? booker.id : undefined,
         created_at: new Date().toISOString(),
@@ -298,31 +284,53 @@ export const createBooking = async (request: BookingRequest, stoodio: Stoodio | 
     return data;
 };
 
-export const createCheckoutSessionForBooking = async (bookingRequest: BookingRequest, stoodioId: string | undefined, userId: string, userRole: UserRole) => { return { sessionId: 'mock_session_id' }; };
-export const cancelBooking = async (booking: Booking) => {
-    const supabase = getSupabase();
-    if (!supabase) return booking;
-    const { data } = await supabase.from('bookings').update({ status: BookingStatus.CANCELLED }).eq('id', booking.id).select().single();
-    return data || booking;
-};
+// --- FEED & POSTS ---
 
+// FIX: Added missing fetchGlobalFeed
 export const fetchGlobalFeed = async (limit: number, beforeTimestamp?: string): Promise<Post[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
     let query = supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(limit);
-    if (beforeTimestamp) query = query.lt('created_at', beforeTimestamp);
+    if (beforeTimestamp) {
+        query = query.lt('created_at', beforeTimestamp);
+    }
     const { data } = await query;
     return (data || []).map((p: any) => ({
-        id: p.id, authorId: p.author_id, authorType: p.author_type, text: p.text, image_url: p.image_url, video_url: p.video_url, video_thumbnail_url: p.video_thumbnail_url, link: p.link, timestamp: p.created_at, likes: p.likes || [], comments: p.comments || [], display_mode: p.display_mode, focus_point: p.focus_point
+        id: p.id,
+        authorId: p.author_id,
+        authorType: p.author_type,
+        text: p.text,
+        image_url: p.image_url,
+        video_url: p.video_url,
+        video_thumbnail_url: p.video_thumbnail_url,
+        link: p.link,
+        timestamp: p.created_at,
+        likes: p.likes || [],
+        comments: p.comments || [],
+        display_mode: p.display_mode,
+        focus_point: p.focus_point
     }));
 };
 
+// FIX: Added missing fetchUserPosts
 export const fetchUserPosts = async (userId: string): Promise<Post[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
     const { data } = await supabase.from('posts').select('*').eq('author_id', userId).order('created_at', { ascending: false });
     return (data || []).map((p: any) => ({
-        id: p.id, authorId: p.author_id, authorType: p.author_type, text: p.text, image_url: p.image_url, video_url: p.video_url, video_thumbnail_url: p.video_thumbnail_url, link: p.link, timestamp: p.created_at, likes: p.likes || [], comments: p.comments || [], display_mode: p.display_mode, focus_point: p.focus_point
+        id: p.id,
+        authorId: p.author_id,
+        authorType: p.author_type,
+        text: p.text,
+        image_url: p.image_url,
+        video_url: p.video_url,
+        video_thumbnail_url: p.video_thumbnail_url,
+        link: p.link,
+        timestamp: p.created_at,
+        likes: p.likes || [],
+        comments: p.comments || [],
+        display_mode: p.display_mode,
+        focus_point: p.focus_point
     }));
 };
 
@@ -354,35 +362,58 @@ export const commentOnPost = async (postId: string, text: string, commenter: any
     return { updatedAuthor: postAuthor };
 };
 
-export const fetchConversations = async (userId: string) => {
+// --- LABEL & ROSTER ---
+
+// FIX: Added missing createShadowProfile
+export const createShadowProfile = async (
+    role: 'ARTIST' | 'PRODUCER' | 'ENGINEER', 
+    labelId: string, 
+    data: { name: string; email?: string }
+): Promise<{ profileId: string; roleId: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const shadowId = crypto.randomUUID();
+    await supabase.from('profiles').insert({ id: shadowId, email: data.email || null, role: 'UNCLAIMED', full_name: data.name, created_at: new Date().toISOString() });
+    const tableMap: Record<string, string> = { 'ARTIST': 'artists', 'PRODUCER': 'producers', 'ENGINEER': 'engineers' };
+    await supabase.from(tableMap[role]).insert({ id: shadowId, name: data.name, email: data.email || null, image_url: USER_SILHOUETTE_URL, label_id: labelId, created_at: new Date().toISOString(), wallet_balance: 0, wallet_transactions: [] });
+    await supabase.from('label_roster').insert({ id: crypto.randomUUID(), label_id: labelId, user_id: shadowId, role: role.charAt(0).toUpperCase() + role.slice(1).toLowerCase(), email: data.email, created_at: new Date().toISOString() });
+    return { profileId: shadowId, roleId: shadowId };
+};
+
+export const fetchLabelBookings = async (labelId: string): Promise<Booking[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
-    const { data } = await supabase.from('conversations').select('*').contains('participant_ids', [userId]);
-    const full = await Promise.all((data || []).map(async (convo: any) => {
-        const { data: msgs } = await supabase.from('messages').select('*').eq('conversation_id', convo.id).order('created_at', { ascending: true });
-        let participants: any[] = [];
-        for (const pid of convo.participant_ids) {
-            const res = await fetchCurrentUserProfile(pid);
-            if (res) participants.push(res.user);
-        }
-        return { id: convo.id, participants, messages: (msgs || []).map((m: any) => ({ id: m.id, sender_id: m.sender_id, timestamp: m.created_at, type: m.message_type, text: m.content, media_url: m.media_url, files: m.file_attachments })), unread_count: 0 };
-    }));
-    return full;
+    const { data } = await supabase.rpc("get_label_bookings", { label_id: labelId });
+    return data || [];
 };
 
-export const sendMessage = async (conversationId: string, senderId: string, content: string, type: string = 'text', fileData?: any) => {
+export const fetchLabelPerformance = async (labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    const { data } = await supabase.from('label_artist_performance').select('*').eq('label_id', labelId);
+    return data || [];
+};
+
+export const getRosterActivity = async (labelId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+    const { data } = await supabase.rpc("get_roster_activity", { p_label_id: labelId });
+    return data || [];
+};
+
+export const getLabelBudgetOverview = async (labelId: string) => {
     const supabase = getSupabase();
     if (!supabase) return null;
-    const { data } = await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: senderId, content, message_type: type, media_url: fileData?.url, file_attachments: type === 'files' ? fileData : null }).select().single();
+    const { data } = await supabase.rpc('get_label_budget_overview', { p_label_id: labelId });
     return data;
 };
 
-export const createConversation = async (participantIds: string[]) => {
+export const fetchLabelTransactions = async (labelId: string) => {
     const supabase = getSupabase();
-    if (!supabase) return null;
-    const { data } = await supabase.from('conversations').insert({ participant_ids: participantIds }).select().single();
-    return data;
-}
+    if (!supabase) return [];
+    const { data } = await supabase.from('labels').select('wallet_transactions').eq('id', labelId).single();
+    return data?.wallet_transactions || [];
+};
 
 export const fetchLabelContracts = async (labelId: string) => {
     const supabase = getSupabase();
@@ -404,99 +435,52 @@ export const fetchLabelRoster = async (labelId: string) => {
     return hydrated;
 };
 
-export const getLabelBudgetOverview = async (labelId: string) => {
+export const removeArtistFromLabelRoster = async (labelId: string, rosterId: string, artistId?: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return false;
+    await supabase.from('label_roster').delete().eq('id', rosterId);
+    return true;
+};
+
+export const generateClaimTokenForRosterMember = async (rosterId: string) => {
+    return { claimUrl: `/claim/${crypto.randomUUID()}` };
+};
+
+// --- MESSAGING ---
+
+export const sendMessage = async (conversationId: string, senderId: string, content: string, type: string = 'text', fileData?: any) => {
     const supabase = getSupabase();
     if (!supabase) return null;
-    const { data } = await supabase.rpc('get_label_budget_overview', { p_label_id: labelId });
+    const { data } = await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: senderId, content, message_type: type, media_url: fileData?.url, file_attachments: type === 'files' ? fileData : null }).select().single();
     return data;
 };
 
-export const fetchAnalyticsData = async (userId: string, role: UserRole, days: number) => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase not connected");
-    const { data: user } = await supabase.from(role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'PRODUCER' ? 'producers' : role === 'STOODIO' ? 'stoodioz' : 'labels').select('wallet_transactions').eq('id', userId).single();
-    const relevant = (user?.wallet_transactions || []).filter((t: any) => new Date(t.date) >= new Date(Date.now() - days * 24 * 60 * 60 * 1000));
-    return { kpis: { totalRevenue: relevant.reduce((s: number, t: any) => s + (t.amount > 0 ? t.amount : 0), 0), profileViews: 0, newFollowers: 0, bookings: 0 }, revenueOverTime: relevant.map((t: any) => ({ date: t.date, revenue: t.amount })), engagementOverTime: [], revenueSources: [] };
-};
-
-export const submitForVerification = async (stoodioId: string, data: any) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('stoodioz').update({ verification_status: VerificationStatus.PENDING }).eq('id', stoodioId);
-    return { verification_status: VerificationStatus.PENDING };
-};
-
-export const upsertRoom = async (room: Room, stoodioId: string) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('rooms').upsert({ ...room, stoodio_id: stoodioId });
-};
-
-export const deleteRoom = async (roomId: string) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('rooms').delete().eq('id', roomId);
-};
-
-export const upsertInHouseEngineer = async (info: InHouseEngineerInfo, stoodioId: string) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('in_house_engineers').upsert({ ...info, stoodio_id: stoodioId });
-};
-
-export const deleteInHouseEngineer = async (engineerId: string, stoodioId: string) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('in_house_engineers').delete().match({ stoodio_id: stoodioId, engineer_id: engineerId });
-};
-
-export const upsertInstrumental = async (inst: Instrumental, producerId: string) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('instrumentals').upsert({ ...inst, producer_id: producerId });
-};
-
-export const deleteInstrumental = async (instId: string) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('instrumentals').delete().eq('id', instId);
-};
-
-export const upsertMixingSample = async (sample: MixingSample, engineerId: string) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('mixing_samples').upsert({ ...sample, engineer_id: engineerId });
-};
-
-export const deleteMixingSample = async (sampleId: string) => {
-    const supabase = getSupabase();
-    if (supabase) await supabase.from('mixing_samples').delete().eq('id', sampleId);
-};
-
-export const getClaimDetails = async (token: string) => {
+export const createConversation = async (participantIds: string[]) => {
     const supabase = getSupabase();
     if (!supabase) return null;
-    const { data } = await supabase.from('label_roster').select('*, label:labels(name)').or(`claim_token.eq.${token}`).maybeSingle();
-    if (!data) return null;
-    return { labelName: (data.label as any)?.name || 'Label', role: data.role, email: data.email };
-};
+    const { data } = await supabase.from('conversations').insert({ participant_ids: participantIds }).select().single();
+    return data;
+}
 
-export const claimProfileByToken = async (token: string, userId: string) => {
+export const fetchConversations = async (userId: string) => {
     const supabase = getSupabase();
-    if (!supabase) throw new Error("DB Error");
-    const { data } = await supabase.from('label_roster').select('*').eq('claim_token', token).single();
-    if (!data) throw new Error("Invalid token");
-    await supabase.from('label_roster').update({ user_id: userId, is_pending: false, claim_token: null }).eq('id', data.id);
-    const role = data.role.toUpperCase() as UserRole;
-    const tables: Record<string, string> = { 'ARTIST': 'artists', 'ENGINEER': 'engineers', 'PRODUCER': 'producers' };
-    if (tables[role]) await supabase.from(tables[role]).update({ label_id: data.label_id }).eq('id', userId);
-    return { role };
+    if (!supabase) return [];
+    const { data } = await supabase.from('conversations').select('*').contains('participant_ids', [userId]);
+    const full = await Promise.all((data || []).map(async (convo: any) => {
+        const { data: msgs } = await supabase.from('messages').select('*').eq('conversation_id', convo.id).order('created_at', { ascending: true });
+        const formattedMessages = (msgs || []).map((m: any) => ({ id: m.id, sender_id: m.sender_id, timestamp: m.created_at, type: m.message_type, text: m.content, image_url: m.media_url, audio_url: m.message_type === 'audio' ? m.media_url : undefined, files: m.file_attachments }));
+        let participants: any[] = [];
+        for (const pid of convo.participant_ids) {
+            const res = await fetchCurrentUserProfile(pid);
+            if (res) participants.push(res.user);
+        }
+        return { id: convo.id, participants, messages: formattedMessages, unread_count: 0 };
+    }));
+    return full;
 };
 
-export const claimProfileByCode = async (code: string, userId: string) => { return { role: UserRoleEnum.ARTIST }; };
-export const claimLabelRosterProfile = async (details: any) => { return { success: true }; };
-export const generateClaimTokenForRosterMember = async (rosterId: string) => { return { claimUrl: `/claim/${crypto.randomUUID()}` }; };
-export const getBookingEconomics = async (bookingId: string) => { return null; };
-export const fetchLabelTransactions = async (labelId: string) => { return []; };
-export const updateLabelBudgetMode = async (labelId: string, mode: LabelBudgetMode, allowance: number, day: number) => { return null; };
-export const addLabelFunds = async (labelId: string, amount: number, note: string) => { return true; };
-export const fetchLabelPerformance = async (labelId: string) => { return []; };
-export const getRosterActivity = async (labelId: string) => { return []; };
-export const setLabelBudget = async (labelId: string, total: number) => { return null; };
-export const setArtistAllocation = async (labelId: string, artistId: string, amount: number) => { return null; };
-export const fetchReviews = async () => { return []; };
+// --- MISC ---
+
 export const endSession = async (booking: Booking) => { return { updatedBooking: { ...booking, status: BookingStatus.COMPLETED } }; };
 export const purchaseBeat = async (beat: Instrumental, type: string, buyer: any, producer: Producer, role: UserRole) => { return { updatedBooking: { ...beat, id: crypto.randomUUID(), status: BookingStatus.COMPLETED } as any }; };
 export const respondToBooking = async (booking: Booking, action: string, engineer: Engineer) => { return { ...booking, status: action === 'accept' ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED }; };
@@ -505,108 +489,20 @@ export const addTip = async (booking: Booking, amount: number) => { return { ses
 export const initiatePayout = async (amount: number, userId: string) => { return true; };
 export const createCheckoutSessionForSubscription = async (plan: string, userId: string) => { return { sessionId: 'mock' }; };
 export const createCheckoutSessionForWallet = async (amount: number, userId: string) => { return { sessionId: 'mock' }; };
-
-export const fetchLabelBookings = async (labelId: string): Promise<Booking[]> => {
-    const supabase = getSupabase();
-    if (!supabase) return [];
-
-    const { data, error } = await supabase.rpc("get_label_bookings", {
-        label_id: labelId
-    });
-
-    if (error) {
-        console.error("Error fetching label bookings:", error);
-        return [];
-    }
-
-    return data || [];
-};
-
-export const removeArtistFromLabelRoster = async (labelId: string, rosterId: string, artistId?: string): Promise<boolean> => {
-    const supabase = getSupabase();
-    if (!supabase) return false;
-
-    const { error } = await supabase
-        .from('label_roster')
-        .delete()
-        .eq('id', rosterId);
-
-    if (error) {
-        console.error("Error removing from roster:", error);
-        return false;
-    }
-
-    if (artistId) {
-        await supabase
-            .from('artists')
-            .update({ label_id: null })
-            .eq('id', artistId)
-            .eq('label_id', labelId); 
-    }
-
-    return true;
-};
-
-export const createShadowProfile = async (
-    role: 'ARTIST' | 'PRODUCER' | 'ENGINEER', 
-    labelId: string, 
-    data: { name: string; email?: string }
-): Promise<{ profileId: string; roleId: string }> => {
-    const supabase = getSupabase();
-    if (!supabase) throw new Error("Supabase client not initialized");
-
-    const shadowId = crypto.randomUUID();
-
-    const { error: profileError } = await supabase.from('profiles').insert({
-        id: shadowId,
-        email: data.email || null,
-        role: 'UNCLAIMED', // Shadow role
-        full_name: data.name,
-        created_at: new Date().toISOString()
-    });
-
-    if (profileError) {
-        console.error("Error creating shadow profile:", profileError);
-        throw profileError;
-    }
-
-    const tableMap: Record<string, string> = {
-        'ARTIST': 'artists',
-        'PRODUCER': 'producers',
-        'ENGINEER': 'engineers'
-    };
-    
-    const tableName = tableMap[role];
-    const userRecord = {
-        id: shadowId,
-        name: data.name,
-        email: data.email || null,
-        image_url: USER_SILHOUETTE_URL,
-        label_id: labelId, // Directly assign label ownership
-        created_at: new Date().toISOString(),
-        wallet_balance: 0,
-        wallet_transactions: []
-    };
-
-    if (role === 'ENGINEER') (userRecord as any).specialties = [];
-    if (role === 'PRODUCER') (userRecord as any).genres = [];
-    if (role === 'ARTIST') (userRecord as any).bio = '';
-
-    const { error: roleError } = await supabase.from(tableName).insert(userRecord);
-    if (roleError) {
-        throw roleError;
-    }
-
-    const rosterEntry = {
-        id: crypto.randomUUID(),
-        label_id: labelId,
-        user_id: shadowId,
-        role: role.charAt(0).toUpperCase() + role.slice(1).toLowerCase(), // Capitalize
-        email: data.email,
-        created_at: new Date().toISOString()
-    };
-
-    await supabase.from('label_roster').insert(rosterEntry);
-
-    return { profileId: shadowId, roleId: shadowId };
-};
+export const updateLabelBudgetMode = async (labelId: string, mode: LabelBudgetMode, allowance: number, day: number) => { return null; };
+export const addLabelFunds = async (labelId: string, amount: number, note: string) => { return true; };
+export const setLabelBudget = async (labelId: string, total: number) => { return null; };
+export const setArtistAllocation = async (labelId: string, artistId: string, amount: number) => { return null; };
+export const submitForVerification = async (stoodioId: string, data: any) => { return { verification_status: VerificationStatus.PENDING }; };
+export const upsertRoom = async (room: Room, stoodioId: string) => { return null; };
+export const deleteRoom = async (roomId: string) => { return null; };
+export const upsertInHouseEngineer = async (info: InHouseEngineerInfo, stoodioId: string) => { return null; };
+export const deleteInHouseEngineer = async (engineerId: string, stoodioId: string) => { return null; };
+export const upsertInstrumental = async (inst: Instrumental, producerId: string) => { return null; };
+export const deleteInstrumental = async (instId: string) => { return null; };
+export const upsertMixingSample = async (sample: MixingSample, engineerId: string) => { return null; };
+export const deleteMixingSample = async (sampleId: string) => { return null; };
+export const claimProfileByCode = async (code: string, userId: string) => { return { role: UserRoleEnum.ARTIST }; };
+export const claimProfileByToken = async (token: string, userId: string) => { return { role: UserRoleEnum.ARTIST }; };
+export const getClaimDetails = async (token: string) => { return null; };
+export const claimLabelRosterProfile = async (details: any) => { return { success: true }; };

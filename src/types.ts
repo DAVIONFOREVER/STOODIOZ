@@ -1,4 +1,3 @@
-
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -27,15 +26,12 @@ export enum AppView {
     ENGINEER_PROFILE = 'ENGINEER_PROFILE',
     PRODUCER_LIST = 'PRODUCER_LIST',
     PRODUCER_PROFILE = 'PRODUCER_PROFILE',
-    VIDEOGRAPHER_LIST = 'VIDEOGRAPHER_LIST',
-    VIDEOGRAPHER_PROFILE = 'VIDEOGRAPHER_PROFILE',
     THE_STAGE = 'THE_STAGE',
     VIBE_MATCHER_RESULTS = 'VIBE_MATCHER_RESULTS',
     ARTIST_DASHBOARD = 'ARTIST_DASHBOARD',
     STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
     ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
     PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
-    VIDEOGRAPHER_DASHBOARD = 'VIDEOGRAPHER_DASHBOARD',
     LABEL_DASHBOARD = 'LABEL_DASHBOARD',
     LABEL_IMPORT = 'LABEL_IMPORT',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
@@ -47,6 +43,8 @@ export enum AppView {
     CLAIM_CONFIRM = 'CLAIM_CONFIRM',
     CLAIM_LABEL_PROFILE = 'CLAIM_LABEL_PROFILE',
     LABEL_PROFILE = 'LABEL_PROFILE',
+    ASSET_VAULT = 'ASSET_VAULT',
+    MASTER_CALENDAR = 'MASTER_CALENDAR',
 }
 
 export enum UserRole {
@@ -56,6 +54,27 @@ export enum UserRole {
     STOODIO = 'STOODIO',
     VIDEOGRAPHER = 'VIDEOGRAPHER',
     LABEL = 'LABEL',
+}
+
+export enum AssetCategory {
+    DEMO = 'DEMO',
+    MASTER = 'MASTER',
+    ARTWORK = 'ARTWORK',
+    LEGAL = 'LEGAL',
+    PRESS_KIT = 'PRESS_KIT'
+}
+
+export interface MediaAsset {
+    id: string;
+    name: string;
+    url: string;
+    type: string;
+    category: AssetCategory;
+    owner_id: string;
+    project_id?: string;
+    created_at: string;
+    size: string;
+    metadata?: any;
 }
 
 export enum VerificationStatus {
@@ -117,6 +136,7 @@ export enum NotificationType {
     NEW_LIKE = 'NEW_LIKE',
     NEW_COMMENT = 'NEW_COMMENT',
     NEW_TIP = 'NEW_TIP',
+    SCHEDULE_REMINDER = 'SCHEDULE_REMINDER',
 }
 
 export enum SubscriptionPlan {
@@ -167,16 +187,10 @@ export interface Following {
     labels: string[];
 }
 
+// FIX: Added missing Link interface
 export interface Link {
     title: string;
     url: string;
-}
-
-export interface LinkAttachment {
-    url: string;
-    title: string;
-    description?: string;
-    image_url?: string;
 }
 
 export interface Comment {
@@ -213,7 +227,6 @@ export interface Transaction {
     status: TransactionStatus;
     related_booking_id?: string;
     related_user_name?: string;
-    // Revenue routing metadata
     contract_id?: string;
     recoup_applied?: number;
     label_amount?: number;
@@ -484,7 +497,7 @@ export interface Message {
     sender_id: string;
     text: string;
     timestamp: string;
-    type: 'text' | 'image' | 'video' | 'audio' | 'link' | 'system' | 'files';
+    type: 'text' | 'image' | 'video' | 'audio' | 'link' | 'system' | 'files' | 'draft';
     image_url?: string;
     video_url?: string;
     audio_url?: string;
@@ -524,8 +537,15 @@ export interface AppNotification {
     actor?: Artist | Engineer | Stoodio | Producer | Label;
 }
 
+export interface LinkAttachment {
+    url: string;
+    title: string;
+    description?: string;
+    image_url?: string;
+}
+
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'updateProfile' | 'socialAction' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'search';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'updateProfile' | 'socialAction' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'search' | 'generateReport' | 'scheduleReminder';
     target: string | null;
     value: any;
     text: string;

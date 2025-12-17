@@ -80,6 +80,8 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
 const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
+const AssetVault = lazy(() => import('./components/AssetVault.tsx')); // Added
+const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); // Added
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
@@ -172,37 +174,25 @@ const App: React.FC = () => {
         const supabase = getSupabase();
         if (!supabase) return;
 
-        /**
-         * Resolves the profile for a given user ID and hydrates the app state.
-         * Includes a fail-safe to prevent stuck loading spinners.
-         */
         const hydrateUser = async (userId: string) => {
             const timeoutId = setTimeout(() => {
-                console.warn("Hydration timeout reached. Resetting loading state.");
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }, 5000);
 
             try {
                 const res = await apiService.fetchCurrentUserProfile(userId);
                 if (res) {
-                    // Check if the current view matches the resolved role.
-                    // If we were viewing a Label Dashboard but we are an Artist, clear stale view.
                     const lastView = localStorage.getItem('last_view');
                     const isLabelView = lastView === AppView.LABEL_DASHBOARD;
                     const isArtist = res.role === UserRoleEnum.ARTIST;
-
                     if (isLabelView && isArtist) {
-                        console.warn("Role mismatch detected. Clearing stale Label view.");
                         localStorage.removeItem('last_view');
                     }
-
                     dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
                 } else {
-                    console.error("Auth session exists but database profile is missing.");
                     await logout();
                 }
             } catch (error) {
-                console.error("Hydration error:", error);
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             } finally {
                 clearTimeout(timeoutId);
@@ -305,6 +295,8 @@ const App: React.FC = () => {
             case AppView.ADMIN_RANKINGS: return <AdminRankings />;
             case AppView.STUDIO_INSIGHTS: return <StudioInsights />;
             case AppView.LEADERBOARD: return <Leaderboard />;
+            case AppView.ASSET_VAULT: return <AssetVault />;
+            case AppView.MASTER_CALENDAR: return <MasterCalendar />;
             default: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
         }
     };

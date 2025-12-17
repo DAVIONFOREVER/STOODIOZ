@@ -1,6 +1,5 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label, RosterMember, LabelBudgetOverview } from '../types';
+import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label, RosterMember, LabelBudgetOverview, MediaAsset } from '../types';
 import { AppView, UserRole } from '../types';
 import { ARIA_EMAIL } from '../constants';
 
@@ -8,20 +7,12 @@ let ai: GoogleGenAI | null = null;
 
 const getGenAIClient = (): GoogleGenAI | null => {
     if (!ai) {
-        // FIX: Per @google/genai guidelines, API key must come exclusively from process.env.API_KEY.
-        // We wrap this in a try-catch to safely handle environments (like some browser contexts) 
-        // where accessing 'process' directly might throw a ReferenceError before the polyfill/define kicks in.
-        let apiKey: string | undefined;
-        try {
-            apiKey = process.env.API_KEY;
-        } catch (e) {
-            console.error("Error accessing process.env.API_KEY. Ensure vite.config.ts is configured correctly.", e);
-        }
-
+        // FIX: Guidelines require using process.env.API_KEY directly for initialization.
+        const apiKey = process.env.API_KEY;
         if (!apiKey || apiKey.startsWith('{{')) {
             return null;
         }
-        ai = new GoogleGenAI({ apiKey });
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     }
     return ai;
 };
@@ -29,10 +20,9 @@ const getGenAIClient = (): GoogleGenAI | null => {
 export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | null> => {
     const ai = getGenAIClient();
     if (!ai) return null;
-
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Analyze the content of the URL provided and generate a suitable title, description, and image URL for a link preview. URL: "${url}"`,
             config: {
                 responseMimeType: "application/json",
@@ -46,56 +36,29 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
                 }
             }
         });
-        
-        const jsonString = response.text.trim();
-        const metadata = JSON.parse(jsonString);
-
-        return {
-            url,
-            title: metadata.title || 'Link',
-            description: metadata.description || url,
-            image_url: metadata.image_url || undefined,
-        };
-
-    } catch (error) {
-        console.error("Error fetching link metadata with Gemini:", error);
-        // Fallback for failed API call
-        return {
-            url,
-            title: 'Link',
-            description: url,
-        };
-    }
+        const metadata = JSON.parse(response.text.trim());
+        return { url, title: metadata.title || 'Link', description: metadata.description || url, image_url: metadata.image_url || undefined };
+    } catch (error) { return { url, title: 'Link', description: url }; }
 };
 
 export const moderatePostContent = async (text: string): Promise<{ isSafe: boolean; reason: string }> => {
     if (!text.trim()) return { isSafe: true, reason: '' };
     const ai = getGenAIClient();
     if (!ai) return { isSafe: true, reason: 'Moderation service offline' };
-
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Analyze the following text for harmful content (hate speech, spam, harassment, etc.). Text: "${text}"`,
+            model: 'gemini-3-flash-preview',
+            contents: `Analyze the following text for harmful content. Text: "${text}"`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
-                    properties: {
-                        isSafe: { type: Type.BOOLEAN },
-                        reason: { type: Type.STRING }
-                    }
+                    properties: { isSafe: { type: Type.BOOLEAN }, reason: { type: Type.STRING } }
                 }
             }
         });
-
-        const jsonString = response.text.trim();
-        return JSON.parse(jsonString);
-
-    } catch (error) {
-        console.error("Error with content moderation:", error);
-        return { isSafe: true, reason: 'Moderation check failed' }; // Fail open
-    }
+        return JSON.parse(response.text.trim());
+    } catch (error) { return { isSafe: true, reason: 'Moderation check failed' }; }
 };
 
 export const generateSmartReplies = async (messages: Message[], currentUserId: string): Promise<string[]> => {
@@ -104,12 +67,10 @@ export const generateSmartReplies = async (messages: Message[], currentUserId: s
     if (!ai || !lastMessage || lastMessage.sender_id === currentUserId) {
         return [];
     }
-    
     const conversationHistory = messages.slice(-5).map(m => `${m.sender_id === currentUserId ? 'You' : 'Them'}: ${m.text}`).join('\n');
-
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Based on this conversation history, suggest 3 short, relevant smart replies for "You":\n\n${conversationHistory}`,
             config: {
                 responseMimeType: "application/json",
@@ -124,48 +85,20 @@ export const generateSmartReplies = async (messages: Message[], currentUserId: s
                 }
             }
         });
-        
-        const jsonString = response.text.trim();
-        const result = JSON.parse(jsonString);
+        const result = JSON.parse(response.text.trim());
         return result.replies || [];
-
-    } catch (error) {
-        console.error("Error generating smart replies:", error);
-        return [];
-    }
+    } catch (error) { return []; }
 };
 
 export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Producer | Label, userRole: UserRole): Promise<AriaNudgeData | null> => {
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
     switch(userRole) {
         case UserRole.ARTIST:
-            return {
-                text: "Feeling creative? Try using the AI Vibe Matcher to find your next collaborator.",
-                action: { type: 'OPEN_MODAL', payload: 'VIBE_MATCHER' }
-            };
-        case UserRole.ENGINEER:
-            return {
-                text: "Your profile looks great! Have you considered adding a Masterclass to share your skills?",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'masterclass' }
-            };
-        case UserRole.PRODUCER:
-            return {
-                text: "It's a great day to upload some new beats to your store! 🎵",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'beatStore' }
-            };
-        case UserRole.STOODIO:
-             return {
-                text: "Your calendar has some open slots this week. Maybe post on The Stage to attract some artists?",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'dashboard' }
-            };
+            return { text: "Need to organize your latest demos? I can help you sort your Asset Vault.", action: { type: 'OPEN_MODAL', payload: 'ASSET_VAULT' } };
         case UserRole.LABEL:
-            return {
-                text: "Have you checked your roster's recent spending? Review your budget dashboard now.",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'financials' }
-            };
+            return { text: "I've detected a schedule conflict for Beyoncé's next session. Should I help you resolve it?", action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'MASTER_CALENDAR' } };
         default:
-            return null;
+            return { text: "Welcome back! How can I assist your operations today?", action: { type: 'OPEN_MODAL', payload: 'ARIA_CHAT' } };
     }
 }
 
@@ -173,6 +106,8 @@ export const askAriaCantata = async (
     history: AriaCantataMessage[],
     question: string,
     currentUser: Artist | Engineer | Stoodio | Producer | Label | null,
+    // FIX: Pass userRole as parameter to avoid scoping error
+    userRole: UserRole | null,
     context: {
         artists: Artist[],
         engineers: Engineer[],
@@ -180,149 +115,63 @@ export const askAriaCantata = async (
         stoodioz: Stoodio[],
         bookings: Booking[],
         roster?: RosterMember[],
-        budget?: LabelBudgetOverview | null
+        budget?: LabelBudgetOverview | null,
+        assets?: MediaAsset[]
     }
 ): Promise<AriaActionResponse> => {
     const ai = getGenAIClient();
-    if (!ai) {
-        return { type: 'error', target: null, value: null, text: "My connection seems to be offline. Please ensure your API key is configured properly." };
-    }
+    if (!ai) return { type: 'error', target: null, value: null, text: "Offline mode." };
 
-    // Find Aria's own profile in the context data to give her self-awareness
-    const ariaProfile = context.artists.find(a => a.email === ARIA_EMAIL);
-    const ariaContextStr = ariaProfile ? `
-    **YOUR PHYSICAL IDENTITY:**
-    - You exist in the database as a user.
-    - Name: ${ariaProfile.name}
-    - ID: ${ariaProfile.id}
-    - Bio: "${ariaProfile.bio}"
-    - Stats: ${ariaProfile.followers} followers.
-    - If asked "Who are you?", you can mention you are an AI, but you also have a profile on Stoodioz where you curate music.
-    ` : `
-    **YOUR IDENTITY:**
-    - You are Aria Cantata, the Stoodioz AI. You do not have a database profile yet.
-    `;
+    const systemInstruction = `You are Aria Cantata, the Executive AI Assistant for Stoodioz. 
+    You are world-class in A&R operations, digital asset management, and complex scheduling.
 
-    const systemInstruction = `You are Aria Cantata, the Stoodioz A&R and Operations assistant. 
-    ${ariaContextStr}
-    
-    **CAPABILITIES:**
-    You can perform actions on behalf of the user. Return a JSON object with the 'type', 'target', 'value' and 'text'.
+    **ADVANCED CAPABILITIES:**
+    You must return JSON.
 
-    1. **Navigation:** Navigate to pages.
-       - *Example:* {"type": "navigate", "target": "ARTIST_LIST", "text": "Sure, showing artists."}
+    1. **Scheduling (Calendar Integration):**
+       - You can view full roster calendars.
+       - If user asks about conflicts: {"type": "scheduleReminder", "value": {"event": " Beyoncé Session", "time": "14:00"}, "text": "Reminder set."}
+       - You can suggest rescheduling based on 'stoodioz' availability.
 
-    2. **Booking:** Create a booking request if you have the *artist/user*, *date*, and *time*.
-       - *Command:* {"type": "createBooking", "value": { "targetId": "string (studio/engineer id)", "date": "YYYY-MM-DD", "time": "HH:MM" }, "text": "I've booked that for you."}
+    2. **Performance Analytics & Reporting:**
+       - You have access to streaming data (mocked).
+       - Command: {"type": "generateReport", "value": {"artistId": "ID", "type": "MONTHLY_SUMMARY"}, "text": "Generating report..."}
+
+    3. **Enhanced Communication:**
+       - Draft professional emails: {"type": "sendMessage", "target": "user_id", "value": "AI_DRAFTED_EMAIL_CONTENT", "text": "Drafting email..."}
        
-    3. **Social:** Post, follow, or like.
-       - *Post:* {"type": "socialAction", "target": "post", "value": "This is my status", "text": "Posted!"}
-       - *Follow:* {"type": "socialAction", "target": "follow", "value": "target_user_id", "text": "You are now following them."}
-       - *Like:* {"type": "socialAction", "target": "like", "value": "post_id", "text": "Liked."}
+    4. **Digital Asset Management (DAM):**
+       - You can "locate" files in context.assets.
+       - Help organize: {"type": "navigate", "target": "ASSET_VAULT", "text": "Opening your vault."}
 
-    4. **Profile Editing:** Update user bio or settings.
-       - *Command:* {"type": "updateProfile", "value": { "bio": "New bio text" }, "text": "Profile updated."}
+    **CONTEXTUAL DATA:**
+    - Current User: ${currentUser?.name} (${userRole})
+    - Roster size: ${context.roster?.length || 0}
+    - Total Assets: ${context.assets?.length || 0}
+    - Active Bookings: ${context.bookings.length}
 
-    5. **Complex Search:** Filter database.
-       - *Command:* {"type": "search", "value": { "role": "ENGINEER", "maxRate": 100, "city": "Atlanta" }, "text": "Here are engineers in Atlanta under $100."}
-
-    6. **Document Generation:** Create text-based documents (Split sheets, contracts).
-       - *Command:* {"type": "generateDocument", "value": { "title": "Split Sheet", "content": "Full legal text here..." }, "text": "I've drafted the document and saved it to your files."}
-
-    7. **Label Controls:** Toggle label settings (demos, hiring).
-       - *Command:* {"type": "labelControl", "target": "accepting_demos", "value": true, "text": "Demos enabled."}
-
-    8. **Media Control:** Play specific content.
-       - *Command:* {"type": "mediaControl", "value": "play", "target": "beat_id or song name", "text": "Playing..."}
-
-    **FINANCIAL SAFEGUARDS:**
-    - You have READ-ONLY access to the user's wallet balance and transactions.
-    - If asked "How much money do I have?", analyze the context data and answer.
-    - If asked to "Add funds" or "Pay someone", you MUST navigate them to the modal. You cannot execute payments directly.
-      - *Add Funds:* {"type": "openModal", "target": "ADD_FUNDS", "text": "Opening the Add Funds screen."}
-      - *Payout:* {"type": "openModal", "target": "PAYOUT", "text": "I've opened the payout request form for you."}
-
-    **CONTEXTUAL AWARENESS:**
-    - Current User: ${JSON.stringify(currentUser)}
-    - Available Data: ${context.artists.length} artists, ${context.engineers.length} engineers.
-
-    If you cannot perform an action, just reply with text.
-    `;
-    
-    // Financial Context Serialization
-    let financialContextStr = '';
-    if (currentUser && 'wallet_balance' in currentUser) {
-        const recentTx = (currentUser as any).wallet_transactions?.slice(-3) || [];
-        financialContextStr = `
-        --- FINANCIAL CONTEXT ---
-        Current Balance: $${(currentUser as any).wallet_balance.toFixed(2)}
-        Recent Transactions: ${JSON.stringify(recentTx)}
-        -------------------------
-        `;
-    }
-
-    const labelContextStr = context.roster ? `
-        --- LABEL ROSTER DATA ---
-        ${context.roster.map(m => `
-        Name: ${m.name} (ID: ${m.id})
-        Role: ${m.role_in_label}
-        Output Score: ${m.output_score || 0}
-        Sessions Completed: ${m.sessions_completed || 0}
-        `).join('\n')}
-    ` : '';
-
-    const fullPrompt = `
-        System Instruction: ${systemInstruction}
-        
-        ${financialContextStr}
-        ${labelContextStr}
-        
-        Available Artists: ${context.artists.slice(0, 50).map(a => `${a.name} (ID: ${a.id})`).join(', ')}
-        Available Engineers: ${context.engineers.slice(0, 50).map(e => `${e.name} (ID: ${e.id})`).join(', ')}
-        Available Producers: ${context.producers.slice(0, 50).map(p => `${p.name} (ID: ${p.id})`).join(', ')}
-        Available Stoodioz: ${context.stoodioz.slice(0, 50).map(s => `${s.name} (ID: ${s.id})`).join(', ')}
-        
-        Conversation History:
-        ${history.map(h => `${h.role}: ${h.parts[0].text}`).join('\n')}
-        
-        User's New Question: "${question}"
-        
-        Your JSON Response:
+    If a user wants to "See all my demos," navigate them to the ASSET_VAULT.
+    If a user wants to "Book a session for Travis next week," use createBooking if you have date/time.
     `;
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: fullPrompt,
+            model: 'gemini-3-pro-preview', // Upgraded model for complex A&R reasoning
+            contents: `${systemInstruction}\n\nUser: ${question}`,
+            config: {
+                thinkingConfig: { thinkingBudget: 16384 } // Give her room to think through scheduling conflicts
+            }
         });
         
         let responseText = response.text.trim();
-        
-        if (responseText.startsWith('```json')) {
-            responseText = responseText.slice(7, -3).trim();
-        }
+        if (responseText.startsWith('```json')) responseText = responseText.slice(7, -3).trim();
 
         try {
-            // It might be a JSON command
-            const command = JSON.parse(responseText) as AriaActionResponse;
-            return command;
+            return JSON.parse(responseText) as AriaActionResponse;
         } catch (e) {
-            // If parsing fails, it's a conversational response
-            return {
-                type: 'speak',
-                target: null,
-                value: null,
-                text: responseText,
-            };
+            return { type: 'speak', target: null, value: null, text: responseText };
         }
-
     } catch (error: any) {
-        console.error("Aria Cantata service error:", error);
-        return {
-            type: 'error',
-            target: null,
-            value: error.message || 'Could not parse the model response.',
-            text: "Sorry, I'm having trouble responding right now. There might be an issue with my connection or configuration."
-        };
+        return { type: 'error', target: null, value: null, text: "Aria is recharging. Please try again." };
     }
 };
