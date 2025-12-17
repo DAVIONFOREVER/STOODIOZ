@@ -128,6 +128,30 @@ const App: React.FC = () => {
     const { handleSubscribe } = useSubscription(navigate);
     const { startConversation, permissionError, setPermissionError } = useMessaging(navigate);
     const { confirmMasterclassPurchase, submitMasterclassReview } = useMasterclass();
+
+    // --- MODAL & FAB HANDLERS ---
+    const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
+    const closeTipModal = () => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
+    const closeCancelModal = () => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL });
+    const closeVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } });
+    const closeAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
+    const closePayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });
+    const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
+    const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
+    const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
+
+    const closePurchaseMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL });
+    const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
+    const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
+
+    const handleOpenAriaFromFAB = () => {
+        dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
+        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+    };
+
+    const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
+    const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
+
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
         startConversation,
         navigate,
@@ -143,35 +167,85 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    // --- MODAL HANDLERS ---
-    const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
-    const closeTipModal = () => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
-    const closeCancelModal = () => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL });
-    const closeVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } });
-    const closeAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
-    const closePayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });
-    const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
-    const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-    const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
-    const closePurchaseMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL });
-    const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
-    const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
-    const handleOpenAriaFromFAB = () => {
-        dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
-    };
-    const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
-    const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
+    // --- DATA FETCHING & HYDRATION ---
+    useEffect(() => {
+        const supabase = getSupabase();
+        if (!supabase) return;
 
+        /**
+         * Resolves the profile for a given user ID and hydrates the app state.
+         * Includes a fail-safe to prevent stuck loading spinners.
+         */
+        const hydrateUser = async (userId: string) => {
+            const timeoutId = setTimeout(() => {
+                console.warn("Hydration timeout reached. Resetting loading state.");
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            }, 5000);
+
+            try {
+                const res = await apiService.fetchCurrentUserProfile(userId);
+                if (res) {
+                    // Check if the current view matches the resolved role.
+                    // If we were viewing a Label Dashboard but we are an Artist, clear stale view.
+                    const lastView = localStorage.getItem('last_view');
+                    const isLabelView = lastView === AppView.LABEL_DASHBOARD;
+                    const isArtist = res.role === UserRoleEnum.ARTIST;
+
+                    if (isLabelView && isArtist) {
+                        console.warn("Role mismatch detected. Clearing stale Label view.");
+                        localStorage.removeItem('last_view');
+                    }
+
+                    dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+                } else {
+                    console.error("Auth session exists but database profile is missing.");
+                    await logout();
+                }
+            } catch (error) {
+                console.error("Hydration error:", error);
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        };
+
+        const initSession = async () => {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            const { data: { session } } = await (supabase.auth as any).getSession();
+            if (session?.user) {
+                await hydrateUser(session.user.id);
+            } else {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            }
+        };
+        
+        initSession();
+
+        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
+            if (event === 'SIGNED_OUT') {
+                dispatch({ type: ActionTypes.LOGOUT });
+                navigate(AppView.LANDING_PAGE);
+            } else if (event === 'SIGNED_IN' && session?.user) {
+                if (!currentUser || currentUser.id !== session.user.id) {
+                    await hydrateUser(session.user.id);
+                }
+            }
+        });
+        
+        apiService.getAllPublicUsers().then(directory => {
+            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
+        });
+
+        return () => subscription?.unsubscribe();
+    }, [dispatch]); 
+
+    // --- SETUP COMPLETION HANDLER ---
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         const supabase = getSupabase();
         if (!supabase) return;
-        if (userData.email && userData.password) await (supabase.auth as any).signOut();
+        
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
-            if (role === UserRole.LABEL) {
-                userData = { ...userData, bio: userData.bio || "", companyName: userData.company_name || null, website: userData.website || null, contactPhone: userData.contact_phone || null, image_url: userData.image_url || null };
-            }
             const result = await apiService.createUser(userData, role);
             if (result && 'email_confirmation_required' in result) {
                 alert("Please check your email to verify your account.");
@@ -188,68 +262,8 @@ const App: React.FC = () => {
         }
     }, [dispatch, navigate]);
 
-    // --- DATA FETCHING & HYDRATION ---
-    useEffect(() => {
-        const supabase = getSupabase();
-        if (!supabase) return;
-
-        const hydrateUser = async (userId: string) => {
-            const res = await apiService.fetchCurrentUserProfile(userId);
-            if (res) dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-        };
-
-        const initSession = async () => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            const { data: { session } } = await (supabase.auth as any).getSession();
-            if (session?.user) {
-                await hydrateUser(session.user.id);
-            }
-            // Always set loading false at end of session check
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        };
-        
-        initSession();
-
-        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_OUT') {
-                dispatch({ type: ActionTypes.LOGOUT });
-                navigate(AppView.LANDING_PAGE);
-            } else if (event === 'SIGNED_IN' && session?.user) {
-                if (!currentUser || currentUser.id !== session.user.id) {
-                    await hydrateUser(session.user.id);
-                }
-            }
-        });
-        
-        // Initial data fetch for guest directory
-        apiService.getAllPublicUsers().then(directory => {
-            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
-        });
-
-        return () => subscription?.unsubscribe();
-    }, [dispatch]); 
-
-    // --- ROLE GUARDS & HOME REDIRECTION ---
-    const renderViewProxy = () => {
-        // Restricted pages for logged-in users
-        const authViews = [
-            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
-            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
-        ];
-
-        if (currentUser && authViews.includes(currentView)) {
-            // Intercept and redirect to the specific dashboard for that role
-            switch(userRole) {
-                case UserRole.LABEL: return <LabelDashboard />;
-                case UserRole.STOODIO: return <StoodioDashboard />;
-                case UserRole.ENGINEER: return <EngineerDashboard />;
-                case UserRole.PRODUCER: return <ProducerDashboard />;
-                default: return <ArtistDashboard />;
-            }
-        }
-
-        // Logic for specific views
+    // --- RENDER LOGIC ---
+    const renderView = () => {
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -295,10 +309,30 @@ const App: React.FC = () => {
         }
     };
 
+    const renderViewProxy = () => {
+        const authViews = [
+            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
+        ];
+
+        if (currentUser && authViews.includes(currentView)) {
+            switch(userRole) {
+                case UserRole.LABEL: return <LabelDashboard />;
+                case UserRole.STOODIO: return <StoodioDashboard />;
+                case UserRole.ENGINEER: return <EngineerDashboard />;
+                case UserRole.PRODUCER: return <ProducerDashboard />;
+                default: return <ArtistDashboard />;
+            }
+        }
+        return renderView();
+    };
+
     if (isLoading) {
         return (
             <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col items-center justify-center">
                 <LoadingSpinner currentUser={currentUser} />
+                <p className="text-zinc-500 mt-4 animate-pulse">Syncing Sony Music profile...</p>
             </div>
         );
     }

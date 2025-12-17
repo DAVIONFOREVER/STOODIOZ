@@ -3,7 +3,6 @@ import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, User
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType } from '../types';
 import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL, ARIA_EMAIL } from '../constants';
-import { generateInvoicePDF } from '../lib/pdf';
 
 // --- HELPER FUNCTIONS ---
 
@@ -90,43 +89,55 @@ export const fetchFullArtist = async (id: string): Promise<Artist | null> => {
     return data;
 };
 
+/**
+ * Robustly fetches the user profile and role across all potential tables.
+ * ARIA PROTECTION: Immediately forces ARTIST role for the official email.
+ */
 export const fetchCurrentUserProfile = async (userId: string): Promise<{ user: any, role: UserRole } | null> => {
     const supabase = getSupabase();
     if (!supabase) return null;
 
-    // 1. Get the Auth user to check email (Special handling for Aria)
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    
-    // 2. Check the master profiles table for the definitive role
-    const { data: profile } = await supabase.from('profiles').select('role, email').eq('id', userId).maybeSingle();
-    
-    const tables = [
-        { name: 'artists', role: UserRoleEnum.ARTIST, query: '*' },
-        { name: 'stoodioz', role: UserRoleEnum.STOODIO, query: '*, rooms(*), in_house_engineers(*)' },
-        { name: 'producers', role: UserRoleEnum.PRODUCER, query: '*, instrumentals(*)' },
-        { name: 'engineers', role: UserRoleEnum.ENGINEER, query: '*, mixing_samples(*)' },
-        { name: 'labels', role: UserRoleEnum.LABEL, query: '*' }
-    ];
+    try {
+        // 1. Get the Auth user first to check for ARIA_EMAIL
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const userEmail = authUser?.email;
 
-    // Aria Protection: If this is Aria's email, she MUST be an artist.
-    const isAria = authUser?.email === ARIA_EMAIL || profile?.email === ARIA_EMAIL;
+        // ARIA HARD-OVERRIDE: If this is Aria, she is an ARTIST. No questions.
+        if (userEmail === ARIA_EMAIL) {
+            const { data: ariaData } = await supabase.from('artists').select('*').eq('id', userId).maybeSingle();
+            if (ariaData) return { user: ariaData, role: UserRoleEnum.ARTIST };
+        }
+        
+        // 2. Normal flow: Check the master profiles table
+        const { data: profile } = await supabase.from('profiles').select('role, email').eq('id', userId).maybeSingle();
+        
+        const tables = [
+            { name: 'artists', role: UserRoleEnum.ARTIST, query: '*' },
+            { name: 'stoodioz', role: UserRoleEnum.STOODIO, query: '*, rooms(*), in_house_engineers(*)' },
+            { name: 'producers', role: UserRoleEnum.PRODUCER, query: '*, instrumentals(*)' },
+            { name: 'engineers', role: UserRoleEnum.ENGINEER, query: '*, mixing_samples(*)' },
+            { name: 'labels', role: UserRoleEnum.LABEL, query: '*' }
+        ];
 
-    // 3. If profile tells us the role, check that table immediately
-    let targetRole = profile?.role;
-    if (isAria) targetRole = UserRoleEnum.ARTIST;
+        // 3. Prioritize explicit role from profile table
+        let targetRole = profile?.role;
+        if (profile?.email === ARIA_EMAIL) targetRole = UserRoleEnum.ARTIST;
 
-    if (targetRole) {
-        const t = tables.find(x => x.role === targetRole);
-        if (t) {
+        if (targetRole) {
+            const t = tables.find(x => x.role === targetRole);
+            if (t) {
+                const { data } = await supabase.from(t.name).select(t.query).eq('id', userId).maybeSingle();
+                if (data) return { user: data, role: t.role };
+            }
+        }
+
+        // 4. Fallback: Scan tables in logical order (Artists first)
+        for (const t of tables) {
             const { data } = await supabase.from(t.name).select(t.query).eq('id', userId).maybeSingle();
             if (data) return { user: data, role: t.role };
         }
-    }
-
-    // 4. Fallback: Scan tables in logical order (Artists first)
-    for (const t of tables) {
-        const { data } = await supabase.from(t.name).select(t.query).eq('id', userId).maybeSingle();
-        if (data) return { user: data, role: t.role };
+    } catch (e) {
+        console.error("Critical error in profile fetch:", e);
     }
     return null;
 };
