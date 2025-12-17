@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useMessaging } from '../hooks/useMessaging';
@@ -10,162 +10,120 @@ import type { Label, RosterMember } from '../types';
 import { USER_SILHOUETTE_URL } from '../constants';
 import { AppView } from '../types';
 
-// Mock Data for fallback visualization
-const MOCK_ROSTER: any[] = [
-    { id: 'm1', name: 'Beyoncé', image_url: 'https://upload.wikimedia.org/wikipedia/commons/1/17/Beyonc%C3%A9_at_The_Lion_King_European_Premiere_2019.png', role_in_label: 'Artist' },
-    { id: 'm2', name: 'Harry Styles', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Harry_Styles_Love_on_Tour_2022.jpg/800px-Harry_Styles_Love_on_Tour_2022.jpg', role_in_label: 'Artist' },
-    { id: 'm3', name: 'Travis Scott', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Travis_Scott_2016.jpg/800px-Travis_Scott_2016.jpg', role_in_label: 'Artist/Producer' }
-];
-
-const MOCK_LABEL_DATA: Partial<Label> = {
-    company_name: 'Sony Music Entertainment',
-    mission_statement: 'Empowering the next generation of global superstars through innovation and artistic freedom.',
-    public_metrics: {
-        total_streams: 2500000000,
-        charted_records: 142,
-        countries_distributed: 85,
-        certifications: 45
-    },
-    services_offered: ['Global Distribution', 'Marketing', 'Brand Partnerships', 'Sync Licensing'],
-    affiliations: ['Spotify', 'Live Nation', 'Universal'],
-    opportunities: {
-        accepting_demos: true,
-        hiring_producers: true,
-        hiring_engineers: false,
-        booking_studios: true,
-        scouting: true
-    }
-};
-
 const LabelProfile: React.FC = () => {
-    const { selectedLabel, currentUser, userRole } = useAppState();
+    const { selectedLabel, currentUser, userRole, artists, engineers, stoodioz, producers } = useAppState();
     const { navigate, goBack, viewArtistProfile } = useNavigation();
     const { startConversation } = useMessaging(useNavigation().navigate);
     const { toggleFollow } = useSocial();
     
-    // Logic to determine which label to show
-    let label = (userRole === 'LABEL' && (!selectedLabel || selectedLabel.id === currentUser?.id)) 
-        ? (currentUser as Label) 
-        : selectedLabel;
-
-    // Safety: If label is "skeleton" (missing details), merge with mock data for display
-    if (label && !label.mission_statement) {
-        label = { ...label, ...MOCK_LABEL_DATA };
-    }
+    // DETERMINISTIC DATA RESOLUTION:
+    // If a label was specifically clicked, show that.
+    // Otherwise, if the logged-in user is a label, show their own profile.
+    const labelData = useMemo(() => {
+        if (selectedLabel) return selectedLabel;
+        if (userRole === 'LABEL' && currentUser) return currentUser as Label;
+        return null;
+    }, [selectedLabel, userRole, currentUser]);
 
     const [roster, setRoster] = useState<RosterMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [isFollowing, setIsFollowing] = useState(false);
 
     useEffect(() => {
-        if (!label) return;
+        if (!labelData) return;
         
         if (currentUser && 'following' in currentUser) {
-            setIsFollowing((currentUser.following.labels || []).includes(label.id));
+            setIsFollowing((currentUser.following.labels || []).includes(labelData.id));
         }
 
         const fetchRoster = async () => {
             setLoading(true);
             try {
-                const data = await apiService.fetchLabelRoster(label.id);
-                if (data && data.length > 0) {
-                     const isOwner = currentUser?.id === label.id;
-                     setRoster(isOwner ? data : data.filter(m => !m.is_pending && !m.shadow_profile)); 
-                } else {
-                     setRoster(MOCK_ROSTER as RosterMember[]);
-                }
+                const data = await apiService.fetchLabelRoster(labelData.id);
+                // If it's the owner viewing, show everything. Otherwise only active public members.
+                const isOwner = currentUser?.id === labelData.id;
+                setRoster(isOwner ? data : data.filter(m => !m.is_pending && !m.shadow_profile)); 
             } catch (error) {
                 console.error("Error fetching roster:", error);
-                setRoster(MOCK_ROSTER as RosterMember[]);
             } finally {
                 setLoading(false);
             }
         };
         fetchRoster();
-    }, [label, currentUser]);
+    }, [labelData, currentUser]);
 
-    const isSelf = currentUser?.id === label?.id;
-
-    const handleBack = () => {
-        if (isSelf) {
-            navigate(AppView.LABEL_DASHBOARD);
-        } else {
-            goBack();
-        }
-    };
-
-    if (!label) return (
-        <div className="p-20 text-center text-zinc-500 flex flex-col items-center">
-            <p>Label profile loading...</p>
-            <button onClick={() => navigate(AppView.LABEL_DASHBOARD)} className="mt-4 text-orange-400 font-bold hover:underline">
-                Return to Dashboard
+    if (!labelData) return (
+        <div className="p-20 text-center text-zinc-500 cardSurface">
+            <p className="text-xl font-bold mb-4">No Label Selected</p>
+            <p className="mb-6">We couldn't find the profile you're looking for.</p>
+            <button onClick={() => navigate(AppView.THE_STAGE)} className="text-orange-400 font-bold hover:underline">
+                Return to The Stage
             </button>
         </div>
     );
 
-    const visibility = label.section_visibility || {
+    const isSelf = currentUser?.id === labelData.id;
+    const visibility = labelData.section_visibility || {
         mission: true, roster: true, metrics: true, services: true, partnerships: true, opportunities: true
     };
     
-    if (!label.is_public_profile_enabled && !isSelf) {
+    // Privacy check
+    if (!labelData.is_public_profile_enabled && !isSelf) {
         return (
             <div className="p-20 text-center cardSurface">
                 <h2 className="text-2xl font-bold text-zinc-100">Private Profile</h2>
                 <p className="text-zinc-500 mt-2">This label's profile is currently private.</p>
-                <button onClick={handleBack} className="mt-6 text-orange-400 font-bold hover:underline">Go Back</button>
+                <button onClick={goBack} className="mt-6 text-orange-400 font-bold hover:underline">Go Back</button>
             </div>
         );
     }
 
     return (
         <div className="max-w-5xl mx-auto pb-20 animate-fade-in">
-            <button onClick={handleBack} className="flex items-center gap-2 text-zinc-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
+            <button 
+                onClick={() => isSelf ? navigate(AppView.LABEL_DASHBOARD) : goBack()} 
+                className="flex items-center gap-2 text-zinc-400 hover:text-orange-400 mb-6 transition-colors font-semibold"
+            >
                 <ChevronLeftIcon className="w-5 h-5" />
                 {isSelf ? 'Back to Dashboard' : 'Back'}
             </button>
 
-            {/* Header / Banner */}
+            {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface mb-8">
-                <div className="h-48 bg-gradient-to-r from-zinc-800 to-zinc-900 flex items-center justify-center relative">
-                     <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-500 via-zinc-900 to-black"></div>
-                    <div className="text-zinc-700 font-bold text-4xl opacity-20 uppercase tracking-widest z-10 truncate px-4">{label.company_name || label.name}</div>
+                <div className="h-48 bg-zinc-900 flex items-center justify-center relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-black"></div>
+                    <div className="text-zinc-700 font-bold text-4xl opacity-10 uppercase tracking-widest z-10 truncate px-4">
+                        {labelData.company_name || labelData.name}
+                    </div>
                 </div>
                 
                 <div className="px-8 pb-8 -mt-16 flex flex-col md:flex-row items-end md:items-end gap-6 relative z-10">
                     <div className="w-32 h-32 rounded-full border-4 border-zinc-900 bg-zinc-800 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xl">
-                        {label.image_url ? (
-                            <img src={label.image_url} alt={label.name} className="w-full h-full object-cover" />
+                        {labelData.image_url ? (
+                            <img src={labelData.image_url} alt={labelData.name} className="w-full h-full object-cover" />
                         ) : (
                             <PhotoIcon className="w-12 h-12 text-zinc-600" />
                         )}
                     </div>
                     <div className="flex-grow mb-2 text-center md:text-left">
-                        <h1 className="text-4xl font-extrabold text-zinc-100">{label.name}</h1>
+                        <h1 className="text-4xl font-extrabold text-zinc-100">{labelData.name}</h1>
                         <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-2 mt-2 text-sm text-zinc-400">
-                             {label.parent_company && <span>part of <strong className="text-zinc-300">{label.parent_company}</strong></span>}
-                             {label.years_active && <span>• Est. {new Date().getFullYear() - label.years_active}</span>}
-                             {label.primary_regions && label.primary_regions.length > 0 && <span>• {label.primary_regions[0]}</span>}
+                             {labelData.company_name && <span className="font-bold text-zinc-300">{labelData.company_name}</span>}
+                             {labelData.website && <span>• {labelData.website.replace(/^https?:\/\//, '')}</span>}
                         </div>
-                         {label.primary_genres && (
-                            <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-3">
-                                {label.primary_genres.map(g => (
-                                    <span key={g} className="text-xs font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">{g}</span>
-                                ))}
-                            </div>
-                        )}
                     </div>
                     {!isSelf && (
                         <div className="flex gap-3 mb-2 w-full md:w-auto">
                             <button 
-                                onClick={() => toggleFollow('label', label.id)}
+                                onClick={() => toggleFollow('label', labelData.id)}
                                 className={`flex-1 md:flex-none px-6 py-2 font-bold rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2 ${isFollowing ? 'bg-zinc-700 text-zinc-300' : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20'}`}
                             >
                                 {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
                                 {isFollowing ? 'Following' : 'Follow'}
                             </button>
                             <button 
-                                onClick={() => startConversation(label)}
-                                className="flex-1 md:flex-none px-6 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                                onClick={() => startConversation(labelData)}
+                                className="flex-1 md:flex-none px-6 py-2 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-zinc-200 font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
                             >
                                 <MessageIcon className="w-5 h-5" /> Message
                             </button>
@@ -175,124 +133,44 @@ const LabelProfile: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Col: Info */}
+                {/* Left Col */}
                 <div className="lg:col-span-1 space-y-6">
-                    {/* Mission */}
-                    {visibility.mission && label.mission_statement && (
-                         <div className="cardSurface p-6 bg-gradient-to-br from-zinc-800 to-zinc-900 border-orange-500/20">
-                            <h3 className="text-xs font-bold text-orange-500 uppercase tracking-widest mb-3">Our Mission</h3>
-                            <p className="text-zinc-200 font-medium italic leading-relaxed">"{label.mission_statement}"</p>
+                    {visibility.mission && labelData.mission_statement && (
+                        <div className="cardSurface p-6 border-l-4 border-orange-500">
+                            <h3 className="text-xs font-bold text-orange-500 uppercase tracking-widest mb-2">Mission</h3>
+                            <p className="text-zinc-200 italic leading-relaxed">"{labelData.mission_statement}"</p>
                         </div>
                     )}
 
-                    {/* Stats / Metrics */}
-                    {visibility.metrics && label.public_metrics && (
-                        <div className="cardSurface p-6">
-                            <h3 className="text-lg font-bold text-zinc-100 mb-4 flex items-center gap-2"><ChartBarIcon className="w-5 h-5 text-purple-400"/> Key Results</h3>
-                            <div className="space-y-4">
-                                {label.public_metrics.total_streams && (
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-zinc-400 text-sm">Total Streams</span>
-                                        <span className="font-mono text-zinc-100 font-bold">{(label.public_metrics.total_streams / 1000000).toFixed(1)}M+</span>
-                                    </div>
-                                )}
-                                {label.public_metrics.charted_records && (
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-zinc-400 text-sm">Charted Records</span>
-                                        <span className="font-mono text-zinc-100 font-bold">{label.public_metrics.charted_records}</span>
-                                    </div>
-                                )}
-                                {label.public_metrics.certifications && (
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-zinc-400 text-sm">Certifications</span>
-                                        <span className="font-mono text-yellow-400 font-bold">{label.public_metrics.certifications}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Info Card */}
                     <div className="cardSurface p-6">
-                        <h3 className="text-lg font-bold text-zinc-100 mb-4 border-b border-zinc-700 pb-2">About</h3>
-                        {label.bio && (
-                            <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap mb-6">
-                                {label.bio}
-                            </p>
-                        )}
-                        
-                        <div className="space-y-3">
-                            {label.website && (
-                                <a href={label.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-zinc-400 hover:text-orange-400 transition-colors text-sm group">
-                                    <div className="p-2 bg-zinc-800 rounded-full group-hover:bg-orange-500/10"><LinkIcon className="w-4 h-4" /></div>
-                                    <span className="truncate">{label.website.replace(/^https?:\/\//, '')}</span>
-                                </a>
-                            )}
-                             <div className="flex items-center gap-3 text-zinc-400 text-sm">
-                                <div className="p-2 bg-zinc-800 rounded-full"><UsersIcon className="w-4 h-4" /></div>
-                                <span>{roster.length} Artists Signed</span>
-                            </div>
-                        </div>
+                        <h3 className="text-lg font-bold text-zinc-100 mb-4">About</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap">
+                            {labelData.bio || "No information provided yet."}
+                        </p>
                     </div>
 
-                    {/* Services */}
-                    {visibility.services && label.services_offered && label.services_offered.length > 0 && (
-                         <div className="cardSurface p-6">
-                            <h3 className="text-lg font-bold text-zinc-100 mb-4">Services</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {label.services_offered.map(service => (
-                                    <span key={service} className="text-xs font-semibold bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-full border border-zinc-700">
-                                        {service}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                     {/* Affiliations */}
-                     {visibility.partnerships && label.affiliations && label.affiliations.length > 0 && (
-                         <div className="cardSurface p-6">
-                            <h3 className="text-lg font-bold text-zinc-100 mb-4">Partners</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {label.affiliations.map(partner => (
-                                    <span key={partner} className="text-sm text-zinc-400 font-medium">
-                                        {partner} •
-                                    </span>
-                                ))}
+                    {visibility.metrics && labelData.public_metrics && (
+                        <div className="cardSurface p-6">
+                            <h3 className="text-lg font-bold text-zinc-100 mb-4 flex items-center gap-2"><ChartBarIcon className="w-5 h-5 text-orange-400"/> Stats</h3>
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-zinc-500">Streams</span>
+                                    <span className="text-zinc-200 font-bold">{(labelData.public_metrics.total_streams || 0).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-zinc-500">Charted Records</span>
+                                    <span className="text-zinc-200 font-bold">{labelData.public_metrics.charted_records || 0}</span>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Right Col: Roster & Opportunities */}
+                {/* Right Col: Roster */}
                 <div className="lg:col-span-2 space-y-8">
-                     
-                     {/* Opportunities Banner */}
-                     {visibility.opportunities && label.opportunities && (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-wrap gap-6 items-center justify-between">
-                            <div>
-                                <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2"><MapIcon className="w-5 h-5 text-green-400"/> Open Opportunities</h3>
-                                <p className="text-sm text-zinc-400">This label is currently looking for:</p>
-                            </div>
-                            <div className="flex gap-3 flex-wrap">
-                                {label.opportunities.accepting_demos && <span className="px-3 py-1 bg-green-500/10 text-green-400 text-xs font-bold rounded-full border border-green-500/20">Demos</span>}
-                                {label.opportunities.hiring_producers && <span className="px-3 py-1 bg-purple-500/10 text-purple-400 text-xs font-bold rounded-full border border-purple-500/20">Producers</span>}
-                                {label.opportunities.hiring_engineers && <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full border border-blue-500/20">Engineers</span>}
-                                {label.opportunities.scouting && <span className="px-3 py-1 bg-orange-500/10 text-orange-400 text-xs font-bold rounded-full border border-orange-500/20">New Talent</span>}
-                            </div>
-                        </div>
-                     )}
-
-                    {/* Roster */}
                     {visibility.roster && (
                         <div className="cardSurface p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-                                    Active Roster
-                                </h3>
-                                <span className="bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full">{roster.length}</span>
-                            </div>
-
+                            <h3 className="text-xl font-bold text-zinc-100 mb-6">Active Roster</h3>
                             {loading ? (
                                 <div className="py-12 flex justify-center"><div className="animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full"></div></div>
                             ) : roster.length > 0 ? (
@@ -300,27 +178,30 @@ const LabelProfile: React.FC = () => {
                                     {roster.map(artist => (
                                         <div 
                                             key={artist.id} 
-                                            onClick={() => !isSelf && viewArtistProfile(artist as any)} // Only navigate if viewing as visitor
+                                            onClick={() => !isSelf && viewArtistProfile(artist as any)}
                                             className={`bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl p-4 flex items-center gap-4 transition-all group ${!isSelf ? 'cursor-pointer' : ''}`}
                                         >
-                                            <img 
-                                                src={artist.image_url || USER_SILHOUETTE_URL} 
-                                                alt={artist.name} 
-                                                className="w-16 h-16 rounded-full object-cover border-2 border-zinc-600 group-hover:border-orange-500 transition-colors" 
-                                            />
+                                            <img src={artist.image_url || USER_SILHOUETTE_URL} alt={artist.name} className="w-14 h-14 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-all" />
                                             <div>
-                                                <h4 className="font-bold text-lg text-zinc-100 group-hover:text-orange-400 transition-colors">{artist.name}</h4>
-                                                <p className="text-zinc-500 text-xs mt-1 uppercase tracking-wide">{artist.role_in_label || 'Artist'}</p>
+                                                <h4 className="font-bold text-zinc-100 group-hover:text-orange-400 transition-colors">{artist.name}</h4>
+                                                <p className="text-zinc-500 text-xs mt-0.5 uppercase tracking-wide">{artist.role_in_label || 'Artist'}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-12 text-zinc-500 bg-zinc-900/50 rounded-lg border border-dashed border-zinc-800">
-                                    <UsersIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                                    <p>No active roster members visible.</p>
-                                </div>
+                                <p className="text-center py-12 text-zinc-500 italic">No public roster data available.</p>
                             )}
+                        </div>
+                    )}
+                    
+                    {visibility.opportunities && labelData.opportunities && (
+                        <div className="cardSurface p-6 bg-orange-500/5 border-orange-500/10">
+                            <h3 className="text-lg font-bold text-orange-400 mb-4 flex items-center gap-2"><MapIcon className="w-5 h-5"/> Opportunities</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {labelData.opportunities.accepting_demos && <span className="px-3 py-1 bg-zinc-800 text-green-400 text-xs font-bold rounded-full border border-green-500/20">Accepting Demos</span>}
+                                {labelData.opportunities.scouting && <span className="px-3 py-1 bg-zinc-800 text-orange-400 text-xs font-bold rounded-full border border-orange-500/20">Scouting Talent</span>}
+                            </div>
                         </div>
                     )}
                 </div>

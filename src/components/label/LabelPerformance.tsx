@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppState } from '../../contexts/AppContext';
 import * as apiService from '../../services/apiService';
@@ -33,7 +34,7 @@ const StatCard: React.FC<{ label: string; value: string | React.ReactNode; icon:
 );
 
 const LabelPerformance: React.FC = () => {
-    const { currentUser } = useAppState();
+    const { currentUser, userRole } = useAppState();
     const { navigate } = useNavigation();
     const [roster, setRoster] = useState<RosterMember[]>([]);
     const [bookings, setBookings] = useState<Booking[]>([]);
@@ -44,11 +45,12 @@ const LabelPerformance: React.FC = () => {
     // Initial data fetch
     useEffect(() => {
         async function load() {
-            if (!currentUser?.id) {
+            // FIX: Be extremely defensive about the label identity
+            if (!currentUser?.id || userRole !== 'LABEL') {
                 setLoading(false);
-                setError("Cannot load performance data without a logged-in label user.");
                 return;
             };
+
             setLoading(true);
             setError(null);
             try {
@@ -67,7 +69,7 @@ const LabelPerformance: React.FC = () => {
             setLoading(false);
         }
         load();
-    }, [currentUser?.id]);
+    }, [currentUser?.id, userRole]);
 
     const performanceData = useMemo(() => {
         if (roster.length === 0) {
@@ -75,13 +77,13 @@ const LabelPerformance: React.FC = () => {
         }
 
         const artistPerformances = roster.map(artist => {
-            const artistBookings = bookings.filter(b => b.artist?.id === artist.id);
+            const artistBookings = bookings.filter(b => b.artist?.id === artist.id || (b as any).artist_id === artist.id);
             const completedBookings = artistBookings.filter(b => b.status === 'COMPLETED');
             
             const totalSpentOnArtist = completedBookings.reduce((sum, b) => sum + b.total_cost, 0);
             const avgCost = completedBookings.length > 0 ? totalSpentOnArtist / completedBookings.length : 0;
             
-            const budgetInfo = budget?.artists.find(a => a.artist_id === artist.id);
+            const budgetInfo = budget?.artists?.find(a => a.artist_id === artist.id);
             const allocationRemaining = budgetInfo ? budgetInfo.allocation_amount - budgetInfo.amount_spent : null;
 
             const sortedBookings = artistBookings.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -100,7 +102,6 @@ const LabelPerformance: React.FC = () => {
             } else {
                 trend = 'down';
             }
-
 
             return {
                 ...artist,
