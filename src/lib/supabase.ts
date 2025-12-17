@@ -30,10 +30,24 @@ export async function performLogout() {
   if (!client) return;
 
   try {
-    // 1. Signal other tabs to log out immediately
-    localStorage.setItem('app:logout', String(Date.now()));
+    // 1. Signal other tabs to log out immediately if using broadcast
+    localStorage.setItem('app:logout_event', String(Date.now()));
 
-    // 2. Disconnect Realtime
+    // 2. Clear App Specific Persistence
+    const keysToRemove = [
+        'last_view', 
+        'selected_entity_id', 
+        'pending_claim_token',
+        'sb-ijcxeispefnbfwiviyux-auth'
+    ];
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    
+    // 3. Clear all keys starting with sb- (Supabase internal)
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-')) localStorage.removeItem(key);
+    });
+
+    // 4. Disconnect Realtime
     try {
         const channels = client.getChannels();
         for (const ch of channels) { client.removeChannel(ch); }
@@ -42,12 +56,8 @@ export async function performLogout() {
         console.warn('WS disconnect warning:', wsError);
     }
 
-    // 3. Global sign out (Revokes refresh tokens on server)
+    // 5. Global sign out
     await client.auth.signOut({ scope: 'global' });
-
-    // 4. Cleanup local storage
-    localStorage.removeItem('sb-ijcxeispefnbfwiviyux-auth');
-    localStorage.removeItem('last_view');
   } catch (e) {
     console.warn('Logout cleanup warning:', e);
   }

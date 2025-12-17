@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-// FIX: Import missing types
 import type { Engineer, Review, Artist, Stoodio, Producer, Post } from '../types';
 import { UserRole } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, StarIcon, CogIcon, CalendarIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, MusicNoteIcon, PhotoIcon, PlayIcon } from './icons.tsx';
@@ -38,7 +37,6 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
-            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
             <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -50,7 +48,7 @@ const ProfileCard: React.FC<{
 
 
 const EngineerProfile: React.FC = () => {
-    const { selectedEngineer, currentUser, reviews, artists, engineers, stoodioz, producers } = useAppState();
+    const { selectedEngineer, engineers, currentUser, reviews, artists, stoodioz, producers } = useAppState();
     const dispatch = useAppDispatch();
     const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
     const { toggleFollow, likePost, commentOnPost } = useSocial();
@@ -63,21 +61,36 @@ const EngineerProfile: React.FC = () => {
     const [posts, setPosts] = useState<Post[]>([]);
 
     useEffect(() => {
-        if (selectedEngineer?.id) {
-            // Check if full details (like mixing_samples) are present. If not, JIT fetch.
-            // mixing_samples might be null or undefined in lightweight object
-            if (!selectedEngineer.mixing_samples) {
-                setIsLoadingDetails(true);
-                fetchFullEngineer(selectedEngineer.id).then(fullData => {
-                     if (fullData) setEngineer(fullData);
-                     setIsLoadingDetails(false);
-                });
-            } else {
+        const resolveEngineer = async () => {
+            if (selectedEngineer) {
                 setEngineer(selectedEngineer);
+                if (!selectedEngineer.mixing_samples) {
+                    setIsLoadingDetails(true);
+                    const fullData = await fetchFullEngineer(selectedEngineer.id);
+                    if (fullData) setEngineer(fullData);
+                    setIsLoadingDetails(false);
+                }
+                fetchUserPosts(selectedEngineer.id).then(setPosts);
+                return;
             }
-            fetchUserPosts(selectedEngineer.id).then(setPosts);
-        }
-    }, [selectedEngineer]);
+
+            const savedId = localStorage.getItem('selected_entity_id');
+            if (savedId) {
+                setIsLoadingDetails(true);
+                const existing = engineers.find(e => e.id === savedId);
+                if (existing) setEngineer(existing);
+                
+                const fullData = await fetchFullEngineer(savedId);
+                if (fullData) {
+                    setEngineer(fullData);
+                    fetchUserPosts(fullData.id).then(setPosts);
+                }
+                setIsLoadingDetails(false);
+            }
+        };
+
+        resolveEngineer();
+    }, [selectedEngineer, engineers]);
 
     const mediaItems = useMemo(() => {
         return posts.filter(p => p.image_url || p.video_url).map(p => ({
@@ -90,42 +103,41 @@ const EngineerProfile: React.FC = () => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [time, setTime] = useState('12:00');
 
-    if (!engineer) {
+    if (!engineer && !isLoadingDetails) {
         return (
             <div className="text-center text-zinc-400 py-20">
                 <p>Engineer not found.</p>
-                <button onClick={goBack} className="mt-4 text-orange-400">Go Back</button>
+                <button onClick={goBack} className="mt-4 text-orange-400 hover:underline font-bold">Go Back</button>
+            </div>
+        );
+    }
+    
+    if (!engineer || isLoadingDetails) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+                <p className="text-zinc-500 font-medium">Loading profile...</p>
             </div>
         );
     }
     
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.engineers || []).includes(engineer.id)) : false;
-
-    // FIX: Corrected property name from 'engineerId' to 'engineer_id'
     const engineerReviews = reviews.filter(r => r.engineer_id === engineer.id);
-    
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
     const followers = useMemo(() => allUsers.filter(u => (engineer.follower_ids || []).includes(u.id)), [allUsers, engineer.follower_ids]);
     
     const following = engineer.following || { artists: [], engineers: [], stoodioz: [], producers: [] };
-    const followedArtists = useMemo(() => artists.filter(a => (following.artists || []).includes(a.id)), [artists, following.artists]);
-    const followedEngineers = useMemo(() => engineers.filter(e => (following.engineers || []).includes(e.id)), [engineers, following.engineers]);
-    const followedStoodioz = useMemo(() => stoodioz.filter(s => (following.stoodioz || []).includes(s.id)), [stoodioz, following.stoodioz]);
-    const followedProducers = useMemo(() => producers.filter(p => (following.producers || []).includes(p.id)), [producers, following.producers]);
+    const followedArtists = artists.filter(a => (following.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (following.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (following.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (following.producers || []).includes(p.id));
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const sortedPosts = useMemo(() => posts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), [posts]);
 
-    const handleBookClick = () => {
-        initiateBookingWithEngineer(engineer, date, time);
-    };
-
+    const handleBookClick = () => { initiateBookingWithEngineer(engineer, date, time); };
     const onOpenMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: true } });
-
-    // FIX: Corrected property name from 'mixingServices' to 'mixing_services' and 'isEnabled' to 'is_enabled'
     const canRequestMix = engineer.mixing_services?.is_enabled && currentUser && currentUser.id !== engineer.id;
-
 
     return (
         <div>
@@ -136,7 +148,6 @@ const EngineerProfile: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-12">
                 <div className="p-8 cardSurface">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-                        {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
                         <img src={engineer.image_url} alt={engineer.name} className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-zinc-700 flex-shrink-0" />
                         <div className="text-center sm:text-left flex-grow">
                             <h1 className="text-4xl font-extrabold text-orange-500">{engineer.name}</h1>
@@ -182,7 +193,6 @@ const EngineerProfile: React.FC = () => {
                     </div>
                 </div>
 
-                {/* FIX: Corrected property name from 'isEnabled' to 'is_enabled' */}
                 {engineer.masterclass?.is_enabled && (
                     <MasterclassCard 
                         masterclass={engineer.masterclass}
@@ -193,11 +203,9 @@ const EngineerProfile: React.FC = () => {
                 )}
                 
                 <div>
-                    {/* FIX: Corrected property name from 'mixingSamples' to 'mixing_samples' */}
                     {isLoadingDetails ? <p className="text-center text-zinc-500">Loading samples...</p> : <MixingSamplePlayer mixingSamples={engineer.mixing_samples || []} />}
                 </div>
 
-                 {/* Recent Media Gallery */}
                  {mediaItems.length > 0 && (
                     <div className="mb-8">
                         <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2">
@@ -234,23 +242,6 @@ const EngineerProfile: React.FC = () => {
                         </button>
                     </div>
                 </div>
-
-                 {engineer.links && engineer.links.length > 0 && (
-                    <div>
-                        <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><LinkIcon className="w-6 h-6" /> Links</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {engineer.links.map(link => (
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="p-3 transition-colors flex items-center gap-3 cardSurface">
-                                    <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
-                                    <div className="overflow-hidden">
-                                        <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>
-                                        <p className="text-xs text-slate-400 truncate">{link.url}</p>
-                                    </div>
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
                 <div>
                     <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UsersIcon className="w-6 h-6" /> Followers ({followers.length})</h3>

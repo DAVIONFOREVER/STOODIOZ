@@ -1,6 +1,5 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-// FIX: Import missing types
 import type { Producer, Artist, Stoodio, Engineer, Instrumental, Post } from '../types';
 import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, DollarSignIcon, CalendarIcon, MusicNoteIcon, StarIcon, PhotoIcon, PlayIcon } from './icons';
 import PostFeed from './PostFeed';
@@ -48,7 +47,7 @@ const ProfileCard: React.FC<{
 };
 
 const ProducerProfile: React.FC = () => {
-    const { selectedProducer, currentUser, artists, engineers, stoodioz, producers, userRole } = useAppState();
+    const { selectedProducer, producers, currentUser, artists, engineers, stoodioz, userRole } = useAppState();
     const dispatch = useAppDispatch();
     
     const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, navigate } = useNavigation();
@@ -63,20 +62,38 @@ const ProducerProfile: React.FC = () => {
     const [posts, setPosts] = useState<Post[]>([]);
 
     useEffect(() => {
-        if (selectedProducer?.id) {
-             // JIT Fetch for instrumentals
-            if (!selectedProducer.instrumentals) {
-                 setIsLoadingDetails(true);
-                 fetchFullProducer(selectedProducer.id).then(fullData => {
-                     if(fullData) setProducer(fullData);
-                     setIsLoadingDetails(false);
-                 });
-            } else {
+        const resolveProducer = async () => {
+            // Priority 1: Current state object
+            if (selectedProducer) {
                 setProducer(selectedProducer);
+                if (!selectedProducer.instrumentals) {
+                    setIsLoadingDetails(true);
+                    const fullData = await fetchFullProducer(selectedProducer.id);
+                    if (fullData) setProducer(fullData);
+                    setIsLoadingDetails(false);
+                }
+                fetchUserPosts(selectedProducer.id).then(setPosts);
+                return;
             }
-            fetchUserPosts(selectedProducer.id).then(setPosts);
-        }
-    }, [selectedProducer]);
+
+            // Priority 2: Recover from persisted ID
+            const savedId = localStorage.getItem('selected_entity_id');
+            if (savedId) {
+                setIsLoadingDetails(true);
+                const existing = producers.find(p => p.id === savedId);
+                if (existing) setProducer(existing);
+                
+                const fullData = await fetchFullProducer(savedId);
+                if (fullData) {
+                    setProducer(fullData);
+                    fetchUserPosts(fullData.id).then(setPosts);
+                }
+                setIsLoadingDetails(false);
+            }
+        };
+
+        resolveProducer();
+    }, [selectedProducer, producers]);
 
     const mediaItems = useMemo(() => {
         return posts.filter(p => p.image_url || p.video_url).map(p => ({
@@ -86,26 +103,34 @@ const ProducerProfile: React.FC = () => {
         }));
     }, [posts]);
 
-    if (!producer) {
+    if (!producer && !isLoadingDetails) {
         return (
             <div className="text-center text-zinc-400 py-20">
                 <p>Producer not found.</p>
-                <button onClick={goBack} className="mt-4 text-orange-400">Go Back</button>
+                <button onClick={goBack} className="mt-4 text-orange-400 hover:underline font-bold">Go Back</button>
+            </div>
+        );
+    }
+    
+    if (!producer || isLoadingDetails) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+                <p className="text-zinc-500 font-medium">Loading profile...</p>
             </div>
         );
     }
     
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.producers || []).includes(producer.id)) : false;
     
-    const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
-    const followers = useMemo(() => allUsers.filter(u => (producer.follower_ids || []).includes(u.id)), [allUsers, producer.follower_ids]);
+    const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
+    const followers = allUsers.filter(u => (producer.follower_ids || []).includes(u.id));
 
     const following = producer.following || { artists: [], engineers: [], stoodioz: [], producers: [] };
-    const followedArtists = useMemo(() => artists.filter(a => (following.artists || []).includes(a.id)), [artists, following.artists]);
-    const followedEngineers = useMemo(() => engineers.filter(e => (following.engineers || []).includes(e.id)), [engineers, following.engineers]);
-    const followedStoodioz = useMemo(() => stoodioz.filter(s => (following.stoodioz || []).includes(s.id)), [stoodioz, following.stoodioz]);
-    const followedProducers = useMemo(() => producers.filter(p => (following.producers || []).includes(p.id)), [producers, following.producers]);
+    const followedArtists = artists.filter(a => (following.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (following.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (following.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (following.producers || []).includes(p.id));
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
 
     const handlePurchaseClick = (instrumental: Instrumental) => {
@@ -140,10 +165,10 @@ const ProducerProfile: React.FC = () => {
     const isSelf = currentUser?.id === producer.id;
 
     return (
-        <div>
+        <div className="animate-fade-in">
             <button onClick={goBack} className="flex items-center gap-2 text-slate-400 hover:text-orange-400 mb-6 transition-colors font-semibold">
                 <ChevronLeftIcon className="w-5 h-5" />
-                Back to Producers
+                Back
             </button>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
@@ -205,17 +230,15 @@ const ProducerProfile: React.FC = () => {
                         <div className="mb-8 inline-block bg-green-500/10 text-green-300 font-bold py-2 px-4 rounded-lg">
                             <span className="flex items-center gap-2">
                                 <DollarSignIcon className="w-5 h-5"/>
-                                {/* FIX: Corrected property name from 'pullUpPrice' to 'pull_up_price' */}
                                 <span>"Pull Up" Session Fee: ${producer.pull_up_price}</span>
                             </span>
                         </div>
                     )}
 
                     <div className="mb-10">
-                         {isLoadingDetails ? <p className="text-zinc-500 text-center">Loading beats...</p> : <InstrumentalPlayer instrumentals={producer.instrumentals || []} onPurchase={handlePurchaseClick} />}
+                         <InstrumentalPlayer instrumentals={producer.instrumentals || []} onPurchase={handlePurchaseClick} />
                     </div>
 
-                    {/* Recent Media Gallery */}
                     {mediaItems.length > 0 && (
                         <div className="mb-10">
                             <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2">
@@ -248,7 +271,6 @@ const ProducerProfile: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Right Column: Sidebar */}
                 <div className="lg:col-span-2 space-y-8">
                      {producer.links && producer.links.length > 0 && (
                         <div>

@@ -14,6 +14,7 @@ export const useNavigation = () => {
         dispatch({ type: ActionTypes.NAVIGATE, payload: { view } });
         if ([AppView.STOODIO_LIST, AppView.ARTIST_LIST, AppView.ENGINEER_LIST, AppView.PRODUCER_LIST, AppView.MAP_VIEW, AppView.LABEL_IMPORT].includes(view)) {
             dispatch({ type: ActionTypes.RESET_PROFILE_SELECTIONS });
+            localStorage.removeItem('selected_entity_id');
         }
     }, [dispatch]);
 
@@ -21,28 +22,31 @@ export const useNavigation = () => {
     const goForward = useCallback(() => dispatch({ type: ActionTypes.GO_FORWARD }), [dispatch]);
     
     const viewStoodioDetails = useCallback((stoodio: Stoodio) => {
+        localStorage.setItem('selected_entity_id', stoodio.id);
         dispatch({ type: ActionTypes.VIEW_STOODIO_DETAILS, payload: { stoodio } });
         navigate(AppView.STOODIO_DETAIL);
     }, [dispatch, navigate]);
 
     const viewArtistProfile = useCallback((artist: Artist) => {
+        localStorage.setItem('selected_entity_id', artist.id);
         dispatch({ type: ActionTypes.VIEW_ARTIST_PROFILE, payload: { artist } });
         navigate(AppView.ARTIST_PROFILE);
     }, [dispatch, navigate]);
 
     const viewEngineerProfile = useCallback((engineer: Engineer) => {
+        localStorage.setItem('selected_entity_id', engineer.id);
         dispatch({ type: ActionTypes.VIEW_ENGINEER_PROFILE, payload: { engineer } });
         navigate(AppView.ENGINEER_PROFILE);
     }, [dispatch, navigate]);
 
     const viewProducerProfile = useCallback((producer: Producer) => {
+        localStorage.setItem('selected_entity_id', producer.id);
         dispatch({ type: ActionTypes.VIEW_PRODUCER_PROFILE, payload: { producer } });
         navigate(AppView.PRODUCER_PROFILE);
     }, [dispatch, navigate]);
     
     const viewLabelProfile = useCallback((label: Label) => {
-        // CRITICAL FIX: Ensure the label object is put into the 'selectedLabel' slot 
-        // in the global state before navigating to the profile view.
+        localStorage.setItem('selected_entity_id', label.id);
         dispatch({ type: ActionTypes.VIEW_LABEL_PROFILE, payload: { label } });
         navigate(AppView.LABEL_PROFILE);
     }, [dispatch, navigate]);

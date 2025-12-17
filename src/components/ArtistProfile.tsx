@@ -1,14 +1,14 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Post } from '../types';
-import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, PhotoIcon, PlayIcon, MagicWandIcon } from './icons';
+import { ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, PhotoIcon, PlayIcon } from './icons';
 import PostFeed from './PostFeed';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
-import { fetchUserPosts } from '../services/apiService';
-import { ARIA_EMAIL } from '../constants';
+import { fetchUserPosts, fetchFullArtist } from '../services/apiService';
+import { ARIA_EMAIL, USER_SILHOUETTE_URL } from '../constants';
 
 const ProfileCard: React.FC<{
     profile: Stoodio | Engineer | Artist | Producer;
@@ -33,7 +33,6 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
-            {/* FIX: Corrected property name from 'imageUrl' to 'image_url' */}
             <img src={profile.image_url} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
                 <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
@@ -44,29 +43,40 @@ const ProfileCard: React.FC<{
 };
 
 const ArtistProfile: React.FC = () => {
-    const { 
-        selectedArtist, 
-        currentUser,
-        artists,
-        engineers,
-        stoodioz,
-        producers,
-    } = useAppState();
+    const { selectedArtist, artists, currentUser, engineers, stoodioz, producers } = useAppState();
     const dispatch = useAppDispatch();
-
     const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
     const { toggleFollow, likePost, commentOnPost } = useSocial();
     const { startConversation } = useMessaging(useNavigation().navigate);
 
-    const artist = selectedArtist;
+    const [artist, setArtist] = useState<Artist | null>(selectedArtist);
+    const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [posts, setPosts] = useState<Post[]>([]);
 
     useEffect(() => {
-        if (artist?.id) {
-            // Fetch fresh posts for the public profile
-            fetchUserPosts(artist.id).then(setPosts);
-        }
-    }, [artist?.id]);
+        const resolveArtist = async () => {
+            if (selectedArtist) {
+                setArtist(selectedArtist);
+                fetchUserPosts(selectedArtist.id).then(setPosts);
+                return;
+            }
+
+            const savedId = localStorage.getItem('selected_entity_id');
+            if (savedId) {
+                setIsLoadingDetails(true);
+                const existing = artists.find(a => a.id === savedId);
+                if (existing) setArtist(existing);
+                
+                const fullData = await fetchFullArtist(savedId);
+                if (fullData) {
+                    setArtist(fullData);
+                    fetchUserPosts(fullData.id).then(setPosts);
+                }
+                setIsLoadingDetails(false);
+            }
+        };
+        resolveArtist();
+    }, [selectedArtist, artists]);
 
     const mediaItems = useMemo(() => {
         return posts.filter(p => p.image_url || p.video_url).map(p => ({
@@ -76,36 +86,34 @@ const ArtistProfile: React.FC = () => {
         }));
     }, [posts]);
 
-    if (!artist) {
+    if (!artist && !isLoadingDetails) {
         return (
-            <div className="text-center text-zinc-400">
+            <div className="text-center text-zinc-400 py-20">
                 <p>Artist not found.</p>
-                <button onClick={goBack} className="mt-4 text-orange-400">Go Back</button>
+                <button onClick={goBack} className="mt-4 text-orange-400 hover:underline font-bold">Go Back</button>
+            </div>
+        );
+    }
+    
+    if (!artist || isLoadingDetails) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full"></div>
+                <p className="text-zinc-500 font-medium">Loading profile...</p>
             </div>
         );
     }
     
     const isFollowing = currentUser ? ('following' in currentUser && (currentUser.following.artists || []).includes(artist.id)) : false;
-    const isAria = artist.email === ARIA_EMAIL;
-    
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    // FIX: Corrected property name from 'followerIds' to 'follower_ids' to match the type definition.
     const followers = useMemo(() => allUsers.filter(u => (artist.follower_ids || []).includes(u.id)), [allUsers, artist.follower_ids]);
 
-    const followedArtists = useMemo(() => artists.filter(a => (artist.following?.artists || []).includes(a.id)), [artists, artist.following?.artists]);
-    const followedEngineers = useMemo(() => engineers.filter(e => (artist.following?.engineers || []).includes(e.id)), [engineers, artist.following?.engineers]);
-    const followedStoodioz = useMemo(() => stoodioz.filter(s => (artist.following?.stoodioz || []).includes(s.id)), [stoodioz, artist.following?.stoodioz]);
-    const followedProducers = useMemo(() => producers.filter(p => (artist.following?.producers || []).includes(p.id)), [producers, artist.following?.producers]);
+    const following = artist.following || { artists: [], engineers: [], stoodioz: [], producers: [] };
+    const followedArtists = artists.filter(a => (following.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (following.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (following.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (following.producers || []).includes(p.id));
     const followingCount = followedArtists.length + followedEngineers.length + followedStoodioz.length + followedProducers.length;
-
-    const handleMessageClick = () => {
-        if (!currentUser) return;
-        if (isAria) {
-            dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
-        } else {
-            startConversation(artist);
-        }
-    };
 
     return (
         <div>
@@ -115,37 +123,28 @@ const ArtistProfile: React.FC = () => {
             </button>
             
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-                {/* Left Column: Info & Feed */}
                 <div className="lg:col-span-3">
-                     <img 
-                        src={artist.cover_image_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'} 
-                        alt={`${artist.name}'s cover`}
-                        className="w-full h-64 object-cover rounded-2xl mb-6 shadow-lg"
-                    />
-
+                     <img src={artist.cover_image_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'} alt={`${artist.name}'s cover`} className="w-full h-64 object-cover rounded-2xl mb-6 shadow-lg" />
                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-4">
                         <div className="flex items-start gap-4">
-                             <img src={artist.image_url} alt={artist.name} className={`w-24 h-24 rounded-full object-cover border-4 border-zinc-700 -mt-12 shadow-lg flex-shrink-0 ${isAria ? 'ring-4 ring-orange-500/50' : ''}`} />
+                             <img src={artist.image_url} alt={artist.name} className="w-24 h-24 rounded-full object-cover border-4 border-zinc-700 -mt-12 shadow-lg flex-shrink-0" />
                              <div>
-                                <h1 className="text-4xl font-extrabold text-orange-500 flex items-center gap-2">
-                                    {artist.name}
-                                    {isAria && <span className="bg-gradient-to-r from-orange-500 to-purple-600 text-white text-xs px-2 py-0.5 rounded-full font-bold uppercase">AI</span>}
-                                </h1>
+                                <h1 className="text-4xl font-extrabold text-orange-500">{artist.name}</h1>
                                 <p className="text-zinc-400 mt-1">Remote</p>
                             </div>
                         </div>
                          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                             <button 
-                                onClick={handleMessageClick}
+                                onClick={() => currentUser && startConversation(artist)}
                                 disabled={!currentUser || currentUser.id === artist.id}
-                                className={`w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isAria ? 'bg-gradient-to-r from-orange-500 to-purple-600 text-white hover:opacity-90' : 'bg-zinc-700 text-slate-100 hover:bg-zinc-600'}`}
+                                className="w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md bg-zinc-700 text-slate-100 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isAria ? <MagicWandIcon className="w-5 h-5" /> : <MessageIcon className="w-5 h-5" />}
-                                {isAria ? "Ask Aria" : "Message"}
+                                <MessageIcon className="w-5 h-5" />
+                                Message
                             </button>
                             <button 
                                 onClick={() => currentUser && toggleFollow('artist', artist.id)}
-                                disabled={!currentUser || currentUser.id === artist.id || isAria}
+                                disabled={!currentUser || currentUser.id === artist.id || artist.email === ARIA_EMAIL}
                                 className={`flex-shrink-0 w-full sm:w-auto px-6 py-3 rounded-lg text-base font-bold transition-colors duration-200 flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${isFollowing ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-orange-400 border-2 border-orange-400 hover:bg-zinc-600'}`}
                             >
                                 {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
@@ -153,43 +152,27 @@ const ArtistProfile: React.FC = () => {
                             </button>
                         </div>
                     </div>
-
                     <p className="text-slate-300 leading-relaxed mt-4 mb-8">{artist.bio}</p>
 
-                    {/* Recent Media Gallery */}
                     {mediaItems.length > 0 && (
                         <div className="mb-10">
-                            <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2">
-                                <PhotoIcon className="w-6 h-6 text-orange-400" /> Recent Media
-                            </h3>
+                            <h3 className="text-2xl font-bold mb-4 text-slate-100 flex items-center gap-2"><PhotoIcon className="w-6 h-6 text-orange-400" /> Recent Media</h3>
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                                 {mediaItems.slice(0, 8).map(item => (
                                     <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700 group cursor-pointer">
                                         <img src={item.url} alt="Media" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                                        {item.type === 'video' && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
-                                                <PlayIcon className="w-8 h-8 text-white drop-shadow-lg" />
-                                            </div>
-                                        )}
+                                        {item.type === 'video' && <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors"><PlayIcon className="w-8 h-8 text-white drop-shadow-lg" /></div>}
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
-
                     <div className="mb-10">
                          <h3 className="text-2xl font-bold mb-4 text-slate-100">Posts</h3>
-                         <PostFeed 
-                            posts={posts}
-                            authors={new Map([[artist.id, artist]])}
-                            onLikePost={likePost}
-                            onCommentOnPost={commentOnPost}
-                            onSelectAuthor={() => viewArtistProfile(artist)}
-                         />
+                         <PostFeed posts={posts} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewArtistProfile(artist)} />
                     </div>
                 </div>
 
-                {/* Right Column: Sidebar */}
                 <div className="lg:col-span-2 space-y-8">
                      {artist.links && artist.links.length > 0 && (
                         <div>
@@ -198,16 +181,12 @@ const ArtistProfile: React.FC = () => {
                                 {artist.links.map(link => (
                                     <a href={link.url} target="_blank" rel="noopener noreferrer" key={link.url} className="p-3 transition-colors flex items-center gap-3 cardSurface hover:bg-zinc-800">
                                         <LinkIcon className="w-5 h-5 text-slate-400 flex-shrink-0"/>
-                                        <div className="overflow-hidden">
-                                            <p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p>
-                                            <p className="text-xs text-slate-400 truncate">{link.url}</p>
-                                        </div>
+                                        <div className="overflow-hidden"><p className="font-semibold text-sm text-slate-200 truncate">{link.title}</p><p className="text-xs text-slate-400 truncate">{link.url}</p></div>
                                     </a>
                                 ))}
                             </div>
                         </div>
                     )}
-
                     <div>
                         <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UsersIcon className="w-5 h-5" /> Followers ({followers.length})</h3>
                         {followers.length > 0 ? (
@@ -225,7 +204,6 @@ const ArtistProfile: React.FC = () => {
                             </div>
                         ) : <p className="text-slate-400">No followers yet.</p>}
                     </div>
-
                     <div>
                         <h3 className="text-xl font-bold mb-4 text-slate-100 flex items-center gap-2"><UserCheckIcon className="w-5 h-5" /> Following ({followingCount})</h3>
                         {followingCount > 0 ? (
