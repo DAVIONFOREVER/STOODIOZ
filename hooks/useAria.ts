@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
@@ -111,7 +110,8 @@ export const useAria = (deps: AriaHookDependencies) => {
                             ...( 'amenities' in target ? { room: (target as any).rooms?.[0] } : {} )
                         };
                         try {
-                           const newBooking = await apiService.createBooking(request, target as any, currentUser, userRole!);
+                           // FIX: Explicitly cast return from createBooking as Booking to resolve type mismatch.
+                           const newBooking = (await apiService.createBooking(request, target as any, currentUser, userRole!)) as Booking;
                            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: newBooking } });
                            alert(`Aria: Session booked at ${target.name}. Check your schedule.`);
                            onClose();

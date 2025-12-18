@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
-import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
+import type { UserRole, Artist, Engineer, Stoodio, Producer, Label, BaseUser } from '../types';
 import { UserRole as UserRoleEnum } from '../types';
 import { getSupabase, performLogout } from '../lib/supabase';
 
@@ -34,9 +34,10 @@ export const useAuth = (navigate: (view: any) => void) => {
         if (data.user) {
             const result = await apiService.fetchCurrentUserProfile(data.user.id);
             if (result) {
+                // FIX: Explicitly cast result.user as any to satisfy Union type requirement in payload.
                 dispatch({ 
                     type: ActionTypes.LOGIN_SUCCESS, 
-                    payload: { user: result.user, role: result.role } 
+                    payload: { user: result.user as any, role: result.role } 
                 });
             } else {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Profile not found." } });

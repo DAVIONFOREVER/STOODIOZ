@@ -1,4 +1,3 @@
-
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -49,7 +48,8 @@ export const useBookings = (navigate: (view: AppView) => void) => {
         const bookingToCancel = bookings.find(b => b.id === bookingId);
         if (!currentUser || !bookingToCancel) return;
         try {
-            const updatedBooking = await apiService.cancelBooking(bookingToCancel);
+            // FIX: Explicitly cast return from cancelBooking to resolve unknown type error.
+            const updatedBooking = (await apiService.cancelBooking(bookingToCancel)) as Booking;
             dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: bookings.map(b => b.id === bookingId ? updatedBooking : b) } });
         } catch (error) {
             console.error("Failed to cancel booking:", error);
@@ -81,9 +81,11 @@ export const useBookings = (navigate: (view: AppView) => void) => {
         }
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
-            const updatedBooking = await apiService.acceptJob(booking, currentUser as Engineer);
+            // FIX: Explicitly cast return from acceptJob as Booking to resolve unknown type in following filter map.
+            const updatedBooking = (await apiService.acceptJob(booking, currentUser as Engineer)) as Booking;
             const updatedBookings = bookings.map(b => b.id === booking.id ? updatedBooking : b);
-            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: updatedBookings } });
+            // FIX: Ensure updatedBookings is identified as Booking[] to match action payload requirement.
+            dispatch({ type: ActionTypes.SET_BOOKINGS, payload: { bookings: updatedBookings as Booking[] } });
             navigate(AppView.MY_BOOKINGS);
         } catch (error) {
             console.error("Failed to accept job:", error);

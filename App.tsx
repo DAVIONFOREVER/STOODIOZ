@@ -18,7 +18,7 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { getSupabase } from './lib/supabase.ts';
+import { getSupabase, performLogout } from './lib/supabase.ts';
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
@@ -81,13 +81,6 @@ const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassMo
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
-    if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
-            </div>
-        );
-    }
     return (
         <div className="flex justify-center items-center py-20">
             <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -166,23 +159,40 @@ const App: React.FC = () => {
             if (isHydratingRef.current) return;
             isHydratingRef.current = true;
 
+            // Timeout safety (Supabase Rec #2)
+            const timeoutId = setTimeout(async () => {
+                if (isHydratingRef.current) {
+                    console.warn("Hydration timeout. Clearing zombie session.");
+                    await performLogout();
+                    dispatch({ type: ActionTypes.LOGOUT });
+                }
+            }, 5000);
+
             try {
                 const res = await apiService.fetchCurrentUserProfile(userId);
                 if (res) {
-                    dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+                    // FIX: Explicitly cast res.user as any to satisfy Union type requirement in payload.
+                    dispatch({ 
+                        type: ActionTypes.LOGIN_SUCCESS, 
+                        payload: { user: res.user as any, role: res.role } 
+                    });
                 } else if (isInitial) {
-                    await logout();
+                    // Profile exists in Auth but not in DB -> Ghost session
+                    await performLogout();
+                    dispatch({ type: ActionTypes.LOGOUT });
                 }
             } catch (error) {
-                console.warn("Hydration failed", error);
+                console.warn("Hydration error. Potential JWT loop. Resetting.");
+                await performLogout();
+                dispatch({ type: ActionTypes.LOGOUT });
             } finally {
+                clearTimeout(timeoutId);
                 isHydratingRef.current = false;
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
 
         const initSession = async () => {
-            // Initial check: if we have a supabase session, start silent loading
             const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id, true);
@@ -257,7 +267,7 @@ const App: React.FC = () => {
             case AppView.ENGINEER_PROFILE: return <EngineerProfile />;
             case AppView.PRODUCER_LIST: return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
             case AppView.PRODUCER_PROFILE: return <ProducerProfile />;
-            case AppView.THE_STAGE: return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
+            case AppView.THE_STAGE: return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio= {viewStoodioDetails} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
             case AppView.VIBE_MATCHER_RESULTS: return <VibeMatcherResults onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onBack={() => navigate(AppView.ARTIST_DASHBOARD)} />;
             case AppView.ARTIST_DASHBOARD: return <ArtistDashboard />;
             case AppView.STOODIO_DASHBOARD: return <StoodioDashboard />;
@@ -298,13 +308,8 @@ const App: React.FC = () => {
         return renderView();
     };
 
-    // SILENT HYDRATION:
-    // Only show full-screen spinner if we are explicitly in an "isLoading" state that ISN'T the initial hydration
-    // Initial hydration is now handled silently by checking for currentUser in initSession.
-    
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
-            {/* Tiny top loading bar for background tasks */}
             {isLoading && !currentUser && (
                  <div className="fixed top-0 left-0 w-full h-1 bg-orange-500/20 z-[1000] overflow-hidden">
                     <div className="h-full bg-orange-500 animate-gradient-flow w-1/2 rounded-full shadow-[0_0_10px_#f97316]"></div>
@@ -313,9 +318,16 @@ const App: React.FC = () => {
 
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {renderViewProxy()}
-                </Suspense>
+                {isLoading && !currentUser ? (
+                    <div className="flex flex-col items-center justify-center py-32 space-y-4">
+                        <LoadingSpinner currentUser={currentUser} />
+                        <p className="text-zinc-500 font-medium animate-pulse">Syncing Stoodioz profile...</p>
+                    </div>
+                ) : (
+                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                        {renderViewProxy()}
+                    </Suspense>
+                )}
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}

@@ -75,9 +75,12 @@ const ArtistProfile: React.FC = () => {
                 setIsLoadingDetails(true);
                 const existing = artists.find(a => a.id === savedId);
                 if (existing) setArtist(existing);
-                const fullData = await fetchFullArtist(savedId);
+                // FIX: Explicitly cast return from fetchFullArtist as Artist to resolve unknown type error.
+                const fullData = (await fetchFullArtist(savedId)) as Artist;
                 if (fullData) {
-                    setArtist(fullData);
+                    // FIX: Ensure fullData is identified as Artist for setState.
+                    setArtist(fullData as Artist);
+                    // FIX: access .id safely on typed fullData.
                     fetchUserPosts(fullData.id).then(setPosts);
                 }
                 setIsLoadingDetails(false);

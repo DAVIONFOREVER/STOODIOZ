@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
-import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon } from './icons';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon, EyeIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
 import AvailabilityManager from './AvailabilityManager';
@@ -16,6 +16,7 @@ import * as apiService from '../services/apiService';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
+import { fetchUserPosts } from '../services/apiService';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -226,6 +227,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 const StoodioDashboard: React.FC = () => {
     const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations } = useAppState();
     const dispatch = useAppDispatch();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
     
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
@@ -257,6 +259,39 @@ const StoodioDashboard: React.FC = () => {
         }
     }, [dashboardInitialTab, dispatch]);
 
+    // Fetch user specific posts
+    const refreshPosts = async () => {
+        if (stoodio.id) {
+            const posts = await fetchUserPosts(stoodio.id);
+            setMyPosts(posts);
+        }
+    };
+
+    useEffect(() => {
+        refreshPosts();
+    }, [stoodio.id]);
+
+    const handleNewPost = async (postData: any) => {
+        // Optimistic update
+        const tempPost: Post = {
+            id: `temp-${Date.now()}`,
+            authorId: stoodio.id,
+            authorType: UserRole.STOODIO,
+            text: postData.text,
+            image_url: postData.imageUrl,
+            video_url: postData.videoUrl,
+            video_thumbnail_url: postData.videoThumbnailUrl,
+            link: postData.link,
+            timestamp: new Date().toISOString(),
+            likes: [],
+            comments: []
+        };
+        setMyPosts(prev => [tempPost, ...prev]);
+
+        await createPost(postData, UserRole.STOODIO);
+        refreshPosts();
+    };
+
     // --- Profile & Cover Photo Handlers ---
     const handleImageUploadClick = () => fileInputRef.current?.click();
     const handleCoverImageUploadClick = () => coverImageInputRef.current?.click();
@@ -265,7 +300,8 @@ const StoodioDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => updateProfile({ image_url: e.target?.result as string });
+            // FIX: Ensure correct cast for result when updating profile.
+            reader.onload = (e) => updateProfile({ image_url: (e.target?.result as string) || '' });
             reader.readAsDataURL(file);
         }
     };
@@ -274,7 +310,8 @@ const StoodioDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => updateProfile({ cover_image_url: e.target?.result as string });
+            // FIX: Ensure correct cast for result when updating profile.
+            reader.onload = (e) => updateProfile({ cover_image_url: (e.target?.result as string) || '' });
             reader.readAsDataURL(file);
         }
     };
@@ -460,7 +497,7 @@ const StoodioDashboard: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             <CreatePost currentUser={currentUser!} onPost={createPost} />
-                            <PostFeed posts={stoodio.posts || []} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
+                            <PostFeed posts={myPosts} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">
                             {!isProPlan && <UpgradeProCard onNavigate={navigate} />}
@@ -488,8 +525,8 @@ const StoodioDashboard: React.FC = () => {
                 </button>
                 <input
                     type="file"
-                    ref={coverImageInputRef}
-                    onChange={handleCoverFileChange}
+                    ref={coverInputRef}
+                    onChange={handleCoverChange}
                     className="hidden"
                     accept="image/*"
                 />
@@ -518,7 +555,14 @@ const StoodioDashboard: React.FC = () => {
                                 <p className="text-zinc-400 mt-1">Stoodio Dashboard</p>
                             </div>
                         </div>
-                        <div className="flex-shrink-0">
+                        <div className="flex flex-col items-end gap-3">
+                             <button
+                                onClick={() => viewStoodioDetails(stoodio)}
+                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md w-full sm:w-auto justify-center"
+                            >
+                                <EyeIcon className="w-4 h-4" />
+                                View Public Profile
+                            </button>
                             <label className="flex items-center cursor-pointer self-center sm:self-auto">
                                 <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
                                 <div className="relative">

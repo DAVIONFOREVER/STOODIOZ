@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DollarSignIcon, ChartBarIcon, CalendarIcon, UsersIcon, BanknotesIcon, ArrowUpCircleIcon, BriefcaseIcon, CheckCircleIcon, PlusCircleIcon, CloseCircleIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
@@ -94,7 +93,8 @@ const LabelFinancials: React.FC = () => {
                 apiService.fetchLabelTransactions(currentUser.id)
             ]);
 
-            setContracts(contractsData);
+            // FIX: Explicitly cast contractsData as LabelContract[] to resolve unknown type assignment error.
+            setContracts(contractsData as LabelContract[]);
             setBudgetOverview(budgetData);
             setTransactions(transactionsData);
 
