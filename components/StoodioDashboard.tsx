@@ -300,7 +300,6 @@ const StoodioDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            // FIX: Ensure correct cast for result when updating profile.
             reader.onload = (e) => updateProfile({ image_url: (e.target?.result as string) || '' });
             reader.readAsDataURL(file);
         }
@@ -310,7 +309,6 @@ const StoodioDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            // FIX: Ensure correct cast for result when updating profile.
             reader.onload = (e) => updateProfile({ cover_image_url: (e.target?.result as string) || '' });
             reader.readAsDataURL(file);
         }
@@ -354,7 +352,6 @@ const StoodioDashboard: React.FC = () => {
     const handlePhotoDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         setIsDraggingPhotos(false);
-        // FIX: Changed 'event' to 'e' to access dataTransfer from the parameter 'e' instead of global 'event'.
         if (e.dataTransfer.files) processPhotoFiles(e.dataTransfer.files);
     };
 
@@ -596,7 +593,7 @@ const StoodioDashboard: React.FC = () => {
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                     <TabButton label="Amenities" isActive={activeTab === 'amenities'} onClick={() => setActiveTab('amenities')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
-                    <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement'} />
+                    <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Rooms" isActive={activeTab === 'rooms'} onClick={() => setActiveTab('rooms')} />
                     <TabButton label="Engineers" isActive={activeTab === 'engineers'} onClick={() => setActiveTab('engineers')} />

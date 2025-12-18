@@ -59,7 +59,7 @@ const AssetVault: React.FC = () => {
                 <button 
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
-                    className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg"
                 >
                     {isUploading ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"/> : <PlusCircleIcon className="w-5 h-5" />}
                     Upload File
@@ -67,7 +67,7 @@ const AssetVault: React.FC = () => {
                 <input type="file" ref={fileInputRef} onChange={handleUpload} className="hidden" />
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 {['ALL', ...Object.values(AssetCategoryEnum)].map(cat => (
                     <button 
                         key={cat}

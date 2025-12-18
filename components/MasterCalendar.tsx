@@ -11,7 +11,6 @@ const MasterCalendar: React.FC = () => {
         return Array.from({ length: 7 }).map((_, i) => addDays(currentWeekStart, i));
     }, [currentWeekStart]);
 
-    // Only show artists from roster if label, or self if artist
     const rosterToDisplay = userRole === 'LABEL' ? artists.slice(0, 5) : (artists.slice(0, 1) || []);
 
     const handleNextWeek = () => setCurrentWeekStart(prev => addDays(prev, 7));
@@ -31,7 +30,7 @@ const MasterCalendar: React.FC = () => {
                 </div>
             </div>
 
-            <div className="cardSurface overflow-x-auto">
+            <div className="cardSurface overflow-x-auto scrollbar-hide">
                 <table className="w-full min-w-[800px] border-collapse">
                     <thead>
                         <tr className="bg-zinc-900 border-b border-zinc-800">
@@ -64,7 +63,6 @@ const MasterCalendar: React.FC = () => {
                                                         <p className="text-zinc-300 truncate">{b.stoodio?.name || 'Remote Mix'}</p>
                                                     </div>
                                                 ))}
-                                                {dayBookings.length === 0 && <div className="h-full w-full opacity-0 group-hover:opacity-10 transition-opacity bg-white/5 rounded min-h-[40px]"/>}
                                             </div>
                                         </td>
                                     );
@@ -73,13 +71,6 @@ const MasterCalendar: React.FC = () => {
                         ))}
                     </tbody>
                 </table>
-            </div>
-            
-            <div className="flex gap-4 p-4 bg-orange-500/5 border border-orange-500/10 rounded-xl">
-                <ClockIcon className="w-5 h-5 text-orange-400 flex-shrink-0" />
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                    Aria is monitoring this calendar for conflicts. If two roster members are booked in the same room simultaneously, a priority alert will trigger in your notifications center.
-                </p>
             </div>
         </div>
     );

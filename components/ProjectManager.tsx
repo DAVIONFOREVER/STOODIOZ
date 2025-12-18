@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { Project, ProjectTask, Artist } from '../types';
+import type { Project, ProjectTask } from '../types';
 import { BriefcaseIcon, CheckCircleIcon, ClockIcon, PlusCircleIcon, UsersIcon } from './icons';
 import { fetchLabelProjects, createProjectTask, updateProjectTask } from '../services/apiService';
 import { useAppState } from '../contexts/AppContext';
@@ -23,7 +23,6 @@ const ProjectManager: React.FC = () => {
     const handleToggleTask = async (task: ProjectTask) => {
         const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
         await updateProjectTask(task.id, { status: newStatus as any });
-        // Local refresh
         setProjects(prev => prev.map(p => ({
             ...p,
             tasks: p.tasks?.map(t => t.id === task.id ? { ...t, status: newStatus as any } : t)
@@ -43,7 +42,7 @@ const ProjectManager: React.FC = () => {
             <div className="flex justify-between items-center bg-zinc-900 p-6 rounded-xl border border-zinc-800">
                 <div>
                     <h1 className="text-3xl font-extrabold text-zinc-100">Project Management</h1>
-                    <p className="text-zinc-400 mt-1">Track rollouts, album cycles, and asset deadlines.</p>
+                    <p className="text-zinc-400 mt-1">Track rollouts and album cycles.</p>
                 </div>
                 <button className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2 shadow-lg">
                     <PlusCircleIcon className="w-5 h-5" />
@@ -52,7 +51,6 @@ const ProjectManager: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Project List Sidebar */}
                 <div className="lg:col-span-1 space-y-3">
                     {projects.map(p => (
                         <button 
@@ -61,13 +59,12 @@ const ProjectManager: React.FC = () => {
                             className={`w-full p-4 rounded-xl text-left border transition-all ${selectedProject?.id === p.id ? 'bg-orange-500/10 border-orange-500' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}
                         >
                             <p className={`font-bold ${selectedProject?.id === p.id ? 'text-orange-400' : 'text-zinc-200'}`}>{p.name}</p>
-                            <p className="text-xs text-zinc-500 mt-1 uppercase font-bold tracking-tighter">Status: {p.status.replace('_', ' ')}</p>
+                            <p className="text-xs text-zinc-500 mt-1 uppercase font-bold">Status: {p.status}</p>
                         </button>
                     ))}
                     {projects.length === 0 && <p className="text-zinc-600 text-sm italic p-4">No active projects found.</p>}
                 </div>
 
-                {/* Task Board */}
                 <div className="lg:col-span-3 cardSurface p-6">
                     {selectedProject ? (
                         <div className="space-y-8">
@@ -79,16 +76,10 @@ const ProjectManager: React.FC = () => {
                                         <span className="text-sm text-zinc-400">Lead Artist: {artists.find(a => a.id === selectedProject.artist_id)?.name || 'Internal'}</span>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Rollout Progress</p>
-                                    <div className="w-48 h-2 bg-zinc-800 rounded-full mt-2 overflow-hidden">
-                                        <div className="h-full bg-orange-500 rounded-full" style={{ width: '45%' }}></div>
-                                    </div>
-                                </div>
                             </div>
 
                             <div className="space-y-4">
-                                <h3 className="font-bold text-zinc-300 text-sm uppercase tracking-widest flex items-center gap-2">
+                                <h3 className="font-bold text-zinc-300 text-sm uppercase flex items-center gap-2">
                                     <ClockIcon className="w-4 h-4" />
                                     Active Milestones
                                 </h3>
@@ -101,15 +92,11 @@ const ProjectManager: React.FC = () => {
                                                 </button>
                                                 <div>
                                                     <p className={`font-semibold ${task.status === 'DONE' ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>{task.title}</p>
-                                                    <p className="text-[10px] text-zinc-500 mt-0.5 uppercase">Priority: {task.priority} • Due: {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'ASAP'}</p>
+                                                    <p className="text-[10px] text-zinc-500 mt-0.5 uppercase">Priority: {task.priority}</p>
                                                 </div>
                                             </div>
-                                            <button className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase">Assign Team</button>
                                         </div>
                                     ))}
-                                    <button className="p-4 rounded-xl border-2 border-dashed border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-500 transition-all text-sm font-bold">
-                                        + Add Task
-                                    </button>
                                 </div>
                             </div>
                         </div>
