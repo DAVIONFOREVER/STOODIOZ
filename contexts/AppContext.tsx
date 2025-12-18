@@ -1,4 +1,3 @@
-
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData, Label } from '../types';
 import { AppView, UserRole } from '../types';
@@ -84,6 +83,7 @@ export enum ActionTypes {
     CLOSE_BOOKING_MODAL = 'CLOSE_BOOKING_MODAL',
     CONFIRM_BOOKING_SUCCESS = 'CONFIRM_BOOKING_SUCCESS',
     SET_LATEST_BOOKING = 'SET_LATEST_BOOKING',
+    SET_LATEST_BOOKING_SILENT = 'SET_LATEST_BOOKING_SILENT',
     SET_BOOKINGS = 'SET_BOOKINGS',
     ADD_BOOKING = 'ADD_BOOKING',
     UPDATE_USERS = 'UPDATE_USERS',
@@ -144,6 +144,7 @@ type Payload = {
     [ActionTypes.CLOSE_BOOKING_MODAL]: undefined;
     [ActionTypes.CONFIRM_BOOKING_SUCCESS]: { booking: Booking };
     [ActionTypes.SET_LATEST_BOOKING]: { booking: Booking | null };
+    [ActionTypes.SET_LATEST_BOOKING_SILENT]: { booking: Booking | null };
     [ActionTypes.SET_BOOKINGS]: { bookings: Booking[] };
     [ActionTypes.ADD_BOOKING]: { booking: Booking };
     [ActionTypes.UPDATE_USERS]: { users: (Artist | Engineer | Stoodio | Producer | Label)[] };
@@ -210,7 +211,7 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: true,
+    isLoading: false, // Changed from true to false for instant entry
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -274,7 +275,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return {
                 ...state,
                 ...action.payload,
-                isLoading: false,
             };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
@@ -292,7 +292,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             }
 
             // PERSISTENCE LOGIC:
-            // 1. Determine Default Dashboard
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
@@ -300,7 +299,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
 
-            // 2. Check LocalStorage for last visited view
             const storedView = localStorage.getItem('last_view');
             const restricted = [
                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
@@ -309,7 +307,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
             ];
             
-            // 3. If stored view is valid and NOT a setup/login page, restore it.
             if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
                 landingView = storedView as AppView;
             }
@@ -322,25 +319,20 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 history: [landingView],
                 historyIndex: 0,
                 ariaHistory: [],
-                isLoading: false, // Explicitly set loading to false to stop spinner
+                isLoading: false, 
             };
         }
         case ActionTypes.LOGIN_FAILURE:
-            // Explicitly set loading to false to stop spinner on error
             return { ...state, loginError: action.payload.error, isLoading: false };
         case ActionTypes.LOGOUT:
-            // Ensure local storage is cleared on logout action in reducer as well
             return {
                 ...initialState,
-                history: [AppView.LANDING_PAGE],
-                historyIndex: 0,
                 isLoading: false,
                 artists: state.artists,
                 engineers: state.engineers,
                 producers: state.producers,
                 stoodioz: state.stoodioz,
                 labels: state.labels,
-                reviews: state.reviews,
             };
         
         case ActionTypes.COMPLETE_SETUP: {
@@ -352,19 +344,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];
             else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
             else if (role === UserRole.LABEL) updatedState.labels = [...state.labels, newUser as Label];
-
-            const aria = updatedState.artists.find(a => a.id === 'artist-aria-cantata');
-            if (aria) {
-                let newFollowing: Following = { ...aria.following };
-                if (role === UserRole.ARTIST && !newFollowing.artists.includes(newUser.id)) newFollowing.artists.push(newUser.id);
-                if (role === UserRole.ENGINEER && !newFollowing.engineers.includes(newUser.id)) newFollowing.engineers.push(newUser.id);
-                if (role === UserRole.PRODUCER && !newFollowing.producers.includes(newUser.id)) newFollowing.producers.push(newUser.id);
-                if (role === UserRole.STOODIO && !newFollowing.stoodioz.includes(newUser.id)) newFollowing.stoodioz.push(newUser.id);
-                if (role === UserRole.LABEL && !newFollowing.labels.includes(newUser.id)) newFollowing.labels.push(newUser.id);
-
-                const updatedAria = { ...aria, following: newFollowing };
-                updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
-            }
 
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
@@ -400,6 +379,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookingTime: null, bookingIntent: null, latestBooking: action.payload.booking, bookings: [...state.bookings, action.payload.booking] };
         case ActionTypes.SET_LATEST_BOOKING:
             return { ...state, latestBooking: action.payload.booking };
+        case ActionTypes.SET_LATEST_BOOKING_SILENT:
+            return { ...state, latestBooking: action.payload.booking };
         case ActionTypes.SET_BOOKINGS:
             return { ...state, bookings: action.payload.bookings };
         case ActionTypes.ADD_BOOKING:
@@ -418,7 +399,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             });
             
             const uniqueUsers = Array.from(allUsersMap.values());
-
             const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
 
             return {

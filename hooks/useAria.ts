@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
@@ -16,7 +17,7 @@ interface AriaHookDependencies {
     confirmBooking: (request: BookingRequest) => void; 
     updateProfile: (updates: any) => void;
     selectRoleToSetup: (role: UserRole) => void;
-    // Added logout property to match call sites in App.tsx
+    // FIX: Added logout property to the AriaHookDependencies interface to match usage in executeCommand and resolve compilation error.
     logout: () => void;
 }
 

@@ -524,8 +524,9 @@ export interface AppNotification {
     actor?: Artist | Engineer | Stoodio | Producer | Label;
 }
 
+// FIX: Updated AriaActionResponse type to include missing union members 'generateReport', 'scheduleReminder', 'manageProject', 'scoutMarket', and 'logout'.
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'socialAction' | 'updateProfile' | 'search' | 'generateDocument' | 'labelControl' | 'mediaControl';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'updateProfile' | 'socialAction' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'search' | 'generateReport' | 'scheduleReminder' | 'manageProject' | 'scoutMarket' | 'logout';
     target: string | null;
     value: any;
     text: string;

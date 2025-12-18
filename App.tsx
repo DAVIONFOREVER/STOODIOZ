@@ -166,17 +166,11 @@ const App: React.FC = () => {
             if (isHydratingRef.current) return;
             isHydratingRef.current = true;
 
-            // Only show spinner on initial load to avoid "stuck on tab change" wheel
-            if (isInitial && !currentUser) {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            }
-
             try {
                 const res = await apiService.fetchCurrentUserProfile(userId);
                 if (res) {
                     dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
                 } else if (isInitial) {
-                    // Only log out if we are sure there is no profile on initial check
                     await logout();
                 }
             } catch (error) {
@@ -188,6 +182,7 @@ const App: React.FC = () => {
         };
 
         const initSession = async () => {
+            // Initial check: if we have a supabase session, start silent loading
             const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id, true);
@@ -203,7 +198,6 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                // Background update without blocking UI spinner if we already have a user
                 if (!currentUser || currentUser.id !== session.user.id) {
                     await hydrateUser(session.user.id, false);
                 }
@@ -215,7 +209,7 @@ const App: React.FC = () => {
         });
 
         return () => subscription?.unsubscribe();
-    }, [dispatch, currentUser]); // Added currentUser to prevent stale checks
+    }, [dispatch, currentUser]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         const supabase = getSupabase();
@@ -304,17 +298,19 @@ const App: React.FC = () => {
         return renderView();
     };
 
-    if (isLoading && !currentUser) {
-        return (
-            <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col items-center justify-center">
-                <LoadingSpinner currentUser={currentUser} />
-                <p className="text-zinc-500 mt-4 animate-pulse">Syncing Sony Music profile...</p>
-            </div>
-        );
-    }
+    // SILENT HYDRATION:
+    // Only show full-screen spinner if we are explicitly in an "isLoading" state that ISN'T the initial hydration
+    // Initial hydration is now handled silently by checking for currentUser in initSession.
     
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
+            {/* Tiny top loading bar for background tasks */}
+            {isLoading && !currentUser && (
+                 <div className="fixed top-0 left-0 w-full h-1 bg-orange-500/20 z-[1000] overflow-hidden">
+                    <div className="h-full bg-orange-500 animate-gradient-flow w-1/2 rounded-full shadow-[0_0_10px_#f97316]"></div>
+                 </div>
+            )}
+
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
                 <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
