@@ -96,7 +96,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
     if (!isOpen) return null;
 
     const Content = (
-        <div className={`relative flex flex-col overflow-hidden h-full ${isEmbedded ? '' : 'w-full max-w-2xl h-[85vh] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl animate-slide-up'}`}>
+        <div className={`relative flex flex-col overflow-hidden h-full ${isEmbedded ? 'bg-transparent' : 'w-full max-w-2xl h-[85vh] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl animate-slide-up'}`}>
             {/* Header (Only if not embedded) */}
             {!isEmbedded && (
                 <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur">
@@ -109,11 +109,11 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
             )}
 
             {/* Messages */}
-            <div className="flex-grow overflow-y-auto p-6 space-y-6">
+            <div className="flex-grow overflow-y-auto p-6 space-y-6 scrollbar-hide">
                 {history.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-60">
-                        <MagicWandIcon className="w-12 h-12 text-zinc-600" />
-                        <p className="text-xs font-black uppercase tracking-widest">Awaiting Directives</p>
+                    <div className={`flex flex-col items-center justify-center text-center space-y-4 opacity-40 ${isEmbedded ? 'py-12' : 'h-full'}`}>
+                        <MagicWandIcon className={`${isEmbedded ? 'w-10 h-10' : 'w-16 h-16'} text-zinc-600`} />
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em]">Operational Readiness Active</p>
                     </div>
                 )}
                 {history.map((msg, index) => (
@@ -128,7 +128,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
             </div>
 
             {/* Input */}
-            <div className={`p-4 bg-zinc-900/80 border-t border-zinc-800 ${isEmbedded ? 'pb-8' : ''}`}>
+            <div className={`p-4 ${isEmbedded ? 'bg-zinc-900/40 border-t border-white/5' : 'bg-zinc-900/80 border-t border-zinc-800'}`}>
                 <div className="relative">
                     <input
                         ref={inputRef}
@@ -136,11 +136,11 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(inputValue)}
-                        placeholder="Direct Aria to an objective..."
-                        className="w-full bg-zinc-800 text-zinc-100 rounded-full py-4 pl-6 pr-14 focus:outline-none focus:ring-2 focus:ring-orange-500/50 border border-zinc-700"
+                        placeholder="State your objective..."
+                        className="w-full bg-zinc-800 border border-white/5 text-zinc-100 rounded-full py-3 pl-5 pr-12 focus:outline-none focus:ring-1 focus:ring-orange-500/50 text-sm"
                         disabled={isLoading}
                     />
-                    <button onClick={() => handleSendMessage(inputValue)} disabled={!inputValue.trim() || isLoading} className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-orange-500 text-white rounded-full hover:bg-orange-600 disabled:opacity-50 transition-all shadow-lg"><PaperAirplaneIcon className="w-5 h-5" /></button>
+                    <button onClick={() => handleSendMessage(inputValue)} disabled={!inputValue.trim() || isLoading} className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 bg-orange-500 text-white rounded-full hover:bg-orange-600 disabled:opacity-50 transition-all shadow-lg"><PaperAirplaneIcon className="w-4 h-4" /></button>
                 </div>
             </div>
         </div>

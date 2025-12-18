@@ -1,11 +1,10 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Post } from '../types';
 import { AppView } from '../types';
 import { 
     ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, 
     UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, 
-    PhotoIcon, PlayIcon, MagicWandIcon, BriefcaseIcon, CalendarIcon, ChartBarIcon 
+    PhotoIcon, PlayIcon, MagicWandIcon, BriefcaseIcon, CalendarIcon, ChartBarIcon, CloseIcon 
 } from './icons';
 import PostFeed from './PostFeed';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
@@ -53,13 +52,12 @@ const ArtistProfile: React.FC = () => {
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [posts, setPosts] = useState<Post[]>([]);
     const [activeTab, setActiveTab] = useState<'overview' | 'music' | 'activity'>('overview');
+    const [isConsoleActive, setIsConsoleActive] = useState(true);
 
     const isAria = useMemo(() => artist?.email === ARIA_EMAIL, [artist]);
 
-    // Consolidate directory for lookup
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     
-    // FIX: Define followers and allUsers in the component scope to avoid "Cannot find name" errors.
     const followers = useMemo(() => {
         if (!artist) return [];
         return allUsers.filter(u => (artist.follower_ids || []).includes(u.id));
@@ -215,29 +213,45 @@ const ArtistProfile: React.FC = () => {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 space-y-8">
                                     <AriaMusicModule />
-                                    <div className="aria-panel-sunken rounded-3xl p-1 overflow-hidden">
-                                        <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                                <span className="text-[10px] font-black uppercase text-zinc-500 tracking-tighter">Encrypted Operations Portal</span>
+                                    
+                                    {isConsoleActive ? (
+                                        <div className="aria-panel-sunken rounded-3xl p-1 overflow-hidden animate-slide-up">
+                                            <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                                    <span className="text-[10px] font-black uppercase text-zinc-500 tracking-tighter">Encrypted Operations Portal</span>
+                                                </div>
+                                                <div className="flex gap-1.5">
+                                                    <div className="bg-zinc-800 px-2 py-0.5 rounded text-[10px] font-bold text-zinc-400 border border-white/5">Role: {userRole || 'Guest'}</div>
+                                                    <button 
+                                                        onClick={() => setIsConsoleActive(false)}
+                                                        className="bg-zinc-800 p-0.5 rounded text-zinc-500 hover:text-white transition-colors"
+                                                    >
+                                                        <CloseIcon className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-1.5">
-                                                <div className="bg-zinc-800 px-2 py-0.5 rounded text-[10px] font-bold text-zinc-400 border border-white/5">Role: {userRole || 'Guest'}</div>
-                                                <div className="bg-zinc-800 px-2 py-0.5 rounded text-[10px] font-bold text-zinc-400 border border-white/5">Mode: Secure</div>
+                                            <div className="h-[450px] overflow-hidden relative">
+                                                <AriaCantataAssistant 
+                                                    isOpen={true} 
+                                                    onClose={() => {}} 
+                                                    onExecuteCommand={async (cmd) => dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.STOODIO_LIST } }) as any}
+                                                    history={ariaHistory}
+                                                    setHistory={(h) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: h } })}
+                                                    initialPrompt={null}
+                                                    clearInitialPrompt={() => {}}
+                                                />
                                             </div>
                                         </div>
-                                        <div className="h-[500px] overflow-hidden relative">
-                                            <AriaCantataAssistant 
-                                                isOpen={true} 
-                                                onClose={() => {}} 
-                                                onExecuteCommand={(cmd) => dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.STOODIO_LIST } }) as any}
-                                                history={ariaHistory}
-                                                setHistory={(h) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: h } })}
-                                                initialPrompt={null}
-                                                clearInitialPrompt={() => {}}
-                                            />
-                                        </div>
-                                    </div>
+                                    ) : (
+                                        <button 
+                                            onClick={() => setIsConsoleActive(true)}
+                                            className="w-full py-12 rounded-3xl border-2 border-dashed border-zinc-800 flex flex-col items-center gap-3 text-zinc-600 hover:text-orange-400 hover:border-orange-500/30 transition-all group"
+                                        >
+                                            <MagicWandIcon className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                                            <span className="font-black uppercase text-xs tracking-widest">Reactivate Lead Console</span>
+                                        </button>
+                                    )}
                                 </div>
                                 <div className="lg:col-span-1 space-y-6">
                                     <div className="cardSurface p-6 aria-glass rounded-3xl">
