@@ -35,24 +35,6 @@ export const uploadPostAttachment = async (file: File, userId: string): Promise<
     return uploadFile(file, 'posts', path);
 };
 
-export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${stoodioId}/rooms/${Date.now()}.${ext}`;
-    return uploadFile(file, 'stoodio_photos', path);
-};
-
-export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${producerId}/beats/${Date.now()}.${ext}`;
-    return uploadFile(file, 'instrumentals', path);
-};
-
-export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${engineerId}/samples/${Date.now()}.${ext}`;
-    return uploadFile(file, 'mixing_samples', path);
-};
-
 export const uploadDocument = async (file: Blob, fileName: string, userId: string, category: string = 'OFFICIAL'): Promise<string> => {
     const path = `${userId}/documents/${Date.now()}_${fileName}`;
     const publicUrl = await uploadFile(file, 'documents', path);
@@ -118,6 +100,27 @@ export const uploadAsset = async (file: File, userId: string, category: AssetCat
     return assetData as MediaAsset;
 };
 
+// FIX: Added uploadRoomPhoto for Studio Room management
+export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
+    const ext = file.name.split('.').pop();
+    const path = `${stoodioId}/rooms/${Date.now()}.${ext}`;
+    return uploadFile(file, 'rooms', path);
+};
+
+// FIX: Added uploadBeatFile for Producer beat store management
+export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
+    const ext = file.name.split('.').pop();
+    const path = `${producerId}/beats/${Date.now()}.${ext}`;
+    return uploadFile(file, 'beats', path);
+};
+
+// FIX: Added uploadMixingSampleFile for Engineer portfolio management
+export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
+    const ext = file.name.split('.').pop();
+    const path = `${engineerId}/samples/${Date.now()}.${ext}`;
+    return uploadFile(file, 'mixing_samples', path);
+};
+
 export const scoutMarketInsights = async (region: string): Promise<MarketInsight[]> => {
     await new Promise(r => setTimeout(r, 500));
     return [
@@ -162,7 +165,7 @@ export const fetchCurrentUserProfile = async (id: string) => {
     const tables = {'ARTIST':'artists', 'ENGINEER':'engineers', 'PRODUCER':'producers', 'STOODIO':'stoodioz', 'LABEL':'labels'};
     const table = (tables as any)[p?.role || 'ARTIST'];
     const {data:u} = await s.from(table).select('*').eq('id', id).single();
-    // Ensure the user object carries the role explicitly
+    // CRITICAL: Ensure the role is stamped onto the user object to prevent misidentification
     return u ? { user: { ...u, role: p?.role }, role: p?.role } : null;
 };
 export const fetchLabelRoster = async (id: string) => {

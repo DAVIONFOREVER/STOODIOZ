@@ -280,13 +280,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.LOGIN_SUCCESS: {
             const { user, role: explicitRole } = action.payload;
             
-            // Priority 1: Use explicit role from payload (set by useAuth/apiService using profiles table)
-            // Priority 2: Use role property stored on the user object itself
-            // Priority 3: Use robust heuristics (Stoodio has amenities, Engineer has specialties, Producer has instrumentals)
-            // Default: ARTIST
+            // PRIORITY: Trust explicit role from DB profiles table above all else
             let role: UserRole | undefined = explicitRole || (user as any).role;
 
             if (!role) {
+                // Heuristics fallback
                 if ('amenities' in user) role = UserRole.STOODIO;
                 else if ('specialties' in user) role = UserRole.ENGINEER;
                 else if ('instrumentals' in user) role = UserRole.PRODUCER;
@@ -294,7 +292,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 else role = UserRole.ARTIST;
             }
 
-            // PERSISTENCE LOGIC:
+            // REDIRECT LOGIC:
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
@@ -311,10 +309,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             ];
             
             if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
-                // Verification: Ensure the stored view matches the role's allowed scope
-                const isLabelView = storedView === AppView.LABEL_DASHBOARD;
-                if (role === UserRole.ARTIST && isLabelView) {
-                    // Mismatch - force correct dashboard
+                // Security check: Ensure Artist doesn't load a Label dashboard from storage
+                if (role === UserRole.ARTIST && storedView === AppView.LABEL_DASHBOARD) {
+                    landingView = AppView.ARTIST_DASHBOARD;
                 } else {
                     landingView = storedView as AppView;
                 }
@@ -322,7 +319,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             
             return {
                 ...state,
-                currentUser: { ...user, role },
+                currentUser: { ...user, role }, // Stamping role onto the object
                 userRole: role,
                 loginError: null,
                 history: [landingView],
@@ -413,11 +410,12 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
             return {
                 ...state,
-                artists: uniqueUsers.filter(u => (u as any).role === 'ARTIST' || ('bio' in u && 'is_seeking_session' in u)) as Artist[],
-                engineers: uniqueUsers.filter(u => (u as any).role === 'ENGINEER' || 'specialties' in u) as Engineer[],
-                producers: uniqueUsers.filter(u => (u as any).role === 'PRODUCER' || 'instrumentals' in u) as Producer[],
-                stoodioz: uniqueUsers.filter(u => (u as any).role === 'STOODIO' || 'amenities' in u) as Stoodio[],
-                labels: uniqueUsers.filter(u => (u as any).role === 'LABEL' || ('bio' in u && !('is_seeking_session' in u) && !('specialties' in u) && !('instrumentals' in u) && !('amenities' in u))) as Label[],
+                // FILTERING FIX: Use stamped role property instead of unreliable key checks
+                artists: uniqueUsers.filter(u => (u as any).role === UserRole.ARTIST || ('bio' in u && 'is_seeking_session' in u)) as Artist[],
+                engineers: uniqueUsers.filter(u => (u as any).role === UserRole.ENGINEER || 'specialties' in u) as Engineer[],
+                producers: uniqueUsers.filter(u => (u as any).role === UserRole.PRODUCER || 'instrumentals' in u) as Producer[],
+                stoodioz: uniqueUsers.filter(u => (u as any).role === UserRole.STOODIO || 'amenities' in u) as Stoodio[],
+                labels: uniqueUsers.filter(u => (u as any).role === UserRole.LABEL || ('company_name' in u && !('is_seeking_session' in u))) as Label[],
                 currentUser: findUser(state.currentUser?.id) as any || state.currentUser,
                 selectedArtist: findUser(state.selectedArtist?.id) as Artist || state.selectedArtist,
                 selectedEngineer: findUser(state.selectedEngineer?.id) as Engineer || state.selectedEngineer,
