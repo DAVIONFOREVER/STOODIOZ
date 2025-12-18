@@ -1,4 +1,3 @@
-
 import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
@@ -105,13 +104,12 @@ const App: React.FC = () => {
     const dispatch = useAppDispatch();
     const { 
         history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
-        isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
+        isLoading, isAuthLoading, isProfileLoading, isRoleLoading, isSubscriptionLoading, 
+        bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
         bookings, engineers
     } = state;
-
-    const [isHydrated, setIsHydrated] = useState(false);
 
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
@@ -164,32 +162,40 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     const hydrateUser = useCallback(async (userId: string) => {
+        dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: true } });
+        dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: true } });
+        dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: true } });
+        
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
             } else {
                 console.warn("[App] Auth user exists but profile missing. Onboarding required.");
+                dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
                 navigate(AppView.CHOOSE_PROFILE);
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
-        } finally {
-            setIsHydrated(true);
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
+            dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
+            dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch, navigate]);
 
     useEffect(() => {
-        // Auth Hydration Gate
         const initSession = async () => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: true } });
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id);
             } else {
-                setIsHydrated(true);
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
             }
         };
         
@@ -226,8 +232,6 @@ const App: React.FC = () => {
     }, [dispatch]);
 
     const renderView = () => {
-        if (!isHydrated) return <LoadingSpinner currentUser={null} />;
-
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -261,8 +265,8 @@ const App: React.FC = () => {
             case AppView.LABEL_SCOUTING: return <LabelScouting onNavigate={navigate} />;
             case AppView.LABEL_IMPORT: return <LabelRosterImport />;
             case AppView.LABEL_PROFILE: return <LabelProfile />;
-            case AppView.CLAIM_PROFILE: return <ClaimProfile token={claimToken} />;
-            case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={claimToken || ''} />;
+            case AppView.CLAIM_PROFILE: return <ClaimProfile token={undefined} />;
+            case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={''} />;
             case AppView.CLAIM_CONFIRM: return <ClaimConfirmScreen />;
             case AppView.CLAIM_LABEL_PROFILE: return <ClaimLabelProfile onNavigate={navigate} />;
             case AppView.ACTIVE_SESSION: return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
@@ -276,6 +280,13 @@ const App: React.FC = () => {
     };
 
     const renderViewProxy = () => {
+        // Only redirect to pricing/onboarding when all relevant checks are strictly complete
+        const isAppInitializing = isAuthLoading || isProfileLoading || isRoleLoading || isSubscriptionLoading;
+        
+        if (isAppInitializing) {
+            return <LoadingSpinner currentUser={currentUser} />;
+        }
+
         const authViews = [
             AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
             AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
@@ -283,6 +294,18 @@ const App: React.FC = () => {
         ];
 
         if (currentUser && authViews.includes(currentView)) {
+            // Priority 1: Missing Profile data -> Onboarding
+            if (!userRole) {
+                return <ChooseProfile onSelectRole={selectRoleToSetup} />;
+            }
+
+            // Priority 2: Restricted roles without subscription -> Pricing
+            const restrictedRoles = [UserRole.ENGINEER, UserRole.PRODUCER, UserRole.STOODIO];
+            if (restrictedRoles.includes(userRole) && !currentUser.subscription) {
+                return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
+            }
+
+            // Priority 3: Dashboard Redirect
             switch(userRole) {
                 case UserRole.LABEL: return <LabelDashboard />;
                 case UserRole.STOODIO: return <StoodioDashboard />;

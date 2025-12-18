@@ -26,6 +26,11 @@ export interface AppState {
     selectedLabel: Label | null;
     latestBooking: Booking | null;
     isLoading: boolean;
+    // Granular Loading Flags
+    isAuthLoading: boolean;
+    isProfileLoading: boolean;
+    isRoleLoading: boolean;
+    isSubscriptionLoading: boolean;
     bookingTime: { date: string; time: string; room: Room } | null;
     activeSession: Booking | null;
     tipModalBooking: Booking | null;
@@ -70,6 +75,10 @@ export enum ActionTypes {
     GO_FORWARD = 'GO_FORWARD',
     SET_INITIAL_DATA = 'SET_INITIAL_DATA',
     SET_LOADING = 'SET_LOADING',
+    SET_AUTH_LOADING = 'SET_AUTH_LOADING',
+    SET_PROFILE_LOADING = 'SET_PROFILE_LOADING',
+    SET_ROLE_LOADING = 'SET_ROLE_LOADING',
+    SET_SUBSCRIPTION_LOADING = 'SET_SUBSCRIPTION_LOADING',
     LOGIN_SUCCESS = 'LOGIN_SUCCESS',
     LOGIN_FAILURE = 'LOGIN_FAILURE',
     LOGOUT = 'LOGOUT',
@@ -130,6 +139,10 @@ type Payload = {
     [ActionTypes.GO_FORWARD]: undefined;
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; labels: Label[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
+    [ActionTypes.SET_AUTH_LOADING]: { isLoading: boolean };
+    [ActionTypes.SET_PROFILE_LOADING]: { isLoading: boolean };
+    [ActionTypes.SET_ROLE_LOADING]: { isLoading: boolean };
+    [ActionTypes.SET_SUBSCRIPTION_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer | Label, role?: UserRole };
     [ActionTypes.LOGIN_FAILURE]: { error: string };
     [ActionTypes.LOGOUT]: undefined;
@@ -210,6 +223,11 @@ const initialState: AppState = {
     selectedLabel: null,
     latestBooking: null,
     isLoading: true,
+    // Start true to treat undefined as pending
+    isAuthLoading: true,
+    isProfileLoading: true,
+    isRoleLoading: true,
+    isSubscriptionLoading: true,
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -276,15 +294,21 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
+        case ActionTypes.SET_AUTH_LOADING:
+            return { ...state, isAuthLoading: action.payload.isLoading };
+        case ActionTypes.SET_PROFILE_LOADING:
+            return { ...state, isProfileLoading: action.payload.isLoading };
+        case ActionTypes.SET_ROLE_LOADING:
+            return { ...state, isRoleLoading: action.payload.isLoading };
+        case ActionTypes.SET_SUBSCRIPTION_LOADING:
+            return { ...state, isSubscriptionLoading: action.payload.isLoading };
 
         case ActionTypes.LOGIN_SUCCESS: {
             const { user, role: explicitRole } = action.payload;
             
-            // PRIORITY: Trust explicit role from DB profiles table above all else
             let role: UserRole | undefined = explicitRole || (user as any).role;
 
             if (!role) {
-                // Heuristics fallback
                 if ('amenities' in user) role = UserRole.STOODIO;
                 else if ('specialties' in user) role = UserRole.ENGINEER;
                 else if ('instrumentals' in user) role = UserRole.PRODUCER;
@@ -292,7 +316,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 else role = UserRole.ARTIST;
             }
 
-            // REDIRECT LOGIC:
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
@@ -304,12 +327,10 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             const restricted = [
                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
                 AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-                AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.CLAIM_ENTRY, 
-                AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
+                AppView.STOODIO_SETUP, AppView.LABEL_SETUP
             ];
             
             if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
-                // Security check: Ensure Artist doesn't load a Label dashboard from storage
                 if (role === UserRole.ARTIST && storedView === AppView.LABEL_DASHBOARD) {
                     landingView = AppView.ARTIST_DASHBOARD;
                 } else {
@@ -319,23 +340,39 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             
             return {
                 ...state,
-                currentUser: { ...user, role }, // Stamping role onto the object
+                currentUser: { ...user, role }, 
                 userRole: role,
                 loginError: null,
                 history: [landingView],
                 historyIndex: 0,
                 ariaHistory: [],
-                isLoading: false, 
+                isLoading: false,
+                isAuthLoading: false,
+                isProfileLoading: false,
+                isRoleLoading: false,
+                isSubscriptionLoading: false,
             };
         }
         case ActionTypes.LOGIN_FAILURE:
-            return { ...state, loginError: action.payload.error, isLoading: false };
+            return { 
+                ...state, 
+                loginError: action.payload.error, 
+                isLoading: false,
+                isAuthLoading: false,
+                isProfileLoading: false,
+                isRoleLoading: false,
+                isSubscriptionLoading: false,
+            };
         case ActionTypes.LOGOUT:
             return {
                 ...initialState,
                 history: [AppView.LANDING_PAGE],
                 historyIndex: 0,
                 isLoading: false,
+                isAuthLoading: false,
+                isProfileLoading: false,
+                isRoleLoading: false,
+                isSubscriptionLoading: false,
                 artists: state.artists,
                 engineers: state.engineers,
                 producers: state.producers,
@@ -368,6 +405,10 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 history: [landingView],
                 historyIndex: 0,
                 isLoading: false,
+                isAuthLoading: false,
+                isProfileLoading: false,
+                isRoleLoading: false,
+                isSubscriptionLoading: false,
             };
         }
         case ActionTypes.VIEW_STOODIO_DETAILS:
@@ -410,7 +451,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
             return {
                 ...state,
-                // FILTERING FIX: Use stamped role property instead of unreliable key checks
                 artists: uniqueUsers.filter(u => (u as any).role === UserRole.ARTIST || ('bio' in u && 'is_seeking_session' in u)) as Artist[],
                 engineers: uniqueUsers.filter(u => (u as any).role === UserRole.ENGINEER || 'specialties' in u) as Engineer[],
                 producers: uniqueUsers.filter(u => (u as any).role === UserRole.PRODUCER || 'instrumentals' in u) as Producer[],
