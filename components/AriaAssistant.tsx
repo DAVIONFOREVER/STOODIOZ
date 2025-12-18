@@ -101,7 +101,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                 <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 p-0.5"><div className="w-full h-full bg-zinc-900 rounded-full flex items-center justify-center"><MagicWandIcon className="w-5 h-5 text-orange-400" /></div></div>
-                        <div><h2 className="font-bold text-zinc-100">Aria Cantata</h2><p className="text-xs text-zinc-500">Lead & Strategic Operations</p></div>
+                        <div><h2 className="font-bold text-zinc-100">Aria Cantata</h2><p className="text-xs text-zinc-500">A&R Lead & Strategic Operations</p></div>
                     </div>
                     <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors"><CloseIcon className="w-6 h-6" /></button>
                 </div>

@@ -79,6 +79,8 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
 const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
 const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
+const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
+const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
     return (
@@ -159,10 +161,8 @@ const App: React.FC = () => {
             if (isHydratingRef.current) return;
             isHydratingRef.current = true;
 
-            // Timeout safety (Supabase Rec #2)
             const timeoutId = setTimeout(async () => {
-                if (isHydratingRef.current) {
-                    console.warn("Hydration timeout. Clearing zombie session.");
+                if (isHydratingRef.current && isInitial) {
                     await performLogout();
                     dispatch({ type: ActionTypes.LOGOUT });
                 }
@@ -176,12 +176,10 @@ const App: React.FC = () => {
                         payload: { user: res.user as any, role: res.role } 
                     });
                 } else if (isInitial) {
-                    // Profile exists in Auth but not in DB -> Ghost session
                     await performLogout();
                     dispatch({ type: ActionTypes.LOGOUT });
                 }
             } catch (error) {
-                console.warn("Hydration error. Potential JWT loop. Resetting.");
                 await performLogout();
                 dispatch({ type: ActionTypes.LOGOUT });
             } finally {
@@ -284,6 +282,8 @@ const App: React.FC = () => {
             case AppView.ADMIN_RANKINGS: return <AdminRankings />;
             case AppView.STUDIO_INSIGHTS: return <StudioInsights />;
             case AppView.LEADERBOARD: return <Leaderboard />;
+            case AppView.ASSET_VAULT: return <AssetVault />;
+            case AppView.MASTER_CALENDAR: return <MasterCalendar />;
             default: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
         }
     };
@@ -309,7 +309,8 @@ const App: React.FC = () => {
 
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
-            {isLoading && !currentUser && (
+            {/* SILENT HYDRATION LOADER (Progress bar) */}
+            {isLoading && (
                  <div className="fixed top-0 left-0 w-full h-1 bg-orange-500/20 z-[1000] overflow-hidden">
                     <div className="h-full bg-orange-500 animate-gradient-flow w-1/2 rounded-full shadow-[0_0_10px_#f97316]"></div>
                  </div>
@@ -317,16 +318,9 @@ const App: React.FC = () => {
 
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                {isLoading && !currentUser ? (
-                    <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                        <LoadingSpinner currentUser={currentUser} />
-                        <p className="text-zinc-500 font-medium animate-pulse">Syncing Stoodioz profile...</p>
-                    </div>
-                ) : (
-                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                        {renderViewProxy()}
-                    </Suspense>
-                )}
+                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                    {renderViewProxy()}
+                </Suspense>
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}

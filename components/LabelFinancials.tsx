@@ -3,46 +3,42 @@ import { DollarSignIcon, ChartBarIcon, CalendarIcon, UsersIcon, BanknotesIcon, A
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode } from '../types';
-import { TransactionCategory } from '../types';
+import { USER_SILHOUETTE_URL } from '../constants';
 
 // --- Global Mock Data (Fallback) ---
 const MOCK_FINANCIALS_DATA = {
-    totalRevenue: 245000000.00, // $245 Million
-    monthlyRevenue: 18500000.00, // $18.5 Million
-    pendingPayouts: 4200000.00,
-    availablePayoutBalance: 12500000.00,
+    totalRevenue: 2450000.00, 
+    monthlyRevenue: 185000.00, 
+    pendingPayouts: 42000.00,
+    availablePayoutBalance: 125000.00,
     monthlyBreakdown: [
-        { month: 'Jan', amount: 14500000 },
-        { month: 'Feb', amount: 15200000 },
-        { month: 'Mar', amount: 19000000 },
-        { month: 'Apr', amount: 16500000 },
-        { month: 'May', amount: 18400000 },
-        { month: 'Jun', amount: 21100000 },
-        { month: 'Jul', amount: 20500000 },
-        { month: 'Aug', amount: 19800000 },
-        { month: 'Sep', amount: 18200000 },
-        { month: 'Oct', amount: 19000000 },
-        { month: 'Nov', amount: 22000000 },
-        { month: 'Dec', amount: 24500000 },
+        { month: 'Jan', amount: 145000 },
+        { month: 'Feb', amount: 152000 },
+        { month: 'Mar', amount: 190000 },
+        { month: 'Apr', amount: 165000 },
+        { month: 'May', amount: 184000 },
+        { month: 'Jun', amount: 211000 },
+        { month: 'Jul', amount: 205000 },
+        { month: 'Aug', amount: 198000 },
+        { month: 'Sep', amount: 182000 },
+        { month: 'Oct', amount: 190000 },
+        { month: 'Nov', amount: 220000 },
+        { month: 'Dec', amount: 245000 },
     ],
     byArtist: [
-        { id: '1', name: 'Beyoncé', image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop', amount: 85200000, percentage: 35 },
-        { id: '2', name: 'Harry Styles', image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop', amount: 55500000, percentage: 22 },
-        { id: '3', name: 'Travis Scott', image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop', amount: 48400000, percentage: 19 },
-        { id: '4', name: 'SZA', image_url: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=200&auto=format&fit=crop', amount: 32900000, percentage: 13 },
-        { id: '5', name: 'Doja Cat', image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop', amount: 23000000, percentage: 11 },
+        { id: '1', name: 'Beyoncé', image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop', amount: 852000, percentage: 35 },
+        { id: '2', name: 'Harry Styles', image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop', amount: 555000, percentage: 22 },
+        { id: '3', name: 'Travis Scott', image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop', amount: 484000, percentage: 19 },
     ],
     byType: [
-        { type: 'Streaming Royalties', amount: 145000000, percentage: 59 },
-        { type: 'Sync & Licensing', amount: 45000000, percentage: 18 },
-        { type: 'Physical Sales (Vinyl)', amount: 35000000, percentage: 14 },
-        { type: 'Merchandise/D2C', amount: 20000000, percentage: 9 },
+        { type: 'Streaming Royalties', amount: 1450000, percentage: 59 },
+        { type: 'Sync & Licensing', amount: 450000, percentage: 18 },
+        { type: 'Physical Sales', amount: 350000, percentage: 14 },
+        { type: 'Merchandise', amount: 200000, percentage: 9 },
     ],
     initialPayoutRequests: [
-        { id: 'p1', amount: 2500000, requested_on: '2024-05-15', status: 'Pending', artist: 'Beyoncé' },
-        { id: 'p2', amount: 850000, requested_on: '2024-05-14', status: 'Approved', artist: 'Travis Scott' },
-        { id: 'p3', amount: 1200000, requested_on: '2024-05-10', status: 'Approved', artist: 'Harry Styles' },
-        { id: 'p4', amount: 45000, requested_on: '2024-05-08', status: 'Rejected', artist: 'Developing Artist A' },
+        { id: 'p1', amount: 25000, requested_on: '2024-05-15', status: 'Pending', artist: 'Beyoncé' },
+        { id: 'p2', amount: 8500, requested_on: '2024-05-14', status: 'Approved', artist: 'Travis Scott' },
     ]
 };
 
@@ -153,7 +149,6 @@ const LabelFinancials: React.FC = () => {
         );
     }
 
-    const displayRevenue = MOCK_FINANCIALS_DATA.totalRevenue; 
     const totalFunds = budgetOverview?.budget?.total_budget || 0;
     const spentFunds = budgetOverview?.budget?.amount_spent || 0;
     const remainingFunds = totalFunds - spentFunds;
@@ -170,7 +165,7 @@ const LabelFinancials: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
                     label="Annual Revenue (YTD)" 
-                    value={`$${displayRevenue.toLocaleString()}`} 
+                    value={`$${MOCK_FINANCIALS_DATA.totalRevenue.toLocaleString()}`} 
                     icon={<DollarSignIcon className="w-6 h-6" />} 
                     subtext="+12% YoY Growth"
                 />
@@ -185,7 +180,7 @@ const LabelFinancials: React.FC = () => {
                     icon={<BanknotesIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
-                    label="A&R Budget Remaining" 
+                    label="Remaining Budget" 
                     value={`$${remainingFunds.toLocaleString()}`} 
                     icon={<ArrowUpCircleIcon className="w-6 h-6" />} 
                 />

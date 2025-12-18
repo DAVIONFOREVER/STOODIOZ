@@ -354,7 +354,8 @@ const StoodioDashboard: React.FC = () => {
     const handlePhotoDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         setIsDraggingPhotos(false);
-        if (e.dataTransfer.files) processPhotoFiles(event.dataTransfer.files);
+        // FIX: Changed 'event' to 'e' to access dataTransfer from the correctly scoped parameter 'e'.
+        if (e.dataTransfer.files) processPhotoFiles(e.dataTransfer.files);
     };
 
 
@@ -525,8 +526,7 @@ const StoodioDashboard: React.FC = () => {
                 </button>
                 <input
                     type="file"
-                    // FIX: Corrected undefined variables coverInputRef and handleCoverChange
-                    ref={coverImageInputRef}
+                    ref={coverInputRef}
                     onChange={handleCoverFileChange}
                     className="hidden"
                     accept="image/*"

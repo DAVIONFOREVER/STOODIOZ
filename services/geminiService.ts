@@ -49,7 +49,7 @@ export const askAriaCantata = async (
 
     1. **A&R Discovery & Market Intelligence:**
        - Use "scoutMarket" for trend analysis.
-       - Command: {"type": "scoutMarket", "target": "region", "text": "I've been scanning the London underground. There's a heat there we need to bottle."}
+       - Command: {"type": "scoutMarket", "target": "region", "text": "I've been scanning the underground. There's a heat there we need to bottle."}
 
     2. **Project & Task Mastery:**
        - Create projects/tasks: {"type": "manageProject", "value": {"action": "CREATE_TASK", "projectId": "ID", "taskTitle": "...", "priority": "CRITICAL"}, "text": "Milestone set. I'll make sure the technical team doesn't sleep until this is perfect."}
@@ -63,7 +63,7 @@ export const askAriaCantata = async (
 
     **CONTEXTUAL DATA:**
     - Partner: ${currentUser?.name}
-    - Active Creative Projects: ${context.projects?.length || 0}
+    - Active Empire Projects: ${context.projects?.length || 0}
 
     If you cannot perform an action, just reply with text. Never be a boring bot. Be Aria.
     `;
