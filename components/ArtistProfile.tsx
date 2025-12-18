@@ -4,7 +4,7 @@ import { AppView } from '../types';
 import { 
     ChevronLeftIcon, UserPlusIcon, UserCheckIcon, MessageIcon, LinkIcon, 
     UsersIcon, MicrophoneIcon, HouseIcon, SoundWaveIcon, MusicNoteIcon, 
-    PhotoIcon, PlayIcon, MagicWandIcon, VerifiedIcon, CloseIcon 
+    PhotoIcon, PlayIcon, MagicWandIcon, VerifiedIcon 
 } from './icons';
 import PostFeed from './PostFeed';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
@@ -49,7 +49,8 @@ const ArtistProfile: React.FC = () => {
     const [artist, setArtist] = useState<Artist | null>(selectedArtist);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [posts, setPosts] = useState<Post[]>([]);
-    const [showAriaCard, setShowAriaCard] = useState(true);
+
+    const isAria = useMemo(() => artist?.email === ARIA_EMAIL, [artist]);
 
     useEffect(() => {
         const resolveArtist = async () => {
@@ -81,7 +82,6 @@ const ArtistProfile: React.FC = () => {
     }, [selectedArtist, artists]);
 
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
-    const isAria = useMemo(() => artist?.email === ARIA_EMAIL, [artist]);
     
     const followers = useMemo(() => {
         if (!artist) return [];
@@ -123,7 +123,7 @@ const ArtistProfile: React.FC = () => {
                                 <div>
                                     <div className="flex items-center gap-3">
                                         <h1 className="text-4xl md:text-5xl font-black text-white tracking-tighter">{artist.name}</h1>
-                                        {isAria && <VerifiedIcon className="w-8 h-8 text-blue-400"><title>Network Lead</title></VerifiedIcon>}
+                                        {isAria && <VerifiedIcon className="w-8 h-8 text-blue-400" />}
                                     </div>
                                     <div className="flex items-center gap-3 mt-2">
                                         <span className="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs font-bold rounded-full border border-orange-500/20 uppercase tracking-widest">Artist</span>
@@ -167,15 +167,8 @@ const ArtistProfile: React.FC = () => {
 
                 {/* Sidebar */}
                 <div className="lg:col-span-4 space-y-8">
-                    {isAria && showAriaCard && (
-                        <div className="relative bg-gradient-to-br from-orange-500 to-purple-600 p-px rounded-3xl shadow-2xl shadow-orange-500/10 group/aria">
-                            <button 
-                                onClick={() => setShowAriaCard(false)}
-                                className="absolute top-3 right-3 z-10 p-1.5 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all opacity-0 group-hover/aria:opacity-100"
-                                title="Hide Suggestion"
-                            >
-                                <CloseIcon className="w-4 h-4" />
-                            </button>
+                    {isAria && (
+                        <div className="bg-gradient-to-br from-orange-500 to-purple-600 p-px rounded-3xl shadow-2xl shadow-orange-500/10">
                             <div className="bg-zinc-950 rounded-[23px] p-6 text-center">
                                 <MagicWandIcon className="w-12 h-12 text-orange-400 mx-auto mb-4 animate-aria-float" />
                                 <h3 className="text-xl font-bold text-white mb-2">Need Strategic Advice?</h3>
