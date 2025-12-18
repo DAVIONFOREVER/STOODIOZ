@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Stoodio, Producer } from '../types';
-import { AppView } from '../types';
-import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon } from './icons.tsx';
+import { AppView, UserRole } from '../types';
+import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon, UserCircleIcon, LogoutIcon } from './icons.tsx';
 import StoodioCard from './StudioCard.tsx';
 import EngineerCard from './EngineerCard.tsx';
 import ProducerCard from './ProducerCard.tsx';
@@ -15,6 +15,8 @@ interface LandingPageProps {
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectProducer: (producer: Producer) => void;
     onOpenAriaCantata: () => void;
+    // Added onLogout property to match props passed in App.tsx
+    onLogout: () => void;
 }
 
 const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
@@ -24,12 +26,24 @@ const Stat: React.FC<{ value: string, label: string }> = ({ value, label }) => (
     </div>
 );
 
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, onOpenAriaCantata }) => {
-    const { stoodioz, engineers, artists, producers } = useAppState();
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, onSelectProducer, onOpenAriaCantata, onLogout }) => {
+    const { stoodioz, engineers, artists, producers, currentUser, userRole } = useAppState();
     
     const featuredStoodioz = stoodioz.slice(0, 3);
     const featuredEngineers = engineers.slice(0, 3);
     const featuredProducers = producers.slice(0, 3);
+
+    const handleDashboardClick = () => {
+        if (!userRole) return;
+        switch (userRole) {
+            case UserRole.ARTIST: onNavigate(AppView.ARTIST_DASHBOARD); break;
+            case UserRole.ENGINEER: onNavigate(AppView.ENGINEER_DASHBOARD); break;
+            case UserRole.PRODUCER: onNavigate(AppView.PRODUCER_DASHBOARD); break;
+            case UserRole.STOODIO: onNavigate(AppView.STOODIO_DASHBOARD); break;
+            case UserRole.LABEL: onNavigate(AppView.LABEL_DASHBOARD); break;
+            default: onNavigate(AppView.THE_STAGE);
+        }
+    };
 
     return (
         <div className="space-y-24 md:space-y-32">
@@ -43,19 +57,40 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
                 
                 <AriaCantataHero onOpenAriaCantata={onOpenAriaCantata} />
 
-                <div className="mt-10 flex justify-center items-center gap-4">
-                    <button 
-                        onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
-                        className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg"
-                    >
-                        Get Started
-                    </button>
-                    <button 
-                        onClick={() => onNavigate(AppView.STOODIO_LIST)}
-                        className="bg-transparent border-2 border-zinc-600 text-zinc-100 font-bold py-3 px-8 rounded-lg hover:bg-zinc-800 hover:border-zinc-500 transition-all duration-300"
-                    >
-                        Browse Stoodioz
-                    </button>
+                <div className="mt-10 flex justify-center items-center gap-4 flex-wrap">
+                    {currentUser ? (
+                        <>
+                            <button 
+                                onClick={handleDashboardClick}
+                                className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg flex items-center gap-2"
+                            >
+                                <UserCircleIcon className="w-5 h-5" />
+                                My Dashboard
+                            </button>
+                            <button 
+                                onClick={onLogout}
+                                className="bg-zinc-800 border border-zinc-700 text-zinc-200 font-bold py-3 px-8 rounded-lg hover:bg-zinc-700 hover:text-white transition-all duration-300 flex items-center gap-2"
+                            >
+                                <LogoutIcon className="w-5 h-5" />
+                                Logout
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button 
+                                onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
+                                className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg"
+                            >
+                                Get Started
+                            </button>
+                            <button 
+                                onClick={() => onNavigate(AppView.STOODIO_LIST)}
+                                className="bg-transparent border-2 border-zinc-600 text-zinc-100 font-bold py-3 px-8 rounded-lg hover:bg-zinc-800 hover:border-zinc-500 transition-all duration-300"
+                            >
+                                Browse Stoodioz
+                            </button>
+                        </>
+                    )}
                 </div>
             </section>
             
@@ -156,16 +191,25 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onSelectStoodio, 
 
             {/* Call to Action */}
             <section className="p-12 text-center cardSurface">
-                <AiHeroText text="Ready to Create?" className="text-4xl md:text-5xl font-extrabold" />
+                <AiHeroText text={currentUser ? "Continue Creating" : "Ready to Create?"} className="text-4xl md:text-5xl font-extrabold" />
                 <p className="max-w-2xl mx-auto mt-4 text-lg text-zinc-300">
                     Join a community of passionate music creators. Sign up today and take the next step in your musical journey.
                 </p>
-                <button 
-                    onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
-                    className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 shadow-lg"
-                >
-                    Sign Up for Free
-                </button>
+                {currentUser ? (
+                    <button 
+                        onClick={handleDashboardClick}
+                        className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 shadow-lg flex items-center justify-center gap-2 mx-auto"
+                    >
+                        <UserCircleIcon className="w-5 h-5" /> Go to Dashboard
+                    </button>
+                ) : (
+                    <button 
+                        onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
+                        className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 shadow-lg"
+                    >
+                        Sign Up for Free
+                    </button>
+                )}
             </section>
         </div>
     );

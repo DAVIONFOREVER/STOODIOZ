@@ -1,8 +1,7 @@
-
 import { useCallback } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { AppView, UserRole } from '../types';
-import type { Artist, Engineer, Stoodio, Producer, Booking, VibeMatchResult, Message, AriaActionResponse, AriaCantataMessage, Location, FileAttachment, Label, BookingRequest } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaActionResponse, AriaCantataMessage, Location, FileAttachment, Label, BookingRequest, Project, ProjectTask } from '../types';
 import * as apiService from '../services/apiService';
 import { createPdfBytes } from '../lib/pdf';
 
@@ -17,38 +16,73 @@ interface AriaHookDependencies {
     confirmBooking: (request: BookingRequest) => void; 
     updateProfile: (updates: any) => void;
     selectRoleToSetup: (role: UserRole) => void;
+    // Added logout property to match call sites in App.tsx
+    logout: () => void;
 }
 
 export const useAria = (deps: AriaHookDependencies) => {
     const dispatch = useAppDispatch();
-    const { artists, engineers, producers, stoodioz, currentUser, userRole } = useAppState();
+    const { artists, engineers, producers, stoodioz, currentUser, userRole, bookings } = useAppState();
 
     const executeCommand = useCallback(async (command: AriaActionResponse, onClose: () => void) => {
         console.log("Aria Executing Command:", command);
 
         switch (command.type) {
+            case 'logout':
+                deps.logout();
+                onClose();
+                break;
+
+            case 'scoutMarket':
+                if (command.target) {
+                    const insights = await apiService.scoutMarketInsights(command.target);
+                    alert(`A&R Intelligence Report (${command.target}): ${insights[0].description}`);
+                } else {
+                    deps.navigate(AppView.LABEL_SCOUTING);
+                }
+                onClose();
+                break;
+
+            case 'manageProject':
+                if (command.value && currentUser) {
+                    const { action, projectId, taskTitle, priority } = command.value;
+                    if (action === 'CREATE_TASK') {
+                        await apiService.createProjectTask(projectId, { 
+                            title: taskTitle, 
+                            priority: priority || 'NORMAL',
+                            status: 'TODO'
+                        });
+                        alert(`Aria: Project updated. Task "${taskTitle}" assigned.`);
+                    }
+                    onClose();
+                }
+                break;
+
+            case 'generateDocument':
+                if (command.value && currentUser) {
+                    const { title, content } = command.value;
+                    try {
+                        const pdfBytes = await createPdfBytes(content);
+                        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                        await apiService.uploadDocument(blob, `${title}.pdf`, currentUser.id, 'OFFICIAL');
+                        
+                        let dashboardView = AppView.ARTIST_DASHBOARD;
+                        if (userRole === 'LABEL') dashboardView = AppView.LABEL_DASHBOARD;
+                        
+                        deps.navigate(dashboardView);
+                        dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
+                        onClose();
+                    } catch (e) { console.error("Aria Doc Gen Error:", e); }
+                }
+                break;
+
             case 'navigate':
                 if (command.target && command.target in AppView) {
                     deps.navigate(command.target as AppView);
-                    
-                    if (command.value && typeof command.value === 'object' && command.value.tab) {
+                    if (command.value?.tab) {
                         dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: command.value.tab } });
                     }
                     onClose();
-                } else if (command.target === 'ARTIST_PROFILE' && command.value) {
-                    const artist = artists.find(a => a.name.toLowerCase().includes(command.value.toLowerCase()));
-                    if (artist) { deps.viewArtistProfile(artist); onClose(); }
-                } else if (command.target === 'ENGINEER_PROFILE' && command.value) {
-                    const engineer = engineers.find(e => e.name.toLowerCase().includes(command.value.toLowerCase()));
-                    if (engineer) { deps.viewEngineerProfile(engineer); onClose(); }
-                } else if (command.target === 'PRODUCER_PROFILE' && command.value) {
-                    const producer = producers.find(p => p.name.toLowerCase().includes(command.value.toLowerCase()));
-                    if (producer) { deps.viewProducerProfile(producer); onClose(); }
-                } else if (command.target === 'STOODIO_DETAIL' && command.value) {
-                    const stoodio = stoodioz.find(s => s.name.toLowerCase().includes(command.value.toLowerCase()));
-                    if (stoodio) { deps.viewStoodioDetails(stoodio); onClose(); }
-                } else if (command.target === 'LABEL_IMPORT') {
-                    deps.navigate(AppView.LABEL_IMPORT); onClose();
                 }
                 break;
 
@@ -59,156 +93,36 @@ export const useAria = (deps: AriaHookDependencies) => {
                 } else if (command.target === 'ADD_FUNDS') {
                     dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
                     onClose();
-                } else if (command.target === 'PAYOUT') {
-                    dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
-                    onClose();
                 }
                 break;
 
-            case 'showVibeMatchResults':
-                if (command.value) {
-                    dispatch({ type: ActionTypes.SET_VIBE_RESULTS, payload: { results: command.value } });
-                    deps.navigate(AppView.VIBE_MATCHER_RESULTS);
-                }
-                break;
-            
             case 'createBooking': 
-                // { type: 'createBooking', value: { targetId: '...', date: '...', time: '...' } }
                 if (command.value && currentUser) {
                     const { targetId, date, time } = command.value;
                     const allTargets = [...engineers, ...producers, ...stoodioz];
                     const target = allTargets.find(t => t.id === targetId || t.name.toLowerCase() === targetId.toLowerCase());
-                    
                     if (target) {
-                        // Construct minimal request
                         const request: BookingRequest = {
                             date: date || new Date().toISOString().split('T')[0],
-                            start_time: time || '12:00',
-                            duration: 2,
-                            total_cost: 0, // Calculated in modal usually, relying on API default
-                            engineer_pay_rate: 0,
-                            request_type: 'FIND_AVAILABLE' as any, // Placeholder
+                            start_time: time || '12:00', duration: 2, total_cost: 0, engineer_pay_rate: 0,
+                            request_type: 'FIND_AVAILABLE' as any,
                             ...( 'specialties' in target ? { requested_engineer_id: target.id } : {} ),
                             ...( 'amenities' in target ? { room: (target as any).rooms?.[0] } : {} )
                         };
-                        
-                        // We can either open the modal pre-filled OR execute. 
-                        // Prompt said "Direct Booking Execution" so let's execute via API
                         try {
                            const newBooking = await apiService.createBooking(request, target as any, currentUser, userRole!);
                            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: newBooking } });
-                           alert(`Booking request sent to ${target.name}!`);
+                           alert(`Aria: Session booked at ${target.name}. Check your schedule.`);
                            onClose();
-                        } catch (e) {
-                           alert("Failed to create booking automatically.");
-                        }
-                    } else {
-                        alert("Could not find that artist/studio.");
+                        } catch (e) { alert("Execution failed."); }
                     }
                 }
-                break;
-
-            case 'socialAction':
-                if (command.target === 'post' && command.value && currentUser) {
-                     await apiService.createPost({ text: command.value }, currentUser, userRole!);
-                     // Refresh handled by realtime subscription in TheStage
-                     onClose();
-                } else if (command.target === 'follow' && command.value) {
-                     const target = [...artists, ...engineers, ...stoodioz].find(u => u.id === command.value);
-                     if (target && currentUser) {
-                         await apiService.toggleFollow(currentUser, target, 'artist', false); // Assuming follow
-                     }
-                }
-                break;
-
-            case 'updateProfile':
-                if (command.value && currentUser) {
-                    deps.updateProfile(command.value);
-                    alert("Profile updated via Aria.");
-                }
-                break;
-
-            case 'search':
-                // { type: 'search', value: { role: 'STOODIO', city: 'Atlanta' } }
-                if (command.value) {
-                    const { role, city, maxRate } = command.value;
-                    let results: any[] = [];
-                    if (role === 'STOODIO') results = stoodioz;
-                    else if (role === 'ENGINEER') results = engineers;
-                    
-                    if (city) results = results.filter(r => r.location.toLowerCase().includes(city.toLowerCase()));
-                    // Simple filter, could enable a filter view in UI
-                    if (results.length > 0) {
-                        if (role === 'STOODIO') deps.viewStoodioDetails(results[0]);
-                        else if (role === 'ENGINEER') deps.viewEngineerProfile(results[0]);
-                        onClose();
-                    } else {
-                        alert("No matches found.");
-                    }
-                }
-                break;
-
-            case 'generateDocument':
-                if (command.value && currentUser) {
-                    const { title, content } = command.value;
-                    try {
-                        const pdfBytes = await createPdfBytes(content);
-                        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                        // Create a file from blob
-                        const file = new File([blob], `${title}.pdf`, { type: 'application/pdf' });
-                        await apiService.uploadDocument(file, title, currentUser.id);
-                        
-                        // Navigate to documents to show it
-                        deps.navigate(AppView.ARTIST_DASHBOARD); // Assuming dashboard has docs tab
-                        dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
-                        onClose();
-                    } catch (e) {
-                        console.error("Doc Gen Error", e);
-                    }
-                }
-                break;
-
-            case 'labelControl':
-                if (command.target && command.value !== undefined && currentUser && userRole === 'LABEL') {
-                     // e.g. target: 'opportunities.accepting_demos', value: true
-                     // We need to fetch current profile, merge update
-                     const keys = command.target.split('.');
-                     let update = {};
-                     if (keys.length === 2 && keys[0] === 'opportunities') {
-                         update = { opportunities: { ...((currentUser as any).opportunities), [keys[1]]: command.value } };
-                     } else {
-                         update = { [command.target]: command.value };
-                     }
-                     deps.updateProfile(update);
-                }
-                break;
-                
-            case 'assistAccountSetup':
-                if (command.target && command.target in UserRole) {
-                    deps.selectRoleToSetup(command.target as UserRole);
-                    onClose();
-                }
-                break;
-
-            case 'sendMessage':
-                if (command.target && command.value) {
-                    const allUsers = [...artists, ...engineers, ...producers, ...stoodioz];
-                    const recipient = allUsers.find(u => u.name.toLowerCase().includes(command.target!.toLowerCase()));
-                    if (recipient) {
-                        deps.startConversation(recipient);
-                        onClose();
-                    }
-                }
-                break;
-
-            case 'error':
-                console.warn("Aria reported an error:", command.value);
                 break;
 
             default:
                 break;
         }
-    }, [dispatch, deps, artists, engineers, producers, stoodioz, currentUser, userRole]);
+    }, [dispatch, deps, artists, engineers, producers, stoodioz, currentUser, userRole, bookings]);
 
     const handleAriaNudgeClick = useCallback(() => {
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
