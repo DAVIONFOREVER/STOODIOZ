@@ -1,44 +1,49 @@
+
 import React, { useState, useEffect } from 'react';
 import { DollarSignIcon, ChartBarIcon, CalendarIcon, UsersIcon, BanknotesIcon, ArrowUpCircleIcon, BriefcaseIcon, CheckCircleIcon, PlusCircleIcon, CloseCircleIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode } from '../types';
-import { USER_SILHOUETTE_URL } from '../constants';
+import { TransactionCategory } from '../types';
 
-// --- Global Mock Data (Fallback) ---
-const MOCK_FINANCIALS_DATA = {
-    totalRevenue: 2450000.00, 
-    monthlyRevenue: 185000.00, 
-    pendingPayouts: 42000.00,
-    availablePayoutBalance: 125000.00,
+// --- Sony Music Mock Data ---
+const MOCK_FINANCIALS = {
+    totalRevenue: 245000000.00, // $245 Million
+    monthlyRevenue: 18500000.00, // $18.5 Million
+    pendingPayouts: 4200000.00,
+    availablePayoutBalance: 12500000.00,
     monthlyBreakdown: [
-        { month: 'Jan', amount: 145000 },
-        { month: 'Feb', amount: 152000 },
-        { month: 'Mar', amount: 190000 },
-        { month: 'Apr', amount: 165000 },
-        { month: 'May', amount: 184000 },
-        { month: 'Jun', amount: 211000 },
-        { month: 'Jul', amount: 205000 },
-        { month: 'Aug', amount: 198000 },
-        { month: 'Sep', amount: 182000 },
-        { month: 'Oct', amount: 190000 },
-        { month: 'Nov', amount: 220000 },
-        { month: 'Dec', amount: 245000 },
+        { month: 'Jan', amount: 14500000 },
+        { month: 'Feb', amount: 15200000 },
+        { month: 'Mar', amount: 19000000 }, // Album release spike
+        { month: 'Apr', amount: 16500000 },
+        { month: 'May', amount: 18400000 },
+        { month: 'Jun', amount: 21100000 }, // Summer tour kickoffs
+        { month: 'Jul', amount: 20500000 },
+        { month: 'Aug', amount: 19800000 },
+        { month: 'Sep', amount: 18200000 },
+        { month: 'Oct', amount: 19000000 },
+        { month: 'Nov', amount: 22000000 }, // Holiday ramp up
+        { month: 'Dec', amount: 24500000 },
     ],
     byArtist: [
-        { id: '1', name: 'Beyoncé', image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop', amount: 852000, percentage: 35 },
-        { id: '2', name: 'Harry Styles', image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop', amount: 555000, percentage: 22 },
-        { id: '3', name: 'Travis Scott', image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop', amount: 484000, percentage: 19 },
+        { id: '1', name: 'Beyoncé', image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop', amount: 85200000, percentage: 35 },
+        { id: '2', name: 'Harry Styles', image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop', amount: 55500000, percentage: 22 },
+        { id: '3', name: 'Travis Scott', image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop', amount: 48400000, percentage: 19 },
+        { id: '4', name: 'SZA', image_url: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=200&auto=format&fit=crop', amount: 32900000, percentage: 13 },
+        { id: '5', name: 'Doja Cat', image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop', amount: 23000000, percentage: 11 },
     ],
     byType: [
-        { type: 'Streaming Royalties', amount: 1450000, percentage: 59 },
-        { type: 'Sync & Licensing', amount: 450000, percentage: 18 },
-        { type: 'Physical Sales', amount: 350000, percentage: 14 },
-        { type: 'Merchandise', amount: 200000, percentage: 9 },
+        { type: 'Streaming Royalties', amount: 145000000, percentage: 59 },
+        { type: 'Sync & Licensing', amount: 45000000, percentage: 18 },
+        { type: 'Physical Sales (Vinyl)', amount: 35000000, percentage: 14 },
+        { type: 'Merchandise/D2C', amount: 20000000, percentage: 9 },
     ],
     initialPayoutRequests: [
-        { id: 'p1', amount: 25000, requested_on: '2024-05-15', status: 'Pending', artist: 'Beyoncé' },
-        { id: 'p2', amount: 8500, requested_on: '2024-05-14', status: 'Approved', artist: 'Travis Scott' },
+        { id: 'p1', amount: 2500000, requested_on: '2024-05-15', status: 'Pending', artist: 'Beyoncé' },
+        { id: 'p2', amount: 850000, requested_on: '2024-05-14', status: 'Approved', artist: 'Travis Scott' },
+        { id: 'p3', amount: 1200000, requested_on: '2024-05-10', status: 'Approved', artist: 'Harry Styles' },
+        { id: 'p4', amount: 45000, requested_on: '2024-05-08', status: 'Rejected', artist: 'Developing Artist A' },
     ]
 };
 
@@ -70,7 +75,8 @@ const LabelFinancials: React.FC = () => {
     const [topUpNote, setTopUpNote] = useState<string>('');
     
     // UI State for mock interactivity
-    const [payoutRequests, setPayoutRequests] = useState(MOCK_FINANCIALS_DATA.initialPayoutRequests);
+    const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
+    const [payoutRequests, setPayoutRequests] = useState(MOCK_FINANCIALS.initialPayoutRequests);
 
     const handlePayoutAction = (id: string, action: 'Approved' | 'Rejected') => {
         setPayoutRequests(prev => prev.map(req => 
@@ -88,7 +94,7 @@ const LabelFinancials: React.FC = () => {
                 apiService.fetchLabelTransactions(currentUser.id)
             ]);
 
-            setContracts(contractsData as LabelContract[]);
+            setContracts(contractsData);
             setBudgetOverview(budgetData);
             setTransactions(transactionsData);
 
@@ -141,12 +147,7 @@ const LabelFinancials: React.FC = () => {
     };
 
     if (loading) {
-        return (
-             <div className="flex flex-col items-center justify-center py-20">
-                <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full mb-4"></div>
-                <p className="text-zinc-500">Loading financial data...</p>
-            </div>
-        );
+        return <div className="p-20 text-center text-zinc-500">Loading financial data...</div>;
     }
 
     const totalFunds = budgetOverview?.budget?.total_budget || 0;
@@ -157,7 +158,7 @@ const LabelFinancials: React.FC = () => {
         <div className="max-w-7xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
             {/* Header */}
             <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Financial Overview</h1>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Sony Financial Overview</h1>
                 <p className="text-zinc-400 mt-1">Global P&L, Royalty Payouts, and Division Budgets.</p>
             </div>
 
@@ -165,22 +166,22 @@ const LabelFinancials: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
                     label="Annual Revenue (YTD)" 
-                    value={`$${MOCK_FINANCIALS_DATA.totalRevenue.toLocaleString()}`} 
+                    value={`$${MOCK_FINANCIALS.totalRevenue.toLocaleString()}`} 
                     icon={<DollarSignIcon className="w-6 h-6" />} 
                     subtext="+12% YoY Growth"
                 />
                 <StatCard 
                     label="This Month" 
-                    value={`$${MOCK_FINANCIALS_DATA.monthlyRevenue.toLocaleString()}`} 
+                    value={`$${MOCK_FINANCIALS.monthlyRevenue.toLocaleString()}`} 
                     icon={<CalendarIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
                     label="Pending Payouts" 
-                    value={`$${MOCK_FINANCIALS_DATA.pendingPayouts.toLocaleString()}`} 
+                    value={`$${MOCK_FINANCIALS.pendingPayouts.toLocaleString()}`} 
                     icon={<BanknotesIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
-                    label="Remaining Budget" 
+                    label="A&R Budget Remaining" 
                     value={`$${remainingFunds.toLocaleString()}`} 
                     icon={<ArrowUpCircleIcon className="w-6 h-6" />} 
                 />
@@ -285,7 +286,7 @@ const LabelFinancials: React.FC = () => {
                 </h2>
                 
                 {transactions.length === 0 ? (
-                    <p className="text-zinc-500 text-sm py-4 text-center">No transactions recorded yet.</p>
+                    <p className="text-zinc-500 text-sm py-4 text-center">No transactions recorded.</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm text-zinc-400">
@@ -322,17 +323,55 @@ const LabelFinancials: React.FC = () => {
                 )}
             </div>
 
-            {/* SECTION E: Revenue by Artist */}
+            {/* SECTION E: Contracts (Existing logic kept or minimized if needed, but visually secondary now) */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
+                    <BriefcaseIcon className="w-5 h-5 text-orange-400" /> Active Contracts
+                </h2>
+                {contracts.length === 0 ? (
+                    <p className="text-zinc-500 text-sm">No active contracts found.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm text-zinc-400">
+                            <thead className="bg-zinc-800/50 uppercase font-bold text-xs">
+                                <tr>
+                                    <th className="p-3">Talent ID</th>
+                                    <th className="p-3">Role</th>
+                                    <th className="p-3">Type</th>
+                                    <th className="p-3">Split %</th>
+                                    <th className="p-3">Recoup Bal</th>
+                                    <th className="p-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800">
+                                {contracts.map(c => (
+                                    <tr key={c.id}>
+                                        <td className="p-3 font-mono text-zinc-300">{c.talent_user_id.slice(0, 8)}...</td>
+                                        <td className="p-3">{c.talent_role}</td>
+                                        <td className="p-3">{c.contract_type}</td>
+                                        <td className="p-3">{c.split_percent}%</td>
+                                        <td className="p-3 font-mono text-orange-400">${c.recoup_balance.toFixed(2)}</td>
+                                        <td className="p-3 uppercase text-xs font-bold">{c.status}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* SECTION F: Revenue by Artist */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                         <UsersIcon className="w-5 h-5 text-orange-400" /> Top Grossing Artists (YTD)
                     </h2>
                     <div className="space-y-4">
-                        {MOCK_FINANCIALS_DATA.byArtist.map((artist) => (
+                        {MOCK_FINANCIALS.byArtist.map((artist) => (
                             <div 
                                 key={artist.id} 
-                                className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-xl hover:bg-zinc-800 transition-colors group"
+                                onClick={() => setSelectedArtist(artist)}
+                                className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-xl hover:bg-zinc-800 cursor-pointer transition-colors group"
                             >
                                 <div className="flex items-center gap-4">
                                     <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
@@ -352,13 +391,13 @@ const LabelFinancials: React.FC = () => {
                     </div>
                 </div>
 
-                {/* SECTION F: Income Sources */}
+                {/* SECTION G: Income Sources */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                         <ChartBarIcon className="w-5 h-5 text-purple-400" /> Revenue Streams
                     </h2>
                     <div className="space-y-6">
-                        {MOCK_FINANCIALS_DATA.byType.map((item, index) => (
+                        {MOCK_FINANCIALS.byType.map((item, index) => (
                             <div key={index}>
                                 <div className="flex justify-between text-sm mb-2">
                                     <span className="text-zinc-300 font-medium">{item.type}</span>
@@ -377,7 +416,7 @@ const LabelFinancials: React.FC = () => {
                 </div>
             </div>
 
-            {/* SECTION G: Payout Requests */}
+            {/* SECTION H: Payout Requests */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                 <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                     <BanknotesIcon className="w-5 h-5 text-green-400" /> Royalty & Advance Requests

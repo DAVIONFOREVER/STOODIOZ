@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useState } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { generateSmartReplies } from '../services/geminiService';
@@ -68,8 +69,7 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
         if (!existingConvo) {
             // Create real conversation in DB
             try {
-                // FIX: Added 'as any' to newConvoData to safely access properties on potentially unknown return type.
-                const newConvoData = (await apiService.createConversation([currentUser.id, participant.id])) as any;
+                const newConvoData = await apiService.createConversation([currentUser.id, participant.id]);
                 
                 // Handle blocking logic
                 if (newConvoData && newConvoData.blocked_by_label_permissions) {

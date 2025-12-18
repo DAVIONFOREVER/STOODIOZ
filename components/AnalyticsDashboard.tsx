@@ -1,9 +1,11 @@
+
+
 import React, { useState, useEffect } from 'react';
 import type { AnalyticsData, Stoodio, Engineer, Producer, Artist, UserRole } from '../types';
-import { fetchAnalyticsData as getAnalyticsData } from '../services/apiService';
+import { fetchAnalyticsData } from '../services/apiService';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { DollarSignIcon, UsersIcon, EyeIcon, CalendarIcon, ChartBarIcon } from './icons';
+import { DollarSignIcon, UsersIcon, EyeIcon, CalendarIcon } from './icons';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
@@ -45,41 +47,19 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user, userRole 
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [timeframe, setTimeframe] = useState<30 | 60 | 90>(30);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            setError(null);
-            try {
-                const data = await getAnalyticsData(user.id, userRole, timeframe);
-                setAnalyticsData(data);
-            } catch (err: any) {
-                console.error("Analytics load failed:", err);
-                setError(err.message || "Failed to load performance metrics.");
-            } finally {
-                setLoading(false);
-            }
+            const data = await fetchAnalyticsData(user.id, userRole, timeframe);
+            setAnalyticsData(data);
+            setLoading(false);
         };
         loadData();
     }, [user.id, userRole, timeframe]);
 
-    if (loading) {
+    if (loading || !analyticsData) {
         return <LoadingSkeleton />;
-    }
-
-    if (error) {
-        return (
-            <div className="p-12 text-center cardSurface border-dashed opacity-60">
-                <ChartBarIcon className="w-12 h-12 mx-auto text-zinc-600 mb-4" />
-                <p className="text-zinc-400 font-medium">{error}</p>
-                <p className="text-xs text-zinc-500 mt-2">Metrics will populate as data is synchronized from the network.</p>
-            </div>
-        );
-    }
-
-    if (!analyticsData) {
-        return null;
     }
 
     const { kpis, revenueOverTime, engagementOverTime, revenueSources } = analyticsData;
@@ -156,11 +136,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user, userRole 
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard 
-                    label={isArtist ? "Total Spent" : "Total Revenue"} 
-                    value={`$${Math.abs(kpis.totalRevenue).toLocaleString()}`} 
-                    icon={<DollarSignIcon className={`w-6 h-6 ${isArtist ? 'text-red-400' : 'text-green-400'}`} />} 
-                />
+                <StatCard label={isArtist ? "Total Spent" : "Total Revenue"} value={`$${Math.abs(kpis.totalRevenue).toLocaleString()}`} icon={<DollarSignIcon className={`w-6 h-6 ${isArtist ? 'text-red-400' : 'text-green-400'}`}/>} />
                 <StatCard label="Profile Views" value={kpis.profileViews.toLocaleString()} icon={<EyeIcon className="w-6 h-6 text-blue-400"/>} />
                 <StatCard label="New Followers" value={kpis.newFollowers.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-purple-400"/>} />
                 <StatCard label={isArtist ? "Sessions Booked" : "Bookings / Sales"} value={kpis.bookings.toLocaleString()} icon={<CalendarIcon className="w-6 h-6 text-orange-400"/>} />

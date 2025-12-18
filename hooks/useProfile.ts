@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -34,8 +35,7 @@ export const useProfile = () => {
             
             // To ensure relational data (like rooms, samples) isn't lost, merge the update
             // with the existing full object in the state.
-            // FIX: Explicitly cast updatedUser to any to allow safe spreading in TypeScript.
-            const fullUpdatedUser = { ...currentUser, ...(updatedUser as any) };
+            const fullUpdatedUser = { ...currentUser, ...updatedUser };
 
             const updatedUsers = allUsers.map(u => u.id === fullUpdatedUser.id ? fullUpdatedUser : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as (Artist | Engineer | Stoodio | Producer | Label)[] } });

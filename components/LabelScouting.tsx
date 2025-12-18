@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { AppView, ArtistScoutingData, AandRNote } from '../types';
 import { ChevronLeftIcon, SearchIcon, StarIcon, ChartBarIcon, UsersIcon, EyeIcon, PlusCircleIcon, CloseIcon, CheckCircleIcon } from './icons';
@@ -6,7 +7,7 @@ interface LabelScoutingProps {
     onNavigate: (view: AppView) => void;
 }
 
-// Mocking high-potential "next up" artists
+// Mocking high-potential "next up" artists relevant to Sony's A&R interests
 const mockArtists: ArtistScoutingData[] = [
     {
         id: '1',
@@ -27,6 +28,36 @@ const mockArtists: ArtistScoutingData[] = [
         followers: 850000,
         growth_30d: 320,
         engagement_score: 95
+    },
+    {
+        id: '3',
+        name: 'Dominic Fike',
+        image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop',
+        city: 'Naples, FL',
+        genre: ['Alternative', 'Rock'],
+        followers: 3100000,
+        growth_30d: 15,
+        engagement_score: 88
+    },
+    {
+        id: '4',
+        name: 'PinkPantheress',
+        image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop',
+        city: 'London',
+        genre: ['Pop', 'Electronic'],
+        followers: 2800000,
+        growth_30d: 22,
+        engagement_score: 91
+    },
+    {
+        id: '5',
+        name: 'Teezo Touchdown',
+        image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop',
+        city: 'Beaumont, TX',
+        genre: ['Alternative', 'Hip-Hop'],
+        followers: 1200000,
+        growth_30d: 45,
+        engagement_score: 89
     }
 ];
 
@@ -72,6 +103,7 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
 
     const openNoteModal = (artist: ArtistScoutingData) => {
         setSelectedArtistForNote(artist);
+        // Load existing note if any
         const existing = notes.find(n => n.artist_id === artist.id);
         setCurrentNoteText(existing?.note || '');
         setNoteModalOpen(true);
@@ -84,6 +116,7 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
                 note: currentNoteText,
                 created_at: new Date().toISOString()
             };
+            // Upsert note logic for mock state
             setNotes(prev => [
                 ...prev.filter(n => n.artist_id !== selectedArtistForNote.id),
                 newNote
@@ -103,7 +136,7 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
                         <ChevronLeftIcon className="w-5 h-5" />
                         Back to Dashboard
                     </button>
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">A&R Discovery</h1>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Sony A&R Discovery</h1>
                     <p className="text-zinc-400 mt-1">Scout emerging talent, track growth, and manage pipeline.</p>
                 </div>
             </div>
@@ -139,6 +172,16 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
                         >
                             <option value="All">All Genres</option>
                             {genres.map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                        <select 
+                            value={sortOption} 
+                            onChange={(e) => setSortOption(e.target.value)}
+                            className="bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg px-4 py-2 outline-none cursor-pointer hover:bg-zinc-700"
+                        >
+                            <option value="Trending">Trending (Growth %)</option>
+                            <option value="Most Followers">Most Followers</option>
+                            <option value="Highest Engagement">Highest Engagement</option>
+                            <option value="Newest">Newest</option>
                         </select>
                     </div>
                 </div>

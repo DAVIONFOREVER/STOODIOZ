@@ -1,6 +1,9 @@
+
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData, Label } from '../types';
 import { AppView, UserRole } from '../types';
+
+// --- STATE AND ACTION TYPES ---
 
 export interface AppState {
     history: AppView[];
@@ -50,6 +53,17 @@ export interface AppState {
     masterclassToReview: { masterclass: Masterclass, owner: Engineer | Producer } | null;
     directionsIntent: { bookingId: string } | null;
 }
+
+type ActionMap<M extends { [index: string]: any }> = {
+  [Key in keyof M]: M[Key] extends undefined
+    ? {
+        type: Key;
+      }
+    : {
+        type: Key;
+        payload: M[Key];
+      }
+};
 
 export enum ActionTypes {
     NAVIGATE = 'NAVIGATE',
@@ -111,10 +125,6 @@ export enum ActionTypes {
     SET_DIRECTIONS_INTENT = 'SET_DIRECTIONS_INTENT',
 }
 
-type ActionMap<M extends { [index: string]: any }> = {
-  [Key in keyof M]: M[Key] extends undefined ? { type: Key } : { type: Key; payload: M[Key] }
-};
-
 type Payload = {
     [ActionTypes.NAVIGATE]: { view: AppView };
     [ActionTypes.GO_BACK]: undefined;
@@ -122,7 +132,7 @@ type Payload = {
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; labels: Label[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer | Label, role?: UserRole };
-    [ActionTypes.LOGIN_FAILURE]: { error: string | null };
+    [ActionTypes.LOGIN_FAILURE]: { error: string };
     [ActionTypes.LOGOUT]: undefined;
     [ActionTypes.COMPLETE_SETUP]: { newUser: Artist | Engineer | Stoodio | Producer | Label, role: UserRole };
     [ActionTypes.VIEW_STOODIO_DETAILS]: { stoodio: Stoodio };
@@ -177,6 +187,8 @@ type Payload = {
 
 export type AppAction = ActionMap<Payload>[keyof ActionMap<Payload>];
 
+
+// --- INITIAL STATE ---
 const initialState: AppState = {
     history: [AppView.LANDING_PAGE],
     historyIndex: 0,
@@ -226,11 +238,14 @@ const initialState: AppState = {
     directionsIntent: null,
 };
 
+// --- REDUCER ---
 const appReducer = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
         case ActionTypes.NAVIGATE: {
             const { view } = action.payload;
-            if (view === state.history[state.historyIndex]) return state;
+            if (view === state.history[state.historyIndex]) {
+                return state;
+            }
             const newHistory = state.history.slice(0, state.historyIndex + 1);
             newHistory.push(view);
             return {
@@ -256,8 +271,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             };
 
         case ActionTypes.SET_INITIAL_DATA:
-            return { ...state, ...action.payload };
-            
+            return {
+                ...state,
+                ...action.payload,
+                isLoading: false,
+            };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
 
@@ -265,24 +283,36 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             const { user, role: explicitRole } = action.payload;
             let role = explicitRole;
 
-            // STRICT ROLE DETECTION
             if (!role) {
                 if ('amenities' in user) role = UserRole.STOODIO;
                 else if ('specialties' in user) role = UserRole.ENGINEER;
                 else if ('instrumentals' in user) role = UserRole.PRODUCER;
-                else if ('company_name' in user) role = UserRole.LABEL; 
+                else if ('bio' in user && !('is_seeking_session' in user)) role = UserRole.LABEL;
                 else role = UserRole.ARTIST;
             }
 
-            // FORCE correct dashboard on login - prevent stale 'last_view' from hijacking
-            let landingView = AppView.ARTIST_DASHBOARD;
+            // PERSISTENCE LOGIC:
+            // 1. Determine Default Dashboard
+            let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
+            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
 
-            // Clear legacy stale state
-            localStorage.setItem('last_view', landingView);
+            // 2. Check LocalStorage for last visited view
+            const storedView = localStorage.getItem('last_view');
+            const restricted = [
+                AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+                AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+                AppView.STOODIO_SETUP, AppView.LABEL_SETUP, AppView.CLAIM_ENTRY, 
+                AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
+            ];
+            
+            // 3. If stored view is valid and NOT a setup/login page, restore it.
+            if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
+                landingView = storedView as AppView;
+            }
             
             return {
                 ...state,
@@ -292,32 +322,59 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 history: [landingView],
                 historyIndex: 0,
                 ariaHistory: [],
-                isLoading: false, 
+                isLoading: false, // Explicitly set loading to false to stop spinner
             };
         }
         case ActionTypes.LOGIN_FAILURE:
+            // Explicitly set loading to false to stop spinner on error
             return { ...state, loginError: action.payload.error, isLoading: false };
         case ActionTypes.LOGOUT:
+            // Ensure local storage is cleared on logout action in reducer as well
             return {
                 ...initialState,
+                history: [AppView.LANDING_PAGE],
+                historyIndex: 0,
                 isLoading: false,
                 artists: state.artists,
                 engineers: state.engineers,
                 producers: state.producers,
                 stoodioz: state.stoodioz,
                 labels: state.labels,
+                reviews: state.reviews,
             };
         
         case ActionTypes.COMPLETE_SETUP: {
             const { newUser, role } = action.payload;
-            let landingView = AppView.ARTIST_DASHBOARD;
+            let updatedState = { ...state };
+            
+            if (role === UserRole.ARTIST) updatedState.artists = [...state.artists, newUser as Artist];
+            else if (role === UserRole.ENGINEER) updatedState.engineers = [...state.engineers, newUser as Engineer];
+            else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];
+            else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
+            else if (role === UserRole.LABEL) updatedState.labels = [...state.labels, newUser as Label];
+
+            const aria = updatedState.artists.find(a => a.id === 'artist-aria-cantata');
+            if (aria) {
+                let newFollowing: Following = { ...aria.following };
+                if (role === UserRole.ARTIST && !newFollowing.artists.includes(newUser.id)) newFollowing.artists.push(newUser.id);
+                if (role === UserRole.ENGINEER && !newFollowing.engineers.includes(newUser.id)) newFollowing.engineers.push(newUser.id);
+                if (role === UserRole.PRODUCER && !newFollowing.producers.includes(newUser.id)) newFollowing.producers.push(newUser.id);
+                if (role === UserRole.STOODIO && !newFollowing.stoodioz.includes(newUser.id)) newFollowing.stoodioz.push(newUser.id);
+                if (role === UserRole.LABEL && !newFollowing.labels.includes(newUser.id)) newFollowing.labels.push(newUser.id);
+
+                const updatedAria = { ...aria, following: newFollowing };
+                updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
+            }
+
+            let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
+            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
 
             return {
-                ...state,
+                ...updatedState,
                 currentUser: newUser,
                 userRole: role,
                 history: [landingView],
@@ -341,42 +398,131 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookingTime: null, bookingIntent: null };
         case ActionTypes.CONFIRM_BOOKING_SUCCESS:
             return { ...state, bookingTime: null, bookingIntent: null, latestBooking: action.payload.booking, bookings: [...state.bookings, action.payload.booking] };
+        case ActionTypes.SET_LATEST_BOOKING:
+            return { ...state, latestBooking: action.payload.booking };
+        case ActionTypes.SET_BOOKINGS:
+            return { ...state, bookings: action.payload.bookings };
+        case ActionTypes.ADD_BOOKING:
+            return { ...state, bookings: [...state.bookings, action.payload.booking] };
+        
         case ActionTypes.UPDATE_USERS: {
             const newUsers = action.payload.users;
-            const uniqueUsers = Array.from(new Map([...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz, ...state.labels, ...newUsers].map(u => [u.id, u])).values());
+            const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
+            
+            [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz, ...state.labels].forEach(u => {
+                if(u.id) allUsersMap.set(u.id, u);
+            });
+            
+            newUsers.forEach(u => {
+                if(u.id) allUsersMap.set(u.id, u);
+            });
+            
+            const uniqueUsers = Array.from(allUsersMap.values());
+
+            const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
+
             return {
                 ...state,
-                artists: uniqueUsers.filter(u => 'is_seeking_session' in u) as Artist[],
+                artists: uniqueUsers.filter(u => 'bio' in u && 'is_seeking_session' in u) as Artist[],
                 engineers: uniqueUsers.filter(u => 'specialties' in u) as Engineer[],
                 producers: uniqueUsers.filter(u => 'instrumentals' in u) as Producer[],
                 stoodioz: uniqueUsers.filter(u => 'amenities' in u) as Stoodio[],
-                labels: uniqueUsers.filter(u => 'company_name' in u) as Label[],
+                labels: uniqueUsers.filter(u => 'bio' in u && !('is_seeking_session' in u) && !('specialties' in u) && !('instrumentals' in u) && !('amenities' in u)) as Label[],
+                currentUser: findUser(state.currentUser?.id) as any || state.currentUser,
+                selectedArtist: findUser(state.selectedArtist?.id) as Artist || state.selectedArtist,
+                selectedEngineer: findUser(state.selectedEngineer?.id) as Engineer || state.selectedEngineer,
+                selectedProducer: findUser(state.selectedProducer?.id) as Producer || state.selectedProducer,
+                selectedStoodio: findUser(state.selectedStoodio?.id) as Stoodio || state.selectedStoodio,
+                selectedLabel: findUser(state.selectedLabel?.id) as Label || state.selectedLabel,
             };
         }
         case ActionTypes.SET_CURRENT_USER:
             return { ...state, currentUser: action.payload.user };
+        case ActionTypes.UPDATE_FOLLOWING: {
+            if (!state.currentUser) return state;
+            const updatedUser = { ...state.currentUser, following: action.payload.newFollowing };
+            return { ...state, currentUser: updatedUser };
+        }
+        case ActionTypes.START_SESSION:
+            return { ...state, activeSession: action.payload.booking };
+        case ActionTypes.END_SESSION:
+            return { ...state, activeSession: null };
+        case ActionTypes.OPEN_TIP_MODAL:
+            return { ...state, tipModalBooking: action.payload.booking };
+        case ActionTypes.CLOSE_TIP_MODAL:
+            return { ...state, tipModalBooking: null };
+        case ActionTypes.OPEN_CANCEL_MODAL:
+            return { ...state, bookingToCancel: action.payload.booking };
+        case ActionTypes.CLOSE_CANCEL_MODAL:
+            return { ...state, bookingToCancel: null };
         case ActionTypes.SET_NOTIFICATIONS:
             return { ...state, notifications: action.payload.notifications };
         case ActionTypes.SET_CONVERSATIONS:
             return { ...state, conversations: action.payload.conversations };
         case ActionTypes.SET_SELECTED_CONVERSATION:
             return { ...state, selectedConversationId: action.payload.conversationId };
+        case ActionTypes.SET_SMART_REPLIES:
+            return { ...state, smartReplies: action.payload.replies };
+        case ActionTypes.SET_IS_SMART_REPLIES_LOADING:
+            return { ...state, isSmartRepliesLoading: action.payload.isLoading };
+        case ActionTypes.SET_VIBE_MATCHER_OPEN:
+            return { ...state, isVibeMatcherOpen: action.payload.isOpen };
+        case ActionTypes.SET_VIBE_MATCHER_LOADING:
+            return { ...state, isVibeMatcherLoading: action.payload.isLoading };
+        case ActionTypes.SET_VIBE_RESULTS:
+            return { ...state, vibeMatchResults: action.payload.results };
+        case ActionTypes.SET_BOOKING_INTENT:
+            return { ...state, bookingIntent: action.payload.intent };
+        case ActionTypes.SET_ADD_FUNDS_MODAL_OPEN:
+            return { ...state, isAddFundsOpen: action.payload.isOpen };
+        case ActionTypes.SET_PAYOUT_MODAL_OPEN:
+            return { ...state, isPayoutOpen: action.payload.isOpen };
+        case ActionTypes.SET_MIXING_MODAL_OPEN:
+            return { ...state, isMixingModalOpen: action.payload.isOpen };
         case ActionTypes.SET_ARIA_CANTATA_OPEN:
             return { ...state, isAriaCantataOpen: action.payload.isOpen };
         case ActionTypes.SET_ARIA_HISTORY:
             return { ...state, ariaHistory: action.payload.history };
         case ActionTypes.ADD_ARIA_MESSAGE:
             return { ...state, ariaHistory: [...state.ariaHistory, action.payload.message] };
+        case ActionTypes.SET_INITIAL_ARIA_PROMPT:
+            return { ...state, initialAriaCantataPrompt: action.payload.prompt };
+        case ActionTypes.SET_ARIA_NUDGE:
+            return { ...state, ariaNudge: action.payload.nudge };
+        case ActionTypes.SET_IS_NUDGE_VISIBLE:
+            return { ...state, isNudgeVisible: action.payload.isVisible };
+        case ActionTypes.SET_DASHBOARD_TAB:
+            return { ...state, dashboardInitialTab: action.payload.tab };
+        case ActionTypes.OPEN_PURCHASE_MASTERCLASS_MODAL:
+            return { ...state, masterclassToPurchase: action.payload };
+        case ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL:
+            return { ...state, masterclassToPurchase: null };
+        case ActionTypes.OPEN_WATCH_MASTERCLASS_MODAL:
+            return { ...state, masterclassToWatch: action.payload };
+        case ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL:
+            return { ...state, masterclassToWatch: null };
+        case ActionTypes.OPEN_REVIEW_MASTERCLASS_MODAL:
+            return { ...state, masterclassToReview: action.payload };
+        case ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL:
+            return { ...state, masterclassToReview: null };
+        case ActionTypes.SET_REVIEWS:
+            return { ...state, reviews: action.payload.reviews };
+        case ActionTypes.SET_DIRECTIONS_INTENT:
+             return { ...state, directionsIntent: action.payload.bookingId ? { bookingId: action.payload.bookingId } : null };
         default:
             return state;
     }
 };
+
+
+// --- CONTEXT AND PROVIDER ---
 
 const AppStateContext = createContext<AppState | undefined>(undefined);
 const AppDispatchContext = createContext<Dispatch<AppAction> | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [state, dispatch] = useReducer(appReducer, initialState);
+
     return (
         <AppStateContext.Provider value={state}>
             <AppDispatchContext.Provider value={dispatch}>
@@ -386,14 +532,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
 };
 
+// --- HOOKS ---
+
 export const useAppState = (): AppState => {
     const context = useContext(AppStateContext);
-    if (context === undefined) throw new Error('useAppState must be used within an AppProvider');
+    if (context === undefined) {
+        throw new Error('useAppState must be used within an AppProvider');
+    }
     return context;
 };
 
 export const useAppDispatch = (): Dispatch<AppAction> => {
     const context = useContext(AppDispatchContext);
-    if (context === undefined) throw new Error('useAppDispatch must be used within an AppProvider');
+    if (context === undefined) {
+        throw new Error('useAppDispatch must be used within an AppProvider');
+    }
     return context;
 };

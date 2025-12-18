@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
 import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
@@ -18,7 +19,7 @@ import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 import { fetchUserPosts } from '../services/apiService';
 
-const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
 const AmenitiesManager = lazy(() => import('./AmenitiesManager.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
@@ -300,7 +301,7 @@ const StoodioDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => updateProfile({ image_url: (e.target?.result as string) || '' });
+            reader.onload = (e) => updateProfile({ image_url: e.target?.result as string });
             reader.readAsDataURL(file);
         }
     };
@@ -309,7 +310,7 @@ const StoodioDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => updateProfile({ cover_image_url: (e.target?.result as string) || '' });
+            reader.onload = (e) => updateProfile({ cover_image_url: e.target?.result as string });
             reader.readAsDataURL(file);
         }
     };
@@ -494,7 +495,7 @@ const StoodioDashboard: React.FC = () => {
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={currentUser!} onPost={createPost} />
+                            <CreatePost currentUser={currentUser!} onPost={handleNewPost} />
                             <PostFeed posts={myPosts} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
                         </div>
                          <div className="lg:col-span-1 space-y-6">

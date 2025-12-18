@@ -1,4 +1,3 @@
-
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember, LabelBudgetOverview, LabelBudgetMode, Following, MediaAsset, Project, ProjectTask, MarketInsight } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType, AssetCategory } from '../types';
 import { getSupabase } from '../lib/supabase';
@@ -34,27 +33,6 @@ export const uploadPostAttachment = async (file: File, userId: string): Promise<
     const ext = file.name.split('.').pop();
     const path = `${userId}/posts/${Date.now()}.${ext}`;
     return uploadFile(file, 'posts', path);
-};
-
-// FIX: Added uploadRoomPhoto exported member to resolve build error in RoomManager
-export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${stoodioId}/rooms/${Date.now()}.${ext}`;
-    return uploadFile(file, 'stoodio_assets', path);
-};
-
-// FIX: Added uploadBeatFile exported member to resolve build error in BeatManager
-export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${producerId}/beats/${Date.now()}.${ext}`;
-    return uploadFile(file, 'producer_assets', path);
-};
-
-// FIX: Added uploadMixingSampleFile exported member to resolve build error in MixingSampleManager
-export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${engineerId}/samples/${Date.now()}.${ext}`;
-    return uploadFile(file, 'engineer_assets', path);
 };
 
 export const uploadDocument = async (file: Blob, fileName: string, userId: string, category: string = 'OFFICIAL'): Promise<string> => {
@@ -209,8 +187,7 @@ export const fetchGlobalFeed = async (l: number, b?: string) => {
     return (await q).data?.map((p:any)=>({ ...p, authorId:p.author_id, authorType:p.author_type, timestamp:p.created_at })) || [];
 };
 export const fetchConversations = async (id: string) => [];
-// FIX: Updated sendMessage to accept 5th metadata argument to resolve build error in hooks/useMessaging
-export const sendMessage = async (cid: string, sid: string, c: string, t: string = 'text', metadata: any = null) => (await getSupabase()!.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t, metadata }).select().single()).data;
+export const sendMessage = async (cid: string, sid: string, c: string, t: string = 'text') => (await getSupabase()!.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t }).select().single()).data;
 export const createConversation = async (pids: string[]) => (await getSupabase()!.from('conversations').insert({ participant_ids: pids }).select().single()).data;
 export const updateUser = async (id: string, t: string, u: any) => (await getSupabase()!.from(t).update(u).eq('id', id).select().single()).data;
 export const fetchFullArtist = async (id: string) => (await getSupabase()!.from('artists').select('*').eq('id', id).single()).data;

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label, RosterMember, LabelBudgetOverview, MediaAsset } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label, RosterMember, LabelBudgetOverview } from '../types';
 import { askAriaCantata } from '../services/geminiService';
-import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, BriefcaseIcon, ChartBarIcon, CalendarIcon, UsersIcon, ChevronRightIcon } from './icons';
-import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, PaperclipIcon, DownloadIcon, MicrophoneIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 
 interface AriaCantataAssistantProps {
@@ -16,62 +17,101 @@ interface AriaCantataAssistantProps {
 }
 
 const TypingIndicator: React.FC = () => (
-    <div className="flex items-center gap-1.5 p-2">
-        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-        <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-bounce"></div>
+    <div className="flex items-center gap-1.5">
+        <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+        <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+        <div className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"></div>
     </div>
 );
 
-const SuggestionChip: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void }> = ({ icon, label, onClick }) => (
-    <button 
-        onClick={onClick}
-        className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-full text-xs font-bold text-zinc-300 transition-all whitespace-nowrap"
-    >
-        {icon}
-        {label}
-    </button>
+// Voice Icon Component (Locally defined to ensure it works)
+const SpeakerWaveIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+    </svg>
 );
 
 const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({ 
-    isOpen, onClose, onExecuteCommand, history, setHistory, initialPrompt, clearInitialPrompt
+    isOpen, 
+    onClose, 
+    onExecuteCommand,
+    history, 
+    setHistory,
+    initialPrompt,
+    clearInitialPrompt
 }) => {
     const { currentUser, artists, engineers, stoodioz, producers, bookings, userRole } = useAppState();
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [showSuggestions, setShowSuggestions] = useState(true);
-    const [operationalContext, setOperationalContext] = useState<{ roster: RosterMember[], budget: LabelBudgetOverview | null, assets: MediaAsset[] }>({ roster: [], budget: null, assets: [] });
+    const [labelContext, setLabelContext] = useState<{ roster: RosterMember[], budget: LabelBudgetOverview | null }>({ roster: [], budget: null });
+    const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
+    // Text-to-Speech Function
+    const speak = (text: string) => {
+        if (!isVoiceEnabled || !('speechSynthesis' in window)) return;
+        
+        window.speechSynthesis.cancel(); // Stop current speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Try to find a good female voice
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => v.name.includes('Google US English') || v.name.includes('Samantha'));
+        if (preferredVoice) utterance.voice = preferredVoice;
+        
+        utterance.rate = 1.1; // Slightly faster for natural feel
+        utterance.pitch = 1.0;
+        
+        window.speechSynthesis.speak(utterance);
+    };
+
+    // Ensure voices are loaded (Chrome quirk)
     useEffect(() => {
-        if (isOpen && currentUser) {
+        const loadVoices = () => window.speechSynthesis.getVoices();
+        loadVoices();
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }, []);
+
+    // Lazy load label context if the user is a label
+    useEffect(() => {
+        if (isOpen && currentUser && userRole === 'LABEL') {
             const fetchContext = async () => {
-                const [roster, budget, assets] = await Promise.all([
-                    userRole === 'LABEL' ? apiService.fetchLabelRoster(currentUser.id) : Promise.resolve([]),
-                    userRole === 'LABEL' ? apiService.getLabelBudgetOverview(currentUser.id) : Promise.resolve(null),
-                    apiService.fetchUserAssets(currentUser.id)
+                const [roster, budget] = await Promise.all([
+                    apiService.fetchLabelRoster(currentUser.id),
+                    apiService.getLabelBudgetOverview(currentUser.id)
                 ]);
-                setOperationalContext({ roster, budget, assets });
+                setLabelContext({ roster, budget });
             };
             fetchContext();
         }
     }, [isOpen, currentUser, userRole]);
 
     useEffect(() => {
-        if (isOpen) { scrollToBottom(); inputRef.current?.focus(); }
+        if (isOpen) {
+            scrollToBottom();
+            inputRef.current?.focus();
+        } else {
+            // Stop speaking when closed
+            window.speechSynthesis.cancel();
+        }
     }, [isOpen, history]);
 
     useEffect(() => {
-        if (isOpen && initialPrompt) { handleSendMessage(initialPrompt); clearInitialPrompt(); }
+        if (isOpen && initialPrompt) {
+            handleSendMessage(initialPrompt);
+            clearInitialPrompt();
+        }
     }, [isOpen, initialPrompt]);
 
     const handleSendMessage = async (text: string) => {
         if (!text.trim()) return;
-        setShowSuggestions(false);
+
         const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text }] };
         const newHistory = [...history, userMessage];
         setHistory(newHistory);
@@ -80,158 +120,172 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
 
         try {
             const context = { 
-                artists, engineers, producers, stoodioz, bookings,
-                roster: operationalContext.roster,
-                budget: operationalContext.budget,
-                assets: operationalContext.assets
+                artists, 
+                engineers, 
+                producers, 
+                stoodioz, 
+                bookings,
+                roster: labelContext.roster,
+                budget: labelContext.budget
             };
-            const response = await askAriaCantata(newHistory, text, currentUser as any, userRole, context);
+            
+            const response = await askAriaCantata(newHistory, text, currentUser as (Artist | Engineer | Stoodio | Producer | Label | null), context);
 
             if (response.type !== 'speak' && response.type !== 'error') {
+                // It's a command
                 await onExecuteCommand(response, onClose);
-                const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
-                setHistory([...newHistory, modelMessage]);
+                
+                // Speak the confirmation text for commands
+                if (response.text) speak(response.text);
+
+                // Add a system message indicating the action was taken, unless it was a navigation which closes the modal
+                if (response.type !== 'navigate' && response.type !== 'showVibeMatchResults') {
+                     const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
+                     setHistory([...newHistory, modelMessage]);
+                }
             } else {
+                // It's just text
                 const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
                 setHistory([...newHistory, modelMessage]);
+                speak(response.text);
             }
+
         } catch (error) {
-            setHistory([...newHistory, { role: 'model', parts: [{ text: "Lead intelligence is calibrating. Please try again." }] }]);
+            console.error("Error asking Aria:", error);
+            const errorMessage: AriaCantataMessage = { role: 'model', parts: [{ text: "I'm having trouble connecting right now. Please try again later." }] };
+            setHistory([...newHistory, errorMessage]);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage(inputValue);
         }
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-y-0 right-0 z-[100] w-full sm:w-[400px] flex flex-col bg-zinc-950 border-l border-zinc-800 shadow-2xl animate-slide-in-right">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-xl">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 p-0.5 shadow-lg shadow-orange-500/20">
-                        <div className="w-full h-full bg-zinc-900 rounded-full flex items-center justify-center">
-                            <MagicWandIcon className="w-5 h-5 text-orange-400" />
-                        </div>
-                    </div>
-                    <div>
-                        <h2 className="font-bold text-zinc-100 text-sm">Aria Cantata</h2>
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                            <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest leading-none">Operational Lead</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex items-center gap-1">
-                    <button 
-                        onClick={onClose} 
-                        className="p-2 text-zinc-500 hover:text-zinc-100 transition-colors"
-                        title="Minimize"
-                    >
-                        <ChevronRightIcon className="w-5 h-5" />
-                    </button>
-                    <button 
-                        onClick={() => { setHistory([]); onClose(); }} 
-                        className="p-2 text-zinc-500 hover:text-red-400 transition-colors"
-                        title="End Session"
-                    >
-                        <CloseIcon className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-
-            {/* Chat Messages */}
-            <div className="flex-grow overflow-y-auto p-4 space-y-4 scrollbar-hide">
-                {history.length === 0 && (
-                    <div className="py-8 text-center space-y-4">
-                        <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center mx-auto border border-orange-500/20">
-                            <MagicWandIcon className="w-6 h-6 text-orange-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative w-full max-w-2xl h-[80vh] bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 p-0.5">
+                            <div className="w-full h-full bg-zinc-900 rounded-full flex items-center justify-center">
+                                <MagicWandIcon className="w-5 h-5 text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-purple-400" />
+                            </div>
                         </div>
                         <div>
-                            <h3 className="text-zinc-200 font-bold">How can I assist your operations?</h3>
-                            <p className="text-zinc-500 text-xs px-8 mt-1">State an objective or use a suggested shortcut below.</p>
+                            <h2 className="font-bold text-zinc-100">Aria Cantata</h2>
+                            <p className="text-xs text-zinc-400">AI A&R Assistant</p>
                         </div>
                     </div>
-                )}
-                
-                {history.map((msg, index) => (
-                    <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
-                            msg.role === 'user' 
-                            ? 'bg-orange-600 text-white rounded-tr-none' 
-                            : 'bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-tl-none'
-                        }`}>
-                            <p className="whitespace-pre-wrap">{msg.parts[0].text}</p>
-                        </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
+                            className={`p-2 rounded-full transition-colors ${isVoiceEnabled ? 'bg-orange-500/20 text-orange-400' : 'text-zinc-600 hover:text-zinc-400'}`}
+                            title={isVoiceEnabled ? "Voice Enabled" : "Enable Voice"}
+                        >
+                            <SpeakerWaveIcon className="w-5 h-5" />
+                        </button>
+                        <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors">
+                            <CloseIcon className="w-6 h-6" />
+                        </button>
                     </div>
-                ))}
-                
-                {isLoading && (
-                    <div className="flex justify-start">
-                        <div className="bg-zinc-800 rounded-2xl rounded-tl-none px-4 py-2 border border-zinc-700 shadow-sm">
-                            <TypingIndicator />
-                        </div>
-                    </div>
-                )}
-                <div ref={messagesEndRef} />
-            </div>
+                </div>
 
-            {/* Footer Area with Suggestions & Input */}
-            <div className="p-4 bg-zinc-900 border-t border-zinc-800">
-                {showSuggestions && history.length === 0 && (
-                    <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1">
-                        <SuggestionChip 
-                            icon={<UsersIcon className="w-3.5 h-3.5" />} 
-                            label="Discovery" 
-                            onClick={() => handleSendMessage("Scout trending artists")} 
-                        />
-                        <SuggestionChip 
-                            icon={<BriefcaseIcon className="w-3.5 h-3.5" />} 
-                            label="Projects" 
-                            onClick={() => handleSendMessage("Active rollouts")} 
-                        />
-                        <SuggestionChip 
-                            icon={<ChartBarIcon className="w-3.5 h-3.5" />} 
-                            label="Reporting" 
-                            onClick={() => handleSendMessage("Monthly report")} 
-                        />
-                        <SuggestionChip 
-                            icon={<CalendarIcon className="w-3.5 h-3.5" />} 
-                            label="Schedule" 
-                            onClick={() => handleSendMessage("Check conflicts")} 
-                        />
-                    </div>
-                )}
+                {/* Messages Area */}
+                <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                    {history.length === 0 && (
+                        <div className="h-full flex flex-col items-center justify-center text-center text-zinc-500 space-y-4">
+                            <MagicWandIcon className="w-12 h-12 opacity-20" />
+                            <p>How can I help with your music career today?</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm w-full max-w-lg">
+                                {userRole === 'LABEL' ? (
+                                    <>
+                                        <button onClick={() => handleSendMessage("How do I import my roster?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Import roster from CSV</button>
+                                        <button onClick={() => handleSendMessage("What is my current budget balance?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Check wallet balance</button>
+                                        <button onClick={() => handleSendMessage("Find new trending artists")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Scout talent</button>
+                                        <button onClick={() => handleSendMessage("Draft a contract for a new signee")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Draft contract</button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button onClick={() => handleSendMessage("Find me a studio in Atlanta")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Find a studio in Atlanta</button>
+                                        <button onClick={() => handleSendMessage("How much money do I have?")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Check my balance</button>
+                                        <button onClick={() => handleSendMessage("Help me write a hook about summer")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Write a hook about summer</button>
+                                        <button onClick={() => handleSendMessage("Draft a split sheet agreement")} className="p-3 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors text-left">Draft a split sheet</button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    {history.map((msg, index) => (
+                        <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] rounded-2xl p-4 ${
+                                msg.role === 'user' 
+                                ? 'bg-orange-600 text-white rounded-tr-sm' 
+                                : 'bg-zinc-800 text-zinc-200 rounded-tl-sm border border-zinc-700'
+                            }`}>
+                                <p className="whitespace-pre-wrap leading-relaxed">{msg.parts[0].text}</p>
+                                {/* Handle File Attachments if present in model response */}
+                                {msg.files && msg.files.map((file, i) => (
+                                    <div key={i} className="mt-3 flex items-center gap-3 bg-black/20 p-2 rounded-lg">
+                                        <PaperclipIcon className="w-5 h-5 opacity-70"/>
+                                        <div className="flex-grow overflow-hidden">
+                                            <p className="text-sm font-semibold truncate">{file.name}</p>
+                                            <p className="text-xs opacity-70">{file.size}</p>
+                                        </div>
+                                        <a 
+                                            href={file.rawContent ? URL.createObjectURL(new Blob([file.rawContent], {type: 'application/pdf'})) : '#'} 
+                                            download={file.name}
+                                            className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+                                        >
+                                            <DownloadIcon className="w-4 h-4"/>
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    {isLoading && (
+                        <div className="flex justify-start">
+                            <div className="bg-zinc-800 rounded-2xl rounded-tl-sm p-4 border border-zinc-700">
+                                <TypingIndicator />
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
 
-                <div className="relative">
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(inputValue)}
-                        placeholder="State objective..."
-                        className="w-full bg-zinc-800 text-zinc-100 rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:ring-2 focus:ring-orange-500/50 border border-zinc-700 text-sm"
-                        disabled={isLoading}
-                    />
-                    <button 
-                        onClick={() => handleSendMessage(inputValue)} 
-                        disabled={!inputValue.trim() || isLoading} 
-                        className="absolute right-1.5 top-1.5 p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-all shadow-lg"
-                    >
-                        <PaperAirplaneIcon className="w-4 h-4" />
-                    </button>
+                {/* Input Area */}
+                <div className="p-4 bg-zinc-900 border-t border-zinc-800">
+                    <div className="relative">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Ask Aria anything..."
+                            className="w-full bg-zinc-800 text-zinc-100 rounded-full py-3 pl-5 pr-12 focus:outline-none focus:ring-2 focus:ring-orange-500/50 border border-zinc-700"
+                            disabled={isLoading}
+                        />
+                        <button 
+                            onClick={() => handleSendMessage(inputValue)}
+                            disabled={!inputValue.trim() || isLoading}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 transition-all"
+                        >
+                            <PaperAirplaneIcon className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
             </div>
-
-            <style>{`
-                @keyframes slide-in-right {
-                    from { transform: translateX(100%); }
-                    to { transform: translateX(0); }
-                }
-                .animate-slide-in-right { animation: slide-in-right 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-            `}</style>
         </div>
     );
 };
