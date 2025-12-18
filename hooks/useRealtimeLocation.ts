@@ -11,20 +11,16 @@ const LOCATION_CHANNEL = 'public:locations';
 
 export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) => {
     const watchIdRef = useRef<number | null>(null);
-    const channelRef = useRef<any | null>(null);
+    const channelRef = useRef<any>(null);
 
     useEffect(() => {
         const supabase = getSupabase();
         if (!supabase) return;
 
-        // Subscribe to channel regardless of broadcasting status
+        // Ensure we have a clean channel subscription
         const channel = supabase.channel(LOCATION_CHANNEL);
         channelRef.current = channel;
-        
-        // FIX: The `subscribed` property does not exist. Use `channel.state` to check connection status.
-        if (channel.state !== 'joined') {
-            channel.subscribe();
-        }
+        channel.subscribe();
 
         const shouldBroadcast = currentUser && currentUser.show_on_map;
 
@@ -38,7 +34,6 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
                                 lon: position.coords.longitude,
                             };
                             
-                            // Broadcast the update
                             if (channelRef.current && currentUser) {
                                 channelRef.current.send({
                                     type: 'broadcast',
@@ -51,27 +46,18 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
                             }
                         },
                         (error) => {
-                            console.error("Error watching position:", error);
-                            // Stop watching if there's an error (e.g., user revokes permission)
+                            console.error("Geolocation error:", error);
                             stopWatching();
                         },
-                        {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 0,
-                        }
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                     );
                 }
             };
-
             startWatching();
-
         } else {
-            // If user opted out, stop watching
             stopWatching();
         }
         
-        // Cleanup function
         return () => {
             stopWatching();
             if (channelRef.current) {
@@ -79,8 +65,7 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
                 channelRef.current = null;
             }
         };
-
-    }, [currentUser, currentUser?.show_on_map]); // Re-run effect if user or their map preference changes
+    }, [currentUser?.id, currentUser?.show_on_map]);
 
     const stopWatching = () => {
         if (watchIdRef.current !== null) {

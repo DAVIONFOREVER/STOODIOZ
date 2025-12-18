@@ -1,3 +1,4 @@
+
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -167,6 +168,9 @@ export enum NotificationType {
     NEW_LIKE = 'NEW_LIKE',
     NEW_COMMENT = 'NEW_COMMENT',
     NEW_TIP = 'NEW_TIP',
+    SCHEDULE_REMINDER = 'SCHEDULE_REMINDER',
+    TASK_ASSIGNED = 'TASK_ASSIGNED',
+    CONTRACT_EXPIRING = 'CONTRACT_EXPIRING'
 }
 
 export enum SubscriptionPlan {
@@ -185,7 +189,7 @@ export enum RankingTier {
 }
 
 export type LabelContractType = 'FULL_RECOUP' | 'PERCENTAGE';
-export type LabelContractStatus = 'active' | 'paused' | 'completed';
+export type LabelContractStatus = 'active' | 'paused' | 'completed' | 'expiring';
 export type LabelBudgetMode = 'MANUAL' | 'MONTHLY_FIXED' | 'MONTHLY_ROLLING';
 export type PaymentSource = 'ARTIST' | 'LABEL';
 
@@ -574,9 +578,9 @@ export interface AppNotification {
     actor?: Artist | Engineer | Stoodio | Producer | Label;
 }
 
-// FIX: Added 'logout', 'scoutMarket', 'manageProject', and 'search' actions to AriaActionResponse type
+// FIX: Added 'generateReport' and 'scheduleReminder' actions to AriaActionResponse type to fix type mismatch in useAria hook.
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'socialAction' | 'updateProfile' | 'search' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'scoutMarket' | 'manageProject' | 'logout';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'updateProfile' | 'socialAction' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'search' | 'generateReport' | 'scheduleReminder' | 'manageProject' | 'scoutMarket' | 'logout';
     target: string | null;
     value: any;
     text: string;

@@ -1,6 +1,8 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { Artist, Engineer, Stoodio, Producer } from '../types';
-import { SearchIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons';
+import type { Artist, Engineer, Stoodio, Producer, Label } from '../types';
+import { SearchIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon, UsersIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
 
 interface UniversalSearchProps {
     allArtists: Artist[];
@@ -13,30 +15,17 @@ interface UniversalSearchProps {
     onSelectStoodio: (stoodio: Stoodio) => void;
 }
 
-const getMatchReason = (item: Artist | Engineer | Stoodio | Producer, term: string): string | null => {
+const getMatchReason = (item: any, term: string): string | null => {
     const lowerTerm = term.toLowerCase();
-    
-    // Don't show a reason if the name already matches
     if (item.name.toLowerCase().includes(lowerTerm)) return null;
-
-    if ('specialties' in item) { // Engineer
-        const match = item.specialties.find(s => s.toLowerCase().includes(lowerTerm));
-        if (match) return `Specialty: ${match}`;
-    }
-    if ('genres' in item) { // Producer
-        const match = item.genres.find(g => g.toLowerCase().includes(lowerTerm));
-        if (match) return `Genre: ${match}`;
-    }
-    if ('amenities' in item) { // Stoodio
-        const match = item.amenities.find(a => a.toLowerCase().includes(lowerTerm));
-        if (match) return `Amenity: ${match}`;
-    }
+    if (item.specialties && item.specialties.find((s: string) => s.toLowerCase().includes(lowerTerm))) return `Specialty: ${item.specialties.find((s: string) => s.toLowerCase().includes(lowerTerm))}`;
+    if (item.genres && item.genres.find((g: string) => g.toLowerCase().includes(lowerTerm))) return `Genre: ${item.genres.find((g: string) => g.toLowerCase().includes(lowerTerm))}`;
+    if (item.amenities && item.amenities.find((a: string) => a.toLowerCase().includes(lowerTerm))) return `Amenity: ${item.amenities.find((a: string) => a.toLowerCase().includes(lowerTerm))}`;
     return null;
 };
 
-
 const ResultItem: React.FC<{
-    item: Artist | Engineer | Stoodio | Producer;
+    item: any;
     icon: React.ReactNode;
     onClick: () => void;
     searchTerm: string;
@@ -53,60 +42,32 @@ const ResultItem: React.FC<{
     );
 };
 
-
 const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngineers, allProducers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio }) => {
+    const { labels } = useAppState();
     const [searchTerm, setSearchTerm] = useState('');
     const [isActive, setIsActive] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
     const filteredResults = useMemo(() => {
-        if (searchTerm.length < 2) {
-            return null;
-        }
+        if (searchTerm.length < 2) return null;
         const lowerCaseTerm = searchTerm.toLowerCase();
         
-        const artists = allArtists.filter(a => a.name.toLowerCase().includes(lowerCaseTerm));
-        
-        const engineers = allEngineers.filter(e => 
-            e.name.toLowerCase().includes(lowerCaseTerm) || 
-            e.specialties.some(s => s.toLowerCase().includes(lowerCaseTerm))
-        );
-        
-        const producers = allProducers.filter(p => 
-            p.name.toLowerCase().includes(lowerCaseTerm) || 
-            p.genres.some(g => g.toLowerCase().includes(lowerCaseTerm))
-        );
-        
-        const stoodioz = allStoodioz.filter(s => 
-            s.name.toLowerCase().includes(lowerCaseTerm) || 
-            s.amenities.some(a => a.toLowerCase().includes(lowerCaseTerm))
-        );
-        
-        if (artists.length === 0 && engineers.length === 0 && stoodioz.length === 0 && producers.length === 0) {
-            return { artists: [], engineers: [], stoodioz: [], producers: [] }; // Return empty object to show "no results"
-        }
-
-        return { artists, engineers, stoodioz, producers };
-    }, [searchTerm, allArtists, allEngineers, allProducers, allStoodioz]);
+        return {
+            artists: allArtists.filter(a => a.name.toLowerCase().includes(lowerCaseTerm)),
+            engineers: allEngineers.filter(e => e.name.toLowerCase().includes(lowerCaseTerm) || e.specialties?.some(s => s.toLowerCase().includes(lowerCaseTerm))),
+            producers: allProducers.filter(p => p.name.toLowerCase().includes(lowerCaseTerm) || p.genres?.some(g => g.toLowerCase().includes(lowerCaseTerm))),
+            stoodioz: allStoodioz.filter(s => s.name.toLowerCase().includes(lowerCaseTerm) || s.amenities?.some(a => a.toLowerCase().includes(lowerCaseTerm))),
+            labels: (labels || []).filter(l => l.name.toLowerCase().includes(lowerCaseTerm) || l.company_name?.toLowerCase().includes(lowerCaseTerm))
+        };
+    }, [searchTerm, allArtists, allEngineers, allProducers, allStoodioz, labels]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-                setIsActive(false);
-            }
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) setIsActive(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-
-    const handleSelect = (item: Artist | Engineer | Stoodio | Producer, type: 'artist' | 'engineer' | 'stoodio' | 'producer') => {
-        if (type === 'artist') onSelectArtist(item as Artist);
-        else if (type === 'engineer') onSelectEngineer(item as Engineer);
-        else if (type === 'producer') onSelectProducer(item as Producer);
-        else if (type === 'stoodio') onSelectStoodio(item as Stoodio);
-        setSearchTerm('');
-        setIsActive(false);
-    };
 
     return (
         <div className="relative w-full max-w-md" ref={searchRef}>
@@ -121,75 +82,43 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onFocus={() => setIsActive(true)}
                     className="w-full pl-10 pr-4 py-2 bg-zinc-800 border-2 border-zinc-700 rounded-full text-sm text-slate-200 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                    aria-label="Universal search"
                 />
             </div>
 
-            {isActive && searchTerm.length >= 2 && (
-                <div className="absolute top-full mt-2 w-full bg-zinc-800 rounded-xl shadow-lg border border-zinc-700 z-10 max-h-96 overflow-y-auto animate-fade-in-down">
-                    {filteredResults ? (
-                        <>
-                            {filteredResults.artists.length > 0 && (
-                                <div className="p-2">
-                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-400">Artists</h3>
-                                    {filteredResults.artists.map(item => (
-                                        <ResultItem
-                                            key={item.id}
-                                            item={item}
-                                            icon={<MicrophoneIcon className="w-5 h-5 text-green-400 flex-shrink-0"/>}
-                                            onClick={() => handleSelect(item, 'artist')}
-                                            searchTerm={searchTerm}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                             {filteredResults.producers.length > 0 && (
-                                <div className="p-2">
-                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-400">Producers</h3>
-                                    {filteredResults.producers.map(item => (
-                                        <ResultItem
-                                            key={item.id}
-                                            item={item}
-                                            icon={<MusicNoteIcon className="w-5 h-5 text-purple-400 flex-shrink-0"/>}
-                                            onClick={() => handleSelect(item, 'producer')}
-                                            searchTerm={searchTerm}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                            {filteredResults.engineers.length > 0 && (
-                                <div className="p-2">
-                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-400">Engineers</h3>
-                                    {filteredResults.engineers.map(item => (
-                                        <ResultItem
-                                            key={item.id}
-                                            item={item}
-                                            icon={<SoundWaveIcon className="w-5 h-5 text-amber-400 flex-shrink-0"/>}
-                                            onClick={() => handleSelect(item, 'engineer')}
-                                            searchTerm={searchTerm}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                            {filteredResults.stoodioz.length > 0 && (
-                                <div className="p-2">
-                                    <h3 className="px-3 py-1 text-xs font-semibold text-slate-400">Stoodioz</h3>
-                                    {filteredResults.stoodioz.map(item => (
-                                        <ResultItem
-                                            key={item.id}
-                                            item={item}
-                                            icon={<HouseIcon className="w-5 h-5 text-orange-400 flex-shrink-0"/>}
-                                            onClick={() => handleSelect(item, 'stoodio')}
-                                            searchTerm={searchTerm}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                            {filteredResults.artists.length === 0 && filteredResults.engineers.length === 0 && filteredResults.producers.length === 0 && filteredResults.stoodioz.length === 0 && (
-                                <div className="p-4 text-center text-sm text-slate-400">No results found.</div>
-                            )}
-                        </>
-                    ) : null}
+            {isActive && filteredResults && (
+                <div className="absolute top-full mt-2 w-full bg-zinc-800 rounded-xl shadow-lg border border-zinc-700 z-10 max-h-96 overflow-y-auto">
+                    {filteredResults.labels.length > 0 && (
+                        <div className="p-2 border-b border-zinc-700/50">
+                            <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Labels</h3>
+                            {filteredResults.labels.map(item => (
+                                <ResultItem key={item.id} item={item} icon={<UsersIcon className="w-5 h-5 text-blue-400"/>} onClick={() => { onSelectArtist(item as any); setSearchTerm(''); setIsActive(false); }} searchTerm={searchTerm} />
+                            ))}
+                        </div>
+                    )}
+                    {filteredResults.artists.length > 0 && (
+                        <div className="p-2">
+                            <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Artists</h3>
+                            {filteredResults.artists.map(item => (
+                                <ResultItem key={item.id} item={item} icon={<MicrophoneIcon className="w-5 h-5 text-green-400"/>} onClick={() => { onSelectArtist(item); setSearchTerm(''); setIsActive(false); }} searchTerm={searchTerm} />
+                            ))}
+                        </div>
+                    )}
+                    {filteredResults.engineers.length > 0 && (
+                        <div className="p-2">
+                            <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Engineers</h3>
+                            {filteredResults.engineers.map(item => (
+                                <ResultItem key={item.id} item={item} icon={<SoundWaveIcon className="w-5 h-5 text-amber-400"/>} onClick={() => { onSelectEngineer(item); setSearchTerm(''); setIsActive(false); }} searchTerm={searchTerm} />
+                            ))}
+                        </div>
+                    )}
+                    {filteredResults.stoodioz.length > 0 && (
+                        <div className="p-2">
+                            <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Stoodioz</h3>
+                            {filteredResults.stoodioz.map(item => (
+                                <ResultItem key={item.id} item={item} icon={<HouseIcon className="w-5 h-5 text-red-400"/>} onClick={() => { onSelectStoodio(item); setSearchTerm(''); setIsActive(false); }} searchTerm={searchTerm} />
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

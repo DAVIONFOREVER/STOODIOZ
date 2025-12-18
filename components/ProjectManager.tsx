@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Project, ProjectTask } from '../types';
 import { BriefcaseIcon, CheckCircleIcon, ClockIcon, PlusCircleIcon, UsersIcon } from './icons';
-import { fetchLabelProjects, updateProjectTask } from '../services/apiService';
+import { fetchLabelProjects, updateProjectTask, createProjectTask } from '../services/apiService';
 import { useAppState } from '../contexts/AppContext';
 
 const ProjectManager: React.FC = () => {
@@ -10,30 +11,45 @@ const ProjectManager: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+    const refreshProjects = async () => {
+        if (currentUser) {
+            const data = await fetchLabelProjects(currentUser.id);
+            setProjects(data);
+            if (selectedProject) {
+                const updated = data.find(p => p.id === selectedProject.id);
+                if (updated) setSelectedProject(updated);
+            } else if (data.length > 0) {
+                setSelectedProject(data[0]);
+            }
+        }
+    };
+
     useEffect(() => {
         if (currentUser) {
-            fetchLabelProjects(currentUser.id).then(data => {
-                setProjects(data);
-                setLoading(false);
-                if (data.length > 0) setSelectedProject(data[0]);
-            });
+            refreshProjects().then(() => setLoading(false));
         }
     }, [currentUser]);
+
+    const handleAddTask = async () => {
+        if (!selectedProject) return;
+        const title = prompt("Enter task title:");
+        if (!title) return;
+        
+        try {
+            await createProjectTask(selectedProject.id, {
+                title,
+                status: 'TODO',
+                priority: 'NORMAL',
+                created_at: new Date().toISOString()
+            });
+            await refreshProjects();
+        } catch (e) { alert("Failed to add task."); }
+    };
 
     const handleToggleTask = async (task: ProjectTask) => {
         const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
         await updateProjectTask(task.id, { status: newStatus as any });
-        // Local refresh
-        setProjects(prev => prev.map(p => ({
-            ...p,
-            tasks: p.tasks?.map(t => t.id === task.id ? { ...t, status: newStatus as any } : t)
-        })));
-        if (selectedProject?.id === task.project_id) {
-             setSelectedProject(prev => prev ? ({
-                ...prev,
-                tasks: prev.tasks?.map(t => t.id === task.id ? { ...t, status: newStatus as any } : t)
-             }) : null);
-        }
+        await refreshProjects();
     };
 
     if (loading) return <div className="py-20 text-center text-zinc-500 animate-pulse">Syncing roadmap...</div>;
@@ -52,7 +68,6 @@ const ProjectManager: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Project List Sidebar */}
                 <div className="lg:col-span-1 space-y-3">
                     {projects.map(p => (
                         <button 
@@ -67,7 +82,6 @@ const ProjectManager: React.FC = () => {
                     {projects.length === 0 && <p className="text-zinc-600 text-sm italic p-4">No active projects.</p>}
                 </div>
 
-                {/* Task Board */}
                 <div className="lg:col-span-3 cardSurface p-6">
                     {selectedProject ? (
                         <div className="space-y-8">
@@ -107,7 +121,7 @@ const ProjectManager: React.FC = () => {
                                             <button className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300 text-xs font-bold uppercase">Assign</button>
                                         </div>
                                     ))}
-                                    <button className="p-4 rounded-xl border-2 border-dashed border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-500 transition-all text-sm font-bold">
+                                    <button onClick={handleAddTask} className="p-4 rounded-xl border-2 border-dashed border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-500 transition-all text-sm font-bold">
                                         + Add Task
                                     </button>
                                 </div>
