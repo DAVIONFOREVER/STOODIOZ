@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { AnalyticsData, Stoodio, Engineer, Producer, Artist, UserRole } from '../types';
-// FIX: Corrected import from getAnalyticsData to fetchAnalyticsData as suggested by error message.
 import { fetchAnalyticsData as getAnalyticsData } from '../services/apiService';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-// FIX: Added ChartBarIcon to imports to fix "Cannot find name 'ChartBarIcon'" build error
 import { DollarSignIcon, UsersIcon, EyeIcon, CalendarIcon, ChartBarIcon } from './icons';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
@@ -158,7 +156,11 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user, userRole 
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label={isArtist ? "Total Spent" : "Total Revenue"} value={`$${Math.abs(kpis.totalRevenue).toLocaleString()}`} icon={<DollarSignIcon className={`w-6 h-6 ${isArtist ? 'text-red-400' : 'text-green-400'}`}`}/>} />
+                <StatCard 
+                    label={isArtist ? "Total Spent" : "Total Revenue"} 
+                    value={`$${Math.abs(kpis.totalRevenue).toLocaleString()}`} 
+                    icon={<DollarSignIcon className={`w-6 h-6 ${isArtist ? 'text-red-400' : 'text-green-400'}`} />} 
+                />
                 <StatCard label="Profile Views" value={kpis.profileViews.toLocaleString()} icon={<EyeIcon className="w-6 h-6 text-blue-400"/>} />
                 <StatCard label="New Followers" value={kpis.newFollowers.toLocaleString()} icon={<UsersIcon className="w-6 h-6 text-purple-400"/>} />
                 <StatCard label={isArtist ? "Sessions Booked" : "Bookings / Sales"} value={kpis.bookings.toLocaleString()} icon={<CalendarIcon className="w-6 h-6 text-orange-400"/>} />

@@ -5,8 +5,8 @@ import * as apiService from '../services/apiService';
 import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode } from '../types';
 import { TransactionCategory } from '../types';
 
-// --- Sony Music Mock Data ---
-const MOCK_FINANCIALS = {
+// --- Global Mock Data (Fallback) ---
+const MOCK_FINANCIALS_DATA = {
     totalRevenue: 245000000.00, // $245 Million
     monthlyRevenue: 18500000.00, // $18.5 Million
     pendingPayouts: 4200000.00,
@@ -14,15 +14,15 @@ const MOCK_FINANCIALS = {
     monthlyBreakdown: [
         { month: 'Jan', amount: 14500000 },
         { month: 'Feb', amount: 15200000 },
-        { month: 'Mar', amount: 19000000 }, // Album release spike
+        { month: 'Mar', amount: 19000000 },
         { month: 'Apr', amount: 16500000 },
         { month: 'May', amount: 18400000 },
-        { month: 'Jun', amount: 21100000 }, // Summer tour kickoffs
+        { month: 'Jun', amount: 21100000 },
         { month: 'Jul', amount: 20500000 },
         { month: 'Aug', amount: 19800000 },
         { month: 'Sep', amount: 18200000 },
         { month: 'Oct', amount: 19000000 },
-        { month: 'Nov', amount: 22000000 }, // Holiday ramp up
+        { month: 'Nov', amount: 22000000 },
         { month: 'Dec', amount: 24500000 },
     ],
     byArtist: [
@@ -74,8 +74,7 @@ const LabelFinancials: React.FC = () => {
     const [topUpNote, setTopUpNote] = useState<string>('');
     
     // UI State for mock interactivity
-    const [selectedArtist, setSelectedArtist] = useState<any | null>(null);
-    const [payoutRequests, setPayoutRequests] = useState(MOCK_FINANCIALS.initialPayoutRequests);
+    const [payoutRequests, setPayoutRequests] = useState(MOCK_FINANCIALS_DATA.initialPayoutRequests);
 
     const handlePayoutAction = (id: string, action: 'Approved' | 'Rejected') => {
         setPayoutRequests(prev => prev.map(req => 
@@ -93,7 +92,6 @@ const LabelFinancials: React.FC = () => {
                 apiService.fetchLabelTransactions(currentUser.id)
             ]);
 
-            // FIX: Explicitly cast contractsData as LabelContract[] to resolve unknown type assignment error.
             setContracts(contractsData as LabelContract[]);
             setBudgetOverview(budgetData);
             setTransactions(transactionsData);
@@ -147,9 +145,15 @@ const LabelFinancials: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="p-20 text-center text-zinc-500">Loading financial data...</div>;
+        return (
+             <div className="flex flex-col items-center justify-center py-20">
+                <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full mb-4"></div>
+                <p className="text-zinc-500">Loading financial data...</p>
+            </div>
+        );
     }
 
+    const displayRevenue = MOCK_FINANCIALS_DATA.totalRevenue; 
     const totalFunds = budgetOverview?.budget?.total_budget || 0;
     const spentFunds = budgetOverview?.budget?.amount_spent || 0;
     const remainingFunds = totalFunds - spentFunds;
@@ -158,7 +162,7 @@ const LabelFinancials: React.FC = () => {
         <div className="max-w-7xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
             {/* Header */}
             <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Sony Financial Overview</h1>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Financial Overview</h1>
                 <p className="text-zinc-400 mt-1">Global P&L, Royalty Payouts, and Division Budgets.</p>
             </div>
 
@@ -166,18 +170,18 @@ const LabelFinancials: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
                     label="Annual Revenue (YTD)" 
-                    value={`$${MOCK_FINANCIALS.totalRevenue.toLocaleString()}`} 
+                    value={`$${displayRevenue.toLocaleString()}`} 
                     icon={<DollarSignIcon className="w-6 h-6" />} 
                     subtext="+12% YoY Growth"
                 />
                 <StatCard 
                     label="This Month" 
-                    value={`$${MOCK_FINANCIALS.monthlyRevenue.toLocaleString()}`} 
+                    value={`$${MOCK_FINANCIALS_DATA.monthlyRevenue.toLocaleString()}`} 
                     icon={<CalendarIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
                     label="Pending Payouts" 
-                    value={`$${MOCK_FINANCIALS.pendingPayouts.toLocaleString()}`} 
+                    value={`$${MOCK_FINANCIALS_DATA.pendingPayouts.toLocaleString()}`} 
                     icon={<BanknotesIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
@@ -286,7 +290,7 @@ const LabelFinancials: React.FC = () => {
                 </h2>
                 
                 {transactions.length === 0 ? (
-                    <p className="text-zinc-500 text-sm py-4 text-center">No transactions recorded.</p>
+                    <p className="text-zinc-500 text-sm py-4 text-center">No transactions recorded yet.</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm text-zinc-400">
@@ -323,55 +327,17 @@ const LabelFinancials: React.FC = () => {
                 )}
             </div>
 
-            {/* SECTION E: Contracts (Existing logic kept or minimized if needed, but visually secondary now) */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
-                    <BriefcaseIcon className="w-5 h-5 text-orange-400" /> Active Contracts
-                </h2>
-                {contracts.length === 0 ? (
-                    <p className="text-zinc-500 text-sm">No active contracts found.</p>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-zinc-400">
-                            <thead className="bg-zinc-800/50 uppercase font-bold text-xs">
-                                <tr>
-                                    <th className="p-3">Talent ID</th>
-                                    <th className="p-3">Role</th>
-                                    <th className="p-3">Type</th>
-                                    <th className="p-3">Split %</th>
-                                    <th className="p-3">Recoup Bal</th>
-                                    <th className="p-3">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-800">
-                                {contracts.map(c => (
-                                    <tr key={c.id}>
-                                        <td className="p-3 font-mono text-zinc-300">{c.talent_user_id.slice(0, 8)}...</td>
-                                        <td className="p-3">{c.talent_role}</td>
-                                        <td className="p-3">{c.contract_type}</td>
-                                        <td className="p-3">{c.split_percent}%</td>
-                                        <td className="p-3 font-mono text-orange-400">${c.recoup_balance.toFixed(2)}</td>
-                                        <td className="p-3 uppercase text-xs font-bold">{c.status}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {/* SECTION F: Revenue by Artist */}
+            {/* SECTION E: Revenue by Artist */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                         <UsersIcon className="w-5 h-5 text-orange-400" /> Top Grossing Artists (YTD)
                     </h2>
                     <div className="space-y-4">
-                        {MOCK_FINANCIALS.byArtist.map((artist) => (
+                        {MOCK_FINANCIALS_DATA.byArtist.map((artist) => (
                             <div 
                                 key={artist.id} 
-                                onClick={() => setSelectedArtist(artist)}
-                                className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-xl hover:bg-zinc-800 cursor-pointer transition-colors group"
+                                className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-xl hover:bg-zinc-800 transition-colors group"
                             >
                                 <div className="flex items-center gap-4">
                                     <img src={artist.image_url} alt={artist.name} className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
@@ -391,13 +357,13 @@ const LabelFinancials: React.FC = () => {
                     </div>
                 </div>
 
-                {/* SECTION G: Income Sources */}
+                {/* SECTION F: Income Sources */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                         <ChartBarIcon className="w-5 h-5 text-purple-400" /> Revenue Streams
                     </h2>
                     <div className="space-y-6">
-                        {MOCK_FINANCIALS.byType.map((item, index) => (
+                        {MOCK_FINANCIALS_DATA.byType.map((item, index) => (
                             <div key={index}>
                                 <div className="flex justify-between text-sm mb-2">
                                     <span className="text-zinc-300 font-medium">{item.type}</span>
@@ -416,7 +382,7 @@ const LabelFinancials: React.FC = () => {
                 </div>
             </div>
 
-            {/* SECTION H: Payout Requests */}
+            {/* SECTION G: Payout Requests */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                 <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
                     <BanknotesIcon className="w-5 h-5 text-green-400" /> Royalty & Advance Requests

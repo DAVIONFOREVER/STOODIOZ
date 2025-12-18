@@ -354,7 +354,7 @@ const StoodioDashboard: React.FC = () => {
     const handlePhotoDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         setIsDraggingPhotos(false);
-        if (e.dataTransfer.files) processPhotoFiles(e.dataTransfer.files);
+        if (e.dataTransfer.files) processPhotoFiles(event.dataTransfer.files);
     };
 
 
@@ -525,8 +525,9 @@ const StoodioDashboard: React.FC = () => {
                 </button>
                 <input
                     type="file"
-                    ref={coverInputRef}
-                    onChange={handleCoverChange}
+                    // FIX: Corrected undefined variables coverInputRef and handleCoverChange
+                    ref={coverImageInputRef}
+                    onChange={handleCoverFileChange}
                     className="hidden"
                     accept="image/*"
                 />
@@ -595,7 +596,7 @@ const StoodioDashboard: React.FC = () => {
                     <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
                     <TabButton label="Amenities" isActive={activeTab === 'amenities'} onClick={() => setActiveTab('amenities')} />
                     <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
-                    <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />
+                    <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement'} />
                     <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
                     <TabButton label="Rooms" isActive={activeTab === 'rooms'} onClick={() => setActiveTab('rooms')} />
                     <TabButton label="Engineers" isActive={activeTab === 'engineers'} onClick={() => setActiveTab('engineers')} />

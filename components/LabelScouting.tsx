@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { AppView, ArtistScoutingData, AandRNote } from '../types';
 import { ChevronLeftIcon, SearchIcon, StarIcon, ChartBarIcon, UsersIcon, EyeIcon, PlusCircleIcon, CloseIcon, CheckCircleIcon } from './icons';
@@ -7,7 +6,7 @@ interface LabelScoutingProps {
     onNavigate: (view: AppView) => void;
 }
 
-// Mocking high-potential "next up" artists relevant to Sony's A&R interests
+// Mocking high-potential "next up" artists
 const mockArtists: ArtistScoutingData[] = [
     {
         id: '1',
@@ -136,7 +135,7 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
                         <ChevronLeftIcon className="w-5 h-5" />
                         Back to Dashboard
                     </button>
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Sony A&R Discovery</h1>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">A&R Discovery</h1>
                     <p className="text-zinc-400 mt-1">Scout emerging talent, track growth, and manage pipeline.</p>
                 </div>
             </div>

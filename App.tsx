@@ -171,7 +171,6 @@ const App: React.FC = () => {
             try {
                 const res = await apiService.fetchCurrentUserProfile(userId);
                 if (res) {
-                    // FIX: Explicitly cast res.user as any to satisfy Union type requirement in payload.
                     dispatch({ 
                         type: ActionTypes.LOGIN_SUCCESS, 
                         payload: { user: res.user as any, role: res.role } 
