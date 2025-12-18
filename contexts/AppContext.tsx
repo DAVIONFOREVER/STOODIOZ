@@ -1,4 +1,3 @@
-
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData, Label } from '../types';
 import { AppView, UserRole } from '../types';
@@ -274,25 +273,28 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return {
                 ...state,
                 ...action.payload,
-                isLoading: false,
             };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
 
         case ActionTypes.LOGIN_SUCCESS: {
             const { user, role: explicitRole } = action.payload;
-            let role = explicitRole;
+            
+            // Priority 1: Use explicit role from payload (set by useAuth/apiService using profiles table)
+            // Priority 2: Use role property stored on the user object itself
+            // Priority 3: Use robust heuristics (Stoodio has amenities, Engineer has specialties, Producer has instrumentals)
+            // Default: ARTIST
+            let role: UserRole | undefined = explicitRole || (user as any).role;
 
             if (!role) {
                 if ('amenities' in user) role = UserRole.STOODIO;
                 else if ('specialties' in user) role = UserRole.ENGINEER;
                 else if ('instrumentals' in user) role = UserRole.PRODUCER;
-                else if ('bio' in user && !('is_seeking_session' in user)) role = UserRole.LABEL;
+                else if ('opportunities' in user || 'company_name' in user) role = UserRole.LABEL;
                 else role = UserRole.ARTIST;
             }
 
             // PERSISTENCE LOGIC:
-            // 1. Determine Default Dashboard
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
@@ -300,7 +302,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
             else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
 
-            // 2. Check LocalStorage for last visited view
             const storedView = localStorage.getItem('last_view');
             const restricted = [
                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
@@ -309,27 +310,30 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 AppView.CLAIM_CONFIRM, AppView.CLAIM_LABEL_PROFILE, AppView.CLAIM_PROFILE
             ];
             
-            // 3. If stored view is valid and NOT a setup/login page, restore it.
             if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
-                landingView = storedView as AppView;
+                // Verification: Ensure the stored view matches the role's allowed scope
+                const isLabelView = storedView === AppView.LABEL_DASHBOARD;
+                if (role === UserRole.ARTIST && isLabelView) {
+                    // Mismatch - force correct dashboard
+                } else {
+                    landingView = storedView as AppView;
+                }
             }
             
             return {
                 ...state,
-                currentUser: user,
+                currentUser: { ...user, role },
                 userRole: role,
                 loginError: null,
                 history: [landingView],
                 historyIndex: 0,
                 ariaHistory: [],
-                isLoading: false, // Explicitly set loading to false to stop spinner
+                isLoading: false, 
             };
         }
         case ActionTypes.LOGIN_FAILURE:
-            // Explicitly set loading to false to stop spinner on error
             return { ...state, loginError: action.payload.error, isLoading: false };
         case ActionTypes.LOGOUT:
-            // Ensure local storage is cleared on logout action in reducer as well
             return {
                 ...initialState,
                 history: [AppView.LANDING_PAGE],
@@ -353,19 +357,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
             else if (role === UserRole.LABEL) updatedState.labels = [...state.labels, newUser as Label];
 
-            const aria = updatedState.artists.find(a => a.id === 'artist-aria-cantata');
-            if (aria) {
-                let newFollowing: Following = { ...aria.following };
-                if (role === UserRole.ARTIST && !newFollowing.artists.includes(newUser.id)) newFollowing.artists.push(newUser.id);
-                if (role === UserRole.ENGINEER && !newFollowing.engineers.includes(newUser.id)) newFollowing.engineers.push(newUser.id);
-                if (role === UserRole.PRODUCER && !newFollowing.producers.includes(newUser.id)) newFollowing.producers.push(newUser.id);
-                if (role === UserRole.STOODIO && !newFollowing.stoodioz.includes(newUser.id)) newFollowing.stoodioz.push(newUser.id);
-                if (role === UserRole.LABEL && !newFollowing.labels.includes(newUser.id)) newFollowing.labels.push(newUser.id);
-
-                const updatedAria = { ...aria, following: newFollowing };
-                updatedState.artists = updatedState.artists.map(a => a.id === 'artist-aria-cantata' ? updatedAria : a);
-            }
-
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
@@ -375,7 +366,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
             return {
                 ...updatedState,
-                currentUser: newUser,
+                currentUser: { ...newUser, role },
                 userRole: role,
                 history: [landingView],
                 historyIndex: 0,
@@ -418,16 +409,15 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             });
             
             const uniqueUsers = Array.from(allUsersMap.values());
-
             const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
 
             return {
                 ...state,
-                artists: uniqueUsers.filter(u => 'bio' in u && 'is_seeking_session' in u) as Artist[],
-                engineers: uniqueUsers.filter(u => 'specialties' in u) as Engineer[],
-                producers: uniqueUsers.filter(u => 'instrumentals' in u) as Producer[],
-                stoodioz: uniqueUsers.filter(u => 'amenities' in u) as Stoodio[],
-                labels: uniqueUsers.filter(u => 'bio' in u && !('is_seeking_session' in u) && !('specialties' in u) && !('instrumentals' in u) && !('amenities' in u)) as Label[],
+                artists: uniqueUsers.filter(u => (u as any).role === 'ARTIST' || ('bio' in u && 'is_seeking_session' in u)) as Artist[],
+                engineers: uniqueUsers.filter(u => (u as any).role === 'ENGINEER' || 'specialties' in u) as Engineer[],
+                producers: uniqueUsers.filter(u => (u as any).role === 'PRODUCER' || 'instrumentals' in u) as Producer[],
+                stoodioz: uniqueUsers.filter(u => (u as any).role === 'STOODIO' || 'amenities' in u) as Stoodio[],
+                labels: uniqueUsers.filter(u => (u as any).role === 'LABEL' || ('bio' in u && !('is_seeking_session' in u) && !('specialties' in u) && !('instrumentals' in u) && !('amenities' in u))) as Label[],
                 currentUser: findUser(state.currentUser?.id) as any || state.currentUser,
                 selectedArtist: findUser(state.selectedArtist?.id) as Artist || state.selectedArtist,
                 selectedEngineer: findUser(state.selectedEngineer?.id) as Engineer || state.selectedEngineer,

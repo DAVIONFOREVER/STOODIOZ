@@ -35,21 +35,18 @@ export const uploadPostAttachment = async (file: File, userId: string): Promise<
     return uploadFile(file, 'posts', path);
 };
 
-// FIX: Exported uploadRoomPhoto method
 export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
     const path = `${stoodioId}/rooms/${Date.now()}.${ext}`;
     return uploadFile(file, 'stoodio_photos', path);
 };
 
-// FIX: Exported uploadBeatFile method
 export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
     const path = `${producerId}/beats/${Date.now()}.${ext}`;
     return uploadFile(file, 'instrumentals', path);
 };
 
-// FIX: Exported uploadMixingSampleFile method
 export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
     const path = `${engineerId}/samples/${Date.now()}.${ext}`;
@@ -165,7 +162,8 @@ export const fetchCurrentUserProfile = async (id: string) => {
     const tables = {'ARTIST':'artists', 'ENGINEER':'engineers', 'PRODUCER':'producers', 'STOODIO':'stoodioz', 'LABEL':'labels'};
     const table = (tables as any)[p?.role || 'ARTIST'];
     const {data:u} = await s.from(table).select('*').eq('id', id).single();
-    return u ? { user: u, role: p?.role } : null;
+    // Ensure the user object carries the role explicitly
+    return u ? { user: { ...u, role: p?.role }, role: p?.role } : null;
 };
 export const fetchLabelRoster = async (id: string) => {
     const {data:re} = await getSupabase()!.from('label_roster').select('*').eq('label_id', id);
@@ -177,7 +175,6 @@ export const fetchLabelRoster = async (id: string) => {
     return hydrated;
 };
 
-// FIX: Added generic fetchRoster method for cross-compatibility
 export const fetchRoster = async (id: string) => fetchLabelRoster(id);
 
 export const getLabelBudgetOverview = async (id: string) => (await getSupabase()!.rpc('get_label_budget_overview', { p_label_id: id })).data;
@@ -207,10 +204,7 @@ export const fetchGlobalFeed = async (l: number, b?: string) => {
     return (await q).data?.map((p:any)=>({ ...p, authorId:p.author_id, authorType:p.author_type, timestamp:p.created_at })) || [];
 };
 export const fetchConversations = async (id: string) => [];
-
-// FIX: Updated sendMessage signature to accept 5 arguments as required by useMessaging hook
 export const sendMessage = async (cid: string, sid: string, c: string, t: string = 'text', fileData?: any) => (await getSupabase()!.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t, file_data: fileData }).select().single()).data;
-
 export const createConversation = async (pids: string[]) => (await getSupabase()!.from('conversations').insert({ participant_ids: pids }).select().single()).data;
 export const updateUser = async (id: string, t: string, u: any) => (await getSupabase()!.from(t).update(u).eq('id', id).select().single()).data;
 export const fetchFullArtist = async (id: string) => (await getSupabase()!.from('artists').select('*').eq('id', id).single()).data;

@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -21,123 +20,90 @@ export const useAuth = (navigate: (view: any) => void) => {
              return;
         }
 
-        const { data, error } = await (supabase.auth as any).signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
     
         if (error) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             return;
         }
     
-        // Login successful → find user profile, set user & navigate via dispatch
         if (data.user) {
             const userId = data.user.id; 
             
-            // Check Label Table First (Optimization)
+            // 1. Fetch exact role from profiles table (Source of Truth)
             const { data: profileRole } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', userId)
                 .single();
 
-            if (profileRole?.role === 'LABEL') {
-                const { data: labelProfile } = await supabase
-                    .from('labels')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
-
-                if (labelProfile) {
-                    dispatch({
-                        type: ActionTypes.LOGIN_SUCCESS,
-                        payload: { user: labelProfile, role: UserRoleEnum.LABEL }
-                    });
-                    return;
-                }
+            if (!profileRole) {
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Profile record missing." } });
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                return;
             }
-            
-            const roleMap: Record<string, UserRole> = {
-                'artists': UserRoleEnum.ARTIST,
-                'engineers': UserRoleEnum.ENGINEER,
-                'producers': UserRoleEnum.PRODUCER,
-                'stoodioz': UserRoleEnum.STOODIO,
-                'labels': UserRoleEnum.LABEL
+
+            const role = profileRole.role as UserRole;
+            const roleTableMap: Record<UserRole, string> = {
+                [UserRoleEnum.ARTIST]: 'artists',
+                [UserRoleEnum.ENGINEER]: 'engineers',
+                [UserRoleEnum.PRODUCER]: 'producers',
+                [UserRoleEnum.STOODIO]: 'stoodioz',
+                [UserRoleEnum.LABEL]: 'labels',
+                [UserRoleEnum.VIDEOGRAPHER]: 'videographers'
             };
+
+            const tableName = roleTableMap[role];
             
-            const tables = ['stoodioz', 'producers', 'engineers', 'artists', 'labels'];
+            // 2. Fetch full profile data from specialized table
+            const { data: userData, error: userError } = await supabase
+                .from(tableName)
+                .select('*')
+                .eq('id', userId)
+                .single();
+
+            if (userError || !userData) {
+                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Detailed profile data not found." } });
+                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                 return;
+            }
+
+            // 3. Dispatch success with explicit role and attached property
+            dispatch({ 
+                type: ActionTypes.LOGIN_SUCCESS, 
+                payload: { 
+                    user: { ...userData, role } as any, 
+                    role 
+                } 
+            });
+
+            if ('Notification' in window && Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
             
-            let userProfile: Artist | Engineer | Stoodio | Producer | Label | null = null;
-            let detectedRole: UserRole | undefined;
-    
-            for (const table of tables) {
-                let selectQuery = '*';
-                if (table === 'stoodioz') selectQuery = '*, rooms(*), in_house_engineers(*)';
-                if (table === 'engineers') selectQuery = '*, mixing_samples(*)';
-                if (table === 'producers') selectQuery = '*, instrumentals(*)';
-
-                let { data: profileData, error: profileError } = await supabase
-                    .from(table)
-                    .select(selectQuery)
-                    .eq('id', userId)
-                    .maybeSingle();
-
-                if (profileError) {
-                    // Retry basic
-                    const retry = await supabase.from(table).select('*').eq('id', userId).maybeSingle();
-                    profileData = retry.data;
-                }
-
-                if (profileData) {
-                    userProfile = profileData as unknown as Artist | Engineer | Stoodio | Producer | Label;
-                    detectedRole = roleMap[table];
-                    break; 
-                }
-            }
-    
-            if (userProfile && detectedRole) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: { user: userProfile, role: detectedRole } });
-                if ('Notification' in window && Notification.permission !== 'denied') {
-                    Notification.requestPermission();
-                }
-            } else {
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Profile not found. Please contact support." } });
-            }
         } else {
              dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "An unknown error occurred during login." } });
         }
     }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
-        // 1. CRITICAL: Clear LocalStorage synchronously first. 
-        try {
-            localStorage.removeItem('sb-ijcxeispefnbfwiviyux-auth');
-            localStorage.removeItem('last_view');
-            Object.keys(localStorage).forEach(key => {
-                if(key.startsWith('sb-')) localStorage.removeItem(key);
-            });
-        } catch (e) {
-            console.warn("Manual storage clear failed", e);
-        }
-
-        // 2. Clear App State
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+        
+        // Wipe local state first
         dispatch({ type: ActionTypes.LOGOUT });
-
-        // 3. Attempt server-side cleanup
-        try {
-            await performLogout();
-        } catch (e) {
-            console.warn("Server logout warning", e);
-        } finally {
-            // 4. Force reload to Landing Page
-            window.location.href = '/'; 
-        }
+        
+        // Perform hard logout (Storage, WS, Auth)
+        await performLogout();
+        
+        // Force clean URL
+        window.location.replace('/login');
     }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
-        // Simple navigation. Do NOT attempt to check auth status here, 
-        // as the user is likely creating a NEW account.
         if (role === 'ARTIST') navigate(AppView.ARTIST_SETUP);
         else if (role === 'STOODIO') navigate(AppView.STOODIO_SETUP);
         else if (role === 'ENGINEER') navigate(AppView.ENGINEER_SETUP);
@@ -148,24 +114,13 @@ export const useAuth = (navigate: (view: any) => void) => {
     const completeSetup = async (userData: any, role: UserRole) => {
         try {
             const result = await apiService.createUser(userData, role);
-            
             if (result && 'email_confirmation_required' in result) {
-                alert("Account created! Please check your email to verify your account before logging in.");
+                alert("Please verify your email.");
                 navigate(AppView.LOGIN);
                 return;
             }
-
             if (result) {
-                const newUser = result as Artist | Engineer | Stoodio | Producer | Label;
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser, role } });
-                
-                 if (role === UserRoleEnum.ARTIST) navigate(AppView.ARTIST_DASHBOARD);
-                else if (role === UserRoleEnum.ENGINEER) navigate(AppView.ENGINEER_DASHBOARD);
-                else if (role === UserRoleEnum.PRODUCER) navigate(AppView.PRODUCER_DASHBOARD);
-                else if (role === UserRoleEnum.STOODIO) navigate(AppView.STOODIO_DASHBOARD);
-                else if (role === UserRoleEnum.LABEL) navigate(AppView.LABEL_DASHBOARD);
-            } else {
-                alert("An unknown error occurred during signup.");
+                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: { ...result, role } as any, role } });
             }
         } catch(error: any) {
             console.error("Setup completion error:", error);
