@@ -43,7 +43,6 @@ export enum AppView {
     CLAIM_CONFIRM = 'CLAIM_CONFIRM',
     CLAIM_LABEL_PROFILE = 'CLAIM_LABEL_PROFILE',
     LABEL_PROFILE = 'LABEL_PROFILE',
-    // Added missing AppView members
     ASSET_VAULT = 'ASSET_VAULT',
     MASTER_CALENDAR = 'MASTER_CALENDAR',
 }
@@ -55,6 +54,58 @@ export enum UserRole {
     STOODIO = 'STOODIO',
     VIDEOGRAPHER = 'VIDEOGRAPHER',
     LABEL = 'LABEL',
+}
+
+// --- PROJECT MANAGEMENT TYPES ---
+export interface Project {
+    id: string;
+    label_id: string;
+    artist_id: string;
+    name: string;
+    status: 'PLANNING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD';
+    deadline?: string;
+    created_at: string;
+    tasks?: ProjectTask[];
+}
+
+export interface ProjectTask {
+    id: string;
+    project_id: string;
+    title: string;
+    assignee_id?: string;
+    status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+    deadline?: string;
+    created_at: string;
+}
+
+export interface MarketInsight {
+    genre: string;
+    region: string;
+    trendScore: number; // 0-100
+    description: string;
+    suggestedArtists?: string[];
+}
+
+export enum AssetCategory {
+    DEMO = 'DEMO',
+    MASTER = 'MASTER',
+    ARTWORK = 'ARTWORK',
+    LEGAL = 'LEGAL',
+    PRESS_KIT = 'PRESS_KIT'
+}
+
+export interface MediaAsset {
+    id: string;
+    name: string;
+    url: string;
+    type: string;
+    category: AssetCategory;
+    owner_id: string;
+    project_id?: string;
+    created_at: string;
+    size: string;
+    metadata?: any;
 }
 
 export enum VerificationStatus {
@@ -523,8 +574,9 @@ export interface AppNotification {
     actor?: Artist | Engineer | Stoodio | Producer | Label;
 }
 
+// FIX: Added 'logout', 'scoutMarket', 'manageProject', and 'search' actions to AriaActionResponse type
 export interface AriaActionResponse {
-    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'socialAction' | 'updateProfile' | 'search' | 'generateDocument' | 'labelControl' | 'mediaControl';
+    type: 'navigate' | 'openModal' | 'showVibeMatchResults' | 'assistAccountSetup' | 'speak' | 'error' | 'sendMessage' | 'sendDocumentMessage' | 'createBooking' | 'socialAction' | 'updateProfile' | 'search' | 'generateDocument' | 'labelControl' | 'mediaControl' | 'scoutMarket' | 'manageProject' | 'logout';
     target: string | null;
     value: any;
     text: string;

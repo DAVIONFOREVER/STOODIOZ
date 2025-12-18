@@ -35,6 +35,27 @@ export const uploadPostAttachment = async (file: File, userId: string): Promise<
     return uploadFile(file, 'posts', path);
 };
 
+// FIX: Exported uploadRoomPhoto method
+export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
+    const ext = file.name.split('.').pop();
+    const path = `${stoodioId}/rooms/${Date.now()}.${ext}`;
+    return uploadFile(file, 'stoodio_photos', path);
+};
+
+// FIX: Exported uploadBeatFile method
+export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
+    const ext = file.name.split('.').pop();
+    const path = `${producerId}/beats/${Date.now()}.${ext}`;
+    return uploadFile(file, 'instrumentals', path);
+};
+
+// FIX: Exported uploadMixingSampleFile method
+export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
+    const ext = file.name.split('.').pop();
+    const path = `${engineerId}/samples/${Date.now()}.${ext}`;
+    return uploadFile(file, 'mixing_samples', path);
+};
+
 export const uploadDocument = async (file: Blob, fileName: string, userId: string, category: string = 'OFFICIAL'): Promise<string> => {
     const path = `${userId}/documents/${Date.now()}_${fileName}`;
     const publicUrl = await uploadFile(file, 'documents', path);
@@ -61,7 +82,6 @@ export const fetchUserDocuments = async (userId: string) => {
     return data || [];
 };
 
-// Added fetchUserAssets to handle media asset retrieval for AssetVault and AriaAssistant
 export const fetchUserAssets = async (userId: string): Promise<MediaAsset[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
@@ -73,7 +93,6 @@ export const fetchUserAssets = async (userId: string): Promise<MediaAsset[]> => 
     return (data || []) as MediaAsset[];
 };
 
-// Added uploadAsset to support uploading files to the secure AssetVault
 export const uploadAsset = async (file: File, userId: string, category: AssetCategory): Promise<MediaAsset> => {
     const ext = file.name.split('.').pop();
     const path = `${userId}/vault/${Date.now()}.${ext}`;
@@ -103,7 +122,6 @@ export const uploadAsset = async (file: File, userId: string, category: AssetCat
 };
 
 export const scoutMarketInsights = async (region: string): Promise<MarketInsight[]> => {
-    // Simulated market trend database
     await new Promise(r => setTimeout(r, 500));
     return [
         { 
@@ -114,7 +132,6 @@ export const scoutMarketInsights = async (region: string): Promise<MarketInsight
 };
 
 export const fetchAnalyticsData = async (uid: string, r: UserRole, d: number): Promise<AnalyticsData> => {
-    // Return structured mock data to prevent dashboard crash while waiting for DB records
     return {
         kpis: { totalRevenue: 12500, profileViews: 450, newFollowers: 28, bookings: 12 },
         revenueOverTime: Array.from({ length: 7 }, (_, i) => ({ date: `2024-05-${10+i}`, revenue: Math.random() * 500 })),
@@ -142,7 +159,6 @@ export const updateProjectTask = async (id: string, updates: any) => {
     return (await getSupabase()!.from('project_tasks').update(updates).eq('id', id).select().single()).data;
 };
 
-// ... (Rest of existing API methods unchanged)
 export const fetchCurrentUserProfile = async (id: string) => {
     const s = getSupabase(); if (!s) return null;
     const {data:p} = await s.from('profiles').select('role').eq('id', id).single();
@@ -160,6 +176,10 @@ export const fetchLabelRoster = async (id: string) => {
     }
     return hydrated;
 };
+
+// FIX: Added generic fetchRoster method for cross-compatibility
+export const fetchRoster = async (id: string) => fetchLabelRoster(id);
+
 export const getLabelBudgetOverview = async (id: string) => (await getSupabase()!.rpc('get_label_budget_overview', { p_label_id: id })).data;
 export const fetchLabelTransactions = async (id: string) => (await getSupabase()!.from('labels').select('wallet_transactions').eq('id', id).single()).data?.wallet_transactions || [];
 export const fetchLabelTransactionsOriginal = async (id: string) => (await getSupabase()!.from('labels').select('wallet_transactions').eq('id', id).single()).data?.wallet_transactions || [];
@@ -187,13 +207,13 @@ export const fetchGlobalFeed = async (l: number, b?: string) => {
     return (await q).data?.map((p:any)=>({ ...p, authorId:p.author_id, authorType:p.author_type, timestamp:p.created_at })) || [];
 };
 export const fetchConversations = async (id: string) => [];
-export const sendMessage = async (cid: string, sid: string, c: string, t: string = 'text') => (await getSupabase()!.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t }).select().single()).data;
+
+// FIX: Updated sendMessage signature to accept 5 arguments as required by useMessaging hook
+export const sendMessage = async (cid: string, sid: string, c: string, t: string = 'text', fileData?: any) => (await getSupabase()!.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t, file_data: fileData }).select().single()).data;
+
 export const createConversation = async (pids: string[]) => (await getSupabase()!.from('conversations').insert({ participant_ids: pids }).select().single()).data;
 export const updateUser = async (id: string, t: string, u: any) => (await getSupabase()!.from(t).update(u).eq('id', id).select().single()).data;
-
-// FIX: Added fetchFullArtist to satisfy component requirements
 export const fetchFullArtist = async (id: string) => (await getSupabase()!.from('artists').select('*').eq('id', id).single()).data;
-
 export const fetchFullEngineer = async (id: string) => (await getSupabase()!.from('engineers').select('*, mixing_samples(*)').eq('id', id).single()).data;
 export const fetchFullProducer = async (id: string) => (await getSupabase()!.from('producers').select('*, instrumentals(*)').eq('id', id).single()).data;
 export const fetchFullStoodio = async (id: string) => (await getSupabase()!.from('stoodioz').select('*, rooms(*), in_house_engineers(*)').eq('id', id).single()).data;
@@ -207,7 +227,6 @@ export const removeArtistFromLabelRoster = async (lid: string, rid: string) => t
 export const updateLabelBudgetMode = async (id: string, m: any, a?: number, d?: number) => null;
 export const addLabelFunds = async (id: string, a: number, n: string) => true;
 export const addLabelFundsOriginal = async (id: string, a: number, n: string) => true;
-export const addArtistToLabelRoster = async (p: any) => null;
 export const setLabelBudget = async (id: string, t: number) => null;
 export const setArtistAllocation = async (id: string, aid: string, a: number) => null;
 export const claimProfileByCode = async (c: string, id: string) => ({role: 'ARTIST' as UserRoleEnum});

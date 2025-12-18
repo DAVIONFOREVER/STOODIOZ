@@ -1,37 +1,16 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label, RosterMember, LabelBudgetOverview } from '../types';
-import { AppView, UserRole } from '../types';
+import type { Message, Artist, Engineer, Stoodio, Producer, AriaActionResponse, Booking, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Label, RosterMember, LabelBudgetOverview, MediaAsset, Project, ProjectTask, MarketInsight } from '../types';
+import { UserRole } from '../types';
 
-let ai: GoogleGenAI | null = null;
-
-const getGenAIClient = (): GoogleGenAI | null => {
-    if (!ai) {
-        // FIX: Per @google/genai guidelines, API key must come exclusively from process.env.API_KEY.
-        // We wrap this in a try-catch to safely handle environments (like some browser contexts) 
-        // where accessing 'process' directly might throw a ReferenceError before the polyfill/define kicks in.
-        let apiKey: string | undefined;
-        try {
-            apiKey = process.env.API_KEY;
-        } catch (e) {
-            console.error("Error accessing process.env.API_KEY. Ensure vite.config.ts is configured correctly.", e);
-        }
-
-        if (!apiKey || apiKey.startsWith('{{')) {
-            return null;
-        }
-        ai = new GoogleGenAI({ apiKey });
-    }
-    return ai;
-};
+// Guidelines check: API key must be obtained exclusively from process.env.API_KEY.
+// Guidelines check: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
 export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | null> => {
-    const ai = getGenAIClient();
-    if (!ai) return null;
-
+    // FIX: Refactored to use gemini-3-flash-preview for basic text tasks and .text property.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Analyze the content of the URL provided and generate a suitable title, description, and image URL for a link preview. URL: "${url}"`,
             config: {
                 responseMimeType: "application/json",
@@ -46,7 +25,7 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
             }
         });
         
-        const jsonString = response.text.trim();
+        const jsonString = response.text?.trim() || '{}';
         const metadata = JSON.parse(jsonString);
 
         return {
@@ -58,23 +37,17 @@ export const fetchLinkMetadata = async (url: string): Promise<LinkAttachment | n
 
     } catch (error) {
         console.error("Error fetching link metadata with Gemini:", error);
-        // Fallback for failed API call
-        return {
-            url,
-            title: 'Link',
-            description: url,
-        };
+        return { url, title: 'Link', description: url };
     }
 };
 
 export const moderatePostContent = async (text: string): Promise<{ isSafe: boolean; reason: string }> => {
     if (!text.trim()) return { isSafe: true, reason: '' };
-    const ai = getGenAIClient();
-    if (!ai) return { isSafe: true, reason: 'Moderation service offline' };
-
+    // FIX: Refactored to use gemini-3-flash-preview and .text property.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Analyze the following text for harmful content (hate speech, spam, harassment, etc.). Text: "${text}"`,
             config: {
                 responseMimeType: "application/json",
@@ -88,27 +61,26 @@ export const moderatePostContent = async (text: string): Promise<{ isSafe: boole
             }
         });
 
-        const jsonString = response.text.trim();
+        const jsonString = response.text?.trim() || '{"isSafe": true, "reason": "Timeout"}';
         return JSON.parse(jsonString);
 
     } catch (error) {
         console.error("Error with content moderation:", error);
-        return { isSafe: true, reason: 'Moderation check failed' }; // Fail open
+        return { isSafe: true, reason: 'Moderation check failed' }; 
     }
 };
 
 export const generateSmartReplies = async (messages: Message[], currentUserId: string): Promise<string[]> => {
-    const ai = getGenAIClient();
+    // FIX: Refactored to use gemini-3-flash-preview and .text property.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const lastMessage = messages[messages.length - 1];
-    if (!ai || !lastMessage || lastMessage.sender_id === currentUserId) {
-        return [];
-    }
+    if (!lastMessage || lastMessage.sender_id === currentUserId) return [];
     
     const conversationHistory = messages.slice(-5).map(m => `${m.sender_id === currentUserId ? 'You' : 'Them'}: ${m.text}`).join('\n');
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: `Based on this conversation history, suggest 3 short, relevant smart replies for "You":\n\n${conversationHistory}`,
             config: {
                 responseMimeType: "application/json",
@@ -124,7 +96,7 @@ export const generateSmartReplies = async (messages: Message[], currentUserId: s
             }
         });
         
-        const jsonString = response.text.trim();
+        const jsonString = response.text?.trim() || '{"replies": []}';
         const result = JSON.parse(jsonString);
         return result.replies || [];
 
@@ -136,35 +108,13 @@ export const generateSmartReplies = async (messages: Message[], currentUserId: s
 
 export const getAriaNudge = async (currentUser: Artist | Engineer | Stoodio | Producer | Label, userRole: UserRole): Promise<AriaNudgeData | null> => {
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
     switch(userRole) {
-        case UserRole.ARTIST:
-            return {
-                text: "Feeling creative? Try using the AI Vibe Matcher to find your next collaborator.",
-                action: { type: 'OPEN_MODAL', payload: 'VIBE_MATCHER' }
-            };
-        case UserRole.ENGINEER:
-            return {
-                text: "Your profile looks great! Have you considered adding a Masterclass to share your skills?",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'masterclass' }
-            };
-        case UserRole.PRODUCER:
-            return {
-                text: "It's a great day to upload some new beats to your store! 🎵",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'beatStore' }
-            };
-        case UserRole.STOODIO:
-             return {
-                text: "Your calendar has some open slots this week. Maybe post on The Stage to attract some artists?",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'dashboard' }
-            };
-        case UserRole.LABEL:
-            return {
-                text: "Have you checked your roster's recent spending? Review your budget dashboard now.",
-                action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'financials' }
-            };
-        default:
-            return null;
+        case UserRole.ARTIST: return { text: "Feeling creative? Try using the AI Vibe Matcher to find your next collaborator.", action: { type: 'OPEN_MODAL', payload: 'VIBE_MATCHER' } };
+        case UserRole.ENGINEER: return { text: "Your profile looks great! Have you considered adding a Masterclass to share your skills?", action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'masterclass' } };
+        case UserRole.PRODUCER: return { text: "It's a great day to upload some new beats to your store! 🎵", action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'beatStore' } };
+        case UserRole.STOODIO: return { text: "Your calendar has some open slots this week. Maybe post on The Stage to attract some artists?", action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'dashboard' } };
+        case UserRole.LABEL: return { text: "Have you checked your roster's recent spending? Review your budget dashboard now.", action: { type: 'NAVIGATE_DASHBOARD_TAB', payload: 'financials' } };
+        default: return null;
     }
 }
 
@@ -172,6 +122,7 @@ export const askAriaCantata = async (
     history: AriaCantataMessage[],
     question: string,
     currentUser: Artist | Engineer | Stoodio | Producer | Label | null,
+    userRole: UserRole | null,
     context: {
         artists: Artist[],
         engineers: Engineer[],
@@ -179,13 +130,14 @@ export const askAriaCantata = async (
         stoodioz: Stoodio[],
         bookings: Booking[],
         roster?: RosterMember[],
-        budget?: LabelBudgetOverview | null
+        budget?: LabelBudgetOverview | null,
+        assets?: MediaAsset[],
+        projects?: Project[],
+        marketInsights?: MarketInsight[]
     }
 ): Promise<AriaActionResponse> => {
-    const ai = getGenAIClient();
-    if (!ai) {
-        return { type: 'error', target: null, value: null, text: "My connection seems to be offline. Please ensure your API key is configured properly." };
-    }
+    // FIX: Refactored to use gemini-3-pro-preview for complex text tasks and .text property.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const systemInstruction = `You are Aria Cantata, the Stoodioz A&R and Operations assistant. 
     
@@ -218,6 +170,9 @@ export const askAriaCantata = async (
     8. **Media Control:** Play specific content.
        - *Command:* {"type": "mediaControl", "value": "play", "target": "beat_id or song name", "text": "Playing..."}
 
+    9. **Logout:** Log the user out of the application if they ask to "log out", "sign out", "leave", or "exit".
+       - *Command:* {"type": "logout", "text": "Logging you out now. I'll be here when you return."}
+
     **FINANCIAL SAFEGUARDS:**
     - You have READ-ONLY access to the user's wallet balance and transactions.
     - If asked "How much money do I have?", analyze the context data and answer.
@@ -227,12 +182,12 @@ export const askAriaCantata = async (
 
     **CONTEXTUAL AWARENESS:**
     - Current User: ${JSON.stringify(currentUser)}
+    - Role: ${userRole}
     - Available Data: ${context.artists.length} artists, ${context.engineers.length} engineers.
 
     If you cannot perform an action, just reply with text.
     `;
     
-    // Financial Context Serialization
     let financialContextStr = '';
     if (currentUser && 'wallet_balance' in currentUser) {
         const recentTx = (currentUser as any).wallet_transactions?.slice(-3) || [];
@@ -275,28 +230,25 @@ export const askAriaCantata = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-pro-preview',
             contents: fullPrompt,
+            config: {
+                thinkingConfig: { thinkingBudget: 16384 },
+                responseMimeType: "application/json"
+            }
         });
         
-        let responseText = response.text.trim();
+        let responseText = response.text?.trim() || '';
         
         if (responseText.startsWith('```json')) {
             responseText = responseText.slice(7, -3).trim();
         }
 
         try {
-            // It might be a JSON command
             const command = JSON.parse(responseText) as AriaActionResponse;
             return command;
         } catch (e) {
-            // If parsing fails, it's a conversational response
-            return {
-                type: 'speak',
-                target: null,
-                value: null,
-                text: responseText,
-            };
+            return { type: 'speak', target: null, value: null, text: responseText };
         }
 
     } catch (error: any) {

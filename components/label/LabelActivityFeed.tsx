@@ -26,7 +26,8 @@ const LabelActivityFeed: React.FC = () => {
                 const [bookings, budget, roster] = await Promise.all([
                     apiService.fetchLabelBookings(currentUser.id),
                     apiService.getLabelBudgetOverview(currentUser.id),
-                    apiService.fetchRoster(currentUser.id)
+                    // FIX: Renamed fetchRoster to fetchLabelRoster to match apiService exports
+                    apiService.fetchLabelRoster(currentUser.id)
                 ]);
 
                 let feed: ActivityEvent[] = [];
