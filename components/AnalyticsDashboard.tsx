@@ -1,11 +1,11 @@
 
-
 import React, { useState, useEffect } from 'react';
 import type { AnalyticsData, Stoodio, Engineer, Producer, Artist, UserRole } from '../types';
-import { fetchAnalyticsData } from '../services/apiService';
+import { getAnalyticsData } from '../services/apiService';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { DollarSignIcon, UsersIcon, EyeIcon, CalendarIcon } from './icons';
+// FIX: Added ChartBarIcon to imports to fix "Cannot find name 'ChartBarIcon'" build error
+import { DollarSignIcon, UsersIcon, EyeIcon, CalendarIcon, ChartBarIcon } from './icons';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
 
@@ -47,19 +47,41 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ user, userRole 
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [timeframe, setTimeframe] = useState<30 | 60 | 90>(30);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const data = await fetchAnalyticsData(user.id, userRole, timeframe);
-            setAnalyticsData(data);
-            setLoading(false);
+            setError(null);
+            try {
+                const data = await getAnalyticsData(user.id, userRole, timeframe);
+                setAnalyticsData(data);
+            } catch (err: any) {
+                console.error("Analytics load failed:", err);
+                setError(err.message || "Failed to load performance metrics.");
+            } finally {
+                setLoading(false);
+            }
         };
         loadData();
     }, [user.id, userRole, timeframe]);
 
-    if (loading || !analyticsData) {
+    if (loading) {
         return <LoadingSkeleton />;
+    }
+
+    if (error) {
+        return (
+            <div className="p-12 text-center cardSurface border-dashed opacity-60">
+                <ChartBarIcon className="w-12 h-12 mx-auto text-zinc-600 mb-4" />
+                <p className="text-zinc-400 font-medium">{error}</p>
+                <p className="text-xs text-zinc-500 mt-2">Metrics will populate as data is synchronized from the network.</p>
+            </div>
+        );
+    }
+
+    if (!analyticsData) {
+        return null;
     }
 
     const { kpis, revenueOverTime, engagementOverTime, revenueSources } = analyticsData;

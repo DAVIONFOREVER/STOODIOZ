@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAppState } from '../../contexts/AppContext';
 import * as apiService from '../../services/apiService';
@@ -26,7 +27,8 @@ const LabelActivityFeed: React.FC = () => {
                 const [bookings, budget, roster] = await Promise.all([
                     apiService.fetchLabelBookings(currentUser.id),
                     apiService.getLabelBudgetOverview(currentUser.id),
-                    apiService.fetchRoster(currentUser.id)
+                    // FIX: Changed fetchRoster to fetchLabelRoster to resolve build error and match exported member name in apiService
+                    apiService.fetchLabelRoster(currentUser.id)
                 ]);
 
                 let feed: ActivityEvent[] = [];
