@@ -83,7 +83,6 @@ export enum ActionTypes {
     CLOSE_BOOKING_MODAL = 'CLOSE_BOOKING_MODAL',
     CONFIRM_BOOKING_SUCCESS = 'CONFIRM_BOOKING_SUCCESS',
     SET_LATEST_BOOKING = 'SET_LATEST_BOOKING',
-    SET_LATEST_BOOKING_SILENT = 'SET_LATEST_BOOKING_SILENT',
     SET_BOOKINGS = 'SET_BOOKINGS',
     ADD_BOOKING = 'ADD_BOOKING',
     UPDATE_USERS = 'UPDATE_USERS',
@@ -144,7 +143,6 @@ type Payload = {
     [ActionTypes.CLOSE_BOOKING_MODAL]: undefined;
     [ActionTypes.CONFIRM_BOOKING_SUCCESS]: { booking: Booking };
     [ActionTypes.SET_LATEST_BOOKING]: { booking: Booking | null };
-    [ActionTypes.SET_LATEST_BOOKING_SILENT]: { booking: Booking | null };
     [ActionTypes.SET_BOOKINGS]: { bookings: Booking[] };
     [ActionTypes.ADD_BOOKING]: { booking: Booking };
     [ActionTypes.UPDATE_USERS]: { users: (Artist | Engineer | Stoodio | Producer | Label)[] };
@@ -188,8 +186,6 @@ type Payload = {
 
 export type AppAction = ActionMap<Payload>[keyof ActionMap<Payload>];
 
-
-// --- INITIAL STATE ---
 const initialState: AppState = {
     history: [AppView.LANDING_PAGE],
     historyIndex: 0,
@@ -211,7 +207,7 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: false, // Changed from true to false for instant entry
+    isLoading: true,
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -239,7 +235,6 @@ const initialState: AppState = {
     directionsIntent: null,
 };
 
-// --- REDUCER ---
 const appReducer = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
         case ActionTypes.NAVIGATE: {
@@ -283,22 +278,24 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             const { user, role: explicitRole } = action.payload;
             let role = explicitRole;
 
+            // FIX: Refined heuristic to prevent Artists from being tagged as Labels
             if (!role) {
                 if ('amenities' in user) role = UserRole.STOODIO;
                 else if ('specialties' in user) role = UserRole.ENGINEER;
                 else if ('instrumentals' in user) role = UserRole.PRODUCER;
-                else if ('bio' in user && !('is_seeking_session' in user)) role = UserRole.LABEL;
+                else if ('company_name' in user) role = UserRole.LABEL; 
                 else role = UserRole.ARTIST;
             }
 
-            // PERSISTENCE LOGIC:
+            // CRITICAL FIX: Deterministic landing view calculation based on ROLE
             let landingView = AppView.THE_STAGE;
             if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
-            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
+            else landingView = AppView.ARTIST_DASHBOARD;
 
+            // VALIDATE PERSISTENCE: Check if stored view is compatible with role
             const storedView = localStorage.getItem('last_view');
             const restricted = [
                 AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
@@ -308,7 +305,14 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             ];
             
             if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
-                landingView = storedView as AppView;
+                // Ensure Artist isn't trying to load a Label Dashboard
+                if (role === UserRole.ARTIST && storedView === AppView.LABEL_DASHBOARD) {
+                    landingView = AppView.ARTIST_DASHBOARD;
+                } else if (role === UserRole.LABEL && storedView === AppView.ARTIST_DASHBOARD) {
+                    landingView = AppView.LABEL_DASHBOARD;
+                } else {
+                    landingView = storedView as AppView;
+                }
             }
             
             return {
@@ -350,7 +354,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
             else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
             else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
-            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
+            else landingView = AppView.ARTIST_DASHBOARD;
 
             return {
                 ...updatedState,
@@ -379,8 +383,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, bookingTime: null, bookingIntent: null, latestBooking: action.payload.booking, bookings: [...state.bookings, action.payload.booking] };
         case ActionTypes.SET_LATEST_BOOKING:
             return { ...state, latestBooking: action.payload.booking };
-        case ActionTypes.SET_LATEST_BOOKING_SILENT:
-            return { ...state, latestBooking: action.payload.booking };
         case ActionTypes.SET_BOOKINGS:
             return { ...state, bookings: action.payload.bookings };
         case ActionTypes.ADD_BOOKING:
@@ -403,11 +405,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
             return {
                 ...state,
-                artists: uniqueUsers.filter(u => 'bio' in u && 'is_seeking_session' in u) as Artist[],
+                artists: uniqueUsers.filter(u => 'is_seeking_session' in u) as Artist[],
                 engineers: uniqueUsers.filter(u => 'specialties' in u) as Engineer[],
                 producers: uniqueUsers.filter(u => 'instrumentals' in u) as Producer[],
                 stoodioz: uniqueUsers.filter(u => 'amenities' in u) as Stoodio[],
-                labels: uniqueUsers.filter(u => 'bio' in u && !('is_seeking_session' in u) && !('specialties' in u) && !('instrumentals' in u) && !('amenities' in u)) as Label[],
+                labels: uniqueUsers.filter(u => 'company_name' in u) as Label[],
                 currentUser: findUser(state.currentUser?.id) as any || state.currentUser,
                 selectedArtist: findUser(state.selectedArtist?.id) as Artist || state.selectedArtist,
                 selectedEngineer: findUser(state.selectedEngineer?.id) as Engineer || state.selectedEngineer,
@@ -494,15 +496,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     }
 };
 
-
-// --- CONTEXT AND PROVIDER ---
-
 const AppStateContext = createContext<AppState | undefined>(undefined);
 const AppDispatchContext = createContext<Dispatch<AppAction> | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [state, dispatch] = useReducer(appReducer, initialState);
-
     return (
         <AppStateContext.Provider value={state}>
             <AppDispatchContext.Provider value={dispatch}>
@@ -512,20 +510,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
 };
 
-// --- HOOKS ---
-
 export const useAppState = (): AppState => {
     const context = useContext(AppStateContext);
-    if (context === undefined) {
-        throw new Error('useAppState must be used within an AppProvider');
-    }
+    if (context === undefined) throw new Error('useAppState must be used within an AppProvider');
     return context;
 };
 
 export const useAppDispatch = (): Dispatch<AppAction> => {
     const context = useContext(AppDispatchContext);
-    if (context === undefined) {
-        throw new Error('useAppDispatch must be used within an AppProvider');
-    }
+    if (context === undefined) throw new Error('useAppDispatch must be used within an AppProvider');
     return context;
 };

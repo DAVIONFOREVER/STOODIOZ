@@ -1,43 +1,24 @@
 import type { Stoodio, Artist, Engineer, Producer, Booking, BookingRequest, UserRole, Review, Post, Comment, Transaction, AnalyticsData, SubscriptionPlan, Message, AriaActionResponse, VibeMatchResult, AriaCantataMessage, Location, LinkAttachment, MixingSample, AriaNudgeData, Room, Instrumental, InHouseEngineerInfo, BaseUser, MixingDetails, Conversation, Label, LabelContract, RosterMember, LabelBudgetOverview, LabelBudgetMode, Following, MediaAsset, Project, ProjectTask, MarketInsight } from '../types';
 import { BookingStatus, VerificationStatus, TransactionCategory, TransactionStatus, BookingRequestType, UserRole as UserRoleEnum, RankingTier, NotificationType, AssetCategory } from '../types';
-import { getSupabase, performLogout } from '../lib/supabase';
+import { getSupabase } from '../lib/supabase';
 import { USER_SILHOUETTE_URL, ARIA_EMAIL } from '../constants';
 
-// --- HELPERS ---
+// --- HELPER FUNCTIONS ---
 
-/**
- * Global wrapper to handle Supabase Rec #2: Force signout on 401/JWT loops
- */
-const wrapApiCall = async <T>(call: Promise<{ data: T | null; error: any }>): Promise<T | null> => {
-    try {
-        const { data, error } = await call;
-        if (error) {
-            // Check for Supabase Rec specific error codes
-            if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
-                console.error("Critical JWT/401 error. Performing nuclear logout.");
-                await performLogout();
-                window.location.replace('/login');
-                return null;
-            }
-            throw error;
-        }
-        return data;
-    } catch (e) {
-        console.error("API Call Exception:", e);
-        throw e;
-    }
-};
+const timeoutPromise = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error(`Request timed out after ${ms/1000} seconds`)), ms));
 
 const uploadFile = async (file: File | Blob, bucket: string, path: string): Promise<string> => {
     const createLocalUrl = () => URL.createObjectURL(file as Blob);
     const supabase = getSupabase();
     if (!supabase) return createLocalUrl();
     try {
-        const { data, error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
-        if (error) return createLocalUrl();
+        const uploadTask = supabase.storage.from(bucket).upload(path, file, { upsert: true });
+        const result: any = await Promise.race([uploadTask, timeoutPromise(10000)]);
+        if (result.error) return createLocalUrl();
         const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
         return publicUrl || createLocalUrl();
     } catch (error: any) {
+        console.error(`Upload exception for ${bucket}/${path}:`, error);
         return createLocalUrl();
     }
 };
@@ -94,14 +75,15 @@ export const uploadDocument = async (file: Blob, fileName: string, userId: strin
 export const fetchUserDocuments = async (userId: string) => {
     const supabase = getSupabase();
     if (!supabase) return [];
-    const data = await wrapApiCall<any[]>(supabase.from('documents').select('*').eq('owner_id', userId).order('created_at', { ascending: false }));
+    const { data } = await supabase.from('documents').select('*').eq('owner_id', userId).order('created_at', { ascending: false });
     return data || [];
 };
 
 export const fetchUserAssets = async (userId: string): Promise<MediaAsset[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
-    const data = await wrapApiCall<any[]>(supabase.from('media_assets').select('*').eq('owner_id', userId).order('created_at', { ascending: false }));
+    const { data, error } = await supabase.from('media_assets').select('*').eq('owner_id', userId).order('created_at', { ascending: false });
+    if (error) return [];
     return (data || []) as MediaAsset[];
 };
 
@@ -123,7 +105,7 @@ export const uploadAsset = async (file: File, userId: string, category: AssetCat
     };
 
     if (supabase) {
-        await wrapApiCall(supabase.from('media_assets').insert(assetData));
+        await supabase.from('media_assets').insert(assetData);
     }
     
     return assetData as MediaAsset;
@@ -134,7 +116,7 @@ export const scoutMarketInsights = async (region: string): Promise<MarketInsight
     return [
         { 
             genre: "Afrobeats", region: "Global", trendScore: 92, 
-            description: `Afrobeats is seeing a 24% month-over-month increase in the ${region} region. High demand for cross-over collaborations.` 
+            description: `Afrobeats is seeing significant growth in the ${region} region. High demand for cross-over collaborations.` 
         }
     ];
 };
@@ -160,37 +142,36 @@ export const fetchLabelBookings = async (labelId: string) => {
 export const fetchLabelProjects = async (labelId: string): Promise<Project[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
-    const data = await wrapApiCall<any[]>(supabase.from('projects').select('*, tasks(*)').eq('label_id', labelId));
-    return (data || []) as Project[];
+    return (await supabase.from('projects').select('*, tasks(*)').eq('label_id', labelId)).data || [];
 };
 
 export const createProjectTask = async (projectId: string, task: Partial<ProjectTask>) => {
     const supabase = getSupabase();
     if (!supabase) return null;
-    return wrapApiCall<any>(supabase.from('project_tasks').insert({ ...task, project_id: projectId }).select().single());
+    return (await supabase.from('project_tasks').insert({ ...task, project_id: projectId }).select().single()).data;
 };
 
 export const updateProjectTask = async (id: string, updates: any) => {
     const supabase = getSupabase();
     if (!supabase) return null;
-    return wrapApiCall<any>(supabase.from('project_tasks').update(updates).eq('id', id).select().single());
+    return (await supabase.from('project_tasks').update(updates).eq('id', id).select().single()).data;
 };
 
-export const fetchCurrentUserProfile = async (id: string): Promise<{ user: Label | Artist | Engineer | Stoodio | Producer, role: UserRole } | null> => {
+export const fetchCurrentUserProfile = async (id: string): Promise<{ user: Artist | Engineer | Stoodio | Producer | Label, role: UserRole } | null> => {
     const s = getSupabase(); if (!s) return null;
-    const profile = await wrapApiCall<{ role: UserRole }>(s.from('profiles').select('role').eq('id', id).single());
-    if (!profile) return null;
+    const {data:p} = await s.from('profiles').select('role').eq('id', id).single();
+    if (!p) return null;
     const tables = {'ARTIST':'artists', 'ENGINEER':'engineers', 'PRODUCER':'producers', 'STOODIO':'stoodioz', 'LABEL':'labels'};
-    const table = (tables as any)[profile.role || 'ARTIST'];
-    const user = await wrapApiCall<any>(s.from(table).select('*').eq('id', id).single());
-    return user ? { user, role: profile.role } : null;
+    const table = (tables as any)[p.role];
+    const {data:u} = await s.from(table).select('*').eq('id', id).single();
+    return u ? { user: u as any, role: p.role as UserRole } : null;
 };
 
 export const fetchLabelRoster = async (id: string): Promise<RosterMember[]> => {
     const s = getSupabase(); if (!s) return [];
-    const rosterEntries = await wrapApiCall<any[]>(s.from('label_roster').select('*').eq('label_id', id));
+    const {data:re} = await s.from('label_roster').select('*').eq('label_id', id);
     const hydrated = [];
-    for(const e of rosterEntries||[]) {
+    for(const e of re||[]) {
         const res = await fetchCurrentUserProfile(e.user_id);
         if(res) hydrated.push({...(res.user as any), role_in_label: e.role, roster_id: e.id});
     }
@@ -204,15 +185,15 @@ export const getLabelBudgetOverview = async (id: string) => {
 
 export const fetchLabelTransactions = async (id: string): Promise<Transaction[]> => {
     const s = getSupabase(); if (!s) return [];
-    const data = await wrapApiCall<any>(s.from('labels').select('wallet_transactions').eq('id', id).single());
+    const { data } = await s.from('labels').select('wallet_transactions').eq('id', id).single();
     return data?.wallet_transactions || [];
-}
+};
 
 export const fetchLabelContracts = async (id: string): Promise<LabelContract[]> => {
     const s = getSupabase(); if (!s) return [];
-    const data = await wrapApiCall<any[]>(s.from('label_contracts').select('*').eq('label_id', id));
+    const { data } = await s.from('label_contracts').select('*').eq('label_id', id);
     return (data || []) as LabelContract[];
-}
+};
 
 export const getRosterActivity = async (id: string) => {
     const s = getSupabase(); if (!s) return [];
@@ -223,20 +204,21 @@ export const fetchLabelPerformance = async (id: string) => [];
 
 export const createBooking = async (req: any, st: any, b: any, br: UserRole): Promise<Booking> => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    const data = await wrapApiCall<any>(s.from('bookings').insert({ ...req, stoodio_id:st?.id, booked_by_id:b.id, booked_by_role:br, status:BookingStatus.CONFIRMED }).select().single());
+    const { data } = await s.from('bookings').insert({ ...req, stoodio_id:st?.id, booked_by_id:b.id, booked_by_role:br, status:BookingStatus.CONFIRMED }).select().single();
     return data as Booking;
-}
+};
 
 export const cancelBooking = async (b: any) => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    return wrapApiCall<any>(s.from('bookings').update({ status: BookingStatus.CANCELLED }).eq('id', b.id).select().single());
+    const { data } = await s.from('bookings').update({ status: BookingStatus.CANCELLED }).eq('id', b.id).select().single();
+    return data as Booking;
 };
 
 export const createPost = async (pd: any, a: any, at: UserRole) => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    const post = await wrapApiCall<any>(s.from('posts').insert({ author_id: a.id, author_type: at, text: pd.text, image_url: pd.image_url, video_url: pd.video_url, created_at: new Date().toISOString() }).select().single());
-    return { updatedAuthor: a, createdPost: post as Post };
-}
+    const { data } = await s.from('posts').insert({ author_id: a.id, author_type: at, text: pd.text, image_url: pd.image_url, video_url: pd.video_url, created_at: new Date().toISOString() }).select().single();
+    return { updatedAuthor: a, createdPost: data as Post };
+};
 
 export const likePost = async (pid: string, uid: string, a: any) => ({ updatedAuthor: a });
 export const commentOnPost = async (pid: string, t: string, c: any, pa: any) => ({ updatedAuthor: pa });
@@ -254,9 +236,9 @@ export const createUser = async (u: any, r: UserRole) => {
 
 export const fetchUserPosts = async (id: string): Promise<Post[]> => {
     const s = getSupabase(); if (!s) return [];
-    const data = await wrapApiCall<any[]>(s.from('posts').select('*').eq('author_id', id));
+    const { data } = await s.from('posts').select('*').eq('author_id', id);
     return data?.map((p:any)=>({ ...p, authorId:p.author_id, authorType:p.author_type, timestamp:p.created_at })) || [];
-}
+};
 
 export const fetchGlobalFeed = async (l: number, b?: string): Promise<Post[]> => {
     const s = getSupabase(); if (!s) return [];
@@ -268,45 +250,50 @@ export const fetchGlobalFeed = async (l: number, b?: string): Promise<Post[]> =>
 
 export const fetchConversations = async (id: string): Promise<Conversation[]> => {
     const s = getSupabase(); if (!s) return [];
-    const data = await wrapApiCall<any[]>(s.from('conversations').select('*').contains('participant_ids', [id]));
+    const { data } = await s.from('conversations').select('*').contains('participant_ids', [id]);
     return (data || []) as Conversation[];
 };
 
 export const sendMessage = async (cid: string, sid: string, c: string, t: string = 'text', metadata: any = null): Promise<Message> => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    const data = await wrapApiCall<any>(s.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t, metadata }).select().single());
+    const { data } = await s.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t, metadata }).select().single();
     return data as Message;
-}
+};
 
 export const createConversation = async (pids: string[]): Promise<Conversation> => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    const data = await wrapApiCall<any>(s.from('conversations').insert({ participant_ids: pids }).select().single());
+    const { data } = await s.from('conversations').insert({ participant_ids: pids }).select().single();
     return data as Conversation;
 };
 
 export const updateUser = async (id: string, t: string, u: any): Promise<any> => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    return wrapApiCall<any>(s.from(t).update(u).eq('id', id).select().single());
+    const { data } = await s.from(t).update(u).eq('id', id).select().single();
+    return data;
 };
 
 export const fetchFullArtist = async (id: string): Promise<Artist> => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    return (await wrapApiCall<any>(s.from('artists').select('*').eq('id', id).single())) as Artist;
+    const { data } = await s.from('artists').select('*').eq('id', id).single();
+    return data as Artist;
 };
 
 export const fetchFullEngineer = async (id: string): Promise<Engineer> => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    return (await wrapApiCall<any>(s.from('engineers').select('*, mixing_samples(*)').eq('id', id).single())) as Engineer;
+    const { data } = await s.from('engineers').select('*, mixing_samples(*)').eq('id', id).single();
+    return data as Engineer;
 };
 
 export const fetchFullProducer = async (id: string): Promise<Producer> => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    return (await wrapApiCall<any>(s.from('producers').select('*, instrumentals(*)').eq('id', id).single())) as Producer;
+    const { data } = await s.from('producers').select('*, instrumentals(*)').eq('id', id).single();
+    return data as Producer;
 };
 
 export const fetchFullStoodio = async (id: string): Promise<Stoodio> => {
     const s = getSupabase(); if (!s) throw new Error("Supabase not initialized");
-    return (await wrapApiCall<any>(s.from('stoodioz').select('*, rooms(*), in_house_engineers(*)').eq('id', id).single())) as Stoodio;
+    const { data } = await s.from('stoodioz').select('*, rooms(*), in_house_engineers(*)').eq('id', id).single();
+    return data as Stoodio;
 };
 
 export const getAllPublicUsers = async () => {

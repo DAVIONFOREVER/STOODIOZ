@@ -82,7 +82,7 @@ const MasterclassReviewModal = lazy(() => import('./components/MasterclassReview
 const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
-const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
+const LoadingSpinner: React.FC = () => {
     return (
         <div className="flex justify-center items-center py-20">
             <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -121,7 +121,7 @@ const App: React.FC = () => {
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
     const { handleSubscribe } = useSubscription(navigate);
-    const { startConversation, permissionError, setPermissionError } = useMessaging(navigate);
+    const { startConversation } = useMessaging(navigate);
     const { confirmMasterclassPurchase, submitMasterclassReview } = useMasterclass();
 
     const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
@@ -133,10 +133,6 @@ const App: React.FC = () => {
     const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
     const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
     const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
-
-    const closePurchaseMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL });
-    const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
-    const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
 
     const handleOpenAriaFromFAB = () => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
@@ -157,16 +153,9 @@ const App: React.FC = () => {
         const supabase = getSupabase();
         if (!supabase) return;
 
-        const hydrateUser = async (userId: string, isInitial: boolean = false) => {
+        const hydrateUser = async (userId: string) => {
             if (isHydratingRef.current) return;
             isHydratingRef.current = true;
-
-            const timeoutId = setTimeout(async () => {
-                if (isHydratingRef.current && isInitial) {
-                    await performLogout();
-                    dispatch({ type: ActionTypes.LOGOUT });
-                }
-            }, 5000);
 
             try {
                 const res = await apiService.fetchCurrentUserProfile(userId);
@@ -175,15 +164,13 @@ const App: React.FC = () => {
                         type: ActionTypes.LOGIN_SUCCESS, 
                         payload: { user: res.user as any, role: res.role } 
                     });
-                } else if (isInitial) {
+                } else {
                     await performLogout();
                     dispatch({ type: ActionTypes.LOGOUT });
                 }
             } catch (error) {
-                await performLogout();
-                dispatch({ type: ActionTypes.LOGOUT });
+                console.error("Hydration error:", error);
             } finally {
-                clearTimeout(timeoutId);
                 isHydratingRef.current = false;
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -192,7 +179,7 @@ const App: React.FC = () => {
         const initSession = async () => {
             const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
-                await hydrateUser(session.user.id, true);
+                await hydrateUser(session.user.id);
             } else {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
@@ -206,7 +193,7 @@ const App: React.FC = () => {
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
                 if (!currentUser || currentUser.id !== session.user.id) {
-                    await hydrateUser(session.user.id, false);
+                    await hydrateUser(session.user.id);
                 }
             }
         });
@@ -216,12 +203,9 @@ const App: React.FC = () => {
         });
 
         return () => subscription?.unsubscribe();
-    }, [dispatch, currentUser]); 
+    }, [dispatch]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
-        const supabase = getSupabase();
-        if (!supabase) return;
-        
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
             const result = await apiService.createUser(userData, role);
@@ -264,7 +248,7 @@ const App: React.FC = () => {
             case AppView.ENGINEER_PROFILE: return <EngineerProfile />;
             case AppView.PRODUCER_LIST: return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
             case AppView.PRODUCER_PROFILE: return <ProducerProfile />;
-            case AppView.THE_STAGE: return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio= {viewStoodioDetails} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
+            case AppView.THE_STAGE: return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
             case AppView.VIBE_MATCHER_RESULTS: return <VibeMatcherResults onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onBack={() => navigate(AppView.ARTIST_DASHBOARD)} />;
             case AppView.ARTIST_DASHBOARD: return <ArtistDashboard />;
             case AppView.STOODIO_DASHBOARD: return <StoodioDashboard />;
@@ -301,6 +285,7 @@ const App: React.FC = () => {
                 case UserRole.STOODIO: return <StoodioDashboard />;
                 case UserRole.ENGINEER: return <EngineerDashboard />;
                 case UserRole.PRODUCER: return <ProducerDashboard />;
+                case UserRole.ARTIST: return <ArtistDashboard />;
                 default: return <ArtistDashboard />;
             }
         }
@@ -309,7 +294,6 @@ const App: React.FC = () => {
 
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
-            {/* SILENT HYDRATION LOADER (Progress bar) */}
             {isLoading && (
                  <div className="fixed top-0 left-0 w-full h-1 bg-orange-500/20 z-[1000] overflow-hidden">
                     <div className="h-full bg-orange-500 animate-gradient-flow w-1/2 rounded-full shadow-[0_0_10px_#f97316]"></div>
@@ -318,7 +302,7 @@ const App: React.FC = () => {
 
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<div className="flex justify-center items-center py-20"><div className="animate-spin h-10 w-10 border-4 border-orange-500 border-t-transparent rounded-full"/></div>}>
+                <Suspense fallback={<LoadingSpinner />}>
                     {renderViewProxy()}
                 </Suspense>
             </main>
