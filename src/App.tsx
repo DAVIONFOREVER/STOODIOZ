@@ -1,8 +1,6 @@
-
 import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
-import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
 
 // Import Custom Hooks
@@ -19,7 +17,7 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { getSupabase } from './lib/supabase.ts';
+import { getSupabase, performLogout, supabase } from './lib/supabase.ts';
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
@@ -77,14 +75,11 @@ const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant.tsx')
 const AdminRankings = lazy(() => import('./components/AdminRankings.tsx'));
 const StudioInsights = lazy(() => import('./components/StudioInsights.tsx'));
 const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
-const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
-const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
-const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
 const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
-    if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
+    if (currentUser && currentUser.animated_logo_url) {
         return (
             <div className="flex justify-center items-center py-20">
                 <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
@@ -109,15 +104,17 @@ const App: React.FC = () => {
         isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
-        masterclassToPurchase, masterclassToWatch, masterclassToReview, bookings, engineers
+        bookings, engineers
     } = state;
+
+    const [isHydrated, setIsHydrated] = useState(false);
+    // FIX: Defined missing 'claimToken' state variable.
+    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
-    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
-
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
@@ -128,10 +125,8 @@ const App: React.FC = () => {
     const { vibeMatch } = useVibeMatcher();
     const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
     const { handleSubscribe } = useSubscription(navigate);
-    const { startConversation, permissionError, setPermissionError } = useMessaging(navigate);
-    const { confirmMasterclassPurchase, submitMasterclassReview } = useMasterclass();
+    const { startConversation } = useMessaging(navigate);
 
-    // --- MODAL & FAB HANDLERS ---
     const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
     const closeTipModal = () => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
     const closeCancelModal = () => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL });
@@ -141,10 +136,6 @@ const App: React.FC = () => {
     const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
     const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
     const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
-
-    const closePurchaseMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL });
-    const closeWatchMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL });
-    const closeReviewMasterclassModal = () => dispatch({ type: ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL });
 
     const handleOpenAriaFromFAB = () => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
@@ -165,61 +156,49 @@ const App: React.FC = () => {
         confirmBooking,
         updateProfile,
         selectRoleToSetup,
-        logout, // Pass logout function here
+        logout,
     });
 
     useRealtimeLocation({ currentUser });
 
-    // --- DATA FETCHING & HYDRATION ---
-    useEffect(() => {
-        const supabase = getSupabase();
-        if (!supabase) return;
-
-        const hydrateUser = async (userId: string) => {
-            const timeoutId = setTimeout(() => {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            }, 5000);
-
-            try {
-                const res = await apiService.fetchCurrentUserProfile(userId);
-                if (res) {
-                    const lastView = localStorage.getItem('last_view');
-                    const isLabelView = lastView === AppView.LABEL_DASHBOARD;
-                    const isArtist = res.role === UserRoleEnum.ARTIST;
-                    if (isLabelView && isArtist) {
-                        localStorage.removeItem('last_view');
-                    }
-                    dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-                } else {
-                    await logout();
-                }
-            } catch (error) {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            } finally {
-                clearTimeout(timeoutId);
+    const hydrateUser = useCallback(async (userId: string) => {
+        try {
+            const res = await apiService.fetchCurrentUserProfile(userId);
+            if (res) {
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+            } else {
+                console.warn("[App] Auth user exists but profile missing. Onboarding required.");
+                navigate(AppView.CHOOSE_PROFILE);
             }
-        };
+        } catch (error) {
+            console.error("[App] Hydration error:", error);
+        } finally {
+            setIsHydrated(true);
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        }
+    }, [dispatch, navigate]);
 
+    useEffect(() => {
+        // Auth Hydration Gate
         const initSession = async () => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            const { data: { session } } = await (supabase.auth as any).getSession();
+            const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id);
             } else {
+                setIsHydrated(true);
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
         
         initSession();
 
-        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                if (!currentUser || currentUser.id !== session.user.id) {
-                    await hydrateUser(session.user.id);
-                }
+                await hydrateUser(session.user.id);
             }
         });
         
@@ -227,22 +206,13 @@ const App: React.FC = () => {
             dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
         });
 
-        return () => subscription?.unsubscribe();
-    }, [dispatch]); 
+        return () => subscription.unsubscribe();
+    }, [dispatch, hydrateUser, navigate]); 
 
-    // --- SETUP COMPLETION HANDLER ---
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
-        const supabase = getSupabase();
-        if (!supabase) return;
-        
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
             const result = await apiService.createUser(userData, role);
-            if (result && 'email_confirmation_required' in result) {
-                alert("Please check your email to verify your account.");
-                navigate(AppView.LOGIN);
-                return;
-            }
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
             }
@@ -251,10 +221,11 @@ const App: React.FC = () => {
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigate]);
+    }, [dispatch]);
 
-    // --- RENDER LOGIC ---
     const renderView = () => {
+        if (!isHydrated) return <LoadingSpinner currentUser={null} />;
+
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -321,15 +292,6 @@ const App: React.FC = () => {
         return renderView();
     };
 
-    if (isLoading) {
-        return (
-            <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col items-center justify-center">
-                <LoadingSpinner currentUser={currentUser} />
-                <p className="text-zinc-500 mt-4 animate-pulse">Syncing Sony Music profile...</p>
-            </div>
-        );
-    }
-    
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
@@ -344,7 +306,7 @@ const App: React.FC = () => {
             {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
             {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
             {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.wallet_balance} />}
-            {isMixingModalOpen && (selectedEngineer || bookingIntent?.engineer) && <MixingRequestModal engineer={selectedEngineer || bookingIntent!.engineer!} onClose={closeMixingModal} onConfirm={confirmRemoteMix} onInitiateInStudio={initiateInStudioMix} isLoading={isLoading} />}
+            {isMixingModalOpen && (selectedEngineer || (bookingIntent && bookingIntent.engineer)) && <MixingRequestModal engineer={selectedEngineer || bookingIntent!.engineer!} onClose={closeMixingModal} onConfirm={confirmRemoteMix} onInitiateInStudio={initiateInStudioMix} isLoading={isLoading} />}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
             {isAriaCantataOpen && <Suspense fallback={<div />}><AriaCantataAssistant isOpen={isAriaCantataOpen} onClose={closeAriaCantata} onExecuteCommand={executeCommand} history={ariaHistory} setHistory={(newHistory) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: newHistory } })} initialPrompt={initialAriaCantataPrompt} clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })} /></Suspense>}
             {currentUser && !isAriaCantataOpen && <AriaFAB onClick={handleOpenAriaFromFAB} />}

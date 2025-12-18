@@ -1,8 +1,7 @@
 
-import React, { useEffect, lazy, Suspense, useCallback, useState, useRef } from 'react';
+import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
-import { getAriaNudge } from './services/geminiService.ts';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
 
 // Import Custom Hooks
@@ -19,7 +18,7 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { getSupabase, performLogout } from './lib/supabase.ts';
+import { getSupabase, performLogout, supabase } from './lib/supabase.ts';
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
@@ -84,7 +83,7 @@ const AssetVault = lazy(() => import('./components/AssetVault.tsx'));
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
-    if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
+    if (currentUser && currentUser.animated_logo_url) {
         return (
             <div className="flex justify-center items-center py-20">
                 <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
@@ -112,12 +111,12 @@ const App: React.FC = () => {
         bookings, engineers
     } = state;
 
+    const [isHydrated, setIsHydrated] = useState(false);
+
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
-    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
-
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
     
@@ -164,55 +163,44 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    // --- DATA FETCHING & HYDRATION ---
-    useEffect(() => {
-        const supabase = getSupabase();
-        if (!supabase) return;
-
-        const hydrateUser = async (userId: string) => {
-            try {
-                const res = await apiService.fetchCurrentUserProfile(userId);
-                if (res) {
-                    dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-                } else {
-                    console.error("[App] Hydration failed: Profiles exists but detailed table entry missing. Prompting setup.");
-                    // Instead of a hard logout which causes infinite loops, take them to the profile choice screen
-                    // only if we can verify they are actually signed into Auth.
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session) {
-                        navigate(AppView.CHOOSE_PROFILE);
-                    } else {
-                         await performLogout();
-                         dispatch({ type: ActionTypes.LOGOUT });
-                    }
-                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-                }
-            } catch (error) {
-                console.error("[App] Hydration error:", error);
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+    const hydrateUser = useCallback(async (userId: string) => {
+        try {
+            const res = await apiService.fetchCurrentUserProfile(userId);
+            if (res) {
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+            } else {
+                console.warn("[App] Auth user exists but profile missing. Onboarding required.");
+                navigate(AppView.CHOOSE_PROFILE);
             }
-        };
+        } catch (error) {
+            console.error("[App] Hydration error:", error);
+        } finally {
+            setIsHydrated(true);
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        }
+    }, [dispatch, navigate]);
 
+    useEffect(() => {
+        // Auth Hydration Gate
         const initSession = async () => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            const { data: { session } } = await (supabase.auth as any).getSession();
+            const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id);
             } else {
+                setIsHydrated(true);
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
         
         initSession();
 
-        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                if (!currentUser || currentUser.id !== session.user.id) {
-                    await hydrateUser(session.user.id);
-                }
+                await hydrateUser(session.user.id);
             }
         });
         
@@ -220,19 +208,13 @@ const App: React.FC = () => {
             dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
         });
 
-        return () => subscription?.unsubscribe();
-    }, [dispatch]); 
+        return () => subscription.unsubscribe();
+    }, [dispatch, hydrateUser, navigate]); 
 
-    // --- SETUP COMPLETION HANDLER ---
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
             const result = await apiService.createUser(userData, role);
-            if (result && 'email_confirmation_required' in result) {
-                alert("Please check your email to verify your account.");
-                navigate(AppView.LOGIN);
-                return;
-            }
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
             }
@@ -241,10 +223,11 @@ const App: React.FC = () => {
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigate]);
+    }, [dispatch]);
 
-    // --- RENDER LOGIC ---
     const renderView = () => {
+        if (!isHydrated) return <LoadingSpinner currentUser={null} />;
+
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -325,7 +308,7 @@ const App: React.FC = () => {
             {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
             {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
             {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.wallet_balance} />}
-            {isMixingModalOpen && (selectedEngineer || bookingIntent?.engineer) && <MixingRequestModal engineer={selectedEngineer || bookingIntent!.engineer!} onClose={closeMixingModal} onConfirm={confirmRemoteMix} onInitiateInStudio={initiateInStudioMix} isLoading={isLoading} />}
+            {isMixingModalOpen && (selectedEngineer || (bookingIntent && bookingIntent.engineer)) && <MixingRequestModal engineer={selectedEngineer || bookingIntent!.engineer!} onClose={closeMixingModal} onConfirm={confirmRemoteMix} onInitiateInStudio={initiateInStudioMix} isLoading={isLoading} />}
             <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
             {isAriaCantataOpen && <Suspense fallback={<div />}><AriaCantataAssistant isOpen={isAriaCantataOpen} onClose={closeAriaCantata} onExecuteCommand={executeCommand} history={ariaHistory} setHistory={(newHistory) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: newHistory } })} initialPrompt={initialAriaCantataPrompt} clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })} /></Suspense>}
             {currentUser && !isAriaCantataOpen && <AriaFAB onClick={handleOpenAriaFromFAB} />}
