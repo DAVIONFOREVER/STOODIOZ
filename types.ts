@@ -1,3 +1,4 @@
+
 // All type definitions for the Stoodioz application
 
 export enum AppView {
@@ -26,15 +27,12 @@ export enum AppView {
     ENGINEER_PROFILE = 'ENGINEER_PROFILE',
     PRODUCER_LIST = 'PRODUCER_LIST',
     PRODUCER_PROFILE = 'PRODUCER_PROFILE',
-    VIDEOGRAPHER_LIST = 'VIDEOGRAPHER_LIST',
-    VIDEOGRAPHER_PROFILE = 'VIDEOGRAPHER_PROFILE',
     THE_STAGE = 'THE_STAGE',
     VIBE_MATCHER_RESULTS = 'VIBE_MATCHER_RESULTS',
     ARTIST_DASHBOARD = 'ARTIST_DASHBOARD',
     STOODIO_DASHBOARD = 'STOODIO_DASHBOARD',
     ENGINEER_DASHBOARD = 'ENGINEER_DASHBOARD',
     PRODUCER_DASHBOARD = 'PRODUCER_DASHBOARD',
-    VIDEOGRAPHER_DASHBOARD = 'VIDEOGRAPHER_DASHBOARD',
     LABEL_DASHBOARD = 'LABEL_DASHBOARD',
     LABEL_IMPORT = 'LABEL_IMPORT',
     ACTIVE_SESSION = 'ACTIVE_SESSION',
@@ -46,6 +44,9 @@ export enum AppView {
     CLAIM_CONFIRM = 'CLAIM_CONFIRM',
     CLAIM_LABEL_PROFILE = 'CLAIM_LABEL_PROFILE',
     LABEL_PROFILE = 'LABEL_PROFILE',
+    // Added missing AppView members to fix build errors in ArtistProfile
+    ASSET_VAULT = 'ASSET_VAULT',
+    MASTER_CALENDAR = 'MASTER_CALENDAR',
 }
 
 export enum UserRole {
@@ -647,4 +648,56 @@ export interface ArtistBudget {
 export interface LabelBudgetOverview {
     budget: LabelBudget | null;
     artists: ArtistBudget[];
+}
+
+// Added missing members required by AriaAssistant and ProjectManager
+export enum AssetCategory {
+    DEMO = 'DEMO',
+    MASTER = 'MASTER',
+    ARTWORK = 'ARTWORK',
+    LEGAL = 'LEGAL',
+    PRESS_KIT = 'PRESS_KIT'
+}
+
+export interface MediaAsset {
+    id: string;
+    name: string;
+    url: string;
+    type: string;
+    category: AssetCategory;
+    owner_id: string;
+    project_id?: string;
+    created_at: string;
+    size: string;
+    metadata?: any;
+}
+
+export interface Project {
+    id: string;
+    label_id: string;
+    artist_id: string;
+    name: string;
+    status: 'PLANNING' | 'IN_PROGRESS' | 'COMPLETED' | 'ON_HOLD';
+    deadline?: string;
+    created_at: string;
+    tasks?: ProjectTask[];
+}
+
+export interface ProjectTask {
+    id: string;
+    project_id: string;
+    title: string;
+    assignee_id?: string;
+    status: 'TODO' | 'IN_PROGRESS' | 'DONE';
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL';
+    deadline?: string;
+    created_at: string;
+}
+
+export interface MarketInsight {
+    genre: string;
+    region: string;
+    trendScore: number; // 0-100
+    description: string;
+    suggestedArtists?: string[];
 }

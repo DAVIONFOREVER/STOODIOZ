@@ -7,7 +7,6 @@
     @apply font-sans text-zinc-200 bg-black;
   }
   
-  /* ARIA Vibe Mode: Ambient background gradient drift */
   body::before {
     content: '';
     position: fixed;
@@ -27,72 +26,55 @@
   .cardSurface {
     @apply bg-black rounded-lg border border-orange-500/20 shadow-lg shadow-orange-500/10 transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/20 hover:border-orange-500/40;
   }
+
+  /* Aria Command Console Materials */
+  .aria-glass {
+    @apply backdrop-blur-2xl bg-zinc-900/40 border border-white/5 shadow-2xl;
+  }
+
+  .aria-panel-sunken {
+    @apply bg-zinc-950 border border-zinc-800 shadow-[inset_0_2px_15px_rgba(0,0,0,0.7)];
+  }
+
+  .aria-command-card {
+    @apply relative overflow-hidden transition-all duration-300 ease-in-out border border-white/5 hover:border-orange-500/30 hover:-translate-y-1 active:translate-y-0 shadow-lg hover:shadow-orange-500/10;
+  }
+
+  .aria-command-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity;
+  }
 }
 
 @layer utilities {
-    .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-    }
-    .scrollbar-hide {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
-    }
-    /* ARIA Vibe Mode: Neon text glow */
-    .text-glow {
-        text-shadow: 0 0 10px rgba(251, 146, 60, 0.3);
-    }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     
-    /* ARIA Vibe Mode: Shimmer animation for cards */
-    .shimmer::before {
-        content: '';
-        @apply absolute top-0 w-1/2 h-full z-20 pointer-events-none;
-        background: linear-gradient(to right, transparent 0%, rgba(251, 146, 60, 0.15) 50%, transparent 100%);
-        animation: shimmer-sweep 10s infinite ease-in-out;
-        /* Use a CSS variable for delay, to be set inline on each card */
-        animation-delay: calc(var(--shimmer-delay, 0) * 1s);
-        transform: skewX(-25deg);
-    }
-
-    /* ARIA Vibe Mode: Glass overlay for cards */
-    .glass-overlay::after {
-        content: '';
-        @apply absolute inset-0 bg-white/5 group-hover:bg-white/10 transition-colors duration-400 ease-in-out z-10 pointer-events-none;
-    }
-
-    .marker-pulse {
-      animation: pulse-orange 2s infinite;
-    }
-    .marker-glow {
-      filter: drop-shadow(0 0 8px theme('colors.orange.500'));
+    .text-glow { text-shadow: 0 0 10px rgba(251, 146, 60, 0.3); }
+    
+    .aria-mesh-bg {
+      background: linear-gradient(45deg, #09090b 0%, #111114 50%, #09090b 100%);
+      background-size: 200% 200%;
+      animation: mesh-flow 20s ease infinite;
     }
 }
 
-/* ARIA Vibe Mode: Keyframe animations */
 @keyframes ambient-drift {
-  from {
-    transform: translate(-15vw, -10vh) rotate(-15deg) scale(1.2);
-  }
-  to {
-    transform: translate(15vw, 10vh) rotate(15deg) scale(1.2);
-  }
+  from { transform: translate(-15vw, -10vh) rotate(-15deg) scale(1.2); }
+  to { transform: translate(15vw, 10vh) rotate(15deg) scale(1.2); }
 }
 
-@keyframes shimmer-sweep {
-  0% { transform: translateX(-150%) skewX(-25deg); }
-  40%, 100% { transform: translateX(250%) skewX(-25deg); }
+@keyframes mesh-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-@keyframes pulse-orange {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 10px rgba(249, 115, 22, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
-  }
+@keyframes aria-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-aria-float {
+  animation: aria-float 5s ease-in-out infinite;
 }
