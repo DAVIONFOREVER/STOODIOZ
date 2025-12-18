@@ -1,4 +1,3 @@
-
 import { getSupabase } from '../lib/supabase';
 import { RosterImportRow, RosterMember, UserRole } from '../types';
 import { USER_SILHOUETTE_URL } from '../constants';
@@ -18,8 +17,8 @@ export const importRoster = async (labelId: string, rows: RosterImportRow[]): Pr
             // 2. Create Shadow Profile
             const { error: profileError } = await supabase.from('profiles').insert({
                 id: shadowId,
-                email: row.email, // Can serve as placeholder until claimed
-                role: 'UNCLAIMED', // Shadow role
+                email: row.email,
+                role: 'UNCLAIMED',
                 full_name: row.name,
                 created_at: new Date().toISOString()
             });
@@ -30,7 +29,7 @@ export const importRoster = async (labelId: string, rows: RosterImportRow[]): Pr
                 continue;
             }
 
-            // 3. Create Specific Role Record (Artist/Producer/Engineer)
+            // 3. Create Specific Role Record
             const roleTableMap: Record<string, string> = {
                 'artist': 'artists',
                 'producer': 'producers',
@@ -46,13 +45,12 @@ export const importRoster = async (labelId: string, rows: RosterImportRow[]): Pr
                 email: row.email,
                 image_url: USER_SILHOUETTE_URL,
                 bio: row.notes || null,
-                label_id: labelId, // Directly assign label ownership
+                label_id: labelId,
                 created_at: new Date().toISOString(),
                 wallet_balance: 0,
                 wallet_transactions: []
             };
 
-            // Specific fields for types
             if (row.role === 'engineer') {
                 (userRecord as any).specialties = [];
             } else if (row.role === 'producer') {
@@ -62,16 +60,15 @@ export const importRoster = async (labelId: string, rows: RosterImportRow[]): Pr
             const { error: roleError } = await supabase.from(tableName).insert(userRecord);
             if (roleError) {
                 console.error(`Failed to create ${row.role} record for ${row.name}:`, roleError);
-                // Should cleanup profile here ideally
                 continue;
             }
 
-            // 4. Add to Label Roster Table with Claim Token
+            // 4. Add to Label Roster Table
             const rosterEntry = {
                 id: crypto.randomUUID(),
                 label_id: labelId,
                 user_id: shadowId,
-                role: row.role.charAt(0).toUpperCase() + row.role.slice(1), // Capitalize
+                role: row.role.charAt(0).toUpperCase() + row.role.slice(1),
                 email: row.email,
                 claim_token: claimToken,
                 is_pending: true,
@@ -79,14 +76,7 @@ export const importRoster = async (labelId: string, rows: RosterImportRow[]): Pr
             };
 
             const { error: rosterError } = await supabase.from('label_roster').insert(rosterEntry);
-            if (rosterError) {
-                console.error("Roster link error:", rosterError);
-            } else {
-                // 5. Mock Sending Email
-                // In a real app, this would be an Edge Function call:
-                // await supabase.functions.invoke('send-invite-email', { body: { email: row.email, token: claimToken, labelName: ... } })
-                console.log(`[MOCK EMAIL] To: ${row.email} | Subject: You've been invited to Stoodioz | Link: ${window.location.origin}/claim/${claimToken}`);
-            }
+            if (rosterError) console.error("Roster link error:", rosterError);
 
         } catch (e) {
             console.error("Import exception:", e);
@@ -103,7 +93,6 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
     const supabase = getSupabase();
     if (!supabase) return [];
 
-    // Fetch roster links
     const { data: rosterData, error } = await supabase
         .from('label_roster')
         .select('*')
@@ -111,14 +100,12 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
 
     if (error || !rosterData) return [];
 
-    // Hydrate with user details from respective tables
     const hydratedRoster: RosterMember[] = [];
 
     for (const entry of rosterData) {
         if (!entry.user_id) {
-            // Pending invite (no shadow profile yet, just email invite case)
             hydratedRoster.push({
-                id: entry.id, // Use roster ID as temp ID
+                id: entry.id,
                 name: entry.email || 'Pending Invite',
                 email: entry.email,
                 image_url: USER_SILHOUETTE_URL,
@@ -147,11 +134,9 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
             continue;
         }
 
-        // Try to find in artists, then producers, then engineers
         let userData = null;
         let shadowProfile = false;
 
-        // Check if shadow profile
         const { data: profile } = await supabase.from('profiles').select('role').eq('id', entry.user_id).single();
         if (profile && profile.role === 'UNCLAIMED') {
             shadowProfile = true;
@@ -178,12 +163,4 @@ export const fetchLabelRoster = async (labelId: string): Promise<RosterMember[]>
     }
 
     return hydratedRoster;
-};
-
-export const markAsClaimed = async (userId: string, realRole: UserRole) => {
-    const supabase = getSupabase();
-    if (!supabase) return;
-
-    // Update profiles table to remove 'UNCLAIMED' status
-    await supabase.from('profiles').update({ role: realRole }).eq('id', userId);
 };

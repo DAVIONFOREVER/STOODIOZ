@@ -43,7 +43,7 @@
   }
 
   .aria-command-card {
-    @apply aria-glass relative overflow-hidden transition-all duration-300 cursor-pointer;
+    @apply aria-glass relative overflow-hidden transition-all duration-200 cursor-pointer;
     transform-style: preserve-3d;
     perspective: 1000px;
   }
@@ -76,9 +76,9 @@
     }
 
     .aria-mesh-gradient {
-        background: radial-gradient(at 0% 0%, hsla(23,95%,50%,0.15) 0, transparent 50%), 
-                    radial-gradient(at 50% 0%, hsla(260,95%,50%,0.1) 0, transparent 50%), 
-                    radial-gradient(at 100% 0%, hsla(23,95%,50%,0.15) 0, transparent 50%);
+        background: radial-gradient(at 0% 0%, hsla(23,95%,50%,0.1) 0, transparent 50%), 
+                    radial-gradient(at 50% 0%, hsla(260,95%,50%,0.05) 0, transparent 50%), 
+                    radial-gradient(at 100% 0%, hsla(23,95%,50%,0.1) 0, transparent 50%);
         background-size: 200% 200%;
         animation: mesh-flow 20s ease infinite;
     }
@@ -86,7 +86,7 @@
 
 @keyframes aria-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+  50% { transform: translateY(-4px); }
 }
 
 @keyframes light-sweep {

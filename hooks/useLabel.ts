@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import * as apiService from '../services/apiService';
 import { RosterMember, UserRole } from '../types';
@@ -28,7 +27,7 @@ export const useLabel = (labelId: string) => {
         try {
             const promises = rows.map(row => 
                 apiService.createShadowProfile(
-                    row.role.toUpperCase() as any, // Cast to any to satisfy UserRole
+                    row.role.toUpperCase() as any,
                     labelId,
                     { name: row.name, email: row.email }
                 )
