@@ -526,7 +526,7 @@ const StoodioDashboard: React.FC = () => {
                 </button>
                 <input
                     type="file"
-                    ref={coverInputRef}
+                    ref={coverImageInputRef}
                     onChange={handleCoverFileChange}
                     className="hidden"
                     accept="image/*"

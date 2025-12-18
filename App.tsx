@@ -318,7 +318,7 @@ const App: React.FC = () => {
 
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                <Suspense fallback={<div className="flex justify-center items-center py-20"><div className="animate-spin h-10 w-10 border-4 border-orange-500 border-t-transparent rounded-full"/></div>}>
                     {renderViewProxy()}
                 </Suspense>
             </main>

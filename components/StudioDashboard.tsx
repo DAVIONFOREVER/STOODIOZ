@@ -524,9 +524,10 @@ const StoodioDashboard: React.FC = () => {
                 >
                     <PhotoIcon className="w-4 h-4" /> Edit Cover
                 </button>
+                {/* FIX: Changed 'ref={coverInputRef}' to 'ref={coverImageInputRef}' to match its definition. */}
                 <input
                     type="file"
-                    ref={coverInputRef}
+                    ref={coverImageInputRef}
                     onChange={handleCoverFileChange}
                     className="hidden"
                     accept="image/*"
