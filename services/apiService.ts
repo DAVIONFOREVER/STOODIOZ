@@ -100,21 +100,18 @@ export const uploadAsset = async (file: File, userId: string, category: AssetCat
     return assetData as MediaAsset;
 };
 
-// FIX: Added uploadRoomPhoto for Studio Room management
 export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
     const path = `${stoodioId}/rooms/${Date.now()}.${ext}`;
     return uploadFile(file, 'rooms', path);
 };
 
-// FIX: Added uploadBeatFile for Producer beat store management
 export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
     const path = `${producerId}/beats/${Date.now()}.${ext}`;
     return uploadFile(file, 'beats', path);
 };
 
-// FIX: Added uploadMixingSampleFile for Engineer portfolio management
 export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
     const ext = file.name.split('.').pop();
     const path = `${engineerId}/samples/${Date.now()}.${ext}`;
@@ -160,14 +157,53 @@ export const updateProjectTask = async (id: string, updates: any) => {
 };
 
 export const fetchCurrentUserProfile = async (id: string) => {
-    const s = getSupabase(); if (!s) return null;
-    const {data:p} = await s.from('profiles').select('role').eq('id', id).single();
-    const tables = {'ARTIST':'artists', 'ENGINEER':'engineers', 'PRODUCER':'producers', 'STOODIO':'stoodioz', 'LABEL':'labels'};
-    const table = (tables as any)[p?.role || 'ARTIST'];
-    const {data:u} = await s.from(table).select('*').eq('id', id).single();
-    // CRITICAL: Ensure the role is stamped onto the user object to prevent misidentification
-    return u ? { user: { ...u, role: p?.role }, role: p?.role } : null;
+    const s = getSupabase(); 
+    if (!s) return null;
+
+    console.log(`[Hydration] Initiating for user ${id}`);
+    
+    // 1. Fetch from profiles (Source of Truth for Role)
+    const { data: p, error: pErr } = await s.from('profiles').select('role').eq('id', id).single();
+    
+    if (pErr) {
+        console.error(`[Hydration] Profile lookup failed. Error: ${pErr.message}. Ensure RLS is active: (auth.uid() = id)`);
+        return null;
+    }
+
+    if (!p) {
+        console.warn(`[Hydration] Auth user ${id} found in Auth but missing in public.profiles. Check database triggers.`);
+        return null;
+    }
+
+    const role = p.role as UserRoleEnum;
+    const tables: Record<string, string> = {
+        [UserRoleEnum.ARTIST]: 'artists', 
+        [UserRoleEnum.ENGINEER]: 'engineers', 
+        [UserRoleEnum.PRODUCER]: 'producers', 
+        [UserRoleEnum.STOODIO]: 'stoodioz', 
+        [UserRoleEnum.LABEL]: 'labels'
+    };
+    
+    const table = tables[role] || 'artists';
+    console.log(`[Hydration] User identified as ${role}. Probing table: ${table}`);
+
+    // 2. Fetch detailed record
+    const { data: u, error: uErr } = await s.from(table).select('*').eq('id', id).single();
+    
+    if (uErr) {
+        console.error(`[Hydration] Could not find detail row in ${table} for ID ${id}. Account might be incomplete. Error: ${uErr.message}`);
+        return null;
+    }
+
+    if (!u) {
+        console.warn(`[Hydration] Detailed record for ${role} is missing. Navigating to CHOOSE_PROFILE.`);
+        return null;
+    }
+
+    console.log(`[Hydration] Success. Finalizing user state for ${u.name}`);
+    return { user: { ...u, role: role }, role: role };
 };
+
 export const fetchLabelRoster = async (id: string) => {
     const {data:re} = await getSupabase()!.from('label_roster').select('*').eq('label_id', id);
     const hydrated = [];

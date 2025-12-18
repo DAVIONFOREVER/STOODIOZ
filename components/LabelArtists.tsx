@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { UsersIcon, ChartBarIcon, CalendarIcon, HeartIcon, PlusCircleIcon, TrashIcon, EyeIcon, CloseIcon, MicrophoneIcon, LinkIcon, MailIcon, CheckCircleIcon, UserPlusIcon, MagicWandIcon, FireIcon, ShieldCheckIcon, PhotoIcon, MusicNoteIcon } from './icons';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
@@ -25,58 +24,6 @@ const MOCK_ROSTER: any[] = [
         ranking_tier: 'Elite',
         is_on_streak: true,
         roster_id: 'r1'
-    },
-    {
-        id: 'artist-harry',
-        name: 'Harry Styles',
-        image_url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop',
-        role_in_label: 'Artist',
-        sessions_completed: 89,
-        mixes_delivered: 15,
-        output_score: 94,
-        engagement_score: 96,
-        ranking_tier: 'Platinum',
-        is_on_streak: true,
-        roster_id: 'r2'
-    },
-    {
-        id: 'artist-travis',
-        name: 'Travis Scott',
-        image_url: 'https://images.unsplash.com/photo-1520333789090-1afc82db536a?q=80&w=200&auto=format&fit=crop',
-        role_in_label: 'Artist/Producer',
-        sessions_completed: 210,
-        mixes_delivered: 45,
-        output_score: 97,
-        engagement_score: 95,
-        ranking_tier: 'Elite',
-        is_on_streak: false,
-        roster_id: 'r3'
-    },
-    {
-        id: 'artist-sza',
-        name: 'SZA',
-        image_url: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=200&auto=format&fit=crop',
-        role_in_label: 'Artist',
-        sessions_completed: 65,
-        mixes_delivered: 12,
-        output_score: 88,
-        engagement_score: 92,
-        ranking_tier: 'Gold',
-        is_on_streak: true,
-        roster_id: 'r4'
-    },
-    {
-        id: 'artist-doja',
-        name: 'Doja Cat',
-        image_url: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=200&auto=format&fit=crop',
-        role_in_label: 'Artist',
-        sessions_completed: 78,
-        mixes_delivered: 20,
-        output_score: 90,
-        engagement_score: 94,
-        ranking_tier: 'Platinum',
-        is_on_streak: false,
-        roster_id: 'r5'
     }
 ];
 
@@ -114,7 +61,7 @@ const StatusBadge: React.FC<{ member: RosterMember }> = ({ member }) => {
     );
 };
 
-const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }) => {
+const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal }) => {
     const { currentUser, userRole } = useAppState();
     const dispatch = useAppDispatch();
     
@@ -124,13 +71,23 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
 
     useEffect(() => {
         if (!currentUser || userRole !== 'LABEL') return;
-        setLoading(true);
-        // Simulate network delay then load MOCK_ROSTER for demo
-        setTimeout(() => {
-             // In a real app we'd fetch from API, but user wants Sony Music mock data specifically
-             setRoster(MOCK_ROSTER as RosterMember[]);
-             setLoading(false);
-        }, 500);
+        const fetchRoster = async () => {
+            setLoading(true);
+            try {
+                const rosterData = await apiService.fetchLabelRoster(currentUser.id);
+                // If the user has NO roster yet, show the mock for the demo, otherwise show their real data
+                if (rosterData.length === 0 && currentUser.email === 'aria@stoodioz.ai') {
+                    setRoster(MOCK_ROSTER as RosterMember[]);
+                } else {
+                    setRoster(rosterData);
+                }
+            } catch (err) {
+                console.error("Failed to fetch roster:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchRoster();
     }, [currentUser, reloadSignal]);
 
     const handleRemove = async (rosterId: string) => {
@@ -140,233 +97,85 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal, onAddMember }
         }
     };
 
-    const handleCopyInvite = async (member: RosterMember) => {
-        alert("Invite link copied to clipboard (Mock)");
-    };
-
-    const openAria = () => {
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
-        dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: "Analyze my roster's output score and suggest improvements." } });
-    };
-
-    const activeMembers = roster; // For mock, assume all active
-
     const stats = useMemo(() => {
-        const totalArtists = activeMembers.length;
-        const totalSessions = activeMembers.reduce((acc, curr: any) => acc + (curr.sessions_completed || 0), 0);
-        
-        let totalOutputScore = 0;
-        activeMembers.forEach((m: any) => {
-            totalOutputScore += (m.output_score || 0);
-        });
+        const totalArtists = roster.length;
+        const totalSessions = roster.reduce((acc, curr: any) => acc + (curr.sessions_completed || 0), 0);
+        const totalOutput = totalArtists > 0 ? Math.round(roster.reduce((acc, curr: any) => acc + (curr.output_score || 0), 0) / totalArtists) : 0;
+        return { totalArtists, totalSessions, totalOutput };
+    }, [roster]);
 
-        const avgOutputScore = totalArtists > 0 ? Math.round(totalOutputScore / totalArtists) : 0;
-        const avgEngagement = activeMembers.length > 0 
-            ? (activeMembers.reduce((acc, curr: any) => acc + (curr.engagement_score || 0), 0) / activeMembers.length).toFixed(2)
-            : "N/A";
-
-        return { 
-            totalArtists, 
-            totalSessions, 
-            avgOutputScore, 
-            avgEngagement 
-        };
-    }, [activeMembers]);
-
-    const RosterCard: React.FC<{ member: RosterMember }> = ({ member }) => (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-orange-500/30 transition-all duration-200 group flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 flex-grow min-w-0">
-                <img 
-                    src={member.image_url || USER_SILHOUETTE_URL} 
-                    alt={member.name} 
-                    className="w-14 h-14 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500/50 transition-colors" 
-                />
-                <div className="min-w-0 space-y-1">
-                    <h4 className="text-zinc-100 font-bold text-lg truncate">{member.name}</h4>
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="text-orange-400 font-medium">{member.role_in_label || 'Talent'}</span>
-                        <span className="text-zinc-600 hidden sm:inline">•</span>
-                        <StatusBadge member={member} />
-                    </div>
-                </div>
-            </div>
-            
-            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                    onClick={() => handleRemove(member.roster_id)}
-                    className="p-2 bg-zinc-800 text-zinc-400 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-colors"
-                    title="Remove from Roster"
-                >
-                    <TrashIcon className="w-5 h-5" />
-                </button>
-            </div>
-        </div>
-    );
-
-    if (!currentUser || userRole !== 'LABEL') return null;
-
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full"></div>
-                <p className="text-zinc-500 font-medium">Loading your talent...</p>
-            </div>
-        );
-    }
+    if (loading) return <div className="py-20 text-center text-zinc-500">Scanning division talent...</div>;
 
     return (
         <div className="space-y-10 animate-fade-in pb-24">
-            
-            {/* Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label="Total Artists" value={stats.totalArtists.toString()} icon={<UsersIcon className="w-6 h-6" />} />
-                <StatCard label="Total Sessions" value={stats.totalSessions.toString()} icon={<CalendarIcon className="w-6 h-6" />} />
-                <StatCard label="Avg Output Score" value={stats.avgOutputScore.toString()} icon={<FireIcon className="w-6 h-6" />} />
-                <StatCard label="Avg. Engagement" value={stats.avgEngagement} icon={<HeartIcon className="w-6 h-6" />} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <StatCard label="Active Roster" value={stats.totalArtists.toString()} icon={<UsersIcon className="w-6 h-6" />} />
+                <StatCard label="Aggregated Sessions" value={stats.totalSessions.toString()} icon={<CalendarIcon className="w-6 h-6" />} />
+                <StatCard label="Avg Output Score" value={stats.totalOutput.toString()} icon={<FireIcon className="w-6 h-6" />} />
             </div>
 
-            {/* Main Roster Views */}
-            <div className="space-y-10">
-                {/* Confirmed Section (Active Roster) */}
-                <section className="space-y-4">
-                    <div className="flex items-center gap-3 px-2">
-                        <div className="h-px bg-zinc-800 flex-grow"></div>
-                        <h3 className="text-sm font-bold text-green-500 uppercase tracking-widest">Active Roster ({activeMembers.length})</h3>
-                        <div className="h-px bg-zinc-800 flex-grow"></div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {activeMembers.map((artist) => {
-                            const anyArtist = artist as any; 
-                            return (
-                                <div key={artist.roster_id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-orange-500/30 transition-all duration-300 group">
-                                    <div className="flex items-center gap-4 mb-6">
-                                        <img src={artist.image_url} alt={artist.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
-                                        <div>
-                                            <h3 className="text-xl font-bold text-zinc-100">{artist.name}</h3>
-                                            <span className="inline-block bg-zinc-800 text-zinc-400 text-xs px-2 py-1 rounded-full border border-zinc-700 mt-1">
-                                                {artist.role_in_label || 'Artist'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* KPI Grid */}
-                                    <div className="grid grid-cols-2 gap-3 mb-4">
-                                        <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
-                                            <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Sessions</p>
-                                            <div className="flex items-center justify-center gap-1.5">
-                                                <CalendarIcon className="w-3.5 h-3.5 text-blue-400" />
-                                                <p className="text-lg font-bold text-zinc-200">{anyArtist.sessions_completed || 0}</p>
-                                            </div>
-                                        </div>
-                                        <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
-                                            <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Mixes</p>
-                                            <div className="flex items-center justify-center gap-1.5">
-                                                <ChartBarIcon className="w-3.5 h-3.5 text-purple-400" />
-                                                <p className="text-lg font-bold text-zinc-200">{anyArtist.mixes_delivered || 0}</p>
-                                            </div>
-                                        </div>
-                                        <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
-                                            <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Ranking</p>
-                                            <div className="flex justify-center">
-                                                <RankingBadge tier={anyArtist.ranking_tier} isOnStreak={anyArtist.is_on_streak} short />
-                                            </div>
-                                        </div>
-                                        <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
-                                            <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Output Score</p>
-                                            <div className="flex items-center justify-center gap-1.5">
-                                                <FireIcon className="w-3.5 h-3.5 text-orange-500" />
-                                                <p className="text-lg font-bold text-orange-400">{anyArtist.output_score}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex gap-3 items-center text-xs text-zinc-500 px-1 mb-4 justify-between">
-                                        <span className="flex items-center gap-1"><PhotoIcon className="w-3 h-3" /> {Math.floor(Math.random() * 50)} Posts</span>
-                                        <span className="flex items-center gap-1"><MusicNoteIcon className="w-3 h-3" /> {Math.floor(Math.random() * 20)} Uploads</span>
-                                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {roster.map((member) => (
+                    <div key={member.roster_id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-orange-500/30 transition-all duration-300 group">
+                        <div className="flex items-center gap-4 mb-6">
+                            <img src={member.image_url || USER_SILHOUETTE_URL} alt={member.name} className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                            <div>
+                                <h3 className="text-xl font-bold text-zinc-100">{member.name}</h3>
+                                <StatusBadge member={member} />
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1">Sessions</p>
+                                <p className="text-lg font-bold text-zinc-200">{(member as any).sessions_completed || 0}</p>
+                            </div>
+                            <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
+                                <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1">Output</p>
+                                <p className="text-lg font-bold text-orange-400">{(member as any).output_score || 0}</p>
+                            </div>
+                        </div>
 
-                                    <div className="flex gap-3">
-                                        <button 
-                                            onClick={() => setSelectedArtist(artist)}
-                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
-                                        >
-                                            <EyeIcon className="w-4 h-4" /> View
-                                        </button>
-                                        <button 
-                                            onClick={() => handleRemove(artist.roster_id)}
-                                            className="flex-none bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2 rounded-lg transition-colors"
-                                            title="Remove Artist"
-                                        >
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setSelectedArtist(member)}
+                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-xs"
+                            >
+                                <EyeIcon className="w-4 h-4" /> View Console
+                            </button>
+                            <button 
+                                onClick={() => handleRemove(member.roster_id)}
+                                className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                            >
+                                <TrashIcon className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
-                </section>
+                ))}
+                
+                {roster.length === 0 && (
+                    <div className="col-span-full py-20 text-center cardSurface border-dashed opacity-40">
+                        <UsersIcon className="w-12 h-12 mx-auto mb-4" />
+                        <p className="text-lg font-bold">Roster empty.</p>
+                        <p className="text-sm">Start scouting or import a CSV to populate your talent pipeline.</p>
+                    </div>
+                )}
             </div>
 
-            {/* Aria Help Bar */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-md px-4"> 
-                <div className="bg-zinc-900/90 backdrop-blur-md border border-orange-500/20 p-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-slide-up ring-1 ring-white/5">
-                    <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-orange-500/20">
-                        <MagicWandIcon className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-grow min-w-0">
-                        <p className="text-sm font-bold text-zinc-100 truncate">Need performance insights?</p>
-                        <p className="text-xs text-zinc-400 truncate">Ask Aria to analyze output scores.</p>
-                    </div>
-                    <button 
-                        onClick={openAria}
-                        className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-bold rounded-lg transition-all border border-zinc-700 hover:border-zinc-600 whitespace-nowrap"
-                    >
-                        Ask Aria
-                    </button>
-                </div>
-            </div>
-
-            {/* SECTION D: View Artist Modal */}
             {selectedArtist && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
                     <div className="bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl w-full max-w-lg animate-slide-up overflow-hidden relative">
-                        <button 
-                            onClick={() => setSelectedArtist(null)} 
-                            className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded-full text-zinc-200 hover:bg-black/70 backdrop-blur-md"
-                        >
+                        <button onClick={() => setSelectedArtist(null)} className="absolute top-4 right-4 z-10 bg-black/50 p-2 rounded-full text-zinc-200 hover:bg-black/70">
                             <CloseIcon className="w-6 h-6" />
                         </button>
-                        
-                        <div className="h-40 bg-gradient-to-br from-orange-600 to-purple-700 relative">
-                            <img src={selectedArtist.image_url} className="w-full h-full object-cover opacity-50 mix-blend-overlay" alt="cover" />
-                        </div>
-                        
-                        <div className="px-8 pb-8 -mt-16 relative">
-                            <img src={selectedArtist.image_url} alt={selectedArtist.name} className="w-32 h-32 rounded-2xl object-cover border-4 border-zinc-900 shadow-xl mb-4" />
-                            
+                        <div className="h-32 bg-gradient-to-br from-orange-600/40 to-purple-700/40" />
+                        <div className="px-8 pb-8 -mt-12">
+                            <img src={selectedArtist.image_url} alt={selectedArtist.name} className="w-24 h-24 rounded-2xl object-cover border-4 border-zinc-900 mb-4 shadow-xl" />
                             <h2 className="text-3xl font-extrabold text-zinc-100">{selectedArtist.name}</h2>
-                            <div className="flex items-center gap-3 mb-4">
-                                <p className="text-orange-400 font-medium">{selectedArtist.role_in_label || 'Artist'}</p>
-                                <RankingBadge tier={selectedArtist.ranking_tier} isOnStreak={selectedArtist.is_on_streak} short />
-                            </div>
-                            
-                            <p className="text-zinc-400 mb-6 leading-relaxed">
-                                {selectedArtist.bio || "No bio available."}
-                            </p>
-
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
-                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Sessions</p>
-                                    <p className="text-2xl font-bold text-zinc-100">{(selectedArtist as any).sessions_completed || 0}</p>
-                                </div>
-                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
-                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Output</p>
-                                    <p className="text-2xl font-bold text-orange-400">{selectedArtist.output_score}</p>
-                                </div>
-                                <div className="bg-zinc-800 p-4 rounded-xl border border-zinc-700 text-center">
-                                    <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider mb-1">Engagement</p>
-                                    <p className="text-2xl font-bold text-blue-400">{(selectedArtist as any).engagement_score || 0}</p>
-                                </div>
+                            <p className="text-orange-400 font-bold text-sm uppercase tracking-widest mt-1">{selectedArtist.role_in_label}</p>
+                            <p className="text-zinc-400 mt-4 leading-relaxed">{selectedArtist.bio || "Active Sony Music talent."}</p>
+                            <div className="mt-8 pt-6 border-t border-zinc-800 flex justify-end">
+                                <button onClick={() => setSelectedArtist(null)} className="px-6 py-2 bg-zinc-800 rounded-lg font-bold text-sm">Close</button>
                             </div>
                         </div>
                     </div>

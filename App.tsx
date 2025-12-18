@@ -1,3 +1,4 @@
+
 import React, { useEffect, lazy, Suspense, useCallback, useState, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
@@ -76,10 +77,20 @@ const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant.tsx')
 const AdminRankings = lazy(() => import('./components/AdminRankings.tsx'));
 const StudioInsights = lazy(() => import('./components/StudioInsights.tsx'));
 const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
+const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
+const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
+const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
 const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
-const LoadingSpinner: React.FC = () => {
+const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
+    if (currentUser && 'animated_logo_url' in currentUser && currentUser.animated_logo_url) {
+        return (
+            <div className="flex justify-center items-center py-20">
+                <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
+            </div>
+        );
+    }
     return (
         <div className="flex justify-center items-center py-20">
             <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -105,10 +116,7 @@ const App: React.FC = () => {
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
     
-    // FIX: Declared claimToken state which was missing
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
-
-    const isHydratingRef = useRef(false);
 
     const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
     const { login, logout, selectRoleToSetup } = useAuth(navigate);
@@ -141,7 +149,17 @@ const App: React.FC = () => {
     const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
-        startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking, updateProfile, selectRoleToSetup, logout,
+        startConversation,
+        navigate,
+        viewStoodioDetails,
+        viewEngineerProfile,
+        viewProducerProfile,
+        viewArtistProfile,
+        navigateToStudio,
+        confirmBooking,
+        updateProfile,
+        selectRoleToSetup,
+        logout,
     });
 
     useRealtimeLocation({ currentUser });
@@ -152,30 +170,32 @@ const App: React.FC = () => {
         if (!supabase) return;
 
         const hydrateUser = async (userId: string) => {
-            if (isHydratingRef.current) return;
-            isHydratingRef.current = true;
-
             try {
                 const res = await apiService.fetchCurrentUserProfile(userId);
                 if (res) {
-                    dispatch({ 
-                        type: ActionTypes.LOGIN_SUCCESS, 
-                        payload: { user: res.user as any, role: res.role } 
-                    });
+                    dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
                 } else {
-                    await performLogout();
-                    dispatch({ type: ActionTypes.LOGOUT });
+                    console.error("[App] Hydration failed: Profiles exists but detailed table entry missing. Prompting setup.");
+                    // Instead of a hard logout which causes infinite loops, take them to the profile choice screen
+                    // only if we can verify they are actually signed into Auth.
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session) {
+                        navigate(AppView.CHOOSE_PROFILE);
+                    } else {
+                         await performLogout();
+                         dispatch({ type: ActionTypes.LOGOUT });
+                    }
+                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
                 }
             } catch (error) {
-                console.error("Hydration error:", error);
+                console.error("[App] Hydration error:", error);
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            } finally {
-                isHydratingRef.current = false;
             }
         };
 
         const initSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            const { data: { session } } = await (supabase.auth as any).getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id);
             } else {
@@ -185,7 +205,7 @@ const App: React.FC = () => {
         
         initSession();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+        const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: string, session: any) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
@@ -203,6 +223,7 @@ const App: React.FC = () => {
         return () => subscription?.unsubscribe();
     }, [dispatch]); 
 
+    // --- SETUP COMPLETION HANDLER ---
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         try {
@@ -222,9 +243,9 @@ const App: React.FC = () => {
         }
     }, [dispatch, navigate]);
 
+    // --- RENDER LOGIC ---
     const renderView = () => {
         switch (currentView) {
-            // FIX: Corrected onLogout binding for LandingPage components
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
             case AppView.CHOOSE_PROFILE: return <ChooseProfile onSelectRole={selectRoleToSetup} />;
@@ -284,7 +305,6 @@ const App: React.FC = () => {
                 case UserRole.STOODIO: return <StoodioDashboard />;
                 case UserRole.ENGINEER: return <EngineerDashboard />;
                 case UserRole.PRODUCER: return <ProducerDashboard />;
-                case UserRole.ARTIST: return <ArtistDashboard />;
                 default: return <ArtistDashboard />;
             }
         }
@@ -293,15 +313,9 @@ const App: React.FC = () => {
 
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
-            {isLoading && (
-                 <div className="fixed top-0 left-0 w-full h-1 bg-orange-500/20 z-[1000] overflow-hidden">
-                    <div className="h-full bg-orange-500 animate-gradient-flow w-1/2 rounded-full shadow-[0_0_10px_#f97316]"></div>
-                 </div>
-            )}
-
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner />}>
+                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
                     {renderViewProxy()}
                 </Suspense>
             </main>
