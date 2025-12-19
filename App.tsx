@@ -124,16 +124,12 @@ const App: React.FC = () => {
     const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
     const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
 
-    // FIX: Added missing handleOpenAriaFromFAB function to resolve "Cannot find name" error.
     const handleOpenAriaFromFAB = () => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
     };
 
-    // FIX: Added missing openTipModal function to resolve "Cannot find name" error.
     const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
-    
-    // FIX: Added missing openCancelModal function to resolve "Cannot find name" error.
     const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
@@ -150,13 +146,16 @@ const App: React.FC = () => {
             const { data: { session } } = await supabase.auth.getSession();
             
             if (session?.user) {
+                console.log("[App] Session detected for", session.user.id);
                 const res = await apiService.fetchCurrentUserProfile(session.user.id);
                 if (res) {
-                    // This action handles setting user, role, AND navigating to the correct dashboard
                     dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
                 } else {
-                    // Authenticated but no record = Onboarding
-                    navigate(AppView.CHOOSE_PROFILE);
+                    // AUTH exists but NO DB profile = New User
+                    const setupViews = [AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
+                    if (!setupViews.includes(currentView)) {
+                         navigate(AppView.CHOOSE_PROFILE);
+                    }
                 }
             }
             
@@ -170,7 +169,6 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                // Re-hydrate on sign in events
                 const res = await apiService.fetchCurrentUserProfile(session.user.id);
                 if (res) dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
             }
@@ -181,7 +179,7 @@ const App: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, [dispatch, navigate]); 
+    }, [dispatch]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -198,7 +196,6 @@ const App: React.FC = () => {
     }, [dispatch]);
 
     const renderView = () => {
-        // No redirect logic here. Just render the view state.
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;

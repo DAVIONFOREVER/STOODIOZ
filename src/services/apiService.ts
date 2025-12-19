@@ -52,6 +52,24 @@ export const uploadDocument = async (file: Blob, fileName: string, userId: strin
     return publicUrl;
 };
 
+// FIX: Added missing uploadRoomPhoto function to support room image uploads
+export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
+    const path = `${stoodioId}/rooms/${Date.now()}_${file.name}`;
+    return uploadFile(file, 'rooms', path);
+};
+
+// FIX: Added missing uploadBeatFile function to support beat uploads
+export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
+    const path = `${producerId}/beats/${Date.now()}_${file.name}`;
+    return uploadFile(file, 'beats', path);
+};
+
+// FIX: Added missing uploadMixingSampleFile function to support engineer sample uploads
+export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
+    const path = `${engineerId}/samples/${Date.now()}_${file.name}`;
+    return uploadFile(file, 'samples', path);
+};
+
 // --- DATA ACCESS ---
 
 export const fetchUserDocuments = async (userId: string) => {
@@ -206,8 +224,8 @@ export const addLabelFunds = async (id: string, a: number, n: string) => true;
 export const addLabelFundsOriginal = async (id: string, a: number, n: string) => true;
 export const setLabelBudget = async (id: string, t: number) => null;
 export const setArtistAllocation = async (id: string, aid: string, a: number) => null;
-export const claimProfileByCode = async (c: string, id: string) => ({role: 'ARTIST' as UserRole});
-export const claimProfileByToken = async (t: string, id: string) => ({role: 'ARTIST' as UserRole});
+export const claimProfileByCode = async (c: string, id: string) => ({role: 'ARTIST' as UserRoleEnum});
+export const claimProfileByToken = async (t: string, id: string) => ({role: 'ARTIST' as UserRoleEnum});
 export const getClaimDetails = async (t: string) => null;
 export const claimLabelRosterProfile = async (d: any) => ({success: true});
 export const generateClaimTokenForRosterMember = async (id: string) => ({claimUrl: ''});

@@ -100,24 +100,6 @@ export const uploadAsset = async (file: File, userId: string, category: AssetCat
     return assetData as MediaAsset;
 };
 
-export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${stoodioId}/rooms/${Date.now()}.${ext}`;
-    return uploadFile(file, 'rooms', path);
-};
-
-export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${producerId}/beats/${Date.now()}.${ext}`;
-    return uploadFile(file, 'beats', path);
-};
-
-export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
-    const ext = file.name.split('.').pop();
-    const path = `${engineerId}/samples/${Date.now()}.${ext}`;
-    return uploadFile(file, 'mixing_samples', path);
-};
-
 export const scoutMarketInsights = async (region: string): Promise<MarketInsight[]> => {
     await new Promise(r => setTimeout(r, 500));
     return [
@@ -141,42 +123,45 @@ export const fetchAnalyticsData = async (uid: string, r: UserRole, d: number): P
 };
 
 export const fetchLabelBookings = async (labelId: string) => {
-    return (await getSupabase()!.rpc('get_label_bookings', { label_id: labelId })).data || [];
+    const s = getSupabase();
+    if (!s) return [];
+    return (await s.rpc('get_label_bookings', { label_id: labelId })).data || [];
 };
 
 export const fetchLabelProjects = async (labelId: string): Promise<Project[]> => {
-    return (await getSupabase()!.from('projects').select('*, tasks(*)').eq('label_id', labelId)).data || [];
+    const s = getSupabase();
+    if (!s) return [];
+    return (await s.from('projects').select('*, tasks(*)').eq('label_id', labelId)).data || [];
 };
 
 export const createProjectTask = async (projectId: string, task: Partial<ProjectTask>) => {
-    return (await getSupabase()!.from('project_tasks').insert({ ...task, project_id: projectId }).select().single()).data;
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('project_tasks').insert({ ...task, project_id: projectId }).select().single()).data;
 };
 
 export const updateProjectTask = async (id: string, updates: any) => {
-    return (await getSupabase()!.from('project_tasks').update(updates).eq('id', id).select().single()).data;
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('project_tasks').update(updates).eq('id', id).select().single()).data;
 };
 
 export const fetchCurrentUserProfile = async (id: string) => {
     const s = getSupabase(); 
     if (!s) return null;
 
-    console.log(`[Hydration] Initiating for user ${id}`);
+    console.log(`[apiService] Hydrating user ${id}...`);
     
-    // 1. Fetch from profiles (Source of Truth for Role)
-    const { data: p, error: pErr } = await s.from('profiles').select('role').eq('id', id).single();
+    // 1. Get role from public.profiles
+    const { data: profile, error: profileErr } = await s.from('profiles').select('role, full_name').eq('id', id).single();
     
-    if (pErr) {
-        console.error(`[Hydration] Profile lookup failed. Error: ${pErr.message}. Ensure RLS is active: (auth.uid() = id)`);
+    if (profileErr || !profile) {
+        console.warn("[apiService] No public profile record found. User may be brand new.");
         return null;
     }
 
-    if (!p) {
-        console.warn(`[Hydration] Auth user ${id} found in Auth but missing in public.profiles. Check database triggers.`);
-        return null;
-    }
-
-    const role = p.role as UserRoleEnum;
-    const tables: Record<string, string> = {
+    const role = profile.role as UserRoleEnum;
+    const tableMap: Record<string, string> = {
         [UserRoleEnum.ARTIST]: 'artists', 
         [UserRoleEnum.ENGINEER]: 'engineers', 
         [UserRoleEnum.PRODUCER]: 'producers', 
@@ -184,28 +169,27 @@ export const fetchCurrentUserProfile = async (id: string) => {
         [UserRoleEnum.LABEL]: 'labels'
     };
     
-    const table = tables[role] || 'artists';
-    console.log(`[Hydration] User identified as ${role}. Probing table: ${table}`);
+    const tableName = tableMap[role] || 'artists';
 
     // 2. Fetch detailed record
-    const { data: u, error: uErr } = await s.from(table).select('*').eq('id', id).single();
+    const { data: userDetails, error: detailsErr } = await s.from(tableName).select('*').eq('id', id).single();
     
-    if (uErr) {
-        console.error(`[Hydration] Could not find detail row in ${table} for ID ${id}. Account might be incomplete. Error: ${uErr.message}`);
-        return null;
+    if (detailsErr || !userDetails) {
+        console.warn(`[apiService] Detail row missing in ${tableName}. Returning profile stub.`);
+        // RETURN STUB: This prevents the app from thinking the user is anonymous
+        return { 
+            user: { id, name: profile.full_name, role: role, image_url: USER_SILHOUETTE_URL, wallet_balance: 0, wallet_transactions: [] }, 
+            role: role 
+        };
     }
 
-    if (!u) {
-        console.warn(`[Hydration] Detailed record for ${role} is missing. Navigating to CHOOSE_PROFILE.`);
-        return null;
-    }
-
-    console.log(`[Hydration] Success. Finalizing user state for ${u.name}`);
-    return { user: { ...u, role: role }, role: role };
+    return { user: { ...userDetails, role: role }, role: role };
 };
 
 export const fetchLabelRoster = async (id: string) => {
-    const {data:re} = await getSupabase()!.from('label_roster').select('*').eq('label_id', id);
+    const s = getSupabase();
+    if (!s) return [];
+    const {data:re} = await s.from('label_roster').select('*').eq('label_id', id);
     const hydrated = [];
     for(const e of re||[]) {
         const res = await fetchCurrentUserProfile(e.user_id);
@@ -214,52 +198,134 @@ export const fetchLabelRoster = async (id: string) => {
     return hydrated;
 };
 
-export const fetchRoster = async (id: string) => fetchLabelRoster(id);
+export const getLabelBudgetOverview = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.rpc('get_label_budget_overview', { p_label_id: id })).data;
+}
 
-export const getLabelBudgetOverview = async (id: string) => (await getSupabase()!.rpc('get_label_budget_overview', { p_label_id: id })).data;
-export const fetchLabelTransactions = async (id: string) => (await getSupabase()!.from('labels').select('wallet_transactions').eq('id', id).single()).data?.wallet_transactions || [];
-export const fetchLabelTransactionsOriginal = async (id: string) => (await getSupabase()!.from('labels').select('wallet_transactions').eq('id', id).single()).data?.wallet_transactions || [];
-export const fetchLabelContracts = async (id: string) => (await getSupabase()!.from('label_contracts').select('*').eq('label_id', id)).data || [];
-export const getRosterActivity = async (id: string) => (await getSupabase()!.rpc('get_roster_activity', { p_label_id: id })).data || [];
+export const fetchLabelTransactions = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return [];
+    return (await s.from('labels').select('wallet_transactions').eq('id', id).single()).data?.wallet_transactions || [];
+}
+
+export const fetchLabelContracts = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return [];
+    return (await s.from('label_contracts').select('*').eq('label_id', id)).data || [];
+}
+
+export const getRosterActivity = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return [];
+    return (await s.rpc('get_roster_activity', { p_label_id: id })).data || [];
+}
+
 export const fetchLabelPerformance = async (id: string) => [];
-export const createBooking = async (req: any, st: any, b: any, br: UserRole) => (await getSupabase()!.from('bookings').insert({ ...req, stoodio_id:st?.id, booked_by_id:b.id, booked_by_role:br, status:BookingStatus.CONFIRMED }).select().single()).data;
-export const cancelBooking = async (b: any) => (await getSupabase()!.from('bookings').update({ status: BookingStatus.CANCELLED }).eq('id', b.id).select().single()).data;
-export const createPost = async (pd: any, a: any, at: UserRole) => ({ updatedAuthor: a, createdPost: (await getSupabase()!.from('posts').insert({ author_id: a.id, author_type: at, text: pd.text, image_url: pd.image_url, video_url: pd.video_url, created_at: new Date().toISOString() }).select().single()).data });
+
+export const createBooking = async (req: any, st: any, b: any, br: UserRole) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('bookings').insert({ ...req, stoodio_id:st?.id, booked_by_id:b.id, booked_by_role:br, status:BookingStatus.CONFIRMED }).select().single()).data;
+}
+
+export const cancelBooking = async (b: any) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('bookings').update({ status: BookingStatus.CANCELLED }).eq('id', b.id).select().single()).data;
+}
+
+export const createPost = async (pd: any, a: any, at: UserRole) => {
+    const s = getSupabase();
+    if (!s) return null;
+    const {data: createdPost} = await s.from('posts').insert({ author_id: a.id, author_type: at, text: pd.text, image_url: pd.image_url, video_url: pd.video_url, created_at: new Date().toISOString() }).select().single();
+    return { updatedAuthor: a, createdPost };
+}
+
 export const likePost = async (pid: string, uid: string, a: any) => ({ updatedAuthor: a });
 export const commentOnPost = async (pid: string, t: string, c: any, pa: any) => ({ updatedAuthor: pa });
 export const toggleFollow = async (cu: any, tu: any, t: string, f: boolean) => ({ updatedCurrentUser: cu, updatedTargetUser: tu });
+
 export const createUser = async (u: any, r: UserRole) => {
     const s = getSupabase()!;
-    const {data:ad} = await s.auth.signUp({email:u.email, password:u.password, options:{data:{full_name:u.name, user_role:r}}});
+    const {data:ad, error:authErr} = await s.auth.signUp({email:u.email, password:u.password, options:{data:{full_name:u.name, user_role:r}}});
+    if (authErr) throw authErr;
+    
     const tableMap = {'ARTIST':'artists', 'ENGINEER':'engineers', 'PRODUCER':'producers', 'STOODIO':'stoodioz', 'LABEL':'labels'};
     const {data} = await s.from((tableMap as any)[r]).upsert({id:ad.user!.id, email:u.email, name:u.name, image_url:u.image_url||USER_SILHOUETTE_URL}).select().single();
     await s.from('profiles').upsert({id:ad.user!.id, role:r, email:u.email, full_name:u.name});
     return data;
 };
-export const fetchUserPosts = async (id: string) => (await getSupabase()!.from('posts').select('*').eq('author_id', id)).data?.map((p:any)=>({ ...p, authorId:p.author_id, authorType:p.author_type, timestamp:p.created_at })) || [];
+
+export const fetchUserPosts = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return [];
+    return (await s.from('posts').select('*').eq('author_id', id)).data?.map((p:any)=>({ ...p, authorId:p.author_id, authorType:p.author_type, timestamp:p.created_at })) || [];
+}
+
 export const fetchGlobalFeed = async (l: number, b?: string) => {
-    let q = getSupabase()!.from('posts').select('*').order('created_at', { ascending: false }).limit(l);
+    const s = getSupabase();
+    if (!s) return [];
+    let q = s.from('posts').select('*').order('created_at', { ascending: false }).limit(l);
     if(b) q = q.lt('created_at', b);
     return (await q).data?.map((p:any)=>({ ...p, authorId:p.author_id, authorType:p.author_type, timestamp:p.created_at })) || [];
 };
+
 export const fetchConversations = async (id: string) => [];
-export const sendMessage = async (cid: string, sid: string, c: string, t: string = 'text', fileData?: any) => (await getSupabase()!.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t, file_data: fileData }).select().single()).data;
-export const createConversation = async (pids: string[]) => (await getSupabase()!.from('conversations').insert({ participant_ids: pids }).select().single()).data;
-export const updateUser = async (id: string, t: string, u: any) => (await getSupabase()!.from(t).update(u).eq('id', id).select().single()).data;
-export const fetchFullArtist = async (id: string) => (await getSupabase()!.from('artists').select('*').eq('id', id).single()).data;
-export const fetchFullEngineer = async (id: string) => (await getSupabase()!.from('engineers').select('*, mixing_samples(*)').eq('id', id).single()).data;
-export const fetchFullProducer = async (id: string) => (await getSupabase()!.from('producers').select('*, instrumentals(*)').eq('id', id).single()).data;
-export const fetchFullStoodio = async (id: string) => (await getSupabase()!.from('stoodioz').select('*, rooms(*), in_house_engineers(*)').eq('id', id).single()).data;
+export const sendMessage = async (cid: string, sid: string, c: string, t: string = 'text', fileData?: any) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('messages').insert({ conversation_id: cid, sender_id: sid, content: c, message_type: t, file_data: fileData }).select().single()).data;
+}
+
+export const createConversation = async (pids: string[]) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('conversations').insert({ participant_ids: pids }).select().single()).data;
+}
+
+export const updateUser = async (id: string, t: string, u: any) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from(t).update(u).eq('id', id).select().single()).data;
+}
+
+export const fetchFullArtist = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('artists').select('*').eq('id', id).single()).data;
+}
+
+export const fetchFullEngineer = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('engineers').select('*, mixing_samples(*)').eq('id', id).single()).data;
+}
+
+export const fetchFullProducer = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('producers').select('*, instrumentals(*)').eq('id', id).single()).data;
+}
+
+export const fetchFullStoodio = async (id: string) => {
+    const s = getSupabase();
+    if (!s) return null;
+    return (await s.from('stoodioz').select('*, rooms(*), in_house_engineers(*)').eq('id', id).single()).data;
+}
+
 export const getAllPublicUsers = async () => {
-    const s = getSupabase()!;
+    const s = getSupabase();
+    if (!s) return { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
     const [a,e,p,st,l] = await Promise.all([s.from('artists').select('*'), s.from('engineers').select('*'), s.from('producers').select('*'), s.from('stoodioz').select('*'), s.from('labels').select('*')]);
     return { artists: a.data||[], engineers: e.data||[], producers: p.data||[], stoodioz: st.data||[], labels: l.data||[] };
 };
+
 export const createShadowProfile = async (r: any, lid: string, d: any) => ({id: 'shadow'});
 export const removeArtistFromLabelRoster = async (lid: string, rid: string) => true;
 export const updateLabelBudgetMode = async (id: string, m: any, a?: number, d?: number) => null;
 export const addLabelFunds = async (id: string, a: number, n: string) => true;
-export const addLabelFundsOriginal = async (id: string, a: number, n: string) => true;
 export const setLabelBudget = async (id: string, t: number) => null;
 export const setArtistAllocation = async (id: string, aid: string, a: number) => null;
 export const claimProfileByCode = async (c: string, id: string) => ({role: 'ARTIST' as UserRoleEnum});
