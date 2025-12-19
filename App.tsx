@@ -162,24 +162,40 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     const hydrateUser = useCallback(async (userId: string) => {
+        dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: true } });
+        dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: true } });
+        dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: true } });
+        
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
             } else {
                 console.warn("[App] Auth user exists but profile missing. Onboarding required.");
+                dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
                 navigate(AppView.CHOOSE_PROFILE);
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
+            dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
+            dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
+            dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch, navigate]);
 
     useEffect(() => {
         const initSession = async () => {
+            dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: true } });
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id);
+            } else {
+                dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
             }
         };
         
@@ -264,7 +280,49 @@ const App: React.FC = () => {
     };
 
     const renderViewProxy = () => {
-        // Transparent flow: History drives the view, no initialization gates.
+        // ONLY block the entire app if the AUTH check itself is still running.
+        // If Auth is done but profile/subscription loading is still in flight, 
+        // we should still allow the Landing Page/Login views to render to prevent "White Screen of Death".
+        if (isAuthLoading) {
+            return <LoadingSpinner currentUser={currentUser} />;
+        }
+
+        const authViews = [
+            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
+        ];
+
+        if (currentUser) {
+            // Wait for Role/Profile if the user is authenticated but history wants an internal view
+            if (!authViews.includes(currentView) && (isProfileLoading || isRoleLoading)) {
+                return <LoadingSpinner currentUser={currentUser} />;
+            }
+
+            // Redirect from auth views to appropriate dashboards
+            if (authViews.includes(currentView)) {
+                if (!userRole) {
+                     return <ChooseProfile onSelectRole={selectRoleToSetup} />;
+                }
+
+                // Strictly implement the requested subscription logic
+                const restrictedRoles = [UserRole.ENGINEER, UserRole.PRODUCER, UserRole.STOODIO];
+                // Only redirect when isSubscriptionLoading is false AND currentUser.subscription === false
+                // Do not redirect if subscription is undefined (missing from DB field)
+                if (restrictedRoles.includes(userRole) && !isSubscriptionLoading && (currentUser as any).subscription === false) {
+                    return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
+                }
+
+                switch(userRole) {
+                    case UserRole.LABEL: return <LabelDashboard />;
+                    case UserRole.STOODIO: return <StoodioDashboard />;
+                    case UserRole.ENGINEER: return <EngineerDashboard />;
+                    case UserRole.PRODUCER: return <ProducerDashboard />;
+                    default: return <ArtistDashboard />;
+                }
+            }
+        }
+
         return renderView();
     };
 
