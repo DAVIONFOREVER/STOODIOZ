@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -18,24 +17,31 @@ export const useAuth = (navigate: (view: any) => void) => {
             email,
             password,
         });
-    
+
         if (error) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             return;
         }
-    
-        if (data.user) {
-            const result = await apiService.fetchCurrentUserProfile(data.user.id);
+
+        if (data.session && data.session.user) {
+            const user = data.session.user;
+            const result = await apiService.fetchCurrentUserProfile(user.id);
+
             if (result) {
-                dispatch({ 
-                    type: ActionTypes.LOGIN_SUCCESS, 
-                    payload: { user: result.user, role: result.role } 
+                dispatch({
+                    type: ActionTypes.LOGIN_SUCCESS,
+                    payload: { user: result.user, role: result.role }
                 });
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             } else {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Profile not found. Please complete setup." } });
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
                 navigate(AppView.CHOOSE_PROFILE);
             }
+        } else {
+            dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Session not established." } });
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch, navigate]);
 
