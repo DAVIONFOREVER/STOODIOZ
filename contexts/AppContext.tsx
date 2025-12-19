@@ -1,4 +1,3 @@
-
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData, Label } from '../types';
 import { AppView, UserRole } from '../types';
@@ -20,7 +19,6 @@ export interface AppState {
     currentUser: Artist | Engineer | Stoodio | Producer | Label | null;
     userRole: UserRole | null;
     loginError: string | null;
-    // FIX: Changed '*' to '|' to correct syntax error in type definition
     selectedStoodio: Stoodio | null;
     selectedArtist: Artist | null;
     selectedEngineer: Engineer | null;
@@ -28,10 +26,6 @@ export interface AppState {
     selectedLabel: Label | null;
     latestBooking: Booking | null;
     isLoading: boolean;
-    isAuthLoading: boolean;
-    isProfileLoading: boolean;
-    isRoleLoading: boolean;
-    isSubscriptionLoading: boolean;
     bookingTime: { date: string; time: string; room: Room } | null;
     activeSession: Booking | null;
     tipModalBooking: Booking | null;
@@ -53,10 +47,9 @@ export interface AppState {
     isNudgeVisible: boolean;
     dashboardInitialTab: string | null;
     isSaved: boolean;
-    // FIX: Changed commas to semicolons within nested object types to comply with TypeScript interface syntax
-    masterclassToPurchase: { masterclass: Masterclass; owner: Engineer | Producer } | null;
-    masterclassToWatch: { masterclass: Masterclass; owner: Engineer | Producer } | null;
-    masterclassToReview: { masterclass: Masterclass; owner: Engineer | Producer } | null;
+    masterclassToPurchase: { masterclass: Masterclass, owner: Engineer | Producer } | null;
+    masterclassToWatch: { masterclass: Masterclass, owner: Engineer | Producer } | null;
+    masterclassToReview: { masterclass: Masterclass, owner: Engineer | Producer } | null;
     directionsIntent: { bookingId: string } | null;
 }
 
@@ -77,10 +70,6 @@ export enum ActionTypes {
     GO_FORWARD = 'GO_FORWARD',
     SET_INITIAL_DATA = 'SET_INITIAL_DATA',
     SET_LOADING = 'SET_LOADING',
-    SET_AUTH_LOADING = 'SET_AUTH_LOADING',
-    SET_PROFILE_LOADING = 'SET_PROFILE_LOADING',
-    SET_ROLE_LOADING = 'SET_ROLE_LOADING',
-    SET_SUBSCRIPTION_LOADING = 'SET_SUBSCRIPTION_LOADING',
     LOGIN_SUCCESS = 'LOGIN_SUCCESS',
     LOGIN_FAILURE = 'LOGIN_FAILURE',
     LOGOUT = 'LOGOUT',
@@ -141,10 +130,6 @@ type Payload = {
     [ActionTypes.GO_FORWARD]: undefined;
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; labels: Label[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
-    [ActionTypes.SET_AUTH_LOADING]: { isLoading: boolean };
-    [ActionTypes.SET_PROFILE_LOADING]: { isLoading: boolean };
-    [ActionTypes.SET_ROLE_LOADING]: { isLoading: boolean };
-    [ActionTypes.SET_SUBSCRIPTION_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer | Label, role?: UserRole };
     [ActionTypes.LOGIN_FAILURE]: { error: string };
     [ActionTypes.LOGOUT]: undefined;
@@ -224,11 +209,7 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: false,
-    isAuthLoading: false,
-    isProfileLoading: false,
-    isRoleLoading: false,
-    isSubscriptionLoading: false,
+    isLoading: true, 
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -295,14 +276,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
-        case ActionTypes.SET_AUTH_LOADING:
-            return { ...state, isAuthLoading: action.payload.isLoading };
-        case ActionTypes.SET_PROFILE_LOADING:
-            return { ...state, isProfileLoading: action.payload.isLoading };
-        case ActionTypes.SET_ROLE_LOADING:
-            return { ...state, isRoleLoading: action.payload.isLoading };
-        case ActionTypes.SET_SUBSCRIPTION_LOADING:
-            return { ...state, isSubscriptionLoading: action.payload.isLoading };
 
         case ActionTypes.LOGIN_SUCCESS: {
             const { user, role: explicitRole } = action.payload;
@@ -317,41 +290,13 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 else role = UserRole.ARTIST;
             }
 
-            let landingView = AppView.THE_STAGE;
-            if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
-            else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
-            else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
-            else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
-            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
-
-            const storedView = localStorage.getItem('last_view');
-            const restricted = [
-                AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
-                AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-                AppView.STOODIO_SETUP, AppView.LABEL_SETUP
-            ];
-            
-            if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
-                if (role === UserRole.ARTIST && storedView === AppView.LABEL_DASHBOARD) {
-                    landingView = AppView.ARTIST_DASHBOARD;
-                } else {
-                    landingView = (storedView as AppView);
-                }
-            }
-            
             return {
                 ...state,
                 currentUser: { ...user, role }, 
                 userRole: role,
                 loginError: null,
-                history: [landingView],
-                historyIndex: 0,
                 ariaHistory: [],
                 isLoading: false,
-                isAuthLoading: false,
-                isProfileLoading: false,
-                isRoleLoading: false,
-                isSubscriptionLoading: false,
             };
         }
         case ActionTypes.LOGIN_FAILURE:
@@ -359,10 +304,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 ...state, 
                 loginError: action.payload.error, 
                 isLoading: false,
-                isAuthLoading: false,
-                isProfileLoading: false,
-                isRoleLoading: false,
-                isSubscriptionLoading: false,
             };
         case ActionTypes.LOGOUT:
             return {
@@ -370,10 +311,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 history: [AppView.LANDING_PAGE],
                 historyIndex: 0,
                 isLoading: false,
-                isAuthLoading: false,
-                isProfileLoading: false,
-                isRoleLoading: false,
-                isSubscriptionLoading: false,
                 artists: state.artists,
                 engineers: state.engineers,
                 producers: state.producers,
@@ -392,24 +329,13 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
             else if (role === UserRole.LABEL) updatedState.labels = [...state.labels, newUser as Label];
 
-            let landingView = AppView.THE_STAGE;
-            if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
-            else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
-            else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
-            else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
-            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
-
             return {
                 ...updatedState,
                 currentUser: { ...newUser, role },
                 userRole: role,
-                history: [landingView],
+                history: [AppView.LANDING_PAGE],
                 historyIndex: 0,
                 isLoading: false,
-                isAuthLoading: false,
-                isProfileLoading: false,
-                isRoleLoading: false,
-                isSubscriptionLoading: false,
             };
         }
         case ActionTypes.VIEW_STOODIO_DETAILS:

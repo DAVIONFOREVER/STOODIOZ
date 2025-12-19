@@ -75,20 +75,10 @@ const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant.tsx')
 const AdminRankings = lazy(() => import('./components/AdminRankings.tsx'));
 const StudioInsights = lazy(() => import('./components/StudioInsights.tsx'));
 const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
-const PurchaseMasterclassModal = lazy(() => import('./components/PurchaseMasterclassModal.tsx'));
-const WatchMasterclassModal = lazy(() => import('./components/WatchMasterclassModal.tsx'));
-const MasterclassReviewModal = lazy(() => import('./components/MasterclassReviewModal.tsx'));
 const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
-    if (currentUser && currentUser.animated_logo_url) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
-            </div>
-        );
-    }
     return (
         <div className="flex justify-center items-center py-20">
             <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -104,8 +94,7 @@ const App: React.FC = () => {
     const dispatch = useAppDispatch();
     const { 
         history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
-        isLoading, isAuthLoading, isProfileLoading, isRoleLoading, isSubscriptionLoading, 
-        bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
+        isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
         bookings, engineers
@@ -162,38 +151,25 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     const hydrateUser = useCallback(async (userId: string) => {
-        dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: true } });
-        
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-            } else {
-                console.warn("[App] Auth user exists but profile missing. Onboarding required.");
-                navigate(AppView.CHOOSE_PROFILE);
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
         } finally {
-            // ALWAYS clear these to prevent "Spinner Lock"
-            dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
-            dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
-            dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
-            dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigate]);
+    }, [dispatch]);
 
     useEffect(() => {
         const initSession = async () => {
-            dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: true } });
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id);
             } else {
-                dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
         
@@ -202,9 +178,6 @@ const App: React.FC = () => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
-                // Only navigate if we are currently on an internal view
-                const isInternal = !([AppView.LANDING_PAGE, AppView.LOGIN].includes(history[historyIndex]));
-                if (isInternal) navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
                 await hydrateUser(session.user.id);
             }
@@ -215,7 +188,7 @@ const App: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser, navigate]); 
+    }, [dispatch, hydrateUser]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -279,58 +252,15 @@ const App: React.FC = () => {
         }
     };
 
-    const renderViewProxy = () => {
-        // Hard gate only on primary auth initialization
-        if (isAuthLoading) {
-            return <LoadingSpinner currentUser={currentUser} />;
-        }
-
-        const authViews = [
-            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
-            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
-        ];
-
-        if (currentUser) {
-            // Authenticated: Force them out of Login/Landing to a dashboard
-            if (authViews.includes(currentView)) {
-                if (!userRole) {
-                    return <ChooseProfile onSelectRole={selectRoleToSetup} />;
-                }
-
-                // Strictly implement the requested subscription logic
-                const restrictedRoles = [UserRole.ENGINEER, UserRole.PRODUCER, UserRole.STOODIO];
-                // Only redirect when isSubscriptionLoading is false AND currentUser.subscription === false
-                if (restrictedRoles.includes(userRole) && !isSubscriptionLoading && (currentUser as any).subscription === false) {
-                    return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
-                }
-
-                // Redirect to the appropriate dashboard based on role
-                switch(userRole) {
-                    case UserRole.LABEL: return <LabelDashboard />;
-                    case UserRole.STOODIO: return <StoodioDashboard />;
-                    case UserRole.ENGINEER: return <EngineerDashboard />;
-                    case UserRole.PRODUCER: return <ProducerDashboard />;
-                    default: return <ArtistDashboard />;
-                }
-            }
-            
-            // If they are deep-loading a dashboard and profile is somehow completely missing, show spinner
-            if (!userRole && !authViews.includes(currentView)) {
-                return <LoadingSpinner currentUser={currentUser} />;
-            }
-        }
-
-        return renderView();
-    };
-
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {renderViewProxy()}
-                </Suspense>
+                {isLoading ? <LoadingSpinner currentUser={currentUser} /> : (
+                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                        {renderView()}
+                    </Suspense>
+                )}
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}
