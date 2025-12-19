@@ -162,40 +162,24 @@ const App: React.FC = () => {
     useRealtimeLocation({ currentUser });
 
     const hydrateUser = useCallback(async (userId: string) => {
-        dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: true } });
-        dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: true } });
-        dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: true } });
-        
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
             } else {
                 console.warn("[App] Auth user exists but profile missing. Onboarding required.");
-                dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
                 navigate(AppView.CHOOSE_PROFILE);
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
-            dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
-            dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
-            dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch, navigate]);
 
     useEffect(() => {
         const initSession = async () => {
-            dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: true } });
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id);
-            } else {
-                dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
             }
         };
         
@@ -280,10 +264,8 @@ const App: React.FC = () => {
     };
 
     const renderViewProxy = () => {
-        if (currentUser) {
-            return renderView();
-        }
-        return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
+        // Transparent flow: History drives the view, no initialization gates.
+        return renderView();
     };
 
     return (

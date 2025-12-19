@@ -223,7 +223,6 @@ const initialState: AppState = {
     selectedLabel: null,
     latestBooking: null,
     isLoading: false,
-    // Start false to prevent blocking on first load
     isAuthLoading: false,
     isProfileLoading: false,
     isRoleLoading: false,
