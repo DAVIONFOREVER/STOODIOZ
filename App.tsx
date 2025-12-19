@@ -163,8 +163,6 @@ const App: React.FC = () => {
 
     const hydrateUser = useCallback(async (userId: string) => {
         dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: true } });
-        dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: true } });
-        dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: true } });
         
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
@@ -172,14 +170,14 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
             } else {
                 console.warn("[App] Auth user exists but profile missing. Onboarding required.");
-                dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
-                dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
                 navigate(AppView.CHOOSE_PROFILE);
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
+        } finally {
+            // ALWAYS clear these to prevent "Spinner Lock"
             dispatch({ type: ActionTypes.SET_PROFILE_LOADING, payload: { isLoading: false } });
+            dispatch({ type: ActionTypes.SET_AUTH_LOADING, payload: { isLoading: false } });
             dispatch({ type: ActionTypes.SET_ROLE_LOADING, payload: { isLoading: false } });
             dispatch({ type: ActionTypes.SET_SUBSCRIPTION_LOADING, payload: { isLoading: false } });
         }
@@ -204,7 +202,9 @@ const App: React.FC = () => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
-                navigate(AppView.LANDING_PAGE);
+                // Only navigate if we are currently on an internal view
+                const isInternal = !([AppView.LANDING_PAGE, AppView.LOGIN].includes(history[historyIndex]));
+                if (isInternal) navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
                 await hydrateUser(session.user.id);
             }
@@ -280,9 +280,7 @@ const App: React.FC = () => {
     };
 
     const renderViewProxy = () => {
-        // ONLY block the entire app if the AUTH check itself is still running.
-        // If Auth is done but profile/subscription loading is still in flight, 
-        // we should still allow the Landing Page/Login views to render to prevent "White Screen of Death".
+        // Hard gate only on primary auth initialization
         if (isAuthLoading) {
             return <LoadingSpinner currentUser={currentUser} />;
         }
@@ -294,25 +292,20 @@ const App: React.FC = () => {
         ];
 
         if (currentUser) {
-            // Wait for Role/Profile if the user is authenticated but history wants an internal view
-            if (!authViews.includes(currentView) && (isProfileLoading || isRoleLoading)) {
-                return <LoadingSpinner currentUser={currentUser} />;
-            }
-
-            // Redirect from auth views to appropriate dashboards
+            // Authenticated: Force them out of Login/Landing to a dashboard
             if (authViews.includes(currentView)) {
                 if (!userRole) {
-                     return <ChooseProfile onSelectRole={selectRoleToSetup} />;
+                    return <ChooseProfile onSelectRole={selectRoleToSetup} />;
                 }
 
                 // Strictly implement the requested subscription logic
                 const restrictedRoles = [UserRole.ENGINEER, UserRole.PRODUCER, UserRole.STOODIO];
                 // Only redirect when isSubscriptionLoading is false AND currentUser.subscription === false
-                // Do not redirect if subscription is undefined (missing from DB field)
                 if (restrictedRoles.includes(userRole) && !isSubscriptionLoading && (currentUser as any).subscription === false) {
                     return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
                 }
 
+                // Redirect to the appropriate dashboard based on role
                 switch(userRole) {
                     case UserRole.LABEL: return <LabelDashboard />;
                     case UserRole.STOODIO: return <StoodioDashboard />;
@@ -320,6 +313,11 @@ const App: React.FC = () => {
                     case UserRole.PRODUCER: return <ProducerDashboard />;
                     default: return <ArtistDashboard />;
                 }
+            }
+            
+            // If they are deep-loading a dashboard and profile is somehow completely missing, show spinner
+            if (!userRole && !authViews.includes(currentView)) {
+                return <LoadingSpinner currentUser={currentUser} />;
             }
         }
 

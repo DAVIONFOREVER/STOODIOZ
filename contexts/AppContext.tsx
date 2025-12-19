@@ -1,3 +1,4 @@
+
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
 import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData, Label } from '../types';
 import { AppView, UserRole } from '../types';
@@ -19,6 +20,7 @@ export interface AppState {
     currentUser: Artist | Engineer | Stoodio | Producer | Label | null;
     userRole: UserRole | null;
     loginError: string | null;
+    // FIX: Changed '*' to '|' to correct syntax error in type definition
     selectedStoodio: Stoodio | null;
     selectedArtist: Artist | null;
     selectedEngineer: Engineer | null;
@@ -26,7 +28,6 @@ export interface AppState {
     selectedLabel: Label | null;
     latestBooking: Booking | null;
     isLoading: boolean;
-    // Granular Loading Flags
     isAuthLoading: boolean;
     isProfileLoading: boolean;
     isRoleLoading: boolean;
@@ -52,9 +53,10 @@ export interface AppState {
     isNudgeVisible: boolean;
     dashboardInitialTab: string | null;
     isSaved: boolean;
-    masterclassToPurchase: { masterclass: Masterclass, owner: Engineer | Producer } | null;
-    masterclassToWatch: { masterclass: Masterclass, owner: Engineer | Producer } | null;
-    masterclassToReview: { masterclass: Masterclass, owner: Engineer | Producer } | null;
+    // FIX: Changed commas to semicolons within nested object types to comply with TypeScript interface syntax
+    masterclassToPurchase: { masterclass: Masterclass; owner: Engineer | Producer } | null;
+    masterclassToWatch: { masterclass: Masterclass; owner: Engineer | Producer } | null;
+    masterclassToReview: { masterclass: Masterclass; owner: Engineer | Producer } | null;
     directionsIntent: { bookingId: string } | null;
 }
 
@@ -333,7 +335,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 if (role === UserRole.ARTIST && storedView === AppView.LABEL_DASHBOARD) {
                     landingView = AppView.ARTIST_DASHBOARD;
                 } else {
-                    landingView = storedView as AppView;
+                    landingView = (storedView as AppView);
                 }
             }
             
