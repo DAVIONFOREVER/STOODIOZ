@@ -1,6 +1,6 @@
 import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
-import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
+import { AppView, UserRole } from './types';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
 
 // Import Custom Hooks
@@ -15,9 +15,8 @@ import { useProfile } from './hooks/useProfile.ts';
 import { useVibeMatcher } from './hooks/useVibeMatcher.ts';
 import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
-import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { getSupabase, performLogout, supabase } from './lib/supabase.ts';
+import { supabase } from './lib/supabase.ts';
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
@@ -78,16 +77,15 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
-const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
-    return (
-        <div className="flex justify-center items-center py-20">
-            <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-        </div>
-    );
-};
+const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Loading..." }) => (
+    <div className="flex flex-col justify-center items-center py-20 space-y-4">
+        <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="text-zinc-500 font-medium animate-pulse">{message}</p>
+    </div>
+);
 
 const App: React.FC = () => {
     const state = useAppState();
@@ -126,60 +124,55 @@ const App: React.FC = () => {
     const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
     const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
 
+    // FIX: Added missing handleOpenAriaFromFAB function to resolve "Cannot find name" error.
     const handleOpenAriaFromFAB = () => {
         dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
         dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
     };
 
+    // FIX: Added missing openTipModal function to resolve "Cannot find name" error.
     const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
+    
+    // FIX: Added missing openCancelModal function to resolve "Cannot find name" error.
     const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
-        startConversation,
-        navigate,
-        viewStoodioDetails,
-        viewEngineerProfile,
-        viewProducerProfile,
-        viewArtistProfile,
-        navigateToStudio,
-        confirmBooking,
-        updateProfile,
-        selectRoleToSetup,
-        logout,
+        startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking, updateProfile, selectRoleToSetup, logout,
     });
 
     useRealtimeLocation({ currentUser });
 
-    const hydrateUser = useCallback(async (userId: string) => {
-        try {
-            const res = await apiService.fetchCurrentUserProfile(userId);
-            if (res) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-            }
-        } catch (error) {
-            console.error("[App] Hydration error:", error);
-        } finally {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        }
-    }, [dispatch]);
-
+    // --- Unified Bootstrapper ---
     useEffect(() => {
-        const initSession = async () => {
+        const bootstrap = async () => {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            
             const { data: { session } } = await supabase.auth.getSession();
+            
             if (session?.user) {
-                await hydrateUser(session.user.id);
-            } else {
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                const res = await apiService.fetchCurrentUserProfile(session.user.id);
+                if (res) {
+                    // This action handles setting user, role, AND navigating to the correct dashboard
+                    dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+                } else {
+                    // Authenticated but no record = Onboarding
+                    navigate(AppView.CHOOSE_PROFILE);
+                }
             }
+            
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         };
         
-        initSession();
+        bootstrap();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
+                navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                await hydrateUser(session.user.id);
+                // Re-hydrate on sign in events
+                const res = await apiService.fetchCurrentUserProfile(session.user.id);
+                if (res) dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
             }
         });
         
@@ -188,7 +181,7 @@ const App: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser]); 
+    }, [dispatch, navigate]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -205,6 +198,7 @@ const App: React.FC = () => {
     }, [dispatch]);
 
     const renderView = () => {
+        // No redirect logic here. Just render the view state.
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -256,11 +250,9 @@ const App: React.FC = () => {
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                {isLoading ? <LoadingSpinner currentUser={currentUser} /> : (
-                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                        {renderView()}
-                    </Suspense>
-                )}
+                <Suspense fallback={<LoadingSpinner message="Initializing interface..." />}>
+                    {renderView()}
+                </Suspense>
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}
