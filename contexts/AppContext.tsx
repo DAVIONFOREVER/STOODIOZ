@@ -222,12 +222,12 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: true,
-    // Start true to treat undefined as pending
-    isAuthLoading: true,
-    isProfileLoading: true,
-    isRoleLoading: true,
-    isSubscriptionLoading: true,
+    isLoading: false,
+    // Start false to prevent blocking on first load
+    isAuthLoading: false,
+    isProfileLoading: false,
+    isRoleLoading: false,
+    isSubscriptionLoading: false,
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
