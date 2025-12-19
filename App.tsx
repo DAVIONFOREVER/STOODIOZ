@@ -280,42 +280,10 @@ const App: React.FC = () => {
     };
 
     const renderViewProxy = () => {
-        // Only redirect to pricing/onboarding when all relevant checks are strictly complete
-        const isAppInitializing = isAuthLoading || isProfileLoading || isRoleLoading || isSubscriptionLoading;
-        
-        if (isAppInitializing) {
-            return <LoadingSpinner currentUser={currentUser} />;
+        if (currentUser) {
+            return renderView();
         }
-
-        const authViews = [
-            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
-            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
-        ];
-
-        if (currentUser && authViews.includes(currentView)) {
-            // Priority 1: Missing Profile data -> Onboarding
-            if (!userRole) {
-                return <ChooseProfile onSelectRole={selectRoleToSetup} />;
-            }
-
-            // Priority 2: Restricted roles without subscription -> Pricing
-            const restrictedRoles = [UserRole.ENGINEER, UserRole.PRODUCER, UserRole.STOODIO];
-            // Only redirect if subscription is explicitly known to be missing (false) and loading is finished
-            if (restrictedRoles.includes(userRole) && !isSubscriptionLoading && currentUser.subscription === false) {
-                return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
-            }
-
-            // Priority 3: Dashboard Redirect
-            switch(userRole) {
-                case UserRole.LABEL: return <LabelDashboard />;
-                case UserRole.STOODIO: return <StoodioDashboard />;
-                case UserRole.ENGINEER: return <EngineerDashboard />;
-                case UserRole.PRODUCER: return <ProducerDashboard />;
-                default: return <ArtistDashboard />;
-            }
-        }
-        return renderView();
+        return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
     };
 
     return (
