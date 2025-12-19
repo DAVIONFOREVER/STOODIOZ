@@ -301,7 +301,8 @@ const App: React.FC = () => {
 
             // Priority 2: Restricted roles without subscription -> Pricing
             const restrictedRoles = [UserRole.ENGINEER, UserRole.PRODUCER, UserRole.STOODIO];
-            if (restrictedRoles.includes(userRole) && !currentUser.subscription) {
+            // Only redirect if subscription is explicitly known to be missing (false) and loading is finished
+            if (restrictedRoles.includes(userRole) && !isSubscriptionLoading && currentUser.subscription === false) {
                 return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
             }
 
