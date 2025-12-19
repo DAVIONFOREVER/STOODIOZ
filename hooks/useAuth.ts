@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
-import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
-import { getSupabase, performLogout } from '../lib/supabase';
+import type { UserRole } from '../types';
+import { getSupabase, performLogout, supabase } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
@@ -12,14 +12,9 @@ export const useAuth = (navigate: (view: any) => void) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
-        const supabase = getSupabase();
-        if (!supabase) {
-             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
-             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-             return;
-        }
-
-        const { data, error } = await supabase.auth.signInWithPassword({
+        // useAuth only handles the sign-in request.
+        // App.tsx's onAuthStateChange is the single source of truth for hydration.
+        const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
@@ -27,35 +22,15 @@ export const useAuth = (navigate: (view: any) => void) => {
         if (error) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            return;
         }
-    
-        if (data.user) {
-            const result = await apiService.fetchCurrentUserProfile(data.user.id);
-            if (result) {
-                // Success: The LOGIN_SUCCESS action in the reducer will handle calculating the correct view.
-                dispatch({ 
-                    type: ActionTypes.LOGIN_SUCCESS, 
-                    payload: { user: result.user, role: result.role as UserRole } 
-                });
-            } else {
-                // Auth works but no public.profiles row found
-                navigate(AppView.CHOOSE_PROFILE);
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            }
-        }
-    }, [dispatch, navigate]);
+        // Success case intentionally does nothing here. 
+        // supabase.auth.onAuthStateChange in App.tsx will catch the SIGNED_IN event.
+    }, [dispatch]);
 
     const logout = useCallback(async () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-        
-        // Signal hard reset in state
         dispatch({ type: ActionTypes.LOGOUT });
-        
-        // Wipe storage and auth session
         await performLogout();
-        
-        // Force redirect to clean state
         window.location.replace('/');
     }, [dispatch]);
 

@@ -138,7 +138,28 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    // --- Unified Bootstrapper ---
+    // --- Unified Bootstrapper (Hydration Logic) ---
+    const hydrateUser = useCallback(async (userId: string) => {
+        try {
+            const res = await apiService.fetchCurrentUserProfile(userId);
+            if (res) {
+                // The ActionTypes.LOGIN_SUCCESS reducer automatically calculates the landing dashboard
+                // and resets the history stack, preventing loops.
+                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+            } else {
+                // Auth valid but no profile record
+                const setupViews = [AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
+                if (!setupViews.includes(currentView)) {
+                    navigate(AppView.CHOOSE_PROFILE);
+                }
+            }
+        } catch (error) {
+            console.error("[App] Hydration error:", error);
+        } finally {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        }
+    }, [dispatch, navigate, currentView]);
+
     useEffect(() => {
         const bootstrap = async () => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -146,20 +167,10 @@ const App: React.FC = () => {
             const { data: { session } } = await supabase.auth.getSession();
             
             if (session?.user) {
-                console.log("[App] Session detected for", session.user.id);
-                const res = await apiService.fetchCurrentUserProfile(session.user.id);
-                if (res) {
-                    dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-                } else {
-                    // AUTH exists but NO DB profile = New User
-                    const setupViews = [AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
-                    if (!setupViews.includes(currentView)) {
-                         navigate(AppView.CHOOSE_PROFILE);
-                    }
-                }
+                await hydrateUser(session.user.id);
+            } else {
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
-            
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         };
         
         bootstrap();
@@ -169,8 +180,7 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                const res = await apiService.fetchCurrentUserProfile(session.user.id);
-                if (res) dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+                await hydrateUser(session.user.id);
             }
         });
         
@@ -179,7 +189,7 @@ const App: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, [dispatch]); 
+    }, [dispatch, hydrateUser, navigate]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -196,6 +206,8 @@ const App: React.FC = () => {
     }, [dispatch]);
 
     const renderView = () => {
+        // No redirect logic here. We strictly render what is in history[historyIndex].
+        // Hydration in the bootstrap/onAuthStateChange effect updates the history stack.
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -247,9 +259,11 @@ const App: React.FC = () => {
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner message="Initializing interface..." />}>
-                    {renderView()}
-                </Suspense>
+                {isLoading ? <LoadingSpinner message="Authenticating session..." /> : (
+                    <Suspense fallback={<LoadingSpinner message="Initializing interface..." />}>
+                        {renderView()}
+                    </Suspense>
+                )}
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}

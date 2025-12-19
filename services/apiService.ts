@@ -52,6 +52,24 @@ export const uploadDocument = async (file: Blob, fileName: string, userId: strin
     return publicUrl;
 };
 
+// FIX: Added missing uploadRoomPhoto function to support room image uploads
+export const uploadRoomPhoto = async (file: File, stoodioId: string): Promise<string> => {
+    const path = `${stoodioId}/rooms/${Date.now()}_${file.name}`;
+    return uploadFile(file, 'rooms', path);
+};
+
+// FIX: Added missing uploadBeatFile function to support beat uploads
+export const uploadBeatFile = async (file: File, producerId: string): Promise<string> => {
+    const path = `${producerId}/beats/${Date.now()}_${file.name}`;
+    return uploadFile(file, 'beats', path);
+};
+
+// FIX: Added missing uploadMixingSampleFile function to support engineer sample uploads
+export const uploadMixingSampleFile = async (file: File, engineerId: string): Promise<string> => {
+    const path = `${engineerId}/samples/${Date.now()}_${file.name}`;
+    return uploadFile(file, 'samples', path);
+};
+
 // --- DATA ACCESS ---
 
 export const fetchUserDocuments = async (userId: string) => {
@@ -176,7 +194,6 @@ export const fetchCurrentUserProfile = async (id: string) => {
     
     if (detailsErr || !userDetails) {
         console.warn(`[apiService] Detail row missing in ${tableName}. Returning profile stub.`);
-        // RETURN STUB: This prevents the app from thinking the user is anonymous
         return { 
             user: { id, name: profile.full_name, role: role, image_url: USER_SILHOUETTE_URL, wallet_balance: 0, wallet_transactions: [] }, 
             role: role 
