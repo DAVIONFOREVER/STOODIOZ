@@ -1,50 +1,37 @@
-
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
 import type { UserRole, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { UserRole as UserRoleEnum } from '../types';
-import { getSupabase, performLogout } from '../lib/supabase';
+import { getSupabase, performLogout, supabase } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
+        // Explicitly set loading for user interaction
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
-        const supabase = getSupabase();
-        if (!supabase) {
-             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Database connection failed." } });
-             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-             return;
-        }
-
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-    
-        if (error) {
-            dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            return;
-        }
-    
-        if (data.user) {
-            const result = await apiService.fetchCurrentUserProfile(data.user.id);
-            if (result) {
-                dispatch({ 
-                    type: ActionTypes.LOGIN_SUCCESS, 
-                    payload: { user: result.user, role: result.role } 
-                });
-            } else {
-                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "Profile not found." } });
+        try {
+            const { error, data } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+            
+            if (error) {
+                dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            } else if (data.user) {
+                // Successful login: Navigate exactly once to The Stage
+                navigate(AppView.THE_STAGE);
             }
+        } catch (err: any) {
+            dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: err.message || "An unexpected error occurred." } });
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch]);
+    }, [dispatch, navigate]);
 
     const logout = useCallback(async () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -56,7 +43,7 @@ export const useAuth = (navigate: (view: any) => void) => {
         await performLogout();
         
         // 3. Force clean URL
-        window.location.replace('/login');
+        window.location.replace('/');
     }, [dispatch]);
 
     const selectRoleToSetup = useCallback(async (role: UserRole) => {
@@ -77,6 +64,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
+                navigate(AppView.THE_STAGE);
             }
         } catch(error: any) {
             alert(`Signup failed: ${error.message}`);

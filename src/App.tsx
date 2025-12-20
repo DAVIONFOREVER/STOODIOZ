@@ -1,6 +1,6 @@
-import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
+import React, { useEffect, lazy, Suspense, useCallback, useState, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
-import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
+import { AppView, UserRole } from './types';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
 
 // Import Custom Hooks
@@ -107,8 +107,9 @@ const App: React.FC = () => {
         bookings, engineers
     } = state;
 
-    const [isHydrated, setIsHydrated] = useState(false);
-    // FIX: Defined missing 'claimToken' state variable.
+    const [bootComplete, setBootComplete] = useState(false);
+    const hasRoutedOnAuth = useRef(false);
+    // FIX: Added missing claimToken state to handle profile invitation claiming.
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const currentView = history[historyIndex];
@@ -146,57 +147,71 @@ const App: React.FC = () => {
     const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
-        startConversation,
-        navigate,
-        viewStoodioDetails,
-        viewEngineerProfile,
-        viewProducerProfile,
-        viewArtistProfile,
-        navigateToStudio,
-        confirmBooking,
-        updateProfile,
-        selectRoleToSetup,
-        logout,
+        startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking, updateProfile, selectRoleToSetup, logout,
     });
 
     useRealtimeLocation({ currentUser });
+
+    // FIX: Added missing helper function to determine landing view based on user role.
+    const getLandingViewForRole = (role: string | undefined): AppView => {
+        switch (role) {
+            case UserRole.STOODIO: return AppView.STOODIO_DASHBOARD;
+            case UserRole.ENGINEER: return AppView.ENGINEER_DASHBOARD;
+            case UserRole.PRODUCER: return AppView.PRODUCER_DASHBOARD;
+            case UserRole.LABEL: return AppView.LABEL_DASHBOARD;
+            case UserRole.ARTIST: return AppView.ARTIST_DASHBOARD;
+            default: return AppView.THE_STAGE;
+        }
+    };
 
     const hydrateUser = useCallback(async (userId: string) => {
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+                // Only redirect if we haven't already performed an initial session/login routing
+                if (!hasRoutedOnAuth.current) {
+                    hasRoutedOnAuth.current = true;
+                    navigate(getLandingViewForRole(res.role));
+                }
             } else {
-                console.warn("[App] Auth user exists but profile missing. Onboarding required.");
-                navigate(AppView.CHOOSE_PROFILE);
+                console.warn("[App] Session active but profile not found.");
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
-        } finally {
-            setIsHydrated(true);
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch, navigate]);
 
     useEffect(() => {
-        // Auth Hydration Gate
-        const initSession = async () => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                await hydrateUser(session.user.id);
-            } else {
-                setIsHydrated(true);
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        const initApp = async () => {
+            try {
+                // FIX: Check for claim token in URL path (/claim/TOKEN)
+                const path = window.location.pathname;
+                if (path.startsWith('/claim/')) {
+                    const token = path.split('/')[2];
+                    if (token) {
+                        setClaimToken(token);
+                        dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
+                    }
+                }
+
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    await hydrateUser(session.user.id);
+                }
+            } catch (error) {
+                console.error("[App] Initial boot error:", error);
+            } finally {
+                setBootComplete(true);
             }
         };
         
-        initSession();
+        initApp();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
-                navigate(AppView.LANDING_PAGE);
+                hasRoutedOnAuth.current = false;
             } else if (event === 'SIGNED_IN' && session?.user) {
                 await hydrateUser(session.user.id);
             }
@@ -207,7 +222,7 @@ const App: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser, navigate]); 
+    }, [dispatch, hydrateUser]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -224,8 +239,6 @@ const App: React.FC = () => {
     }, [dispatch]);
 
     const renderView = () => {
-        if (!isHydrated) return <LoadingSpinner currentUser={null} />;
-
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -259,6 +272,7 @@ const App: React.FC = () => {
             case AppView.LABEL_SCOUTING: return <LabelScouting onNavigate={navigate} />;
             case AppView.LABEL_IMPORT: return <LabelRosterImport />;
             case AppView.LABEL_PROFILE: return <LabelProfile />;
+            // FIX: Successfully pass claimToken to components to resolve compilation errors.
             case AppView.CLAIM_PROFILE: return <ClaimProfile token={claimToken} />;
             case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={claimToken || ''} />;
             case AppView.CLAIM_CONFIRM: return <ClaimConfirmScreen />;
@@ -273,32 +287,15 @@ const App: React.FC = () => {
         }
     };
 
-    const renderViewProxy = () => {
-        const authViews = [
-            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
-            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
-        ];
-
-        if (currentUser && authViews.includes(currentView)) {
-            switch(userRole) {
-                case UserRole.LABEL: return <LabelDashboard />;
-                case UserRole.STOODIO: return <StoodioDashboard />;
-                case UserRole.ENGINEER: return <EngineerDashboard />;
-                case UserRole.PRODUCER: return <ProducerDashboard />;
-                default: return <ArtistDashboard />;
-            }
-        }
-        return renderView();
-    };
-
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {renderViewProxy()}
-                </Suspense>
+                {!bootComplete ? <LoadingSpinner currentUser={currentUser} /> : (
+                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                        {renderView()}
+                    </Suspense>
+                )}
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}

@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import type { Stoodio, Artist, Engineer, Producer, Location, Booking, Label } from '../types';
@@ -8,8 +7,8 @@ export const useNavigation = () => {
     const dispatch = useAppDispatch();
     
     const navigate = useCallback((view: AppView) => {
-        // Persist the view to localStorage so it survives page refreshes
-        localStorage.setItem('last_view', view);
+        // Disabled view persistence to prevent auto-redirection loops on load
+        // localStorage.setItem('last_view', view);
         
         dispatch({ type: ActionTypes.NAVIGATE, payload: { view } });
         if ([AppView.STOODIO_LIST, AppView.ARTIST_LIST, AppView.ENGINEER_LIST, AppView.PRODUCER_LIST, AppView.MAP_VIEW, AppView.LABEL_IMPORT].includes(view)) {
