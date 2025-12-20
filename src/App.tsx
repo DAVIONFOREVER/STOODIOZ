@@ -109,7 +109,6 @@ const App: React.FC = () => {
 
     const [bootComplete, setBootComplete] = useState(false);
     const hasRoutedOnAuth = useRef(false);
-    // FIX: Added missing claimToken state to handle profile invitation claiming.
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const currentView = history[historyIndex];
@@ -152,7 +151,6 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    // FIX: Added missing helper function to determine landing view based on user role.
     const getLandingViewForRole = (role: string | undefined): AppView => {
         switch (role) {
             case UserRole.STOODIO: return AppView.STOODIO_DASHBOARD;
@@ -169,35 +167,35 @@ const App: React.FC = () => {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-                // Only redirect if we haven't already performed an initial session/login routing
-                if (!hasRoutedOnAuth.current) {
-                    hasRoutedOnAuth.current = true;
-                    navigate(getLandingViewForRole(res.role));
-                }
-            } else {
-                console.warn("[App] Session active but profile not found.");
+                return res.role;
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
         }
-    }, [dispatch, navigate]);
+        return null;
+    }, [dispatch]);
 
     useEffect(() => {
         const initApp = async () => {
-            try {
-                // FIX: Check for claim token in URL path (/claim/TOKEN)
-                const path = window.location.pathname;
-                if (path.startsWith('/claim/')) {
-                    const token = path.split('/')[2];
-                    if (token) {
-                        setClaimToken(token);
-                        dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
-                    }
-                }
+            const path = window.location.pathname;
+            const isClaimRoute = path.startsWith('/claim/');
 
+            if (isClaimRoute) {
+                const token = path.split('/')[2];
+                if (token) {
+                    setClaimToken(token);
+                    dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
+                }
+            }
+
+            try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session?.user) {
-                    await hydrateUser(session.user.id);
+                    const role = await hydrateUser(session.user.id);
+                    if (!isClaimRoute && !hasRoutedOnAuth.current) {
+                        hasRoutedOnAuth.current = true;
+                        navigate(getLandingViewForRole(role));
+                    }
                 }
             } catch (error) {
                 console.error("[App] Initial boot error:", error);
@@ -209,11 +207,18 @@ const App: React.FC = () => {
         initApp();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            const path = window.location.pathname;
+            const isClaimRoute = path.startsWith('/claim/');
+
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
                 hasRoutedOnAuth.current = false;
             } else if (event === 'SIGNED_IN' && session?.user) {
-                await hydrateUser(session.user.id);
+                const role = await hydrateUser(session.user.id);
+                if (!isClaimRoute && !hasRoutedOnAuth.current) {
+                    hasRoutedOnAuth.current = true;
+                    navigate(getLandingViewForRole(role));
+                }
             }
         });
         
@@ -222,7 +227,7 @@ const App: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser]); 
+    }, [dispatch, hydrateUser, navigate]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -272,7 +277,6 @@ const App: React.FC = () => {
             case AppView.LABEL_SCOUTING: return <LabelScouting onNavigate={navigate} />;
             case AppView.LABEL_IMPORT: return <LabelRosterImport />;
             case AppView.LABEL_PROFILE: return <LabelProfile />;
-            // FIX: Successfully pass claimToken to components to resolve compilation errors.
             case AppView.CLAIM_PROFILE: return <ClaimProfile token={claimToken} />;
             case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={claimToken || ''} />;
             case AppView.CLAIM_CONFIRM: return <ClaimConfirmScreen />;

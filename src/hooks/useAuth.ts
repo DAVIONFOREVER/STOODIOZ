@@ -23,15 +23,13 @@ export const useAuth = (navigate: (view: any) => void) => {
             if (error) {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            } else if (data.user) {
-                // Successful login: Navigate exactly once to The Stage
-                navigate(AppView.THE_STAGE);
             }
+            // Logic centralized in App.tsx auth listener handles successful SIGNED_IN events
         } catch (err: any) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: err.message || "An unexpected error occurred." } });
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigate]);
+    }, [dispatch]);
 
     const logout = useCallback(async () => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -64,7 +62,8 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
-                navigate(AppView.THE_STAGE);
+                // Navigation will be handled by auth listener if SIGNED_IN event triggers,
+                // or the COMPLETE_SETUP reducer will force history if needed for the UI cycle.
             }
         } catch(error: any) {
             alert(`Signup failed: ${error.message}`);

@@ -261,6 +261,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return {
                 ...initialState,
                 isLoading: false,
+                history: [AppView.LANDING_PAGE],
+                historyIndex: 0,
                 artists: state.artists,
                 engineers: state.engineers,
                 producers: state.producers,
