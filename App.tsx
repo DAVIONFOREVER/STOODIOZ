@@ -107,7 +107,7 @@ const App: React.FC = () => {
         bookings, engineers
     } = state;
 
-    const [isHydrated, setIsHydrated] = useState(false);
+    const [bootComplete, setBootComplete] = useState(false);
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const currentView = history[historyIndex];
@@ -166,37 +166,36 @@ const App: React.FC = () => {
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
             } else {
-                console.warn("[App] Auth user exists but profile missing.");
+                console.warn("[App] Auth session active but profile missing.");
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
-        } finally {
-            setIsHydrated(true);
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch]);
 
     useEffect(() => {
-        // Auth Hydration Gate
-        const initSession = async () => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+        // Deterministic Boot Flow
+        const initApp = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session?.user) {
                     await hydrateUser(session.user.id);
-                } else {
-                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-                    setIsHydrated(true);
                 }
             } catch (error) {
-                console.error("Auth init error:", error);
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-                setIsHydrated(true);
+                console.error("[App] Boot error:", error);
+            } finally {
+                setBootComplete(true);
             }
         };
         
-        initSession();
+        initApp();
 
+        // Listen for directory data
+        apiService.getAllPublicUsers().then(directory => {
+            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
+        });
+
+        // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
@@ -205,10 +204,6 @@ const App: React.FC = () => {
             }
         });
         
-        apiService.getAllPublicUsers().then(directory => {
-            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
-        });
-
         return () => subscription.unsubscribe();
     }, [dispatch, hydrateUser]); 
 
@@ -227,8 +222,6 @@ const App: React.FC = () => {
     }, [dispatch]);
 
     const renderView = () => {
-        if (!isHydrated) return <LoadingSpinner currentUser={null} />;
-
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -277,19 +270,19 @@ const App: React.FC = () => {
     };
 
     const renderViewProxy = () => {
-        const authViews = [
-            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
-            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
-        ];
-
-        if (currentUser && authViews.includes(currentView)) {
-            switch(userRole) {
-                case UserRole.LABEL: return <LabelDashboard />;
-                case UserRole.STOODIO: return <StoodioDashboard />;
-                case UserRole.ENGINEER: return <EngineerDashboard />;
-                case UserRole.PRODUCER: return <ProducerDashboard />;
-                default: return <ArtistDashboard />;
+        // Deterministic view routing: only logged-in specific views or chosen history
+        if (currentUser) {
+            // Check if we are currently on an onboarding or auth-only view while logged in
+            const restrictedViews = [AppView.LOGIN, AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
+            if (restrictedViews.includes(currentView)) {
+                 // Fallback to role-based dashboard if they try to access setup while logged in
+                 switch(userRole) {
+                    case UserRole.LABEL: return <LabelDashboard />;
+                    case UserRole.STOODIO: return <StoodioDashboard />;
+                    case UserRole.ENGINEER: return <EngineerDashboard />;
+                    case UserRole.PRODUCER: return <ProducerDashboard />;
+                    default: return <ArtistDashboard />;
+                }
             }
         }
         return renderView();
@@ -299,7 +292,7 @@ const App: React.FC = () => {
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                {isLoading ? <LoadingSpinner currentUser={currentUser} /> : (
+                {!bootComplete ? <LoadingSpinner currentUser={currentUser} /> : (
                     <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
                         {renderViewProxy()}
                     </Suspense>
