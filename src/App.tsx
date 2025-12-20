@@ -1,4 +1,4 @@
-import React, { useEffect, lazy, Suspense, useCallback, useState, useRef } from 'react';
+import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
 import { AppView, UserRole } from './types';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
@@ -145,58 +145,46 @@ const App: React.FC = () => {
     const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
-        startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking, updateProfile, selectRoleToSetup, logout,
+        startConversation,
+        navigate,
+        viewStoodioDetails,
+        viewEngineerProfile,
+        viewProducerProfile,
+        viewArtistProfile,
+        navigateToStudio,
+        confirmBooking,
+        updateProfile,
+        selectRoleToSetup,
+        logout,
     });
 
     useRealtimeLocation({ currentUser });
-
-    const getLandingViewForRole = (role: string | undefined): AppView => {
-        switch (role) {
-            case UserRole.STOODIO: return AppView.STOODIO_DASHBOARD;
-            case UserRole.ENGINEER: return AppView.ENGINEER_DASHBOARD;
-            case UserRole.PRODUCER: return AppView.PRODUCER_DASHBOARD;
-            case UserRole.LABEL: return AppView.LABEL_DASHBOARD;
-            case UserRole.ARTIST: return AppView.ARTIST_DASHBOARD;
-            default: return AppView.THE_STAGE;
-        }
-    };
 
     const hydrateUser = useCallback(async (userId: string) => {
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-                return res.role;
+            } else {
+                console.warn("[App] Auth session active but profile missing.");
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-        return null;
     }, [dispatch]);
 
     useEffect(() => {
+        // Deterministic Boot Flow
         const initApp = async () => {
-            const path = window.location.pathname;
-            const isClaimRoute = path.startsWith('/claim/');
-
-            if (isClaimRoute) {
-                const token = path.split('/')[2];
-                if (token) {
-                    setClaimToken(token);
-                    dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.CLAIM_ENTRY } });
-                }
-            }
-
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session?.user) {
-                    const role = await hydrateUser(session.user.id);
-                    if (!isClaimRoute && !state.history.length) {
-                        navigate(getLandingViewForRole(role));
-                    }
+                    await hydrateUser(session.user.id);
                 }
             } catch (error) {
-                console.error("[App] Initial boot error:", error);
+                console.error("[App] Boot error:", error);
             } finally {
                 setBootComplete(true);
             }
@@ -204,26 +192,22 @@ const App: React.FC = () => {
         
         initApp();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            const path = window.location.pathname;
-            const isClaimRoute = path.startsWith('/claim/');
-
-            if (event === 'SIGNED_OUT') {
-                dispatch({ type: ActionTypes.LOGOUT });
-            } else if (event === 'SIGNED_IN' && session?.user) {
-                const role = await hydrateUser(session.user.id);
-                if (!isClaimRoute) {
-                    navigate(getLandingViewForRole(role));
-                }
-            }
-        });
-        
+        // Listen for directory data
         apiService.getAllPublicUsers().then(directory => {
             dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
         });
 
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_OUT') {
+                dispatch({ type: ActionTypes.LOGOUT });
+            } else if (event === 'SIGNED_IN' && session?.user) {
+                await hydrateUser(session.user.id);
+            }
+        });
+        
         return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser, navigate]); 
+    }, [dispatch, hydrateUser]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -287,12 +271,31 @@ const App: React.FC = () => {
         }
     };
 
+    const renderViewProxy = () => {
+        // Deterministic view routing: only logged-in specific views or chosen history
+        if (currentUser) {
+            // Check if we are currently on an onboarding or auth-only view while logged in
+            const restrictedViews = [AppView.LOGIN, AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
+            if (restrictedViews.includes(currentView)) {
+                 // Fallback to role-based dashboard if they try to access setup while logged in
+                 switch(userRole) {
+                    case UserRole.LABEL: return <LabelDashboard />;
+                    case UserRole.STOODIO: return <StoodioDashboard />;
+                    case UserRole.ENGINEER: return <EngineerDashboard />;
+                    case UserRole.PRODUCER: return <ProducerDashboard />;
+                    default: return <ArtistDashboard />;
+                }
+            }
+        }
+        return renderView();
+    };
+
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
                 <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {renderView()}
+                    {renderViewProxy()}
                 </Suspense>
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}

@@ -10,24 +10,22 @@ export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
-        // Explicitly set loading for user interaction
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+        // We no longer manually dispatch loading here to prevent locking the screen 
+        // while waiting for hydration, which was the cause of the permanent spinner.
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
         try {
-            const { error, data } = await supabase.auth.signInWithPassword({
+            const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
             
             if (error) {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
             // Logic centralized in App.tsx auth listener handles successful SIGNED_IN events
         } catch (err: any) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: err.message || "An unexpected error occurred." } });
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch]);
 
@@ -62,8 +60,6 @@ export const useAuth = (navigate: (view: any) => void) => {
             }
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
-                // Navigation will be handled by auth listener if SIGNED_IN event triggers,
-                // or the COMPLETE_SETUP reducer will force history if needed for the UI cycle.
             }
         } catch(error: any) {
             alert(`Signup failed: ${error.message}`);
