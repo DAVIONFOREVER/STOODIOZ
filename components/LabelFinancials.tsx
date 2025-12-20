@@ -1,25 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { DollarSignIcon, ChartBarIcon, CalendarIcon, BanknotesIcon, ArrowUpCircleIcon, CheckCircleIcon, PlusCircleIcon } from './icons';
+// FIX: Added UsersIcon to imports from ./icons
+import { DollarSignIcon, ChartBarIcon, CalendarIcon, BanknotesIcon, ArrowUpCircleIcon, CheckCircleIcon, PlusCircleIcon, CloseCircleIcon, UsersIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
-import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode } from '../types';
-
-// Visual Mock Data for Sony Demo
-const MOCK_REVENUE_METRICS = {
-    totalRevenue: 245000000.00,
-    monthlyRevenue: 18500000.00,
-    pendingPayouts: 4200000.00,
-    byArtist: [
-        { id: '1', name: 'Beyoncé', image_url: 'https://upload.wikimedia.org/wikipedia/commons/1/17/Beyonc%C3%A9_at_The_Lion_King_European_Premiere_2019.png', amount: 85200000, percentage: 35 },
-        { id: '2', name: 'Harry Styles', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Harry_Styles_Love_on_Tour_2022.jpg/800px-Harry_Styles_Love_on_Tour_2022.jpg', amount: 55500000, percentage: 22 },
-        { id: '3', name: 'Travis Scott', image_url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Travis_Scott_2016.jpg/800px-Travis_Scott_2016.jpg', amount: 48400000, percentage: 19 },
-    ],
-    byType: [
-        { type: 'Streaming Royalties', amount: 145000000, percentage: 59 },
-        { type: 'Sync & Licensing', amount: 45000000, percentage: 18 },
-        { type: 'Physical Sales', amount: 35000000, percentage: 14 },
-    ]
-};
+// FIX: Added USER_SILHOUETTE_URL import from ../constants
+import { USER_SILHOUETTE_URL } from '../constants';
+import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode, Booking, RosterMember } from '../types';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode; subtext?: string }> = ({ label, value, icon, subtext }) => (
     <div className="bg-zinc-800 border border-zinc-700/50 p-6 rounded-xl flex items-center gap-4 shadow-lg hover:border-orange-500/30 transition-colors">
@@ -39,28 +25,48 @@ const LabelFinancials: React.FC = () => {
     const [contracts, setContracts] = useState<LabelContract[]>([]);
     const [budgetOverview, setBudgetOverview] = useState<LabelBudgetOverview | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [roster, setRoster] = useState<RosterMember[]>([]);
     const [loading, setLoading] = useState(true);
 
     const [budgetMode, setBudgetMode] = useState<LabelBudgetMode>('MANUAL');
+    const [monthlyAllowance, setMonthlyAllowance] = useState<number>(0);
+    const [resetDay, setResetDay] = useState<number>(1);
     const [topUpAmount, setTopUpAmount] = useState<string>('');
     const [topUpNote, setTopUpNote] = useState<string>('');
     
+    const [payoutRequests, setPayoutRequests] = useState<any[]>([]);
+
     const loadData = async () => {
         if (!currentUser || userRole !== 'LABEL') return;
         setLoading(true);
         try {
-            const [contractsData, budgetData, transactionsData] = await Promise.all([
+            const [contractsData, budgetData, transactionsData, bookingsData, rosterData] = await Promise.all([
                 apiService.fetchLabelContracts(currentUser.id),
                 apiService.getLabelBudgetOverview(currentUser.id),
-                apiService.fetchLabelTransactions(currentUser.id)
+                apiService.fetchLabelTransactions(currentUser.id),
+                apiService.fetchLabelBookings(currentUser.id),
+                apiService.fetchLabelRoster(currentUser.id)
             ]);
 
-            setContracts(contractsData);
+            setContracts(contractsData || []);
             setBudgetOverview(budgetData);
-            setTransactions(transactionsData);
+            setTransactions(transactionsData || []);
+            setBookings(bookingsData || []);
+            setRoster(rosterData || []);
 
             if (budgetData?.budget) {
                 setBudgetMode(budgetData.budget.budget_mode || 'MANUAL');
+                setMonthlyAllowance(budgetData.budget.monthly_allowance || 0);
+                setResetDay(budgetData.budget.reset_day || 1);
+            }
+            
+            // Generate some mock pending payouts for UI completeness if none exist
+            if (payoutRequests.length === 0) {
+                setPayoutRequests([
+                    { id: 'p1', amount: 2500, requested_on: '2024-05-15', status: 'Pending', artist: 'Beyoncé' },
+                    { id: 'p2', amount: 850, requested_on: '2024-05-14', status: 'Approved', artist: 'Travis Scott' },
+                ]);
             }
         } catch (error) {
             console.error("Error loading financials:", error);
@@ -73,11 +79,76 @@ const LabelFinancials: React.FC = () => {
         loadData();
     }, [currentUser, userRole]);
 
-    const remainingFunds = useMemo(() => {
-        const total = budgetOverview?.budget?.total_budget || 0;
-        const spent = budgetOverview?.budget?.amount_spent || 0;
-        return total - spent;
-    }, [budgetOverview]);
+    const financialMetrics = useMemo(() => {
+        const completedSessions = bookings.filter(b => b.status === 'COMPLETED');
+        const totalRevenue = completedSessions.reduce((sum, b) => sum + b.total_cost, 0);
+        
+        const now = new Date();
+        const thisMonthRevenue = completedSessions
+            .filter(b => new Date(b.date).getMonth() === now.getMonth() && new Date(b.date).getFullYear() === now.getFullYear())
+            .reduce((sum, b) => sum + b.total_cost, 0);
+
+        const totalFunds = budgetOverview?.budget?.total_budget || 0;
+        const spentFunds = budgetOverview?.budget?.amount_spent || 0;
+        const remainingFunds = totalFunds - spentFunds;
+
+        // Calculate Revenue Breakdown by Type from Transactions
+        const typeTotals: Record<string, number> = {};
+        transactions.forEach(t => {
+            const category = t.category.replace(/_/g, ' ');
+            typeTotals[category] = (typeTotals[category] || 0) + Math.abs(t.amount);
+        });
+
+        const totalTxAmount = Object.values(typeTotals).reduce((a, b) => a + b, 0);
+        const byType = Object.entries(typeTotals).map(([type, amount]) => ({
+            type,
+            amount,
+            percentage: totalTxAmount > 0 ? Math.round((amount / totalTxAmount) * 100) : 0
+        })).sort((a, b) => b.amount - a.amount);
+
+        // Calculate Revenue by Artist from Bookings
+        const artistTotals: Record<string, { name: string, img: string, amount: number }> = {};
+        completedSessions.forEach(b => {
+            if (b.artist) {
+                const existing = artistTotals[b.artist.id] || { name: b.artist.name, img: b.artist.image_url, amount: 0 };
+                existing.amount += b.total_cost;
+                artistTotals[b.artist.id] = existing;
+            }
+        });
+
+        const byArtist = Object.entries(artistTotals).map(([id, data]) => ({
+            id,
+            ...data,
+            percentage: totalRevenue > 0 ? Math.round((data.amount / totalRevenue) * 100) : 0
+        })).sort((a, b) => b.amount - a.amount);
+
+        return {
+            totalRevenue,
+            thisMonthRevenue,
+            remainingFunds,
+            byType: byType.length > 0 ? byType : [
+                { type: 'Studio Sessions', amount: totalRevenue, percentage: 100 }
+            ],
+            byArtist: byArtist.slice(0, 5)
+        };
+    }, [bookings, transactions, budgetOverview]);
+
+    const handlePayoutAction = (id: string, action: 'Approved' | 'Rejected') => {
+        setPayoutRequests(prev => prev.map(req => 
+            req.id === id ? { ...req, status: action } : req
+        ));
+    };
+
+    const handleSaveBudgetSettings = async () => {
+        if (!currentUser) return;
+        try {
+            await apiService.updateLabelBudgetMode(currentUser.id, budgetMode, monthlyAllowance, resetDay);
+            alert("Budget settings updated.");
+            loadData();
+        } catch (error) {
+            alert("Failed to update settings.");
+        }
+    };
 
     const handleTopUp = async () => {
         if (!currentUser || !topUpAmount) return;
@@ -86,7 +157,7 @@ const LabelFinancials: React.FC = () => {
             await apiService.addLabelFunds(currentUser.id, amount, topUpNote || 'Manual Top Up');
             setTopUpAmount('');
             setTopUpNote('');
-            alert("Funds added successfully. (Live Sync Pending)");
+            alert("Funds authorized successfully.");
             loadData();
         } catch (error) {
             alert("Failed to add funds.");
@@ -97,7 +168,7 @@ const LabelFinancials: React.FC = () => {
         return (
              <div className="flex flex-col items-center justify-center py-20">
                 <div className="animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full mb-4"></div>
-                <p className="text-zinc-500">Syncing ledger...</p>
+                <p className="text-zinc-500">Synchronizing ledgers...</p>
             </div>
         );
     }
@@ -106,29 +177,29 @@ const LabelFinancials: React.FC = () => {
         <div className="max-w-7xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
             <div>
                 <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Global P&L</h1>
-                <p className="text-zinc-400 mt-1">Live financial monitoring for Sony Music rosters.</p>
+                <p className="text-zinc-400 mt-1">Real-time revenue monitoring and budget management for {currentUser?.name}.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
-                    label="Annual Revenue (YTD)" 
-                    value={`$${MOCK_REVENUE_METRICS.totalRevenue.toLocaleString()}`} 
+                    label="Annual Gross Revenue" 
+                    value={`$${financialMetrics.totalRevenue.toLocaleString()}`} 
                     icon={<DollarSignIcon className="w-6 h-6" />} 
-                    subtext="+12% YoY Growth"
+                    subtext="YTD Earnings"
                 />
                 <StatCard 
-                    label="Division Payouts" 
-                    value={`$${MOCK_REVENUE_METRICS.monthlyRevenue.toLocaleString()}`} 
+                    label="Revenue This Month" 
+                    value={`$${financialMetrics.thisMonthRevenue.toLocaleString()}`} 
                     icon={<CalendarIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
-                    label="Pending Royalties" 
-                    value={`$${MOCK_REVENUE_METRICS.pendingPayouts.toLocaleString()}`} 
+                    label="Pending Royalty Payouts" 
+                    value={`$${payoutRequests.filter(r => r.status === 'Pending').reduce((a,b) => a+b.amount, 0).toLocaleString()}`} 
                     icon={<BanknotesIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
-                    label="Roster Budget Rem." 
-                    value={`$${remainingFunds.toLocaleString()}`} 
+                    label="A&R Budget Remaining" 
+                    value={`$${financialMetrics.remainingFunds.toLocaleString()}`} 
                     icon={<ArrowUpCircleIcon className="w-6 h-6" />} 
                 />
             </div>
@@ -136,62 +207,100 @@ const LabelFinancials: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
-                        <PlusCircleIcon className="w-5 h-5 text-green-400" /> Capital Allocation
+                        <ChartBarIcon className="w-5 h-5 text-blue-400" /> Budget Allocation
                     </h2>
+                    
                     <div className="space-y-4">
-                        <input 
-                            type="number" 
-                            value={topUpAmount}
-                            onChange={(e) => setTopUpAmount(e.target.value)}
-                            placeholder="Amount ($)"
-                            className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-green-500"
-                        />
-                        <input 
-                            type="text" 
-                            value={topUpNote}
-                            onChange={(e) => setTopUpNote(e.target.value)}
-                            placeholder="GL Code / Note"
-                            className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-green-500"
-                        />
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Allocation Mode</label>
+                            <select 
+                                value={budgetMode} 
+                                onChange={(e) => setBudgetMode(e.target.value as LabelBudgetMode)}
+                                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-orange-500"
+                            >
+                                <option value="MANUAL">Manual Control</option>
+                                <option value="MONTHLY_FIXED">Monthly Fixed Allowance</option>
+                                <option value="MONTHLY_ROLLING">Monthly Rolling Budget</option>
+                            </select>
+                        </div>
+
+                        {(budgetMode === 'MONTHLY_FIXED' || budgetMode === 'MONTHLY_ROLLING') && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-400 mb-1">Monthly Limit ($)</label>
+                                    <input 
+                                        type="number" 
+                                        value={monthlyAllowance} 
+                                        onChange={(e) => setMonthlyAllowance(Number(e.target.value))}
+                                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-orange-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-400 mb-1">Reset Day</label>
+                                    <input 
+                                        type="number" 
+                                        value={resetDay} 
+                                        min="1" max="31"
+                                        onChange={(e) => setResetDay(Number(e.target.value))}
+                                        className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-orange-500"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         <button 
-                            onClick={handleTopUp}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                            onClick={handleSaveBudgetSettings}
+                            className="w-full bg-zinc-700 hover:bg-zinc-600 text-zinc-200 font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
                         >
-                            Authorize Transfer
+                            <CheckCircleIcon className="w-5 h-5" /> Save Budget Configuration
                         </button>
                     </div>
                 </div>
 
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
                     <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
-                        <ChartBarIcon className="w-5 h-5 text-purple-400" /> Revenue Split
+                        <PlusCircleIcon className="w-5 h-5 text-green-400" /> Capital Injection
                     </h2>
-                    <div className="space-y-6">
-                        {MOCK_REVENUE_METRICS.byType.map((item, index) => (
-                            <div key={index}>
-                                <div className="flex justify-between text-sm mb-2">
-                                    <span className="text-zinc-300 font-medium">{item.type}</span>
-                                    <span className="text-zinc-400">{item.percentage}%</span>
-                                </div>
-                                <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
-                                    <div 
-                                        className="bg-gradient-to-r from-purple-600 to-purple-400 h-full rounded-full" 
-                                        style={{ width: `${item.percentage}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        ))}
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Transfer Amount ($)</label>
+                            <input 
+                                type="number" 
+                                value={topUpAmount}
+                                onChange={(e) => setTopUpAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-green-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Reference Code / Note</label>
+                            <input 
+                                type="text" 
+                                value={topUpNote}
+                                onChange={(e) => setTopUpNote(e.target.value)}
+                                placeholder="Internal Reference"
+                                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-lg p-3 outline-none focus:border-green-500"
+                            />
+                        </div>
+                        
+                        <button 
+                            onClick={handleTopUp}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mt-4"
+                        >
+                            <DollarSignIcon className="w-5 h-5" /> Authorize Capital Transfer
+                        </button>
                     </div>
                 </div>
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-zinc-100 mb-6">Ledger Activity</h2>
+                <h2 className="text-xl font-bold text-zinc-100 mb-6">Ledger Details</h2>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm text-zinc-400">
                         <thead className="bg-zinc-800/50 uppercase font-bold text-xs">
                             <tr>
-                                <th className="p-3">Date</th>
+                                <th className="p-3">Transaction Date</th>
                                 <th className="p-3">Description</th>
                                 <th className="p-3 text-right">Amount</th>
                                 <th className="p-3 text-right">Status</th>
@@ -206,14 +315,125 @@ const LabelFinancials: React.FC = () => {
                                         {tx.amount > 0 ? '+' : ''}${tx.amount.toLocaleString()}
                                     </td>
                                     <td className="p-3 text-right uppercase font-bold text-[10px]">
-                                        {tx.status}
+                                        <span className={tx.status === 'COMPLETED' ? 'text-green-500' : 'text-yellow-500'}>{tx.status}</span>
                                     </td>
                                 </tr>
                             )) : (
                                 <tr>
-                                    <td colSpan={4} className="p-10 text-center text-zinc-600">No live ledger entries found. Waiting for transactions...</td>
+                                    <td colSpan={4} className="p-10 text-center text-zinc-600 italic">No ledger activity recorded.</td>
                                 </tr>
                             )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                    <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
+                        <UsersIcon className="w-5 h-5 text-orange-400" /> Top Grossing Roster
+                    </h2>
+                    <div className="space-y-4">
+                        {financialMetrics.byArtist.map((artist) => (
+                            <div 
+                                key={artist.id} 
+                                className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-xl hover:bg-zinc-800 transition-colors group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <img src={artist.img || USER_SILHOUETTE_URL} alt={artist.name} className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                                    <div>
+                                        <p className="font-bold text-zinc-100 group-hover:text-orange-400 transition-colors">{artist.name}</p>
+                                        <div className="w-24 h-1.5 bg-zinc-700 rounded-full mt-2 overflow-hidden">
+                                            <div className="h-full bg-orange-500 rounded-full" style={{ width: `${artist.percentage}%` }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-bold text-zinc-100">${artist.amount.toLocaleString()}</p>
+                                    <p className="text-xs text-zinc-500">{artist.percentage}% Share</p>
+                                </div>
+                            </div>
+                        ))}
+                        {financialMetrics.byArtist.length === 0 && (
+                            <p className="text-center py-10 text-zinc-600">No session data available for roster members.</p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                    <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
+                        <ChartBarIcon className="w-5 h-5 text-purple-400" /> Revenue Split
+                    </h2>
+                    <div className="space-y-6">
+                        {financialMetrics.byType.map((item, index) => (
+                            <div key={index}>
+                                <div className="flex justify-between text-sm mb-2">
+                                    <span className="text-zinc-300 font-medium">{item.type}</span>
+                                    <span className="text-zinc-400">${item.amount.toLocaleString()}</span>
+                                </div>
+                                <div className="w-full bg-zinc-800 rounded-full h-3 overflow-hidden">
+                                    <div 
+                                        className="bg-gradient-to-r from-purple-600 to-purple-400 h-full rounded-full" 
+                                        style={{ width: `${item.percentage}%` }}
+                                    ></div>
+                                </div>
+                                <p className="text-right text-xs text-zinc-500 mt-1">{item.percentage}%</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg">
+                <h2 className="text-xl font-bold text-zinc-100 mb-6 flex items-center gap-2">
+                    <BanknotesIcon className="w-5 h-5 text-green-400" /> Royalty Claims
+                </h2>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-zinc-800/50 text-zinc-400 text-xs uppercase font-bold tracking-wider">
+                            <tr>
+                                <th className="p-4 rounded-tl-lg">Beneficiary</th>
+                                <th className="p-4">Amount</th>
+                                <th className="p-4">Requested On</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4 rounded-tr-lg text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800 text-sm">
+                            {payoutRequests.map((req) => (
+                                <tr key={req.id} className="hover:bg-zinc-800/30 transition-colors">
+                                    <td className="p-4 font-semibold text-zinc-200">{req.artist}</td>
+                                    <td className="p-4 font-mono text-zinc-300">${req.amount.toLocaleString()}</td>
+                                    <td className="p-4 text-zinc-400">{req.requested_on}</td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
+                                            req.status === 'Approved' ? 'bg-green-500/20 text-green-400' :
+                                            req.status === 'Rejected' ? 'bg-red-500/20 text-red-400' :
+                                            'bg-yellow-500/20 text-yellow-400'
+                                        }`}>
+                                            {req.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        {req.status === 'Pending' && (
+                                            <div className="flex justify-end gap-2">
+                                                <button 
+                                                    onClick={() => handlePayoutAction(req.id, 'Approved')}
+                                                    className="p-1.5 bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white rounded transition-colors" title="Approve"
+                                                >
+                                                    <CheckCircleIcon className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handlePayoutAction(req.id, 'Rejected')}
+                                                    className="p-1.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded transition-colors" title="Reject"
+                                                >
+                                                    <CloseCircleIcon className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>

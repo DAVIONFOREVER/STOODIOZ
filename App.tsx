@@ -160,44 +160,14 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    /**
-     * Decisions on where to go once auth is confirmed.
-     * UPDATED: Now directs users to 'The Stage' (AppView.THE_STAGE) as requested, 
-     * instead of role-specific dashboards. Subscription checks are 
-     * disabled for navigation gating.
-     */
-    const navigateToDashboard = useCallback((role: UserRole) => {
-        // Restricted views that trigger an automatic redirect when a user is logged in
-        const restricted = [AppView.LANDING_PAGE, AppView.LOGIN];
-        
-        if (restricted.includes(currentView)) {
-            // Direct all valid profiles to The Stage per user requirement
-            navigate(AppView.THE_STAGE);
-        }
-    }, [navigate, currentView]);
-
-    // decides where to go based on hydration
-    const handleHydrationRouting = useCallback((role: UserRole) => {
-        navigateToDashboard(role);
-    }, [navigateToDashboard]);
-
-    // --- Unified Bootstrapper (Hydration Logic) ---
-    const hydrateUser = useCallback(async (userId: string, isInitialLoad: boolean = false) => {
+    const hydrateUser = useCallback(async (userId: string) => {
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-                // Only trigger automatic dashboard navigation on explicit SIGNED_IN events,
-                // or if we are on the landing page during hydration.
-                if (!isInitialLoad || currentView === AppView.LANDING_PAGE) {
-                    handleHydrationRouting(res.role as UserRole);
-                }
             } else {
-                // Auth valid but no profile record
-                // Only redirect to onboarding if the user is explicitly trying to access the app (not just viewing the landing page)
-                if (currentView === AppView.LOGIN) {
-                    navigate(AppView.CHOOSE_PROFILE);
-                }
+                console.warn("[App] Auth user exists but profile missing. Onboarding required.");
+                navigate(AppView.CHOOSE_PROFILE);
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
@@ -205,30 +175,35 @@ const App: React.FC = () => {
             setIsHydrated(true);
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigate, currentView, handleHydrationRouting]);
+    }, [dispatch, navigate]);
 
     useEffect(() => {
-        const bootstrap = async () => {
-            // SILENT initialization - we don't set isLoading: true here to avoid blocking Home
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                await hydrateUser(session.user.id, true);
-            } else {
-                // Explicitly stop loading if no session exists to ensure UI interaction (e.g. Login button is enabled)
-                setIsHydrated(true);
+        // Auth Hydration Gate
+        const initSession = async () => {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    await hydrateUser(session.user.id);
+                } else {
+                    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                    setIsHydrated(true);
+                }
+            } catch (error) {
+                console.error("Auth init error:", error);
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                setIsHydrated(true);
             }
         };
         
-        bootstrap();
+        initSession();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                // If this is a login event (not just a refresh), we hydrate and route
-                await hydrateUser(session.user.id, false);
+                await hydrateUser(session.user.id);
             }
         });
         
@@ -245,14 +220,13 @@ const App: React.FC = () => {
             const result = await apiService.createUser(userData, role);
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
-                navigateToDashboard(role);
             }
         } catch (error: any) {
             alert(`Setup failed: ${error.message}`);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigateToDashboard]);
+    }, [dispatch]);
 
     const renderView = () => {
         if (!isHydrated) return <LoadingSpinner currentUser={null} />;
@@ -290,8 +264,8 @@ const App: React.FC = () => {
             case AppView.LABEL_SCOUTING: return <LabelScouting onNavigate={navigate} />;
             case AppView.LABEL_IMPORT: return <LabelRosterImport />;
             case AppView.LABEL_PROFILE: return <LabelProfile />;
-            case AppView.CLAIM_PROFILE: return <ClaimProfile token={undefined} />;
-            case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={''} />;
+            case AppView.CLAIM_PROFILE: return <ClaimProfile token={claimToken} />;
+            case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={claimToken || ''} />;
             case AppView.CLAIM_CONFIRM: return <ClaimConfirmScreen />;
             case AppView.CLAIM_LABEL_PROFILE: return <ClaimLabelProfile onNavigate={navigate} />;
             case AppView.ACTIVE_SESSION: return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
@@ -304,13 +278,32 @@ const App: React.FC = () => {
         }
     };
 
+    const renderViewProxy = () => {
+        const authViews = [
+            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
+        ];
+
+        if (currentUser && authViews.includes(currentView)) {
+            switch(userRole) {
+                case UserRole.LABEL: return <LabelDashboard />;
+                case UserRole.STOODIO: return <StoodioDashboard />;
+                case UserRole.ENGINEER: return <EngineerDashboard />;
+                case UserRole.PRODUCER: return <ProducerDashboard />;
+                default: return <ArtistDashboard />;
+            }
+        }
+        return renderView();
+    };
+
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
                 {isLoading ? <LoadingSpinner currentUser={currentUser} /> : (
                     <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                        {renderView()}
+                        {renderViewProxy()}
                     </Suspense>
                 )}
             </main>
