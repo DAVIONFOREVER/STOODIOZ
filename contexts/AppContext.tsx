@@ -1,5 +1,5 @@
 import React, { createContext, useReducer, useContext, type Dispatch, type ReactNode } from 'react';
-import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, Masterclass, AriaNudgeData, Label } from '../types';
+import type { Stoodio, Booking, Engineer, Artist, AppNotification, Conversation, Producer, AriaCantataMessage, VibeMatchResult, Room, Following, Review, FileAttachment, Masterclass, AriaNudgeData, Label } from '../types';
 import { AppView, UserRole } from '../types';
 
 // --- STATE AND ACTION TYPES ---
@@ -223,6 +223,7 @@ const initialState: AppState = {
     isSmartRepliesLoading: false,
     isAddFundsOpen: false,
     isPayoutOpen: false,
+    // FIX: Corrected typo 'isMixing conceptModalOpen' to 'isMixingModalOpen' to match AppState interface.
     isMixingModalOpen: false,
     isAriaCantataOpen: false,
     ariaHistory: [],
@@ -269,9 +270,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 else role = UserRole.ARTIST;
             }
 
-            // NAVIGATION REMOVED: history remains exactly as it was.
-            // App.tsx hydration logic will decide if it needs to trigger a NAVIGATE action.
-            
             return {
                 ...state,
                 currentUser: user,
@@ -287,10 +285,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         
         case ActionTypes.COMPLETE_SETUP: {
             const { newUser, role } = action.payload;
-            // NAVIGATION REMOVED FROM REDUCER: 
-            // This case should only update state data. 
-            // The setup component will trigger navigate() after completion.
-
             return {
                 ...state,
                 currentUser: newUser,

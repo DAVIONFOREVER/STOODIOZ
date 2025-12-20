@@ -145,34 +145,34 @@ const App: React.FC = () => {
         else if (role === UserRole.ENGINEER) dashboard = AppView.ENGINEER_DASHBOARD;
         else if (role === UserRole.PRODUCER) dashboard = AppView.PRODUCER_DASHBOARD;
         else if (role === UserRole.LABEL) dashboard = AppView.LABEL_DASHBOARD;
-        navigate(dashboard);
-    }, [navigate]);
+        
+        // Only navigate if we are on a page that should be redirected (Landing/Login)
+        const restricted = [AppView.LANDING_PAGE, AppView.LOGIN];
+        if (restricted.includes(currentView)) {
+            navigate(dashboard);
+        }
+    }, [navigate, currentView]);
 
     // decides where to go based on hydration
     const handleHydrationRouting = useCallback((role: UserRole) => {
-        const authViews = [
-            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
-            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
-            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
-        ];
-        
-        if (authViews.includes(currentView)) {
-            navigateToDashboard(role);
-        }
-    }, [currentView, navigateToDashboard]);
+        navigateToDashboard(role);
+    }, [navigateToDashboard]);
 
     // --- Unified Bootstrapper (Hydration Logic) ---
-    const hydrateUser = useCallback(async (userId: string) => {
+    const hydrateUser = useCallback(async (userId: string, isInitialLoad: boolean = false) => {
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
-                // Dispatch data only (reducer will not touch history)
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-                // Drive routing explicitly
-                handleHydrationRouting(res.role as UserRole);
+                // Only trigger automatic dashboard navigation on explicit SIGNED_IN events,
+                // or if we are on the landing page during hydration.
+                if (!isInitialLoad || currentView === AppView.LANDING_PAGE) {
+                    handleHydrationRouting(res.role as UserRole);
+                }
             } else {
-                const setupViews = [AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
-                if (!setupViews.includes(currentView)) {
+                // Auth valid but no profile record
+                // Only redirect to onboarding if the user is explicitly trying to access the app (not just viewing the landing page)
+                if (currentView === AppView.LOGIN) {
                     navigate(AppView.CHOOSE_PROFILE);
                 }
             }
@@ -188,8 +188,9 @@ const App: React.FC = () => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
-                await hydrateUser(session.user.id);
+                await hydrateUser(session.user.id, true);
             } else {
+                // No session: Stay put, stop loading
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
@@ -201,7 +202,8 @@ const App: React.FC = () => {
                 dispatch({ type: ActionTypes.LOGOUT });
                 navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                await hydrateUser(session.user.id);
+                // If this is a login event (not just a refresh), we hydrate and route
+                await hydrateUser(session.user.id, false);
             }
         });
         
