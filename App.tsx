@@ -138,18 +138,19 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    // decides where to go once auth is confirmed
+    /**
+     * Decisions on where to go once auth is confirmed.
+     * UPDATED: Now directs users to 'The Stage' (AppView.THE_STAGE) as requested, 
+     * instead of role-specific dashboards. Subscription checks are 
+     * disabled for navigation gating.
+     */
     const navigateToDashboard = useCallback((role: UserRole) => {
-        let dashboard = AppView.ARTIST_DASHBOARD;
-        if (role === UserRole.STOODIO) dashboard = AppView.STOODIO_DASHBOARD;
-        else if (role === UserRole.ENGINEER) dashboard = AppView.ENGINEER_DASHBOARD;
-        else if (role === UserRole.PRODUCER) dashboard = AppView.PRODUCER_DASHBOARD;
-        else if (role === UserRole.LABEL) dashboard = AppView.LABEL_DASHBOARD;
-        
-        // Only navigate if we are on a page that should be redirected (Landing/Login)
+        // Restricted views that trigger an automatic redirect when a user is logged in
         const restricted = [AppView.LANDING_PAGE, AppView.LOGIN];
+        
         if (restricted.includes(currentView)) {
-            navigate(dashboard);
+            // Direct all valid profiles to The Stage per user requirement
+            navigate(AppView.THE_STAGE);
         }
     }, [navigate, currentView]);
 
@@ -169,13 +170,19 @@ const App: React.FC = () => {
                 if (!isInitialLoad || currentView === AppView.LANDING_PAGE) {
                     handleHydrationRouting(res.role as UserRole);
                 }
+            } else {
+                // Auth valid but no profile record
+                // Only redirect to onboarding if the user is explicitly trying to access the app (not just viewing the landing page)
+                if (currentView === AppView.LOGIN) {
+                    navigate(AppView.CHOOSE_PROFILE);
+                }
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, currentView, handleHydrationRouting]);
+    }, [dispatch, navigate, currentView, handleHydrationRouting]);
 
     useEffect(() => {
         const bootstrap = async () => {
