@@ -10,7 +10,7 @@ export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
-        // Clear old errors
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
         try {
@@ -21,10 +21,12 @@ export const useAuth = (navigate: (view: any) => void) => {
             
             if (error) {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
-            // Transition and hydration are handled by App.tsx's auth state listener.
+            // Successful SIGNED_IN event triggers hydration in App.tsx which resets loading.
         } catch (err: any) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: err.message || "An unexpected error occurred." } });
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch]);
 
