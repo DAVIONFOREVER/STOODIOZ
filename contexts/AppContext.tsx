@@ -112,7 +112,7 @@ export enum ActionTypes {
     SET_INITIAL_ARIA_PROMPT = 'SET_INITIAL_ARIA_PROMPT',
     SET_ARIA_NUDGE = 'SET_ARIA_NUDGE',
     SET_IS_NUDGE_VISIBLE = 'SET_IS_NUDGE_VISIBLE',
-    RESET_PROFILE_SELECTIONS = 'RESET_PROFILE_SELECTIONS',
+    RESET_PROFILE_SELECTIONS = 'RESET_PROFILE_SELElections',
     SET_DASHBOARD_TAB = 'SET_DASHBOARD_TAB',
     OPEN_PURCHASE_MASTERCLASS_MODAL = 'OPEN_PURCHASE_MASTERCLASS_MODAL',
     CLOSE_PURCHASE_MASTERCLASS_MODAL = 'CLOSE_PURCHASE_MASTERCLASS_MODAL',
@@ -131,7 +131,7 @@ type Payload = {
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; labels: Label[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer | Label, role?: UserRole };
-    [ActionTypes.LOGIN_FAILURE]: { error: string | null };
+    [ActionTypes.LOGIN_FAILURE]: { error: string };
     [ActionTypes.LOGOUT]: undefined;
     [ActionTypes.COMPLETE_SETUP]: { newUser: Artist | Engineer | Stoodio | Producer | Label, role: UserRole };
     [ActionTypes.VIEW_STOODIO_DETAILS]: { stoodio: Stoodio };
@@ -209,7 +209,7 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: false, 
+    isLoading: true, // Default to true for hydration
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -242,18 +242,39 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
         case ActionTypes.NAVIGATE: {
             const { view } = action.payload;
-            if (view === state.history[state.historyIndex]) return state;
+            if (view === state.history[state.historyIndex]) {
+                return state;
+            }
             const newHistory = state.history.slice(0, state.historyIndex + 1);
             newHistory.push(view);
-            return { ...state, loginError: null, history: newHistory, historyIndex: newHistory.length - 1 };
+            return {
+                ...state,
+                loginError: null,
+                history: newHistory,
+                historyIndex: newHistory.length - 1,
+            };
         }
         case ActionTypes.GO_BACK:
             return { ...state, historyIndex: Math.max(0, state.historyIndex - 1) };
         case ActionTypes.GO_FORWARD:
             return { ...state, historyIndex: Math.min(state.history.length - 1, state.historyIndex + 1) };
         
+        case ActionTypes.RESET_PROFILE_SELECTIONS:
+             return {
+                ...state,
+                selectedStoodio: null,
+                selectedArtist: null,
+                selectedEngineer: null,
+                selectedProducer: null,
+                selectedLabel: null,
+            };
+
         case ActionTypes.SET_INITIAL_DATA:
-            return { ...state, ...action.payload };
+            return {
+                ...state,
+                ...action.payload,
+                // Do NOT set isLoading: false here, wait for hydration
+            };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
 
@@ -268,7 +289,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 else if ('bio' in user && !('is_seeking_session' in user)) role = UserRole.LABEL;
                 else role = UserRole.ARTIST;
             }
-
+            
             return {
                 ...state,
                 currentUser: user,
@@ -280,82 +301,184 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.LOGIN_FAILURE:
             return { ...state, loginError: action.payload.error, isLoading: false };
         case ActionTypes.LOGOUT:
-            return { ...initialState, isLoading: false, artists: state.artists, engineers: state.engineers, producers: state.producers, stoodioz: state.stoodioz, labels: state.labels };
+            // HARD RESET: Return initialState completely to prevent crossover
+            return {
+                ...initialState,
+                isLoading: false,
+                // Keep the public directory data so it doesn't have to re-fetch
+                artists: state.artists,
+                engineers: state.engineers,
+                producers: state.producers,
+                stoodioz: state.stoodioz,
+                labels: state.labels,
+            };
         
         case ActionTypes.COMPLETE_SETUP: {
             const { newUser, role } = action.payload;
+            let updatedState = { ...state };
+            
+            if (role === UserRole.ARTIST) updatedState.artists = [...state.artists, newUser as Artist];
+            else if (role === UserRole.ENGINEER) updatedState.engineers = [...state.engineers, newUser as Engineer];
+            else if (role === UserRole.PRODUCER) updatedState.producers = [...state.producers, newUser as Producer];
+            else if (role === UserRole.STOODIO) updatedState.stoodioz = [...state.stoodioz, newUser as Stoodio];
+            else if (role === UserRole.LABEL) updatedState.labels = [...state.labels, newUser as Label];
+
+            let landingView = AppView.THE_STAGE;
+            if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
+            else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
+            else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
+            else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
+            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
+
             return {
-                ...state,
+                ...updatedState,
                 currentUser: newUser,
                 userRole: role,
+                history: [landingView],
+                historyIndex: 0,
                 isLoading: false,
             };
         }
-        case ActionTypes.VIEW_STOODIO_DETAILS: return { ...state, selectedStoodio: action.payload.stoodio };
-        case ActionTypes.VIEW_ARTIST_PROFILE: return { ...state, selectedArtist: action.payload.artist };
-        case ActionTypes.VIEW_ENGINEER_PROFILE: return { ...state, selectedEngineer: action.payload.engineer };
-        case ActionTypes.VIEW_PRODUCER_PROFILE: return { ...state, selectedProducer: action.payload.producer };
-        case ActionTypes.VIEW_LABEL_PROFILE: return { ...state, selectedLabel: action.payload.label };
-        case ActionTypes.OPEN_BOOKING_MODAL: return { ...state, bookingTime: action.payload };
-        case ActionTypes.CLOSE_BOOKING_MODAL: return { ...state, bookingTime: null, bookingIntent: null };
-        case ActionTypes.CONFIRM_BOOKING_SUCCESS: return { ...state, bookingTime: null, bookingIntent: null, latestBooking: action.payload.booking, bookings: [...state.bookings, action.payload.booking] };
-        case ActionTypes.SET_LATEST_BOOKING: return { ...state, latestBooking: action.payload.booking };
-        case ActionTypes.SET_BOOKINGS: return { ...state, bookings: action.payload.bookings };
-        case ActionTypes.ADD_BOOKING: return { ...state, bookings: [...state.bookings, action.payload.booking] };
+        case ActionTypes.VIEW_STOODIO_DETAILS:
+            return { ...state, selectedStoodio: action.payload.stoodio };
+        case ActionTypes.VIEW_ARTIST_PROFILE:
+            return { ...state, selectedArtist: action.payload.artist };
+        case ActionTypes.VIEW_ENGINEER_PROFILE:
+            return { ...state, selectedEngineer: action.payload.engineer };
+        case ActionTypes.VIEW_PRODUCER_PROFILE:
+            return { ...state, selectedProducer: action.payload.producer };
+        case ActionTypes.VIEW_LABEL_PROFILE:
+            return { ...state, selectedLabel: action.payload.label };
+        case ActionTypes.OPEN_BOOKING_MODAL:
+            return { ...state, bookingTime: action.payload };
+        case ActionTypes.CLOSE_BOOKING_MODAL:
+            return { ...state, bookingTime: null, bookingIntent: null };
+        case ActionTypes.CONFIRM_BOOKING_SUCCESS:
+            return { ...state, bookingTime: null, bookingIntent: null, latestBooking: action.payload.booking, bookings: [...state.bookings, action.payload.booking] };
+        case ActionTypes.SET_LATEST_BOOKING:
+            return { ...state, latestBooking: action.payload.booking };
+        case ActionTypes.SET_BOOKINGS:
+            return { ...state, bookings: action.payload.bookings };
+        case ActionTypes.ADD_BOOKING:
+            return { ...state, bookings: [...state.bookings, action.payload.booking] };
+        
         case ActionTypes.UPDATE_USERS: {
             const newUsers = action.payload.users;
-            return { ...state, currentUser: newUsers.find(u => u.id === state.currentUser?.id) || state.currentUser };
+            const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
+            
+            [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz, ...state.labels].forEach(u => {
+                if(u.id) allUsersMap.set(u.id, u);
+            });
+            
+            newUsers.forEach(u => {
+                if(u.id) allUsersMap.set(u.id, u);
+            });
+            
+            const uniqueUsers = Array.from(allUsersMap.values());
+            const findUser = (id: string | null | undefined) => id ? uniqueUsers.find(u => u.id === id) : null;
+
+            return {
+                ...state,
+                artists: uniqueUsers.filter(u => 'bio' in u && 'is_seeking_session' in u) as Artist[],
+                engineers: uniqueUsers.filter(u => 'specialties' in u) as Engineer[],
+                producers: uniqueUsers.filter(u => 'instrumentals' in u) as Producer[],
+                stoodioz: uniqueUsers.filter(u => 'amenities' in u) as Stoodio[],
+                labels: uniqueUsers.filter(u => 'bio' in u && !('is_seeking_session' in u) && !('specialties' in u) && !('instrumentals' in u) && !('amenities' in u)) as Label[],
+                currentUser: findUser(state.currentUser?.id) as any || state.currentUser,
+                selectedArtist: findUser(state.selectedArtist?.id) as Artist || state.selectedArtist,
+                selectedEngineer: findUser(state.selectedEngineer?.id) as Engineer || state.selectedEngineer,
+                selectedProducer: findUser(state.selectedProducer?.id) as Producer || state.selectedProducer,
+                selectedStoodio: findUser(state.selectedStoodio?.id) as Stoodio || state.selectedStoodio,
+                selectedLabel: findUser(state.selectedLabel?.id) as Label || state.selectedLabel,
+            };
         }
-        case ActionTypes.SET_CURRENT_USER: return { ...state, currentUser: action.payload.user };
+        case ActionTypes.SET_CURRENT_USER:
+            return { ...state, currentUser: action.payload.user };
         case ActionTypes.UPDATE_FOLLOWING: {
             if (!state.currentUser) return state;
-            return { ...state, currentUser: { ...state.currentUser, following: action.payload.newFollowing } };
+            const updatedUser = { ...state.currentUser, following: action.payload.newFollowing };
+            return { ...state, currentUser: updatedUser };
         }
-        case ActionTypes.START_SESSION: return { ...state, activeSession: action.payload.booking };
-        case ActionTypes.END_SESSION: return { ...state, activeSession: null };
-        case ActionTypes.OPEN_TIP_MODAL: return { ...state, tipModalBooking: action.payload.booking };
-        case ActionTypes.CLOSE_TIP_MODAL: return { ...state, tipModalBooking: null };
-        case ActionTypes.OPEN_CANCEL_MODAL: return { ...state, bookingToCancel: action.payload.booking };
-        case ActionTypes.CLOSE_CANCEL_MODAL: return { ...state, bookingToCancel: null };
-        case ActionTypes.SET_NOTIFICATIONS: return { ...state, notifications: action.payload.notifications };
-        case ActionTypes.SET_CONVERSATIONS: return { ...state, conversations: action.payload.conversations };
-        case ActionTypes.SET_SELECTED_CONVERSATION: return { ...state, selectedConversationId: action.payload.conversationId };
-        case ActionTypes.SET_SMART_REPLIES: return { ...state, smartReplies: action.payload.replies };
-        case ActionTypes.SET_IS_SMART_REPLIES_LOADING: return { ...state, isSmartRepliesLoading: action.payload.isLoading };
-        case ActionTypes.SET_VIBE_MATCHER_OPEN: return { ...state, isVibeMatcherOpen: action.payload.isOpen };
-        case ActionTypes.SET_VIBE_MATCHER_LOADING: return { ...state, isVibeMatcherLoading: action.payload.isLoading };
-        case ActionTypes.SET_VIBE_RESULTS: return { ...state, vibeMatchResults: action.payload.results };
-        case ActionTypes.SET_BOOKING_INTENT: return { ...state, bookingIntent: action.payload.intent };
-        case ActionTypes.SET_ADD_FUNDS_MODAL_OPEN: return { ...state, isAddFundsOpen: action.payload.isOpen };
-        case ActionTypes.SET_PAYOUT_MODAL_OPEN: return { ...state, isPayoutOpen: action.payload.isOpen };
-        case ActionTypes.SET_MIXING_MODAL_OPEN: return { ...state, isMixingModalOpen: action.payload.isOpen };
-        case ActionTypes.SET_ARIA_CANTATA_OPEN: return { ...state, isAriaCantataOpen: action.payload.isOpen };
-        case ActionTypes.SET_ARIA_HISTORY: return { ...state, ariaHistory: action.payload.history };
-        case ActionTypes.ADD_ARIA_MESSAGE: return { ...state, ariaHistory: [...state.ariaHistory, action.payload.message] };
-        case ActionTypes.SET_INITIAL_ARIA_PROMPT: return { ...state, initialAriaCantataPrompt: action.payload.prompt };
-        case ActionTypes.SET_ARIA_NUDGE: return { ...state, ariaNudge: action.payload.nudge };
-        case ActionTypes.SET_IS_NUDGE_VISIBLE: return { ...state, isNudgeVisible: action.payload.isVisible };
-        case ActionTypes.RESET_PROFILE_SELECTIONS: return { ...state, selectedStoodio: null, selectedArtist: null, selectedEngineer: null, selectedProducer: null, selectedLabel: null };
-        case ActionTypes.SET_DASHBOARD_TAB: return { ...state, dashboardInitialTab: action.payload.tab };
-        case ActionTypes.OPEN_PURCHASE_MASTERCLASS_MODAL: return { ...state, masterclassToPurchase: action.payload };
-        case ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL: return { ...state, masterclassToPurchase: null };
-        case ActionTypes.OPEN_WATCH_MASTERCLASS_MODAL: return { ...state, masterclassToWatch: action.payload };
-        case ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL: return { ...state, masterclassToWatch: null };
-        case ActionTypes.OPEN_REVIEW_MASTERCLASS_MODAL: return { ...state, masterclassToReview: action.payload };
-        case ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL: return { ...state, masterclassToReview: null };
-        case ActionTypes.SET_REVIEWS: return { ...state, reviews: action.payload.reviews };
-        case ActionTypes.SET_DIRECTIONS_INTENT: return { ...state, directionsIntent: action.payload.bookingId ? { bookingId: action.payload.bookingId } : null };
-        default: return state;
+        case ActionTypes.START_SESSION:
+            return { ...state, activeSession: action.payload.booking };
+        case ActionTypes.END_SESSION:
+            return { ...state, activeSession: null };
+        case ActionTypes.OPEN_TIP_MODAL:
+            return { ...state, tipModalBooking: action.payload.booking };
+        case ActionTypes.CLOSE_TIP_MODAL:
+            return { ...state, tipModalBooking: null };
+        case ActionTypes.OPEN_CANCEL_MODAL:
+            return { ...state, bookingToCancel: action.payload.booking };
+        case ActionTypes.CLOSE_CANCEL_MODAL:
+            return { ...state, bookingToCancel: null };
+        case ActionTypes.SET_NOTIFICATIONS:
+            return { ...state, notifications: action.payload.notifications };
+        case ActionTypes.SET_CONVERSATIONS:
+            return { ...state, conversations: action.payload.conversations };
+        case ActionTypes.SET_SELECTED_CONVERSATION:
+            return { ...state, selectedConversationId: action.payload.conversationId };
+        case ActionTypes.SET_SMART_REPLIES:
+            return { ...state, smartReplies: action.payload.replies };
+        case ActionTypes.SET_IS_SMART_REPLIES_LOADING:
+            return { ...state, isSmartRepliesLoading: action.payload.isLoading };
+        case ActionTypes.SET_VIBE_MATCHER_OPEN:
+            return { ...state, isVibeMatcherOpen: action.payload.isOpen };
+        case ActionTypes.SET_VIBE_MATCHER_LOADING:
+            return { ...state, isVibeMatcherLoading: action.payload.isLoading };
+        case ActionTypes.SET_VIBE_RESULTS:
+            return { ...state, vibeMatchResults: action.payload.results };
+        case ActionTypes.SET_BOOKING_INTENT:
+            return { ...state, bookingIntent: action.payload.intent };
+        case ActionTypes.SET_ADD_FUNDS_MODAL_OPEN:
+            return { ...state, isAddFundsOpen: action.payload.isOpen };
+        case ActionTypes.SET_PAYOUT_MODAL_OPEN:
+            return { ...state, isPayoutOpen: action.payload.isOpen };
+        case ActionTypes.SET_MIXING_MODAL_OPEN:
+            return { ...state, isMixingModalOpen: action.payload.isOpen };
+        case ActionTypes.SET_ARIA_CANTATA_OPEN:
+            return { ...state, isAriaCantataOpen: action.payload.isOpen };
+        case ActionTypes.SET_ARIA_HISTORY:
+            return { ...state, ariaHistory: action.payload.history };
+        case ActionTypes.ADD_ARIA_MESSAGE:
+            return { ...state, ariaHistory: [...state.ariaHistory, action.payload.message] };
+        case ActionTypes.SET_INITIAL_ARIA_PROMPT:
+            return { ...state, initialAriaCantataPrompt: action.payload.prompt };
+        case ActionTypes.SET_ARIA_NUDGE:
+            return { ...state, ariaNudge: action.payload.nudge };
+        case ActionTypes.SET_IS_NUDGE_VISIBLE:
+            return { ...state, isNudgeVisible: action.payload.isVisible };
+        case ActionTypes.SET_DASHBOARD_TAB:
+            return { ...state, dashboardInitialTab: action.payload.tab };
+        case ActionTypes.OPEN_PURCHASE_MASTERCLASS_MODAL:
+            return { ...state, masterclassToPurchase: action.payload };
+        case ActionTypes.CLOSE_PURCHASE_MASTERCLASS_MODAL:
+            return { ...state, masterclassToPurchase: null };
+        case ActionTypes.OPEN_WATCH_MASTERCLASS_MODAL:
+            return { ...state, masterclassToWatch: action.payload };
+        case ActionTypes.CLOSE_WATCH_MASTERCLASS_MODAL:
+            return { ...state, masterclassToWatch: null };
+        case ActionTypes.OPEN_REVIEW_MASTERCLASS_MODAL:
+            return { ...state, masterclassToReview: action.payload };
+        case ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL:
+            return { ...state, masterclassToReview: null };
+        case ActionTypes.SET_REVIEWS:
+            return { ...state, reviews: action.payload.reviews };
+        case ActionTypes.SET_DIRECTIONS_INTENT:
+             return { ...state, directionsIntent: action.payload.bookingId ? { bookingId: action.payload.bookingId } : null };
+        default:
+            return state;
     }
 };
 
 
 // --- CONTEXT AND PROVIDER ---
+
 const AppStateContext = createContext<AppState | undefined>(undefined);
 const AppDispatchContext = createContext<Dispatch<AppAction> | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [state, dispatch] = useReducer(appReducer, initialState);
+
     return (
         <AppStateContext.Provider value={state}>
             <AppDispatchContext.Provider value={dispatch}>
@@ -365,14 +488,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
 };
 
+// --- HOOKS ---
+
 export const useAppState = (): AppState => {
     const context = useContext(AppStateContext);
-    if (context === undefined) throw new Error('useAppState must be used within an AppProvider');
+    if (context === undefined) {
+        throw new Error('useAppState must be used within an AppProvider');
+    }
     return context;
 };
 
 export const useAppDispatch = (): Dispatch<AppAction> => {
     const context = useContext(AppDispatchContext);
-    if (context === undefined) throw new Error('useAppDispatch must be used within an AppProvider');
+    if (context === undefined) {
+        throw new Error('useAppDispatch must be used within an AppProvider');
+    }
     return context;
 };
