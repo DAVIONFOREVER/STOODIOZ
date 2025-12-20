@@ -138,16 +138,39 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
+    // decides where to go once auth is confirmed
+    const navigateToDashboard = useCallback((role: UserRole) => {
+        let dashboard = AppView.ARTIST_DASHBOARD;
+        if (role === UserRole.STOODIO) dashboard = AppView.STOODIO_DASHBOARD;
+        else if (role === UserRole.ENGINEER) dashboard = AppView.ENGINEER_DASHBOARD;
+        else if (role === UserRole.PRODUCER) dashboard = AppView.PRODUCER_DASHBOARD;
+        else if (role === UserRole.LABEL) dashboard = AppView.LABEL_DASHBOARD;
+        navigate(dashboard);
+    }, [navigate]);
+
+    // decides where to go based on hydration
+    const handleHydrationRouting = useCallback((role: UserRole) => {
+        const authViews = [
+            AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE, 
+            AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, 
+            AppView.STOODIO_SETUP, AppView.LABEL_SETUP
+        ];
+        
+        if (authViews.includes(currentView)) {
+            navigateToDashboard(role);
+        }
+    }, [currentView, navigateToDashboard]);
+
     // --- Unified Bootstrapper (Hydration Logic) ---
     const hydrateUser = useCallback(async (userId: string) => {
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
-                // The ActionTypes.LOGIN_SUCCESS reducer automatically calculates the landing dashboard
-                // and resets the history stack, preventing loops.
+                // Dispatch data only (reducer will not touch history)
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+                // Drive routing explicitly
+                handleHydrationRouting(res.role as UserRole);
             } else {
-                // Auth valid but no profile record
                 const setupViews = [AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
                 if (!setupViews.includes(currentView)) {
                     navigate(AppView.CHOOSE_PROFILE);
@@ -158,14 +181,12 @@ const App: React.FC = () => {
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigate, currentView]);
+    }, [dispatch, navigate, currentView, handleHydrationRouting]);
 
     useEffect(() => {
         const bootstrap = async () => {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-            
             const { data: { session } } = await supabase.auth.getSession();
-            
             if (session?.user) {
                 await hydrateUser(session.user.id);
             } else {
@@ -197,17 +218,16 @@ const App: React.FC = () => {
             const result = await apiService.createUser(userData, role);
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
+                navigateToDashboard(role);
             }
         } catch (error: any) {
             alert(`Setup failed: ${error.message}`);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch]);
+    }, [dispatch, navigateToDashboard]);
 
     const renderView = () => {
-        // No redirect logic here. We strictly render what is in history[historyIndex].
-        // Hydration in the bootstrap/onAuthStateChange effect updates the history stack.
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;

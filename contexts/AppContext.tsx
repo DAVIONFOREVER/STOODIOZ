@@ -269,27 +269,14 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 else role = UserRole.ARTIST;
             }
 
-            let landingView = AppView.THE_STAGE;
-            if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
-            else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
-            else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
-            else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
-            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
-
-            // Persistence check
-            const storedView = localStorage.getItem('last_view');
-            const restricted = [AppView.LANDING_PAGE, AppView.LOGIN, AppView.CHOOSE_PROFILE];
-            if (storedView && Object.values(AppView).includes(storedView as AppView) && !restricted.includes(storedView as AppView)) {
-                landingView = storedView as AppView;
-            }
+            // NAVIGATION REMOVED: history remains exactly as it was.
+            // App.tsx hydration logic will decide if it needs to trigger a NAVIGATE action.
             
             return {
                 ...state,
                 currentUser: user,
                 userRole: role,
                 loginError: null,
-                history: [landingView],
-                historyIndex: 0,
                 isLoading: false, 
             };
         }
@@ -300,19 +287,14 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         
         case ActionTypes.COMPLETE_SETUP: {
             const { newUser, role } = action.payload;
-            let landingView = AppView.THE_STAGE;
-            if (role === UserRole.STOODIO) landingView = AppView.STOODIO_DASHBOARD;
-            else if (role === UserRole.ENGINEER) landingView = AppView.ENGINEER_DASHBOARD;
-            else if (role === UserRole.PRODUCER) landingView = AppView.PRODUCER_DASHBOARD;
-            else if (role === UserRole.LABEL) landingView = AppView.LABEL_DASHBOARD;
-            else if (role === UserRole.ARTIST) landingView = AppView.ARTIST_DASHBOARD;
+            // NAVIGATION REMOVED FROM REDUCER: 
+            // This case should only update state data. 
+            // The setup component will trigger navigate() after completion.
 
             return {
                 ...state,
                 currentUser: newUser,
                 userRole: role,
-                history: [landingView],
-                historyIndex: 0,
                 isLoading: false,
             };
         }
