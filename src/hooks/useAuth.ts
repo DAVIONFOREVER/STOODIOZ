@@ -10,8 +10,7 @@ export const useAuth = (navigate: (view: any) => void) => {
     const dispatch = useAppDispatch();
 
     const login = useCallback(async (email: string, password: string): Promise<void> => {
-        // We no longer manually dispatch loading here to prevent locking the screen 
-        // while waiting for hydration, which was the cause of the permanent spinner.
+        // Clear old errors
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
         try {
@@ -23,7 +22,7 @@ export const useAuth = (navigate: (view: any) => void) => {
             if (error) {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
             }
-            // Logic centralized in App.tsx auth listener handles successful SIGNED_IN events
+            // Transition and hydration are handled by App.tsx's auth state listener.
         } catch (err: any) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: err.message || "An unexpected error occurred." } });
         }
