@@ -107,7 +107,6 @@ const App: React.FC = () => {
         bookings, engineers
     } = state;
 
-    const [bootComplete, setBootComplete] = useState(false);
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const currentView = history[historyIndex];
@@ -178,58 +177,31 @@ const App: React.FC = () => {
     }, [dispatch]);
 
     useEffect(() => {
-        // Deterministic Boot Flow
+        // Load initial directory data
+        apiService.getAllPublicUsers().then(directory => {
+            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
+        });
+
         const initApp = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                    const role = await hydrateUser(session.user.id);
-                    // Automatically send logged in users to their dashboard if they land on Login/Landing
-                    if (role && (currentView === AppView.LANDING_PAGE || currentView === AppView.LOGIN)) {
-                        switch(role) {
-                            case 'LABEL': navigate(AppView.LABEL_DASHBOARD); break;
-                            case 'STOODIO': navigate(AppView.STOODIO_DASHBOARD); break;
-                            case 'ENGINEER': navigate(AppView.ENGINEER_DASHBOARD); break;
-                            case 'PRODUCER': navigate(AppView.PRODUCER_DASHBOARD); break;
-                            default: navigate(AppView.ARTIST_DASHBOARD);
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error("[App] Boot error:", error);
-            } finally {
-                setBootComplete(true);
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                await hydrateUser(session.user.id);
             }
         };
         
         initApp();
 
-        // Listen for directory data
-        apiService.getAllPublicUsers().then(directory => {
-            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
-        });
-
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
-                navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
-                const role = await hydrateUser(session.user.id);
-                if (role) {
-                    switch(role) {
-                        case 'LABEL': navigate(AppView.LABEL_DASHBOARD); break;
-                        case 'STOODIO': navigate(AppView.STOODIO_DASHBOARD); break;
-                        case 'ENGINEER': navigate(AppView.ENGINEER_DASHBOARD); break;
-                        case 'PRODUCER': navigate(AppView.PRODUCER_DASHBOARD); break;
-                        default: navigate(AppView.ARTIST_DASHBOARD);
-                    }
-                }
+                await hydrateUser(session.user.id);
             }
         });
         
         return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser, navigate]); 
+    }, [dispatch, hydrateUser]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -293,34 +265,13 @@ const App: React.FC = () => {
         }
     };
 
-    const renderViewProxy = () => {
-        // Deterministic view routing: only logged-in specific views or chosen history
-        if (currentUser) {
-            // Check if we are currently on an onboarding or auth-only view while logged in
-            const restrictedViews = [AppView.LOGIN, AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
-            if (restrictedViews.includes(currentView)) {
-                 // Fallback to role-based dashboard if they try to access setup while logged in
-                 switch(userRole) {
-                    case UserRole.LABEL: return <LabelDashboard />;
-                    case UserRole.STOODIO: return <StoodioDashboard />;
-                    case UserRole.ENGINEER: return <EngineerDashboard />;
-                    case UserRole.PRODUCER: return <ProducerDashboard />;
-                    default: return <ArtistDashboard />;
-                }
-            }
-        }
-        return renderView();
-    };
-
     return (
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                {!bootComplete ? <LoadingSpinner currentUser={currentUser} /> : (
-                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                        {renderViewProxy()}
-                    </Suspense>
-                )}
+                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                    {renderView()}
+                </Suspense>
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}

@@ -209,7 +209,7 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: false, 
+    isLoading: false, // ENSURE STARTING AT FALSE
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -300,11 +300,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case ActionTypes.LOGIN_FAILURE:
             return { ...state, loginError: action.payload.error, isLoading: false };
         case ActionTypes.LOGOUT:
-            // HARD RESET: Return initialState completely to prevent crossover
             return {
                 ...initialState,
                 isLoading: false,
-                // Keep the public directory data so it doesn't have to re-fetch
                 artists: state.artists,
                 engineers: state.engineers,
                 producers: state.producers,

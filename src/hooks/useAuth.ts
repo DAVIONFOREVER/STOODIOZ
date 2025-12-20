@@ -23,7 +23,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
-            // Successful SIGNED_IN event triggers hydration in App.tsx which resets loading.
+            // Transition and hydration are handled by App.tsx's auth state listener.
         } catch (err: any) {
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: err.message || "An unexpected error occurred." } });
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
