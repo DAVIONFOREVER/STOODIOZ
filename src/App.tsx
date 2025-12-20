@@ -108,7 +108,6 @@ const App: React.FC = () => {
     } = state;
 
     const [bootComplete, setBootComplete] = useState(false);
-    const hasRoutedOnAuth = useRef(false);
     const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const currentView = history[historyIndex];
@@ -192,8 +191,7 @@ const App: React.FC = () => {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session?.user) {
                     const role = await hydrateUser(session.user.id);
-                    if (!isClaimRoute && !hasRoutedOnAuth.current) {
-                        hasRoutedOnAuth.current = true;
+                    if (!isClaimRoute && !state.history.length) {
                         navigate(getLandingViewForRole(role));
                     }
                 }
@@ -212,11 +210,9 @@ const App: React.FC = () => {
 
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
-                hasRoutedOnAuth.current = false;
             } else if (event === 'SIGNED_IN' && session?.user) {
                 const role = await hydrateUser(session.user.id);
-                if (!isClaimRoute && !hasRoutedOnAuth.current) {
-                    hasRoutedOnAuth.current = true;
+                if (!isClaimRoute) {
                     navigate(getLandingViewForRole(role));
                 }
             }
@@ -295,11 +291,9 @@ const App: React.FC = () => {
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                {!bootComplete ? <LoadingSpinner currentUser={currentUser} /> : (
-                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                        {renderView()}
-                    </Suspense>
-                )}
+                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                    {renderView()}
+                </Suspense>
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}
