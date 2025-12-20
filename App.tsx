@@ -166,8 +166,7 @@ const App: React.FC = () => {
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
             } else {
-                console.warn("[App] Auth user exists but profile missing. Onboarding required.");
-                navigate(AppView.CHOOSE_PROFILE);
+                console.warn("[App] Auth user exists but profile missing.");
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
@@ -175,7 +174,7 @@ const App: React.FC = () => {
             setIsHydrated(true);
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigate]);
+    }, [dispatch]);
 
     useEffect(() => {
         // Auth Hydration Gate
@@ -201,7 +200,6 @@ const App: React.FC = () => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
-                navigate(AppView.LANDING_PAGE);
             } else if (event === 'SIGNED_IN' && session?.user) {
                 await hydrateUser(session.user.id);
             }
@@ -212,7 +210,7 @@ const App: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser, navigate]); 
+    }, [dispatch, hydrateUser]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
