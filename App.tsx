@@ -169,29 +169,20 @@ const App: React.FC = () => {
                 if (!isInitialLoad || currentView === AppView.LANDING_PAGE) {
                     handleHydrationRouting(res.role as UserRole);
                 }
-            } else {
-                // Auth valid but no profile record
-                // Only redirect to onboarding if the user is explicitly trying to access the app (not just viewing the landing page)
-                if (currentView === AppView.LOGIN) {
-                    navigate(AppView.CHOOSE_PROFILE);
-                }
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, navigate, currentView, handleHydrationRouting]);
+    }, [dispatch, currentView, handleHydrationRouting]);
 
     useEffect(() => {
         const bootstrap = async () => {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+            // SILENT initialization - we don't set isLoading: true here to avoid blocking Home
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id, true);
-            } else {
-                // No session: Stay put, stop loading
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
         
@@ -281,8 +272,8 @@ const App: React.FC = () => {
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                {isLoading ? <LoadingSpinner message="Authenticating session..." /> : (
-                    <Suspense fallback={<LoadingSpinner message="Initializing interface..." />}>
+                {isLoading ? <LoadingSpinner message="Processing request..." /> : (
+                    <Suspense fallback={<LoadingSpinner message="Loading interface..." />}>
                         {renderView()}
                     </Suspense>
                 )}

@@ -209,7 +209,7 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: true, 
+    isLoading: false, 
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -223,7 +223,6 @@ const initialState: AppState = {
     isSmartRepliesLoading: false,
     isAddFundsOpen: false,
     isPayoutOpen: false,
-    // FIX: Corrected typo 'isMixing conceptModalOpen' to 'isMixingModalOpen' to match AppState interface.
     isMixingModalOpen: false,
     isAriaCantataOpen: false,
     ariaHistory: [],
