@@ -1,6 +1,6 @@
 import React, { useEffect, lazy, Suspense, useCallback, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaNudgeData, Label } from './types';
-import { AppView, UserRole } from './types';
+import { AppView, UserRole, UserRole as UserRoleEnum } from './types';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
 
 // Import Custom Hooks
@@ -15,8 +15,9 @@ import { useProfile } from './hooks/useProfile.ts';
 import { useVibeMatcher } from './hooks/useVibeMatcher.ts';
 import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
+import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { supabase } from './lib/supabase.ts';
+import { getSupabase, performLogout, supabase } from './lib/supabase.ts';
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
@@ -77,15 +78,23 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
 
-const LoadingSpinner: React.FC<{ message?: string }> = ({ message = "Loading..." }) => (
-    <div className="flex flex-col justify-center items-center py-20 space-y-4">
-        <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <p className="text-zinc-500 font-medium animate-pulse">{message}</p>
-    </div>
-);
+const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
+    if (currentUser && currentUser.animated_logo_url) {
+        return (
+            <div className="flex justify-center items-center py-20">
+                <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
+            </div>
+        );
+    }
+    return (
+        <div className="flex justify-center items-center py-20">
+            <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+    );
+};
 
 const App: React.FC = () => {
     const state = useAppState();
@@ -97,6 +106,9 @@ const App: React.FC = () => {
         ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
         bookings, engineers
     } = state;
+
+    const [isHydrated, setIsHydrated] = useState(false);
+    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
@@ -133,12 +145,27 @@ const App: React.FC = () => {
     const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
 
     const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
-        startConversation, navigate, viewStoodioDetails, viewEngineerProfile, viewProducerProfile, viewArtistProfile, navigateToStudio, confirmBooking, updateProfile, selectRoleToSetup, logout,
+        startConversation,
+        navigate,
+        viewStoodioDetails,
+        viewEngineerProfile,
+        viewProducerProfile,
+        viewArtistProfile,
+        navigateToStudio,
+        confirmBooking,
+        updateProfile,
+        selectRoleToSetup,
+        logout,
     });
 
     useRealtimeLocation({ currentUser });
 
-    // decides where to go once auth is confirmed
+    /**
+     * Decisions on where to go once auth is confirmed.
+     * UPDATED: Now directs users to 'The Stage' (AppView.THE_STAGE) as requested, 
+     * instead of role-specific dashboards. Subscription checks are 
+     * disabled for navigation gating.
+     */
     const navigateToDashboard = useCallback((role: UserRole) => {
         // Restricted views that trigger an automatic redirect when a user is logged in
         const restricted = [AppView.LANDING_PAGE, AppView.LOGIN];
@@ -175,6 +202,7 @@ const App: React.FC = () => {
         } catch (error) {
             console.error("[App] Hydration error:", error);
         } finally {
+            setIsHydrated(true);
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
     }, [dispatch, navigate, currentView, handleHydrationRouting]);
@@ -186,7 +214,8 @@ const App: React.FC = () => {
             if (session?.user) {
                 await hydrateUser(session.user.id, true);
             } else {
-                // Explicitly stop loading if no session exists to ensure UI interaction (e.g. Login button)
+                // Explicitly stop loading if no session exists to ensure UI interaction (e.g. Login button is enabled)
+                setIsHydrated(true);
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
@@ -226,6 +255,8 @@ const App: React.FC = () => {
     }, [dispatch, navigateToDashboard]);
 
     const renderView = () => {
+        if (!isHydrated) return <LoadingSpinner currentUser={null} />;
+
         switch (currentView) {
             case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
             case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
@@ -277,8 +308,8 @@ const App: React.FC = () => {
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                {isLoading ? <LoadingSpinner message="Processing request..." /> : (
-                    <Suspense fallback={<LoadingSpinner message="Loading interface..." />}>
+                {isLoading ? <LoadingSpinner currentUser={currentUser} /> : (
+                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
                         {renderView()}
                     </Suspense>
                 )}
