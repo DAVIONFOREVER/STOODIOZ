@@ -112,7 +112,7 @@ export enum ActionTypes {
     SET_INITIAL_ARIA_PROMPT = 'SET_INITIAL_ARIA_PROMPT',
     SET_ARIA_NUDGE = 'SET_ARIA_NUDGE',
     SET_IS_NUDGE_VISIBLE = 'SET_IS_NUDGE_VISIBLE',
-    RESET_PROFILE_SELECTIONS = 'RESET_PROFILE_SELElections',
+    RESET_PROFILE_SELECTIONS = 'RESET_PROFILE_SELECTIONS',
     SET_DASHBOARD_TAB = 'SET_DASHBOARD_TAB',
     OPEN_PURCHASE_MASTERCLASS_MODAL = 'OPEN_PURCHASE_MASTERCLASS_MODAL',
     CLOSE_PURCHASE_MASTERCLASS_MODAL = 'CLOSE_PURCHASE_MASTERCLASS_MODAL',
@@ -131,7 +131,7 @@ type Payload = {
     [ActionTypes.SET_INITIAL_DATA]: { artists: Artist[]; engineers: Engineer[]; producers: Producer[]; stoodioz: Stoodio[]; labels: Label[]; reviews: Review[] };
     [ActionTypes.SET_LOADING]: { isLoading: boolean };
     [ActionTypes.LOGIN_SUCCESS]: { user: Artist | Engineer | Stoodio | Producer | Label, role?: UserRole };
-    [ActionTypes.LOGIN_FAILURE]: { error: string };
+    [ActionTypes.LOGIN_FAILURE]: { error: string | null };
     [ActionTypes.LOGOUT]: undefined;
     [ActionTypes.COMPLETE_SETUP]: { newUser: Artist | Engineer | Stoodio | Producer | Label, role: UserRole };
     [ActionTypes.VIEW_STOODIO_DETAILS]: { stoodio: Stoodio };
@@ -209,7 +209,7 @@ const initialState: AppState = {
     selectedProducer: null,
     selectedLabel: null,
     latestBooking: null,
-    isLoading: true, // Default to true for hydration
+    isLoading: false, 
     bookingTime: null,
     activeSession: null,
     tipModalBooking: null,
@@ -273,7 +273,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return {
                 ...state,
                 ...action.payload,
-                // Do NOT set isLoading: false here, wait for hydration
             };
         case ActionTypes.SET_LOADING:
             return { ...state, isLoading: action.payload.isLoading };
@@ -447,6 +446,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, ariaNudge: action.payload.nudge };
         case ActionTypes.SET_IS_NUDGE_VISIBLE:
             return { ...state, isNudgeVisible: action.payload.isVisible };
+        case ActionTypes.RESET_PROFILE_SELECTIONS:
+            return { ...state, selectedStoodio: null, selectedArtist: null, selectedEngineer: null, selectedProducer: null, selectedLabel: null };
         case ActionTypes.SET_DASHBOARD_TAB:
             return { ...state, dashboardInitialTab: action.payload.tab };
         case ActionTypes.OPEN_PURCHASE_MASTERCLASS_MODAL:
@@ -469,7 +470,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return state;
     }
 };
-
 
 // --- CONTEXT AND PROVIDER ---
 
