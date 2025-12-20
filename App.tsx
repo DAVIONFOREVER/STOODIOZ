@@ -138,12 +138,7 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
-    /**
-     * Decisions on where to go once auth is confirmed.
-     * UPDATED: Now directs users to 'The Stage' (AppView.THE_STAGE) as requested, 
-     * instead of role-specific dashboards. Subscription checks are 
-     * disabled for navigation gating.
-     */
+    // decides where to go once auth is confirmed
     const navigateToDashboard = useCallback((role: UserRole) => {
         // Restricted views that trigger an automatic redirect when a user is logged in
         const restricted = [AppView.LANDING_PAGE, AppView.LOGIN];
@@ -190,6 +185,9 @@ const App: React.FC = () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id, true);
+            } else {
+                // Explicitly stop loading if no session exists to ensure UI interaction (e.g. Login button)
+                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
             }
         };
         
