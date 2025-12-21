@@ -24,6 +24,7 @@ export const useAuth = (navigate: (view: any) => void) => {
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
                 return;
             }
+dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
 
             // If success, App.tsx SIGNED_IN listener takes over hydration and navigation.
         } catch (err: any) {
