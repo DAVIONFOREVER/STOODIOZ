@@ -107,8 +107,6 @@ const App: React.FC = () => {
         bookings, engineers
     } = state;
 
-    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
-
     const currentView = history[historyIndex];
     const canGoBack = historyIndex > 0;
     const canGoForward = historyIndex < history.length - 1;
@@ -159,49 +157,76 @@ const App: React.FC = () => {
 
     useRealtimeLocation({ currentUser });
 
+    /**
+     * Deterministic Navigation Logic
+     * Routes the user based on their role after successful authentication or hydration.
+     */
+    const performPostAuthNavigation = useCallback((role: string | null) => {
+        if (!role) {
+            // If they are logged in but have no role record, they must choose a profile
+            navigate(AppView.CHOOSE_PROFILE);
+            return;
+        }
+
+        // Only redirect if they are on a "guest" view like Landing or Login
+        const guestViews = [AppView.LANDING_PAGE, AppView.LOGIN];
+        if (guestViews.includes(currentView)) {
+            switch(role) {
+                case 'LABEL': navigate(AppView.LABEL_DASHBOARD); break;
+                case 'STOODIO': navigate(AppView.STOODIO_DASHBOARD); break;
+                case 'ENGINEER': navigate(AppView.ENGINEER_DASHBOARD); break;
+                case 'PRODUCER': navigate(AppView.PRODUCER_DASHBOARD); break;
+                default: navigate(AppView.ARTIST_DASHBOARD);
+            }
+        }
+    }, [currentView, navigate]);
+
     const hydrateUser = useCallback(async (userId: string) => {
         try {
             const res = await apiService.fetchCurrentUserProfile(userId);
             if (res) {
                 dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+                performPostAuthNavigation(res.role);
                 return res.role;
             } else {
-                console.warn("[App] Auth session active but profile missing.");
+                console.warn("[App] Profile missing for user:", userId);
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                performPostAuthNavigation(null);
             }
         } catch (error) {
             console.error("[App] Hydration error:", error);
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
         return null;
-    }, [dispatch]);
+    }, [dispatch, performPostAuthNavigation]);
 
     useEffect(() => {
-        // Load initial directory data
+        // 1. Fetch initial directory data
         apiService.getAllPublicUsers().then(directory => {
             dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
         });
 
-        const initApp = async () => {
+        // 2. Check for existing session
+        const checkInitialSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                 await hydrateUser(session.user.id);
             }
         };
-        
-        initApp();
+        checkInitialSession();
 
-        // Listen for auth changes
+        // 3. Setup global auth listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_OUT') {
                 dispatch({ type: ActionTypes.LOGOUT });
-            } else if (event === 'SIGNED_IN' && session?.user) {
+                navigate(AppView.LANDING_PAGE);
+            } else if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
                 await hydrateUser(session.user.id);
             }
         });
         
         return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser]); 
+    }, [dispatch, hydrateUser, navigate]); 
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
@@ -209,13 +234,14 @@ const App: React.FC = () => {
             const result = await apiService.createUser(userData, role);
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
+                performPostAuthNavigation(role);
             }
         } catch (error: any) {
             alert(`Setup failed: ${error.message}`);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch]);
+    }, [dispatch, performPostAuthNavigation]);
 
     const renderView = () => {
         switch (currentView) {
@@ -239,7 +265,7 @@ const App: React.FC = () => {
             case AppView.ARTIST_PROFILE: return <ArtistProfile />;
             case AppView.ENGINEER_LIST: return <EngineerList onSelectEngineer={viewEngineerProfile} onToggleFollow={toggleFollow} />;
             case AppView.ENGINEER_PROFILE: return <EngineerProfile />;
-            case AppView.PRODUCER_LIST: return <ProducerList viewProducerProfile={viewProducerProfile} onToggleFollow={toggleFollow} />;
+            case AppView.PRODUCER_LIST: return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
             case AppView.PRODUCER_PROFILE: return <ProducerProfile />;
             case AppView.THE_STAGE: return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
             case AppView.VIBE_MATCHER_RESULTS: return <VibeMatcherResults onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onBack={() => navigate(AppView.ARTIST_DASHBOARD)} />;
@@ -251,8 +277,8 @@ const App: React.FC = () => {
             case AppView.LABEL_SCOUTING: return <LabelScouting onNavigate={navigate} />;
             case AppView.LABEL_IMPORT: return <LabelRosterImport />;
             case AppView.LABEL_PROFILE: return <LabelProfile />;
-            case AppView.CLAIM_PROFILE: return <ClaimProfile token={claimToken} />;
-            case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={claimToken || ''} />;
+            case AppView.CLAIM_PROFILE: return <ClaimProfile />;
+            case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={''} />;
             case AppView.CLAIM_CONFIRM: return <ClaimConfirmScreen />;
             case AppView.CLAIM_LABEL_PROFILE: return <ClaimLabelProfile onNavigate={navigate} />;
             case AppView.ACTIVE_SESSION: return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;

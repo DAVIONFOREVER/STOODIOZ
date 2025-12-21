@@ -14,7 +14,7 @@ export const useAuth = (navigate: (view: any) => void) => {
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
         try {
-            const { error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
@@ -22,9 +22,13 @@ export const useAuth = (navigate: (view: any) => void) => {
             if (error) {
                 dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
                 dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+                return;
             }
-            // Transition and hydration are handled by App.tsx's auth state listener.
+
+            // SUCCESS: isLoading will be set to false by App.tsx hydration logic
+            // once the SIGNED_IN event fires.
         } catch (err: any) {
+            console.error("Login hook catch block:", err);
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: err.message || "An unexpected error occurred." } });
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
