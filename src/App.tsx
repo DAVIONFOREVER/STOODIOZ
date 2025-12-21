@@ -209,7 +209,9 @@ const App: React.FC = () => {
         const checkInitialSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
-                await hydrateUser(session.user.id);
+               dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+await hydrateUser(session.user.id);
+
             }
         };
         checkInitialSession();
