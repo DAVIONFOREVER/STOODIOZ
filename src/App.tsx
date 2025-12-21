@@ -210,6 +210,11 @@ const App: React.FC = () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.user) {
                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+                if (session?.user) {
+    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+    await hydrateUser(session.user.id);
+}
+
 await hydrateUser(session.user.id);
 
             }
