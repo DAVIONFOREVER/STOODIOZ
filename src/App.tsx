@@ -208,12 +208,17 @@ const App: React.FC = () => {
         // 2. Check for existing session
 const checkInitialSession = async () => {
     const { data: { session } } = await supabase.auth.getSession();
+
     if (session?.user) {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
         await hydrateUser(session.user.id);
+    } else {
+        // 🔴 THIS LINE IS THE FIX
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
     }
 };
 checkInitialSession();
+
 
         // 3. Setup global auth listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
