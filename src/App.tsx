@@ -162,6 +162,8 @@ const App: React.FC = () => {
      * Routes the user based on their role after successful authentication or hydration.
      */
     const performPostAuthNavigation = useCallback((role: string | null) => {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        
         if (!role) {
             // If they are logged in but have no role record, they must choose a profile
             navigate(AppView.CHOOSE_PROFILE);
@@ -179,7 +181,7 @@ const App: React.FC = () => {
                 default: navigate(AppView.ARTIST_DASHBOARD);
             }
         }
-    }, [currentView, navigate]);
+    }, [currentView, navigate, dispatch]);
 
     const hydrateUser = useCallback(async (userId: string) => {
         try {
@@ -190,7 +192,6 @@ const App: React.FC = () => {
                 return res.role;
             } else {
                 console.warn("[App] Profile missing for user:", userId);
-                dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
                 performPostAuthNavigation(null);
             }
         } catch (error) {
@@ -265,7 +266,7 @@ const App: React.FC = () => {
             case AppView.ARTIST_PROFILE: return <ArtistProfile />;
             case AppView.ENGINEER_LIST: return <EngineerList onSelectEngineer={viewEngineerProfile} onToggleFollow={toggleFollow} />;
             case AppView.ENGINEER_PROFILE: return <EngineerProfile />;
-            case AppView.PRODUCER_LIST: return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
+            case AppView.PRODUCER_LIST: return <ProducerList viewProducerProfile={viewProducerProfile} onToggleFollow={toggleFollow} />;
             case AppView.PRODUCER_PROFILE: return <ProducerProfile />;
             case AppView.THE_STAGE: return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
             case AppView.VIBE_MATCHER_RESULTS: return <VibeMatcherResults onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onBack={() => navigate(AppView.ARTIST_DASHBOARD)} />;
@@ -295,9 +296,11 @@ const App: React.FC = () => {
         <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
             <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                    {renderView()}
-                </Suspense>
+                {isLoading && currentView === AppView.LOGIN ? <LoadingSpinner currentUser={currentUser} /> : (
+                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
+                        {renderView()}
+                    </Suspense>
+                )}
             </main>
             {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
             {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}

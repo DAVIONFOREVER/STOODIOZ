@@ -25,10 +25,9 @@ export const useAuth = (navigate: (view: any) => void) => {
                 return;
             }
 
-            // SUCCESS: isLoading will be set to false by App.tsx hydration logic
-            // once the SIGNED_IN event fires.
+            // If success, App.tsx SIGNED_IN listener takes over hydration and navigation.
         } catch (err: any) {
-            console.error("Login hook catch block:", err);
+            console.error("Login hook error:", err);
             dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: err.message || "An unexpected error occurred." } });
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
