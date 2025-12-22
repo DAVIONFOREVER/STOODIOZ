@@ -219,22 +219,20 @@ const App: React.FC = () => {
     // Deterministic Boot Flow
     const initApp = async () => {
   try {
-    if (!supabase) {
-      console.warn('[App] Supabase not ready yet');
-      return;
-    }
+    if (supabase) {
+      const { data } = await supabase.auth.getSession();
 
-    const { data } = await supabase.auth.getSession();
-
-    if (data?.session?.user) {
-      await hydrateUser(data.session.user.id);
+      if (data?.session?.user) {
+        await hydrateUser(data.session.user.id);
+      }
     }
   } catch (error) {
     console.error('[App] Boot error:', error);
   } finally {
-    setBootComplete(true);
+    setBootComplete(true); // ✅ ALWAYS runs
   }
 };
+
 
 
     initApp();
