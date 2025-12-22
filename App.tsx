@@ -17,7 +17,8 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { getSupabase, performLogout, supabase } from './lib/supabase.ts';
+import { supabase } from './lib/supabase';
+
 import * as apiService from './services/apiService.ts';
 
 import Header from './components/Header.tsx';
