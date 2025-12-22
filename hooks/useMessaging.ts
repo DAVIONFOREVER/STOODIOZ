@@ -1,38 +1,48 @@
-
 import { useCallback, useEffect, useState } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { generateSmartReplies } from '../services/geminiService';
 import * as apiService from '../services/apiService';
 import type { Message, Artist, Engineer, Stoodio, Producer, Label } from '../types';
 import { AppView } from '../types';
-import { getSupabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 export const useMessaging = (navigate: (view: AppView) => void) => {
     const dispatch = useAppDispatch();
     const { currentUser, conversations } = useAppState();
-    const [permissionError, setPermissionError] = useState<{ status: string; sender: string; receiver: string } | null>(null);
+    const [permissionError, setPermissionError] = useState<{
+        status: string;
+        sender: string;
+        receiver: string;
+    } | null>(null);
 
-    // Real-time Message Listener
+    /**
+     * Real-time Message Listener
+     * Uses the single global Supabase client.
+     * No getSupabase. No null guards. No duplicate clients.
+     */
     useEffect(() => {
-        const supabase = getSupabase();
-        if (!supabase || !currentUser) return;
+        if (!currentUser) return;
 
-        // Subscribing to all messages. Row Level Security (RLS) on the backend 
-        // will ensure we only receive messages for conversations we are part of.
-        const channel = supabase.channel('public:messages')
+        const channel = supabase
+            .channel('public:messages')
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'messages' },
                 async (payload) => {
-                    const newMessageData = payload.new as any;
-                    
-                    // If we sent it, we likely already updated optimistically 
-                    if (newMessageData.sender_id === currentUser.id) return; 
+                    const newMessage = payload.new as any;
 
-                    // Fetch the latest state of conversations to ensure we append correctly
-                    // Ideally we just append to state, but fetching ensures sync
-                    const updatedConversations = await apiService.fetchConversations(currentUser.id);
-                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
+                    // Ignore messages we sent ourselves (optimistic update already handled)
+                    if (newMessage.sender_id === currentUser.id) return;
+
+                    try {
+                        const updatedConversations = await apiService.fetchConversations(currentUser.id);
+                        dispatch({
+                            type: ActionTypes.SET_CONVERSATIONS,
+                            payload: { conversations: updatedConversations },
+                        });
+                    } catch (err) {
+                        console.error('Failed to refresh conversations', err);
+                    }
                 }
             )
             .subscribe();
@@ -42,118 +52,177 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
         };
     }, [currentUser, dispatch]);
 
-    const fetchSmartReplies = useCallback(async (messages: Message[]) => {
-        if (!currentUser) return;
-        dispatch({ type: ActionTypes.SET_IS_SMART_REPLIES_LOADING, payload: { isLoading: true } });
-        try {
-            const replies = await generateSmartReplies(messages, currentUser.id);
-            dispatch({ type: ActionTypes.SET_SMART_REPLIES, payload: { replies } });
-        } catch (error) {
-            console.error("Failed to fetch smart replies", error);
-        } finally {
-            dispatch({ type: ActionTypes.SET_IS_SMART_REPLIES_LOADING, payload: { isLoading: false } });
-        }
-    }, [currentUser, dispatch]);
+    const fetchSmartReplies = useCallback(
+        async (messages: Message[]) => {
+            if (!currentUser) return;
 
-    const startConversation = useCallback(async (participant: Artist | Engineer | Stoodio | Producer | Label, initialMessageText?: string) => {
-        if (!currentUser) return;
-        
-        // Check if conversation already exists locally first
-        const existingConvo = conversations.find(c => 
-            c.participants.some(p => p.id === participant.id) && 
-            c.participants.some(p => p.id === currentUser.id)
-        );
+            dispatch({
+                type: ActionTypes.SET_IS_SMART_REPLIES_LOADING,
+                payload: { isLoading: true },
+            });
 
-        let conversationId = existingConvo?.id;
-
-        if (!existingConvo) {
-            // Create real conversation in DB
             try {
-                const newConvoData = await apiService.createConversation([currentUser.id, participant.id]);
-                
-                // Handle blocking logic
-                if (newConvoData && newConvoData.blocked_by_label_permissions) {
-                    setPermissionError({
-                        status: newConvoData.reason,
-                        sender: newConvoData.sender_id,
-                        receiver: newConvoData.receiver_id
-                    });
+                const replies = await generateSmartReplies(messages, currentUser.id);
+                dispatch({
+                    type: ActionTypes.SET_SMART_REPLIES,
+                    payload: { replies },
+                });
+            } catch (error) {
+                console.error('Failed to fetch smart replies', error);
+            } finally {
+                dispatch({
+                    type: ActionTypes.SET_IS_SMART_REPLIES_LOADING,
+                    payload: { isLoading: false },
+                });
+            }
+        },
+        [currentUser, dispatch]
+    );
+
+    const startConversation = useCallback(
+        async (
+            participant: Artist | Engineer | Stoodio | Producer | Label,
+            initialMessageText?: string
+        ) => {
+            if (!currentUser) return;
+
+            const existingConversation = conversations.find(
+                (c) =>
+                    c.participants.some((p) => p.id === participant.id) &&
+                    c.participants.some((p) => p.id === currentUser.id)
+            );
+
+            let conversationId = existingConversation?.id;
+
+            if (!existingConversation) {
+                try {
+                    const newConversation = await apiService.createConversation([
+                        currentUser.id,
+                        participant.id,
+                    ]);
+
+                    if (newConversation?.blocked_by_label_permissions) {
+                        setPermissionError({
+                            status: newConversation.reason,
+                            sender: newConversation.sender_id,
+                            receiver: newConversation.receiver_id,
+                        });
+                        return;
+                    }
+
+                    if (newConversation) {
+                        conversationId = newConversation.id;
+                        const updated = await apiService.fetchConversations(currentUser.id);
+                        dispatch({
+                            type: ActionTypes.SET_CONVERSATIONS,
+                            payload: { conversations: updated },
+                        });
+                    }
+                } catch (err) {
+                    console.error('Failed to create conversation', err);
                     return;
                 }
-
-                if (newConvoData) {
-                    conversationId = newConvoData.id;
-                    // Refresh to get the new conversation object with full details
-                    const updatedConversations = await apiService.fetchConversations(currentUser.id);
-                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
-                }
-            } catch (e) {
-                console.error("Failed to create conversation", e);
-                return;
             }
-        }
 
-        if (conversationId) {
-            dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId } });
-            
+            if (!conversationId) return;
+
+            dispatch({
+                type: ActionTypes.SET_SELECTED_CONVERSATION,
+                payload: { conversationId },
+            });
+
             if (initialMessageText) {
-                await apiService.sendMessage(conversationId, currentUser.id, initialMessageText);
-                // Re-fetch to sync the new message
-                const updatedConversations = await apiService.fetchConversations(currentUser.id);
-                dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
+                await apiService.sendMessage(
+                    conversationId,
+                    currentUser.id,
+                    initialMessageText
+                );
+
+                const updated = await apiService.fetchConversations(currentUser.id);
+                dispatch({
+                    type: ActionTypes.SET_CONVERSATIONS,
+                    payload: { conversations: updated },
+                });
             }
+
             navigate(AppView.INBOX);
-        }
+        },
+        [conversations, currentUser, dispatch, navigate]
+    );
 
-    }, [conversations, currentUser, dispatch, navigate]);
+    const sendMessage = useCallback(
+        async (
+            conversationId: string,
+            messageContent: Omit<Message, 'id' | 'sender_id' | 'timestamp'>
+        ) => {
+            if (!currentUser) return;
 
-    const sendMessage = useCallback(async (conversationId: string, messageContent: Omit<Message, 'id' | 'sender_id' | 'timestamp'>) => {
-        if (!currentUser) return;
+            // Optimistic UI update
+            const optimisticMessage: Message = {
+                id: `tmp-${Date.now()}`,
+                sender_id: currentUser.id,
+                timestamp: new Date().toISOString(),
+                ...messageContent,
+            };
 
-        // Optimistic update
-        const tempId = `msg-${Date.now()}`;
-        const optimisticMessage: Message = {
-            id: tempId,
-            sender_id: currentUser.id,
-            timestamp: new Date().toISOString(),
-            ...messageContent
-        };
+            const optimisticConversations = conversations.map((c) =>
+                c.id === conversationId
+                    ? { ...c, messages: [...c.messages, optimisticMessage] }
+                    : c
+            );
 
-        const updatedConversations = conversations.map(c => {
-            if (c.id === conversationId) {
-                return { ...c, messages: [...c.messages, optimisticMessage] };
+            dispatch({
+                type: ActionTypes.SET_CONVERSATIONS,
+                payload: { conversations: optimisticConversations },
+            });
+
+            try {
+                const { text, type, files, image_url, audio_url } = messageContent;
+
+                let fileData: any = null;
+                if (type === 'files') fileData = files;
+                else if (type === 'image') fileData = { url: image_url };
+                else if (type === 'audio') fileData = { url: audio_url };
+
+                await apiService.sendMessage(
+                    conversationId,
+                    currentUser.id,
+                    text || '',
+                    type,
+                    fileData
+                );
+
+                const conversation = optimisticConversations.find(
+                    (c) => c.id === conversationId
+                );
+
+                if (conversation) {
+                    fetchSmartReplies(conversation.messages);
+                }
+            } catch (err) {
+                console.error('Message send failed', err);
+                alert('Message failed to send.');
             }
-            return c;
-        });
-        dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updatedConversations } });
+        },
+        [conversations, currentUser, dispatch, fetchSmartReplies]
+    );
 
-        // API Call
-        try {
-            const { text, type, files, image_url, audio_url } = messageContent;
-            let content = text || '';
-            let fileData = null;
-            
-            if (type === 'files') fileData = files;
-            else if (type === 'image') fileData = { url: image_url };
-            else if (type === 'audio') fileData = { url: audio_url };
+    const selectConversation = useCallback(
+        (conversationId: string | null) => {
+            dispatch({
+                type: ActionTypes.SET_SELECTED_CONVERSATION,
+                payload: { conversationId },
+            });
+        },
+        [dispatch]
+    );
 
-            await apiService.sendMessage(conversationId, currentUser.id, content, type, fileData);
-            
-            // Trigger smart replies generation
-            const conversation = updatedConversations.find(c => c.id === conversationId);
-            if (conversation) fetchSmartReplies(conversation.messages);
-
-        } catch (e) {
-            console.error("Send failed", e);
-            // In a production app, we would revert the optimistic update here
-            alert("Message failed to send.");
-        }
-
-    }, [conversations, currentUser, dispatch, fetchSmartReplies]);
-
-    const selectConversation = useCallback((conversationId: string | null) => {
-         dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId } });
-    }, [dispatch]);
-
-    return { sendMessage, selectConversation, fetchSmartReplies, startConversation, permissionError, setPermissionError };
+    return {
+        sendMessage,
+        selectConversation,
+        fetchSmartReplies,
+        startConversation,
+        permissionError,
+        setPermissionError,
+    };
 };
