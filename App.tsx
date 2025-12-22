@@ -18,8 +18,8 @@ import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 
-// ✅ FIX: project uses /src for lib files, root App.tsx must reference it explicitly
-import { supabase } from './src/lib/supabase';
+import { supabase } from './lib/supabase';
+
 
 import * as apiService from './services/apiService.ts';
 
