@@ -446,8 +446,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, ariaNudge: action.payload.nudge };
         case ActionTypes.SET_IS_NUDGE_VISIBLE:
             return { ...state, isNudgeVisible: action.payload.isVisible };
-        case ActionTypes.RESET_PROFILE_SELECTIONS:
-            return { ...state, selectedStoodio: null, selectedArtist: null, selectedEngineer: null, selectedProducer: null, selectedLabel: null };
         case ActionTypes.SET_DASHBOARD_TAB:
             return { ...state, dashboardInitialTab: action.payload.tab };
         case ActionTypes.OPEN_PURCHASE_MASTERCLASS_MODAL:
