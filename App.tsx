@@ -218,19 +218,24 @@ const App: React.FC = () => {
   useEffect(() => {
     // Deterministic Boot Flow
     const initApp = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session?.user) {
-          await hydrateUser(session.user.id);
-        }
-      } catch (error) {
-        console.error('[App] Boot error:', error);
-      } finally {
-        setBootComplete(true);
-      }
-    };
+  try {
+    if (!supabase) {
+      console.warn('[App] Supabase not ready yet');
+      return;
+    }
+
+    const { data } = await supabase.auth.getSession();
+
+    if (data?.session?.user) {
+      await hydrateUser(data.session.user.id);
+    }
+  } catch (error) {
+    console.error('[App] Boot error:', error);
+  } finally {
+    setBootComplete(true);
+  }
+};
+
 
     initApp();
 
