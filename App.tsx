@@ -17,7 +17,9 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { supabase } from './lib/supabase';
+
+// ✅ FIX: project uses /src for lib files, root App.tsx must reference it explicitly
+import { supabase } from './src/lib/supabase';
 
 import * as apiService from './services/apiService.ts';
 
@@ -62,7 +64,7 @@ const LabelSetup = lazy(() => import('./components/LabelSetup.tsx'));
 const LabelDashboard = lazy(() => import('./components/LabelDashboard.tsx'));
 const LabelScouting = lazy(() => import('./components/LabelScouting.tsx'));
 const LabelRosterImport = lazy(() => import('./components/LabelRosterImport.tsx'));
-const LabelProfile = lazy(() => import('./components/LabelProfile.tsx')); 
+const LabelProfile = lazy(() => import('./components/LabelProfile.tsx'));
 const ClaimProfile = lazy(() => import('./components/ClaimProfile.tsx'));
 const ClaimEntryScreen = lazy(() => import('./components/ClaimEntryScreen.tsx'));
 const ClaimConfirmScreen = lazy(() => import('./components/ClaimConfirmScreen.tsx'));
@@ -76,243 +78,475 @@ const AriaCantataAssistant = lazy(() => import('./components/AriaAssistant.tsx')
 const AdminRankings = lazy(() => import('./components/AdminRankings.tsx'));
 const StudioInsights = lazy(() => import('./components/StudioInsights.tsx'));
 const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
-const AssetVault = lazy(() => import('./components/AssetVault.tsx')); 
-const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx')); 
+const AssetVault = lazy(() => import('./components/AssetVault.tsx'));
+const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx'));
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
-    if (currentUser && currentUser.animated_logo_url) {
-        return (
-            <div className="flex justify-center items-center py-20">
-                <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
-            </div>
-        );
-    }
+  if (currentUser && currentUser.animated_logo_url) {
     return (
-        <div className="flex justify-center items-center py-20">
-            <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-        </div>
+      <div className="flex justify-center items-center py-20">
+        <img src={currentUser.animated_logo_url as string} alt="Loading..." className="h-24 w-auto" />
+      </div>
     );
+  }
+  return (
+    <div className="flex justify-center items-center py-20">
+      <svg className="animate-spin h-10 w-10 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path
+          className="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+    </div>
+  );
 };
 
 const App: React.FC = () => {
-    const state = useAppState();
-    const dispatch = useAppDispatch();
-    const { 
-        history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
-        isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
-        isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
-        ariaNudge, isNudgeVisible, notifications, ariaHistory, initialAriaCantataPrompt, selectedProducer, bookingIntent,
-        bookings, engineers
-    } = state;
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const {
+    history,
+    historyIndex,
+    currentUser,
+    userRole,
+    loginError,
+    selectedStoodio,
+    selectedEngineer,
+    isLoading,
+    bookingTime,
+    tipModalBooking,
+    bookingToCancel,
+    isVibeMatcherOpen,
+    isVibeMatcherLoading,
+    isAddFundsOpen,
+    isPayoutOpen,
+    isMixingModalOpen,
+    isAriaCantataOpen,
+    ariaNudge,
+    isNudgeVisible,
+    notifications,
+    ariaHistory,
+    initialAriaCantataPrompt,
+    selectedProducer,
+    bookingIntent,
+    bookings,
+    engineers,
+  } = state;
 
-    const [bootComplete, setBootComplete] = useState(false);
-    const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
+  const [bootComplete, setBootComplete] = useState(false);
+  const [claimToken, setClaimToken] = useState<string | undefined>(undefined);
 
-    const currentView = history[historyIndex];
-    const canGoBack = historyIndex > 0;
-    const canGoForward = historyIndex < history.length - 1;
-    
-    const { navigate, goBack, goForward, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, navigateToStudio, startNavigationForBooking } = useNavigation();
-    const { login, logout, selectRoleToSetup } = useAuth(navigate);
-    
-    const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
-    const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
-    const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
-    const { updateProfile, refreshCurrentUser } = useProfile();
-    const { vibeMatch } = useVibeMatcher();
-    const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
-    const { handleSubscribe } = useSubscription(navigate);
-    const { startConversation } = useMessaging(navigate);
+  const currentView = history[historyIndex];
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
 
-    const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
-    const closeTipModal = () => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
-    const closeCancelModal = () => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL });
-    const closeVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } });
-    const closeAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
-    const closePayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });
-    const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
-    const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
-    const toggleAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
+  const {
+    navigate,
+    goBack,
+    goForward,
+    viewStoodioDetails,
+    viewArtistProfile,
+    viewEngineerProfile,
+    viewProducerProfile,
+    navigateToStudio,
+    startNavigationForBooking,
+  } = useNavigation();
+  const { login, logout, selectRoleToSetup } = useAuth(navigate);
 
-    const handleOpenAriaFromFAB = () => {
-        dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
-        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+  const { openBookingModal, initiateBookingWithEngineer, initiateBookingWithProducer, confirmBooking, confirmCancellation } = useBookings(navigate);
+  const { createPost, likePost, commentOnPost, toggleFollow, markAsRead, markAllAsRead, dismissNotification } = useSocial();
+  const { startSession, endSession, confirmTip, addFunds, requestPayout } = useSession(navigate);
+  const { updateProfile, refreshCurrentUser } = useProfile();
+  const { vibeMatch } = useVibeMatcher();
+  const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
+  const { handleSubscribe } = useSubscription(navigate);
+  const { startConversation } = useMessaging(navigate);
+
+  const closeBookingModal = () => dispatch({ type: ActionTypes.CLOSE_BOOKING_MODAL });
+  const closeTipModal = () => dispatch({ type: ActionTypes.CLOSE_TIP_MODAL });
+  const closeCancelModal = () => dispatch({ type: ActionTypes.CLOSE_CANCEL_MODAL });
+  const closeVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: false } });
+  const closeAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
+  const closePayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });
+  const closeMixingModal = () => dispatch({ type: ActionTypes.SET_MIXING_MODAL_OPEN, payload: { isOpen: false } });
+  const closeAriaCantata = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: false } });
+  const toggleAriaCantata = () =>
+    dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: !isAriaCantataOpen } });
+
+  const handleOpenAriaFromFAB = () => {
+    dispatch({ type: ActionTypes.SET_IS_NUDGE_VISIBLE, payload: { isVisible: false } });
+    dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+  };
+
+  const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
+  const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
+
+  const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
+    startConversation,
+    navigate,
+    viewStoodioDetails,
+    viewEngineerProfile,
+    viewProducerProfile,
+    viewArtistProfile,
+    navigateToStudio,
+    confirmBooking,
+    updateProfile,
+    selectRoleToSetup,
+    logout,
+  });
+
+  useRealtimeLocation({ currentUser });
+
+  const hydrateUser = useCallback(
+    async (userId: string) => {
+      try {
+        const res = await apiService.fetchCurrentUserProfile(userId);
+        if (res) {
+          dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+        } else {
+          console.warn('[App] Auth session active but profile missing.');
+        }
+      } catch (error) {
+        console.error('[App] Hydration error:', error);
+      }
+    },
+    [dispatch]
+  );
+
+  useEffect(() => {
+    // Deterministic Boot Flow
+    const initApp = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user) {
+          await hydrateUser(session.user.id);
+        }
+      } catch (error) {
+        console.error('[App] Boot error:', error);
+      } finally {
+        setBootComplete(true);
+      }
     };
 
-    const openTipModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_TIP_MODAL, payload: { booking } });
-    const openCancelModal = (booking: Booking) => dispatch({ type: ActionTypes.OPEN_CANCEL_MODAL, payload: { booking } });
+    initApp();
 
-    const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
-        startConversation,
-        navigate,
-        viewStoodioDetails,
-        viewEngineerProfile,
-        viewProducerProfile,
-        viewArtistProfile,
-        navigateToStudio,
-        confirmBooking,
-        updateProfile,
-        selectRoleToSetup,
-        logout,
+    // Listen for directory data
+    apiService.getAllPublicUsers().then((directory) => {
+      dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
     });
 
-    useRealtimeLocation({ currentUser });
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        dispatch({ type: ActionTypes.LOGOUT });
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        await hydrateUser(session.user.id);
+      }
+    });
 
-    const hydrateUser = useCallback(async (userId: string) => {
-        try {
-            const res = await apiService.fetchCurrentUserProfile(userId);
-            if (res) {
-                dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-            } else {
-                console.warn("[App] Auth session active but profile missing.");
-            }
-        } catch (error) {
-            console.error("[App] Hydration error:", error);
+    return () => subscription.unsubscribe();
+  }, [dispatch, hydrateUser]);
+
+  const completeSetup = useCallback(
+    async (userData: any, role: UserRole) => {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+      try {
+        const result = await apiService.createUser(userData, role);
+        if (result) {
+          dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
         }
-    }, [dispatch]);
+      } catch (error: any) {
+        alert(`Setup failed: ${error.message}`);
+      } finally {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+      }
+    },
+    [dispatch]
+  );
 
-    useEffect(() => {
-        // Deterministic Boot Flow
-        const initApp = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                    await hydrateUser(session.user.id);
-                }
-            } catch (error) {
-                console.error("[App] Boot error:", error);
-            } finally {
-                setBootComplete(true);
+  const renderView = () => {
+    switch (currentView) {
+      case AppView.LANDING_PAGE:
+        return (
+          <LandingPage
+            onNavigate={navigate}
+            onSelectStoodio={viewStoodioDetails}
+            onSelectProducer={viewProducerProfile}
+            onOpenAriaCantata={toggleAriaCantata}
+            onLogout={logout}
+          />
+        );
+      case AppView.LOGIN:
+        return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
+      case AppView.CHOOSE_PROFILE:
+        return <ChooseProfile onSelectRole={selectRoleToSetup} />;
+      case AppView.ARTIST_SETUP:
+        return (
+          <ArtistSetup
+            onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) =>
+              completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ARTIST)
             }
-        };
-        
-        initApp();
-
-        // Listen for directory data
-        apiService.getAllPublicUsers().then(directory => {
-            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
-        });
-
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_OUT') {
-                dispatch({ type: ActionTypes.LOGOUT });
-            } else if (event === 'SIGNED_IN' && session?.user) {
-                await hydrateUser(session.user.id);
+            onNavigate={navigate}
+            isLoading={isLoading}
+          />
+        );
+      case AppView.ENGINEER_SETUP:
+        return (
+          <EngineerSetup
+            onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) =>
+              completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ENGINEER)
             }
-        });
-        
-        return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser]); 
-
-    const completeSetup = useCallback(async (userData: any, role: UserRole) => {
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-        try {
-            const result = await apiService.createUser(userData, role);
-            if (result) {
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
+            onNavigate={navigate}
+            isLoading={isLoading}
+          />
+        );
+      case AppView.PRODUCER_SETUP:
+        return (
+          <ProducerSetup
+            onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) =>
+              completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.PRODUCER)
             }
-        } catch (error: any) {
-            alert(`Setup failed: ${error.message}`);
-        } finally {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            onNavigate={navigate}
+            isLoading={isLoading}
+          />
+        );
+      case AppView.STOODIO_SETUP:
+        return (
+          <StoodioSetup
+            onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) =>
+              completeSetup(
+                { name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile },
+                UserRole.STOODIO
+              )
+            }
+            onNavigate={navigate}
+            isLoading={isLoading}
+          />
+        );
+      case AppView.LABEL_SETUP:
+        return <LabelSetup onCompleteSetup={(data) => completeSetup(data, UserRole.LABEL)} onNavigate={navigate} />;
+      case AppView.PRIVACY_POLICY:
+        return <PrivacyPolicy onBack={goBack} />;
+      case AppView.SUBSCRIPTION_PLANS:
+        return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
+      case AppView.STOODIO_LIST:
+        return <StoodioList onSelectStoodio={viewStoodioDetails} />;
+      case AppView.STOODIO_DETAIL:
+        return <StoodioDetail />;
+      case AppView.CONFIRMATION:
+        return <BookingConfirmation onDone={() => navigate(AppView.MY_BOOKINGS)} />;
+      case AppView.MY_BOOKINGS:
+        return (
+          <MyBookings
+            bookings={bookings}
+            engineers={engineers}
+            onOpenTipModal={openTipModal}
+            onNavigateToStudio={navigateToStudio}
+            onOpenCancelModal={openCancelModal}
+            onArtistNavigate={startNavigationForBooking}
+            userRole={userRole}
+          />
+        );
+      case AppView.INBOX:
+        return <Inbox />;
+      case AppView.MAP_VIEW:
+        return (
+          <MapView
+            onSelectStoodio={viewStoodioDetails}
+            onSelectEngineer={viewEngineerProfile}
+            onSelectArtist={viewArtistProfile}
+            onSelectProducer={viewProducerProfile}
+          />
+        );
+      case AppView.ARTIST_LIST:
+        return <ArtistList onSelectArtist={viewArtistProfile} onToggleFollow={toggleFollow} />;
+      case AppView.ARTIST_PROFILE:
+        return <ArtistProfile />;
+      case AppView.ENGINEER_LIST:
+        return <EngineerList onSelectEngineer={viewEngineerProfile} onToggleFollow={toggleFollow} />;
+      case AppView.ENGINEER_PROFILE:
+        return <EngineerProfile />;
+      case AppView.PRODUCER_LIST:
+        return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
+      case AppView.PRODUCER_PROFILE:
+        return <ProducerProfile />;
+      case AppView.THE_STAGE:
+        return (
+          <TheStage
+            onPost={createPost}
+            onLikePost={likePost}
+            onCommentOnPost={commentOnPost}
+            onToggleFollow={toggleFollow}
+            onSelectArtist={viewArtistProfile}
+            onSelectEngineer={viewEngineerProfile}
+            onSelectStoodio={viewStoodioDetails}
+            onSelectProducer={viewProducerProfile}
+            onNavigate={navigate}
+          />
+        );
+      case AppView.VIBE_MATCHER_RESULTS:
+        return (
+          <VibeMatcherResults
+            onSelectStoodio={viewStoodioDetails}
+            onSelectEngineer={viewEngineerProfile}
+            onSelectProducer={viewProducerProfile}
+            onBack={() => navigate(AppView.ARTIST_DASHBOARD)}
+          />
+        );
+      case AppView.ARTIST_DASHBOARD:
+        return <ArtistDashboard />;
+      case AppView.STOODIO_DASHBOARD:
+        return <StoodioDashboard />;
+      case AppView.ENGINEER_DASHBOARD:
+        return <EngineerDashboard />;
+      case AppView.PRODUCER_DASHBOARD:
+        return <ProducerDashboard />;
+      case AppView.LABEL_DASHBOARD:
+        return <LabelDashboard />;
+      case AppView.LABEL_SCOUTING:
+        return <LabelScouting onNavigate={navigate} />;
+      case AppView.LABEL_IMPORT:
+        return <LabelRosterImport />;
+      case AppView.LABEL_PROFILE:
+        return <LabelProfile />;
+      case AppView.CLAIM_PROFILE:
+        return <ClaimProfile token={claimToken} />;
+      case AppView.CLAIM_ENTRY:
+        return <ClaimEntryScreen token={claimToken || ''} />;
+      case AppView.CLAIM_CONFIRM:
+        return <ClaimConfirmScreen />;
+      case AppView.CLAIM_LABEL_PROFILE:
+        return <ClaimLabelProfile onNavigate={navigate} />;
+      case AppView.ACTIVE_SESSION:
+        return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
+      case AppView.ADMIN_RANKINGS:
+        return <AdminRankings />;
+      case AppView.STUDIO_INSIGHTS:
+        return <StudioInsights />;
+      case AppView.LEADERBOARD:
+        return <Leaderboard />;
+      case AppView.ASSET_VAULT:
+        return <AssetVault />;
+      case AppView.MASTER_CALENDAR:
+        return <MasterCalendar />;
+      default:
+        return (
+          <LandingPage
+            onNavigate={navigate}
+            onSelectStoodio={viewStoodioDetails}
+            onSelectProducer={viewProducerProfile}
+            onOpenAriaCantata={toggleAriaCantata}
+            onLogout={logout}
+          />
+        );
+    }
+  };
+
+  const renderViewProxy = () => {
+    // Deterministic view routing: only logged-in specific views or chosen history
+    if (currentUser) {
+      // Check if we are currently on an onboarding or auth-only view while logged in
+      const restrictedViews = [
+        AppView.LOGIN,
+        AppView.CHOOSE_PROFILE,
+        AppView.ARTIST_SETUP,
+        AppView.ENGINEER_SETUP,
+        AppView.PRODUCER_SETUP,
+        AppView.STOODIO_SETUP,
+        AppView.LABEL_SETUP,
+      ];
+      if (restrictedViews.includes(currentView)) {
+        // Fallback to role-based dashboard if they try to access setup while logged in
+        switch (userRole) {
+          case UserRole.LABEL:
+            return <LabelDashboard />;
+          case UserRole.STOODIO:
+            return <StoodioDashboard />;
+          case UserRole.ENGINEER:
+            return <EngineerDashboard />;
+          case UserRole.PRODUCER:
+            return <ProducerDashboard />;
+          default:
+            return <ArtistDashboard />;
         }
-    }, [dispatch]);
+      }
+    }
+    return renderView();
+  };
 
-    const renderView = () => {
-        switch (currentView) {
-            case AppView.LANDING_PAGE: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
-            case AppView.LOGIN: return <Login onLogin={login} error={loginError} onNavigate={navigate} isLoading={isLoading} />;
-            case AppView.CHOOSE_PROFILE: return <ChooseProfile onSelectRole={selectRoleToSetup} />;
-            case AppView.ARTIST_SETUP: return <ArtistSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ARTIST)} onNavigate={navigate} isLoading={isLoading} />;
-            case AppView.ENGINEER_SETUP: return <EngineerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ENGINEER)} onNavigate={navigate} isLoading={isLoading} />;
-            case AppView.PRODUCER_SETUP: return <ProducerSetup onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) => completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.PRODUCER)} onNavigate={navigate} isLoading={isLoading} />;
-            case AppView.STOODIO_SETUP: return <StoodioSetup onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) => completeSetup({ name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile }, UserRole.STOODIO)} onNavigate={navigate} isLoading={isLoading} />;
-            case AppView.LABEL_SETUP: return <LabelSetup onCompleteSetup={(data) => completeSetup(data, UserRole.LABEL)} onNavigate={navigate} />;
-            case AppView.PRIVACY_POLICY: return <PrivacyPolicy onBack={goBack} />;
-            case AppView.SUBSCRIPTION_PLANS: return <SubscriptionPlans onSelect={selectRoleToSetup} onSubscribe={handleSubscribe} />;
-            case AppView.STOODIO_LIST: return <StoodioList onSelectStoodio={viewStoodioDetails} />;
-            case AppView.STOODIO_DETAIL: return <StoodioDetail />;
-            case AppView.CONFIRMATION: return <BookingConfirmation onDone={() => navigate(AppView.MY_BOOKINGS)} />;
-            case AppView.MY_BOOKINGS: return <MyBookings bookings={bookings} engineers={engineers} onOpenTipModal={openTipModal} onNavigateToStudio={navigateToStudio} onOpenCancelModal={openCancelModal} onArtistNavigate={startNavigationForBooking} userRole={userRole} />;
-            case AppView.INBOX: return <Inbox />;
-            case AppView.MAP_VIEW: return <MapView onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectArtist={viewArtistProfile} onSelectProducer={viewProducerProfile} />;
-            case AppView.ARTIST_LIST: return <ArtistList onSelectArtist={viewArtistProfile} onToggleFollow={toggleFollow} />;
-            case AppView.ARTIST_PROFILE: return <ArtistProfile />;
-            case AppView.ENGINEER_LIST: return <EngineerList onSelectEngineer={viewEngineerProfile} onToggleFollow={toggleFollow} />;
-            case AppView.ENGINEER_PROFILE: return <EngineerProfile />;
-            case AppView.PRODUCER_LIST: return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
-            case AppView.PRODUCER_PROFILE: return <ProducerProfile />;
-            case AppView.THE_STAGE: return <TheStage onPost={createPost} onLikePost={likePost} onCommentOnPost={commentOnPost} onToggleFollow={toggleFollow} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onNavigate={navigate} />;
-            case AppView.VIBE_MATCHER_RESULTS: return <VibeMatcherResults onSelectStoodio={viewStoodioDetails} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onBack={() => navigate(AppView.ARTIST_DASHBOARD)} />;
-            case AppView.ARTIST_DASHBOARD: return <ArtistDashboard />;
-            case AppView.STOODIO_DASHBOARD: return <StoodioDashboard />;
-            case AppView.ENGINEER_DASHBOARD: return <EngineerDashboard />;
-            case AppView.PRODUCER_DASHBOARD: return <ProducerDashboard />;
-            case AppView.LABEL_DASHBOARD: return <LabelDashboard />;
-            case AppView.LABEL_SCOUTING: return <LabelScouting onNavigate={navigate} />;
-            case AppView.LABEL_IMPORT: return <LabelRosterImport />;
-            case AppView.LABEL_PROFILE: return <LabelProfile />;
-            case AppView.CLAIM_PROFILE: return <ClaimProfile token={claimToken} />;
-            case AppView.CLAIM_ENTRY: return <ClaimEntryScreen token={claimToken || ''} />;
-            case AppView.CLAIM_CONFIRM: return <ClaimConfirmScreen />;
-            case AppView.CLAIM_LABEL_PROFILE: return <ClaimLabelProfile onNavigate={navigate} />;
-            case AppView.ACTIVE_SESSION: return <ActiveSession onEndSession={endSession} onSelectArtist={viewArtistProfile} />;
-            case AppView.ADMIN_RANKINGS: return <AdminRankings />;
-            case AppView.STUDIO_INSIGHTS: return <StudioInsights />;
-            case AppView.LEADERBOARD: return <Leaderboard />;
-            case AppView.ASSET_VAULT: return <AssetVault />;
-            case AppView.MASTER_CALENDAR: return <MasterCalendar />;
-            default: return <LandingPage onNavigate={navigate} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} onOpenAriaCantata={toggleAriaCantata} onLogout={logout} />;
-        }
-    };
+  return (
+    <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
+      <Header
+        onNavigate={navigate}
+        onGoBack={goBack}
+        onGoForward={goForward}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        onLogout={logout}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onSelectArtist={viewArtistProfile}
+        onSelectEngineer={viewEngineerProfile}
+        onSelectProducer={viewProducerProfile}
+        onSelectStoodio={viewStoodioDetails}
+      />
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+        {!bootComplete ? (
+          <LoadingSpinner currentUser={currentUser} />
+        ) : (
+          <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>{renderViewProxy()}</Suspense>
+        )}
+      </main>
 
-    const renderViewProxy = () => {
-        // Deterministic view routing: only logged-in specific views or chosen history
-        if (currentUser) {
-            // Check if we are currently on an onboarding or auth-only view while logged in
-            const restrictedViews = [AppView.LOGIN, AppView.CHOOSE_PROFILE, AppView.ARTIST_SETUP, AppView.ENGINEER_SETUP, AppView.PRODUCER_SETUP, AppView.STOODIO_SETUP, AppView.LABEL_SETUP];
-            if (restrictedViews.includes(currentView)) {
-                 // Fallback to role-based dashboard if they try to access setup while logged in
-                 switch(userRole) {
-                    case UserRole.LABEL: return <LabelDashboard />;
-                    case UserRole.STOODIO: return <StoodioDashboard />;
-                    case UserRole.ENGINEER: return <EngineerDashboard />;
-                    case UserRole.PRODUCER: return <ProducerDashboard />;
-                    default: return <ArtistDashboard />;
-                }
+      {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
+      {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}
+      {isVibeMatcherOpen && <VibeMatcherModal onClose={closeVibeMatcher} onAnalyze={vibeMatch} isLoading={isVibeMatcherLoading} />}
+      {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
+      {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
+      {isPayoutOpen && currentUser && (
+        <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.wallet_balance} />
+      )}
+      {isMixingModalOpen && (selectedEngineer || (bookingIntent && bookingIntent.engineer)) && (
+        <MixingRequestModal
+          engineer={selectedEngineer || bookingIntent!.engineer!}
+          onClose={closeMixingModal}
+          onConfirm={confirmRemoteMix}
+          onInitiateInStudio={initiateInStudioMix}
+          isLoading={isLoading}
+        />
+      )}
+
+      <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
+
+      {isAriaCantataOpen && (
+        <Suspense fallback={<div />}>
+          <AriaCantataAssistant
+            isOpen={isAriaCantataOpen}
+            onClose={closeAriaCantata}
+            onExecuteCommand={executeCommand}
+            history={ariaHistory}
+            setHistory={(newHistory) =>
+              dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: newHistory } })
             }
-        }
-        return renderView();
-    };
+            initialPrompt={initialAriaCantataPrompt}
+            clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })}
+          />
+        </Suspense>
+      )}
 
-    return (
-        <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
-            <Header onNavigate={navigate} onGoBack={goBack} onGoForward={goForward} canGoBack={canGoBack} canGoForward={canGoForward} onLogout={logout} onMarkAsRead={markAsRead} onMarkAllAsRead={markAllAsRead} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} onSelectStoodio={viewStoodioDetails} />
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-                {!bootComplete ? <LoadingSpinner currentUser={currentUser} /> : (
-                    <Suspense fallback={<LoadingSpinner currentUser={currentUser} />}>
-                        {renderViewProxy()}
-                    </Suspense>
-                )}
-            </main>
-            {bookingTime && <BookingModal onClose={closeBookingModal} onConfirm={confirmBooking} />}
-            {tipModalBooking && <TipModal booking={tipModalBooking} onClose={closeTipModal} onConfirmTip={confirmTip} />}
-            {isVibeMatcherOpen && <VibeMatcherModal onClose={closeVibeMatcher} onAnalyze={vibeMatch} isLoading={isVibeMatcherLoading} />}
-            {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
-            {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
-            {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={currentUser.wallet_balance} />}
-            {isMixingModalOpen && (selectedEngineer || (bookingIntent && bookingIntent.engineer)) && <MixingRequestModal engineer={selectedEngineer || bookingIntent!.engineer!} onClose={closeMixingModal} onConfirm={confirmRemoteMix} onInitiateInStudio={initiateInStudioMix} isLoading={isLoading} />}
-            <NotificationToasts notifications={notifications} onDismiss={dismissNotification} />
-            {isAriaCantataOpen && <Suspense fallback={<div />}><AriaCantataAssistant isOpen={isAriaCantataOpen} onClose={closeAriaCantata} onExecuteCommand={executeCommand} history={ariaHistory} setHistory={(newHistory) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: newHistory } })} initialPrompt={initialAriaCantataPrompt} clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })} /></Suspense>}
-            {currentUser && !isAriaCantataOpen && <AriaFAB onClick={handleOpenAriaFromFAB} />}
-            {isNudgeVisible && ariaNudge && <AriaNudge nudge={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />}
-            <Footer onNavigate={navigate} />
-        </div>
-    );
+      {currentUser && !isAriaCantataOpen && <AriaFAB onClick={handleOpenAriaFromFAB} />}
+      {isNudgeVisible && ariaNudge && <AriaNudge nudge={ariaNudge} onDismiss={handleDismissAriaNudge} onClick={handleAriaNudgeClick} />}
+
+      <Footer onNavigate={navigate} />
+    </div>
+  );
 };
 
 export default App;
+
