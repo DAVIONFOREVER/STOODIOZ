@@ -237,7 +237,7 @@ const App: React.FC = () => {
   checkInitialSession();
 
   // 3. Auth state listener — SINGLE SOURCE OF TRUTH
-  const { data: { subscription } } =
+const { data: { subscription } } =
   supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_OUT') {
       dispatch({ type: ActionTypes.LOGOUT });
@@ -245,27 +245,13 @@ const App: React.FC = () => {
       return;
     }
 
-    const { data: { subscription } } =
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_OUT') {
-      dispatch({ type: ActionTypes.LOGOUT });
-      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-      return;
-    }
-
-    if (
-      (event === 'SIGNED_IN' || event === 'USER_UPDATED') &&
-      session?.user
-    ) {
+    if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
       await hydrateUser(session.user.id);
     }
   });
 
 return () => subscription.unsubscribe();
 
-  });
-
-return () => subscription.unsubscribe();
 
 }, [dispatch, hydrateUser]);
 
