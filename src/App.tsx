@@ -161,21 +161,7 @@ const App: React.FC = () => {
      * Deterministic Navigation Logic
      * Routes the user based on their role after successful authentication or hydration.
      */
-    const performPostAuthNavigation = useCallback((role: string | null) => {
-        
-
-        // Only redirect if they are on a "guest" view like Landing or Login
-        const guestViews = [AppView.LANDING_PAGE, AppView.LOGIN];
-        if (guestViews.includes(currentView)) {
-            switch(role) {
-                case 'LABEL': navigate(AppView.LABEL_DASHBOARD); break;
-                case 'STOODIO': navigate(AppView.STOODIO_DASHBOARD); break;
-                case 'ENGINEER': navigate(AppView.ENGINEER_DASHBOARD); break;
-                case 'PRODUCER': navigate(AppView.PRODUCER_DASHBOARD); break;
-                default: navigate(AppView.ARTIST_DASHBOARD);
-            }
-        }
-    }, [currentView, navigate, dispatch]);
+    
 
    const hydrateUser = useCallback(async (userId: string) => {
   try {
