@@ -162,11 +162,7 @@ const App: React.FC = () => {
      * Routes the user based on their role after successful authentication or hydration.
      */
     const performPostAuthNavigation = useCallback((role: string | null) => {
-        if (!role) {
-    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-    return;
-}
-
+        
 
         // Only redirect if they are on a "guest" view like Landing or Login
         const guestViews = [AppView.LANDING_PAGE, AppView.LOGIN];
