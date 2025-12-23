@@ -239,16 +239,20 @@ const App: React.FC = () => {
   // 3. Auth state listener — SINGLE SOURCE OF TRUTH
 const { data: { subscription } } =
   supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_OUT') {
-      dispatch({ type: ActionTypes.LOGOUT });
-      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-      return;
-    }
+  if (event === 'SIGNED_OUT') {
+    dispatch({ type: ActionTypes.LOGOUT });
+    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+    return;
+  }
 
-    if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
-      await hydrateUser(session.user.id);
-    }
-  });
+  if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+    await hydrateUser(session.user.id);
+
+    // ✅ THIS IS THE MISSING LINE
+    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+  }
+});
+
 
 return () => subscription.unsubscribe();
 
