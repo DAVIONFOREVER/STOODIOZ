@@ -241,9 +241,7 @@ const App: React.FC = () => {
     apiService.getAllPublicUsers().then((directory) => {
       dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
     });
-
-    // Listen for auth changes
-   // Listen for auth changes
+// AUTH STATE LISTENER — SINGLE SOURCE OF TRUTH
 const {
   data: { subscription },
 } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -251,12 +249,13 @@ const {
 
   if (event === 'SIGNED_OUT') {
     dispatch({ type: ActionTypes.LOGOUT });
+    setBootComplete(true);
     return;
   }
 
   if (event === 'SIGNED_IN' && session?.user) {
     await hydrateUser(session.user.id);
-    setBootComplete(true); // ✅ STOP SPINNER AFTER LOGIN
+    setBootComplete(true); // ✅ THIS is what stops the spinner after login
     return;
   }
 });
