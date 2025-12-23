@@ -245,14 +245,24 @@ const App: React.FC = () => {
       return;
     }
 
+    const { data: { subscription } } =
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_OUT') {
+      dispatch({ type: ActionTypes.LOGOUT });
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+      return;
+    }
+
     if (
       (event === 'SIGNED_IN' || event === 'USER_UPDATED') &&
       session?.user
     ) {
-      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
       await hydrateUser(session.user.id);
-      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
     }
+  });
+
+return () => subscription.unsubscribe();
+
   });
 
 return () => subscription.unsubscribe();
