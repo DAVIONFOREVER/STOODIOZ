@@ -199,39 +199,53 @@ const App: React.FC = () => {
         return null;
     }, [dispatch, performPostAuthNavigation]);
 
-    useEffect(() => {
-        // 1. Fetch initial directory data
-        apiService.getAllPublicUsers().then(directory => {
-            dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
-        });
+  useEffect(() => {
+  // 1. Fetch initial directory data
+  apiService.getAllPublicUsers().then((directory) => {
+    dispatch({
+      type: ActionTypes.SET_INITIAL_DATA,
+      payload: { ...directory, reviews: [] },
+    });
+  });
 
-        // 2. Check for existing session
-const checkInitialSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+  // 2. Check for existing session
+  const checkInitialSession = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (session?.user) {
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-        await hydrateUser(session.user.id);
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+      await hydrateUser(session.user.id);
     } else {
-        // 🔴 THIS LINE IS THE FIX
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
     }
-};
-checkInitialSession();
+  };
 
+  checkInitialSession();
 
-        // 3. Setup global auth listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_OUT') {
-                dispatch({ type: ActionTypes.LOGOUT });
-                navigate(AppView.LANDING_PAGE);
-            } else if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
-                await hydrateUser(session.user.id);
-            }
-        });
-        
-        return () => subscription.unsubscribe();
-    }, [dispatch, hydrateUser, navigate]); 
+  // 3. Auth state listener — SINGLE SOURCE OF TRUTH
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_OUT') {
+      dispatch({ type: ActionTypes.LOGOUT });
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+      return;
+    }
+
+    if (
+      (event === 'SIGNED_IN' || event === 'USER_UPDATED') &&
+      session?.user
+    ) {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+      await hydrateUser(session.user.id);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, [dispatch, hydrateUser]);
+
 
     const completeSetup = useCallback(async (userData: any, role: UserRole) => {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
