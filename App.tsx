@@ -243,17 +243,29 @@ const App: React.FC = () => {
     });
 
     // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        dispatch({ type: ActionTypes.LOGOUT });
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        await hydrateUser(session.user.id);
-      }
-    });
+   // Listen for auth changes
+const {
+  data: { subscription },
+} = supabase.auth.onAuthStateChange(async (event, session) => {
+  console.log('[AUTH EVENT]', event);
 
-    return () => subscription.unsubscribe();
+  if (event === 'SIGNED_OUT') {
+    dispatch({ type: ActionTypes.LOGOUT });
+    return;
+  }
+
+  if (event === 'SIGNED_IN' && session?.user) {
+    await hydrateUser(session.user.id);
+    setBootComplete(true); // ✅ STOP SPINNER AFTER LOGIN
+    return;
+  }
+});
+
+// cleanup
+return () => {
+  subscription.unsubscribe();
+};
+
   }, [dispatch, hydrateUser]);
 
   const completeSetup = useCallback(
