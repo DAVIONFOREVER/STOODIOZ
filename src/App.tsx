@@ -186,18 +186,22 @@ const App: React.FC = () => {
 
   // 2. Check for existing session (AUTH IS SOURCE OF TRUTH)
   const initAuth = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-    // 🔓 AUTHENTICATED = allow app to render immediately
+  if (!session?.user) {
+    // ✅ No session = public app
     dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+    dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.LANDING_PAGE } });
+    return;
+  }
 
-    if (session?.user) {
-      // hydrate profile in background — NEVER blocks login
-      hydrateUser(session.user.id);
-    }
-  };
+  // ✅ Session exists → hydrate async
+  dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+  hydrateUser(session.user.id);
+};
+
 
   initAuth();
 
