@@ -45,13 +45,19 @@ export const useAuth = (navigate: (view: any) => void) => {
   // LOGOUT
   // =========================
   const logout = useCallback(async () => {
-    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-    dispatch({ type: ActionTypes.LOGOUT });
+  // 1. Show spinner
+  dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
-    await supabase.auth.signOut();
+  // 2. Kill Supabase session everywhere
+  await supabase.auth.signOut({ scope: 'global' });
 
-    navigate(AppView.LOGIN);
-  }, [dispatch, navigate]);
+  // 3. Clear ALL app state
+  dispatch({ type: ActionTypes.LOGOUT });
+
+  // 4. HARD RESET THE APP (NO navigate)
+  window.location.href = '/';
+}, [dispatch]);
+
 
   // =========================
   // ROLE SELECTION
