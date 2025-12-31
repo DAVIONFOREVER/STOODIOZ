@@ -193,7 +193,7 @@ const App: React.FC = () => {
   if (!session?.user) {
     // ✅ No session = public app
     dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-    dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.LANDING_PAGE } });
+    
     return;
   }
 
