@@ -171,23 +171,7 @@ const App: React.FC = () => {
 
     dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
 
-    // FORCE NAVIGATION AFTER LOGIN
-    switch (res.role) {
-      case 'LABEL':
-        navigate(AppView.LABEL_DASHBOARD);
-        break;
-      case 'STOODIO':
-        navigate(AppView.STOODIO_DASHBOARD);
-        break;
-      case 'ENGINEER':
-        navigate(AppView.ENGINEER_DASHBOARD);
-        break;
-      case 'PRODUCER':
-        navigate(AppView.PRODUCER_DASHBOARD);
-        break;
-      default:
-        navigate(AppView.ARTIST_DASHBOARD);
-    }
+    
   } catch (error) {
     console.error('[App] Hydration error:', error);
   }
