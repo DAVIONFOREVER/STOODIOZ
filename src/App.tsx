@@ -175,8 +175,8 @@ const App: React.FC = () => {
 }, [dispatch]);
 
 
-  useEffect(() => {
-  // 1. Load public directory data (non-auth blocking)
+ useEffect(() => {
+  // 1. Load public directory data (never blocks auth)
   apiService.getAllPublicUsers().then((directory) => {
     dispatch({
       type: ActionTypes.SET_INITIAL_DATA,
@@ -184,50 +184,45 @@ const App: React.FC = () => {
     });
   });
 
-  // 2. Check for existing session (AUTH IS SOURCE OF TRUTH)
-  const initAuth = async () => {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // 2. Bootstrap auth ONCE on app load
+  const bootstrapAuth = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  if (!session?.user) {
-    // ✅ No session = public app
+    // ✅ Always release spinner
     dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-    
-    return;
-  }
 
-  // ✅ Session exists → hydrate async
-  dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-  hydrateUser(session.user.id);
-};
+    // ✅ No session → public app (LandingPage will render)
+    if (!session?.user) return;
 
+    // ✅ Session exists → hydrate profile once
+    hydrateUser(session.user.id);
+  };
 
-  initAuth();
+  bootstrapAuth();
 
-  // 3. Auth state listener (login / logout)
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_OUT') {
-      dispatch({ type: ActionTypes.LOGOUT });
-      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-      return;
+  // 3. React ONLY to real auth transitions
+  const { data: authListener } = supabase.auth.onAuthStateChange(
+    (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        dispatch({ type: ActionTypes.LOGOUT });
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        return;
+      }
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        hydrateUser(session.user.id);
+      }
     }
-
-    if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
-      // stop loading immediately
-      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-
-      // hydrate user async
-      hydrateUser(session.user.id);
-    }
-  });
+  );
 
   return () => {
-    subscription.unsubscribe();
+    authListener.subscription.unsubscribe();
   };
 }, [dispatch, hydrateUser]);
+
 const performPostAuthNavigation = useCallback(
   (role: UserRole) => {
     switch (role) {
