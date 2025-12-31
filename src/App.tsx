@@ -166,16 +166,14 @@ const App: React.FC = () => {
    const hydrateUser = useCallback(async (userId: string) => {
   try {
     const res = await apiService.fetchCurrentUserProfile(userId);
-
     if (!res) return;
 
     dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-
-    
   } catch (error) {
     console.error('[App] Hydration error:', error);
   }
-}, [dispatch, navigate]);
+}, [dispatch]);
+
 
   useEffect(() => {
   // 1. Load public directory data (non-auth blocking)
