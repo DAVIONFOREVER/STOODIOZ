@@ -272,7 +272,8 @@ const {
     return;
   }
 
-  if (event === 'SIGNED_IN' && session?.user) {
+  if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session?.user) {
+
     await hydrateUser(session.user.id);
     setBootComplete(true); // ✅ THIS is what stops the spinner after login
     return;
