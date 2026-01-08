@@ -265,15 +265,64 @@ export const commentOnPost = async (pid: string, t: string, c: any, pa: any) => 
 export const toggleFollow = async (cu: any, tu: any, t: string, f: boolean) => ({ updatedCurrentUser: cu, updatedTargetUser: tu });
 
 export const createUser = async (u: any, r: UserRole) => {
-    const s = getSupabase()!;
-    const {data:ad, error:authErr} = await s.auth.signUp({email:u.email, password:u.password, options:{data:{full_name:u.name, user_role:r}}});
-    if (authErr) throw authErr;
-    
-    const tableMap = {'ARTIST':'artists', 'ENGINEER':'engineers', 'PRODUCER':'producers', 'STOODIO':'stoodioz', 'LABEL':'labels'};
-    const {data} = await s.from((tableMap as any)[r]).upsert({id:ad.user!.id, email:u.email, name:u.name, image_url:u.image_url||USER_SILHOUETTE_URL}).select().single();
-    await s.from('profiles').upsert({id:ad.user!.id, role:r, email:u.email, full_name:u.name});
-    return data;
+  const s = getSupabase();
+  if (!s) throw new Error('Supabase client not available');
+
+  const { data: ad, error: authErr } = await s.auth.signUp({
+    email: u.email,
+    password: u.password,
+    options: {
+      data: { full_name: u.name, user_role: r },
+    },
+  });
+
+  if (authErr) throw authErr;
+
+  // If email confirmations are enabled, Supabase returns session = null here.
+  // In that case we MUST NOT try to write into protected tables yet.
+  if (!ad?.session || !ad?.user) {
+    return { email_confirmation_required: true };
+  }
+
+  const userId = ad.user.id;
+
+  const tableMap: Record<string, string> = {
+    ARTIST: 'artists',
+    ENGINEER: 'engineers',
+    PRODUCER: 'producers',
+    STOODIO: 'stoodioz',
+    LABEL: 'labels',
+  };
+
+  const tableName = tableMap[r] || 'artists';
+
+  const { data: roleRow, error: roleErr } = await s
+    .from(tableName)
+    .upsert({
+      id: userId,
+      name: u.name,
+      email: u.email,
+      image_url: u.image_url || USER_SILHOUETTE_URL,
+    })
+    .select()
+    .single();
+
+  if (roleErr) throw roleErr;
+
+  const { error: profileErr } = await s
+    .from('profiles')
+    .upsert({
+      id: userId,
+      role: r,
+      email: u.email,
+      full_name: u.name,
+    });
+
+  if (profileErr) throw profileErr;
+
+  return roleRow;
 };
+
 
 export const fetchUserPosts = async (id: string) => {
     const s = getSupabase();
