@@ -286,15 +286,15 @@ export const createUser = async (u: any, r: UserRole) => {
 
   const userId = ad.user.id;
 
-  const tableMap: Record<string, string> = {
-    ARTIST: 'artists',
-    ENGINEER: 'engineers',
-    PRODUCER: 'producers',
-    STOODIO: 'stoodioz',
-    LABEL: 'labels',
-  };
+ const tableMap: Record<UserRoleEnum, string> = {
+  [UserRoleEnum.ARTIST]: 'artists',
+  [UserRoleEnum.ENGINEER]: 'engineers',
+  [UserRoleEnum.PRODUCER]: 'producers',
+  [UserRoleEnum.STOODIO]: 'stoodioz',
+  [UserRoleEnum.LABEL]: 'labels',
+};
 
-  const tableName = tableMap[r] || 'artists';
+const tableName = tableMap[r as UserRoleEnum] ?? 'artists';
 
   const { data: roleRow, error: roleErr } = await s
     .from(tableName)
