@@ -200,20 +200,39 @@ const App: React.FC = () => {
   useRealtimeLocation({ currentUser });
 
   const hydrateUser = useCallback(
-    async (userId: string) => {
-      try {
-        const res = await apiService.fetchCurrentUserProfile(userId);
-        if (res) {
-          dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
-        } else {
-          console.warn('[App] Auth session active but profile missing.');
-        }
-      } catch (error) {
-        console.error('[App] Hydration error:', error);
+  async (userId: string) => {
+    try {
+      const res = await apiService.fetchCurrentUserProfile(userId);
+
+      if (res) {
+        dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+        return;
       }
-    },
-    [dispatch]
-  );
+
+      // ✅ Don't leave the UI in limbo if the session exists but profile is missing
+      console.warn('[App] Session exists but profile missing. Signing out + showing error.');
+
+      dispatch({
+        type: ActionTypes.LOGIN_FAILURE,
+        payload: { error: 'Account setup incomplete. If you just signed up, verify your email then log in again.' },
+      });
+
+      await supabase.auth.signOut();
+    } catch (error: any) {
+      console.error('[App] Hydration error:', error);
+
+      dispatch({
+        type: ActionTypes.LOGIN_FAILURE,
+        payload: { error: error?.message || 'Login failed during profile hydration.' },
+      });
+
+      // optional: clear session if it's in a bad state
+      try { await supabase.auth.signOut(); } catch {}
+    }
+  },
+  [dispatch]
+);
+
 
   useEffect(() => {
     // Deterministic Boot Flow
@@ -267,22 +286,29 @@ return () => {
 
   }, [dispatch, hydrateUser]);
 
-  const completeSetup = useCallback(
-    async (userData: any, role: UserRole) => {
-      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-      try {
-        const result = await apiService.createUser(userData, role);
-        if (result) {
-          dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
-        }
-      } catch (error: any) {
-        alert(`Setup failed: ${error.message}`);
-      } finally {
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+ const completeSetup = useCallback(
+  async (userData: any, role: UserRole) => {
+    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+    try {
+      const result: any = await apiService.createUser(userData, role);
+
+      if (result?.email_confirmation_required) {
+        alert('Check your email and verify your account, then come back and log in.');
+        navigate(AppView.LOGIN);
+        return;
       }
-    },
-    [dispatch]
-  );
+
+      if (result) {
+        dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
+      }
+    } catch (error: any) {
+      alert(`Setup failed: ${error.message}`);
+    } finally {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+    }
+  },
+  [dispatch, navigate]
+);
 
   const renderView = () => {
     switch (currentView) {
