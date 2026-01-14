@@ -218,7 +218,7 @@ const App: React.FC = () => {
         payload: { error: 'Account setup incomplete. If you just signed up, verify your email then log in again.' },
       });
 
-      await supabase.auth.signOut();
+try { await getSupabase().auth.signOut(); } catch {}
     } catch (error: any) {
       console.error('[App] Hydration error:', error);
 
