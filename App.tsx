@@ -18,7 +18,8 @@ import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 
-import { supabase } from './lib/supabase';
+import { getSupabase } from './lib/supabase';
+
 
 
 import * as apiService from './services/apiService.ts';
