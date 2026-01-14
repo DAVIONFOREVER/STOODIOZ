@@ -219,6 +219,7 @@ const App: React.FC = () => {
       });
 
 try { await getSupabase().auth.signOut(); } catch {}
+
     } catch (error: any) {
       console.error('[App] Hydration error:', error);
 
@@ -239,12 +240,13 @@ try { await getSupabase().auth.signOut(); } catch {}
     // Deterministic Boot Flow
     const initApp = async () => {
   try {
-    if (supabase) {
-      const { data } = await supabase.auth.getSession();
+    const s = getSupabase();
+const { data } = await s.auth.getSession();
 
-      if (data?.session?.user) {
-        await hydrateUser(data.session.user.id);
-      }
+if (data?.session?.user) {
+  await hydrateUser(data.session.user.id);
+}
+
     }
   } catch (error) {
     console.error('[App] Boot error:', error);
