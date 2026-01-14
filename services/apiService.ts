@@ -171,7 +171,9 @@ export const fetchCurrentUserProfile = async (id: string) => {
     console.log(`[apiService] Hydrating user ${id}...`);
     
     // 1. Get role from public.profiles
-    const { data: profile, error: profileErr } = await s.from('profiles').select('role, full_name').eq('id', id).single();
+   const { data: profile, error: profileErr } =
+  await s.from('profiles').select('role, full_name').eq('id', id).maybeSingle();
+
     
     if (profileErr || !profile) {
         console.warn("[apiService] No public profile record found. User may be brand new.");
