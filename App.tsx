@@ -268,8 +268,7 @@ try {
   const s = getSupabase();
 
   ({ data: { subscription } } = s.auth.onAuthStateChange(async (event, session) => {
-    console.log('[AUTH EVENT]', event);
-
+   
     if (event === 'SIGNED_OUT') {
       dispatch({ type: ActionTypes.LOGOUT });
       setBootComplete(true);
