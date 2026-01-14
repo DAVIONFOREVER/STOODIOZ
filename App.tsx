@@ -284,22 +284,7 @@ try {
   console.error('[App] Auth listener failed to start:', e);
 }
 
-  console.log('[AUTH EVENT]', event);
-
-  if (event === 'SIGNED_OUT') {
-    dispatch({ type: ActionTypes.LOGOUT });
-    setBootComplete(true);
-    return;
-  }
-
-  if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session?.user) {
-
-    await hydrateUser(session.user.id);
-    setBootComplete(true); // ✅ THIS is what stops the spinner after login
-    return;
-  }
-});
-
+  
 // cleanup
 return () => {
   subscription.unsubscribe();
