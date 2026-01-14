@@ -262,9 +262,29 @@ try { await getSupabase().auth.signOut(); } catch {}
       dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
     });
 // AUTH STATE LISTENER — SINGLE SOURCE OF TRUTH
-const {
-  data: { subscription },
-} = supabase.auth.onAuthStateChange(async (event, session) => {
+let subscription: any;
+
+try {
+  const s = getSupabase();
+
+  ({ data: { subscription } } = s.auth.onAuthStateChange(async (event, session) => {
+    console.log('[AUTH EVENT]', event);
+
+    if (event === 'SIGNED_OUT') {
+      dispatch({ type: ActionTypes.LOGOUT });
+      setBootComplete(true);
+      return;
+    }
+
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session?.user) {
+      await hydrateUser(session.user.id);
+      setBootComplete(true);
+    }
+  }));
+} catch (e) {
+  console.error('[App] Auth listener failed to start:', e);
+}
+
   console.log('[AUTH EVENT]', event);
 
   if (event === 'SIGNED_OUT') {
