@@ -236,9 +236,10 @@ navigate(AppView.CHOOSE_PROFILE);
 
 
   useEffect(() => {
+    let subscription: any;
     // Deterministic Boot Flow
 // Deterministic Boot Flow
-    let subscription: any;
+  
 
     
     const safety = setTimeout(() => setBootComplete(true), 3000);
