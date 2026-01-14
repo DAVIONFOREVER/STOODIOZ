@@ -289,7 +289,8 @@ try {
   
 // cleanup
 return () => {
-  subscription.unsubscribe();
+  subscription?.unsubscribe?.();
+
 };
 
   }, [dispatch, hydrateUser]);
