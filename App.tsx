@@ -275,7 +275,6 @@ const initApp = async () => {
       dispatch({ type: ActionTypes.SET_INITIAL_DATA, payload: { ...directory, reviews: [] } });
     });
 // AUTH STATE LISTENER — SINGLE SOURCE OF TRUTH
-let subscription: any;
 
 try {
   const s = getSupabase();
