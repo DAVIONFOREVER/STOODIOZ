@@ -238,6 +238,7 @@ navigate(AppView.CHOOSE_PROFILE);
   useEffect(() => {
     // Deterministic Boot Flow
 // Deterministic Boot Flow
+    
     const safety = setTimeout(() => setBootComplete(true), 3000);
 
 const initApp = async () => {
@@ -254,6 +255,12 @@ const initApp = async () => {
     setBootComplete(true);
   }
 };
+  initApp();
+
+  return () => {
+    clearTimeout(safety);
+    subscription?.unsubscribe?.();
+  };
 
 
 
