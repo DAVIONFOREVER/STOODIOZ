@@ -238,22 +238,22 @@ try { await getSupabase().auth.signOut(); } catch {}
 
   useEffect(() => {
     // Deterministic Boot Flow
-    const initApp = async () => {
+// Deterministic Boot Flow
+const initApp = async () => {
   try {
     const s = getSupabase();
-const { data } = await s.auth.getSession();
+    const { data } = await s.auth.getSession();
 
-if (data?.session?.user) {
-  await hydrateUser(data.session.user.id);
-}
-
+    if (data?.session?.user) {
+      await hydrateUser(data.session.user.id);
     }
   } catch (error) {
     console.error('[App] Boot error:', error);
   } finally {
-    setBootComplete(true); // ✅ ALWAYS runs
+    setBootComplete(true);
   }
 };
+
 
 
 
