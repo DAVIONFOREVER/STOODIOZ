@@ -229,7 +229,8 @@ try { await getSupabase().auth.signOut(); } catch {}
       });
 
       // optional: clear session if it's in a bad state
-      try { await supabase.auth.signOut(); } catch {}
+      try { await getSupabase().auth.signOut(); } catch {}
+
     }
   },
   [dispatch]
