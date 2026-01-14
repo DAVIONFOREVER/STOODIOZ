@@ -228,7 +228,6 @@ navigate(AppView.CHOOSE_PROFILE);
       });
 
       // optional: clear session if it's in a bad state
-      try { await getSupabase().auth.signOut(); } catch {}
 
     }
   },
@@ -239,6 +238,8 @@ navigate(AppView.CHOOSE_PROFILE);
   useEffect(() => {
     // Deterministic Boot Flow
 // Deterministic Boot Flow
+    const safety = setTimeout(() => setBootComplete(true), 3000);
+
 const initApp = async () => {
   try {
     const s = getSupabase();
