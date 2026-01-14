@@ -211,14 +211,13 @@ const App: React.FC = () => {
       }
 
       // ✅ Don't leave the UI in limbo if the session exists but profile is missing
-      console.warn('[App] Session exists but profile missing. Signing out + showing error.');
+     dispatch({
+  type: ActionTypes.LOGIN_FAILURE,
+  payload: { error: 'Account setup incomplete. Please finish setting up your profile.' },
+});
 
-      dispatch({
-        type: ActionTypes.LOGIN_FAILURE,
-        payload: { error: 'Account setup incomplete. If you just signed up, verify your email then log in again.' },
-      });
+navigate(AppView.CHOOSE_PROFILE);
 
-try { await getSupabase().auth.signOut(); } catch {}
 
     } catch (error: any) {
       console.error('[App] Hydration error:', error);
