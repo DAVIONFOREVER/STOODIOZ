@@ -243,7 +243,7 @@ export const createUser = async (u: any, r: UserRole) => {
     const {data:ad} = await s.auth.signUp({email:u.email, password:u.password, options:{data:{full_name:u.name, user_role:r}}});
     const tableMap = {'ARTIST':'artists', 'ENGINEER':'engineers', 'PRODUCER':'producers', 'STOODIO':'stoodioz', 'LABEL':'labels'};
     const {data} = await s.from((tableMap as any)[r]).upsert({id:ad.user!.id, email:u.email, name:u.name, image_url:u.image_url||USER_SILHOUETTE_URL}).select().single();
-    await s.from('profiles').upsert({id:ad.user!.id, role:r, email:u.email, full_name:u.name});
+    await s.from('profiles').upsert({ id: ad.user!.id, role: r, full_name: u.name });
     return data;
 };
 export const fetchUserPosts = async (id: string) => (await getSupabase()!.from('posts').select('*').eq('author_id', id)).data?.map((p:any)=>({ ...p, authorId:p.author_id, authorType:p.author_type, timestamp:p.created_at })) || [];
