@@ -162,13 +162,61 @@ export const updateProjectTask = async (id: string, updates: any) => {
 
 // ... (Rest of existing API methods unchanged)
 export const fetchCurrentUserProfile = async (id: string) => {
-    const s = getSupabase(); if (!s) return null;
-    const {data:p} = await s.from('profiles').select('role').eq('id', id).single();
-    const tables = {'ARTIST':'artists', 'ENGINEER':'engineers', 'PRODUCER':'producers', 'STOODIO':'stoodioz', 'LABEL':'labels'};
-    const table = (tables as any)[p?.role || 'ARTIST'];
-    const {data:u} = await s.from(table).select('*').eq('id', id).single();
-    return u ? { user: u, role: p?.role } : null;
+  const s = getSupabase();
+  if (!s) return null;
+
+  // 1) Try to read profile
+  let { data: p, error } = await s
+    .from('profiles')
+    .select('role')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  // 2) If profile missing, CREATE it
+  if (!p) {
+    const { error: insErr } = await s.from('profiles').insert({
+      id,
+      role: 'ARTIST',
+    });
+    if (insErr) throw insErr;
+
+    // re-read after insert
+    ({ data: p, error } = await s
+      .from('profiles')
+      .select('role')
+      .eq('id', id)
+      .maybeSingle());
+
+    if (error) throw error;
+  }
+
+  if (!p) return null;
+
+  // 3) Load role-specific user record
+  const tables = {
+    ARTIST: 'artists',
+    ENGINEER: 'engineers',
+    PRODUCER: 'producers',
+    STOODIO: 'stoodioz',
+    LABEL: 'labels',
+  };
+
+  const table = (tables as any)[p.role];
+  if (!table) return null;
+
+  const { data: u, error: userErr } = await s
+    .from(table)
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (userErr) throw userErr;
+
+  return u ? { user: u, role: p.role } : null;
 };
+
 export const fetchLabelRoster = async (id: string) => {
     const {data:re} = await getSupabase()!.from('label_roster').select('*').eq('label_id', id);
     const hydrated = [];
