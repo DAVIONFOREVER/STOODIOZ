@@ -17,9 +17,8 @@ import { useMixing } from './hooks/useMixing.ts';
 import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
-import { getSupabase, performLogout, supabase } from './lib/supabase.ts';
+import { getSupabase } from './lib/supabase.ts';
 import * as apiService from './services/apiService.ts';
-
 import Header from './components/Header.tsx';
 import BookingModal from './components/BookingModal.tsx';
 import TipModal from './components/TipModal.tsx';
@@ -188,7 +187,8 @@ const App: React.FC = () => {
   const bootstrapAuth = async () => {
     const {
       data: { session },
-    } = await supabase.auth.getSession();
+    } = await getSupabase().auth.getSession();
+
 
     // ✅ Always release spinner
     dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
@@ -203,20 +203,21 @@ const App: React.FC = () => {
   bootstrapAuth();
 
   // 3. React ONLY to real auth transitions
-  const { data: authListener } = supabase.auth.onAuthStateChange(
-    (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        dispatch({ type: ActionTypes.LOGOUT });
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        return;
-      }
-
-      if (event === 'SIGNED_IN' && session?.user) {
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        hydrateUser(session.user.id);
-      }
+  const { data: authListener } = getSupabase().auth.onAuthStateChange(
+  async (event, session) => {
+    if (event === 'SIGNED_OUT') {
+      dispatch({ type: ActionTypes.LOGOUT });
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+      return;
     }
-  );
+
+    if (event === 'SIGNED_IN' && session?.user) {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+      await hydrateUser(session.user.id);
+    }
+  }
+);
+
 
   return () => {
     authListener.subscription.unsubscribe();
