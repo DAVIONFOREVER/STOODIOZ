@@ -18,25 +18,40 @@ export const useAuth = (navigate: (view: any) => void) => {
 
       try {
         const s = getSupabase();
+
+        // 1) Sign in
         const { error } = await s.auth.signInWithPassword({ email, password });
-const s = getSupabase();
-const { data } = await s.auth.getUser();
-
-await fetch('/api/bootstrap-user', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    user_id: data.user.id,
-    email: data.user.email,
-    full_name: data.user.user_metadata?.full_name || '',
-    role: data.user.user_metadata?.user_role || 'ARTIST',
-    image_url: null,
-  }),
-});
-
         if (error) {
           dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
+          return;
         }
+
+        // 2) Get signed-in user
+        const { data } = await s.auth.getUser();
+        const user = data?.user;
+        if (!user) {
+          dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: 'Login succeeded but user is missing.' } });
+          return;
+        }
+
+        // 3) Call server bootstrap (optional but recommended)
+        // If the endpoint isn't deployed yet, we don't block login—App.tsx hydration can still proceed.
+        try {
+          await fetch('/api/bootstrap-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: user.id,
+              email: user.email,
+              full_name: (user.user_metadata as any)?.full_name || '',
+              role: (user.user_metadata as any)?.user_role || 'ARTIST',
+              image_url: null,
+            }),
+          });
+        } catch (e) {
+          console.warn('[bootstrap-user] skipped/failed:', e);
+        }
+
         // App.tsx auth listener handles hydration/navigation
       } catch (e: any) {
         dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: e?.message || 'Login failed.' } });
@@ -57,12 +72,10 @@ await fetch('/api/bootstrap-user', {
       const s = getSupabase();
       await s.auth.signOut({ scope: 'global' });
     } catch (e) {
-      // even if signOut fails, clear local app state
       console.error('[logout] signOut failed:', e);
     } finally {
       dispatch({ type: ActionTypes.LOGOUT });
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-      // Hard reset so any cached state/session artifacts are gone
       window.location.href = '/';
     }
   }, [dispatch]);
@@ -87,6 +100,7 @@ await fetch('/api/bootstrap-user', {
   const completeSetup = useCallback(
     async (userData: any, role: UserRole) => {
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+
       try {
         const result: any = await apiService.createUser(userData, role);
 
