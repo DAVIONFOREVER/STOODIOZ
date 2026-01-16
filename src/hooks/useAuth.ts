@@ -19,6 +19,20 @@ export const useAuth = (navigate: (view: any) => void) => {
       try {
         const s = getSupabase();
         const { error } = await s.auth.signInWithPassword({ email, password });
+const s = getSupabase();
+const { data } = await s.auth.getUser();
+
+await fetch('/api/bootstrap-user', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    user_id: data.user.id,
+    email: data.user.email,
+    full_name: data.user.user_metadata?.full_name || '',
+    role: data.user.user_metadata?.user_role || 'ARTIST',
+    image_url: null,
+  }),
+});
 
         if (error) {
           dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
