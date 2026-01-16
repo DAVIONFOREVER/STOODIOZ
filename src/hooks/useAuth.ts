@@ -3,7 +3,7 @@ import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView } from '../types';
 import type { UserRole } from '../types';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '../lib/supabase';
 
 export const useAuth = (navigate: (view: any) => void) => {
   const dispatch = useAppDispatch();
@@ -13,30 +13,22 @@ export const useAuth = (navigate: (view: any) => void) => {
   // =========================
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
-      // start spinner + clear error
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
       dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: null } });
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      try {
+        const s = getSupabase();
+        const { error } = await s.auth.signInWithPassword({ email, password });
 
-      if (error) {
-        dispatch({
-          type: ActionTypes.LOGIN_FAILURE,
-          payload: { error: error.message },
-        });
-        dispatch({
-          type: ActionTypes.SET_LOADING,
-          payload: { isLoading: false },
-        });
-        return;
+        if (error) {
+          dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: error.message } });
+        }
+        // App.tsx auth listener handles hydration/navigation
+      } catch (e: any) {
+        dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: e?.message || 'Login failed.' } });
+      } finally {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
       }
-
-      // 🚫 DO NOT navigate
-      // 🚫 DO NOT hydrate
-      // App.tsx auth listener handles everything
     },
     [dispatch]
   );
@@ -45,19 +37,21 @@ export const useAuth = (navigate: (view: any) => void) => {
   // LOGOUT
   // =========================
   const logout = useCallback(async () => {
-  // 1. Show spinner
-  dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
-  // 2. Kill Supabase session everywhere
-  await supabase.auth.signOut({ scope: 'global' });
-
-  // 3. Clear ALL app state
-  dispatch({ type: ActionTypes.LOGOUT });
-
-  // 4. HARD RESET THE APP (NO navigate)
-  window.location.href = '/';
-}, [dispatch]);
-
+    try {
+      const s = getSupabase();
+      await s.auth.signOut({ scope: 'global' });
+    } catch (e) {
+      // even if signOut fails, clear local app state
+      console.error('[logout] signOut failed:', e);
+    } finally {
+      dispatch({ type: ActionTypes.LOGOUT });
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+      // Hard reset so any cached state/session artifacts are gone
+      window.location.href = '/';
+    }
+  }, [dispatch]);
 
   // =========================
   // ROLE SELECTION
@@ -76,26 +70,32 @@ export const useAuth = (navigate: (view: any) => void) => {
   // =========================
   // COMPLETE SETUP
   // =========================
-  const completeSetup = async (userData: any, role: UserRole) => {
-    try {
-      const result = await apiService.createUser(userData, role);
+  const completeSetup = useCallback(
+    async (userData: any, role: UserRole) => {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+      try {
+        const result: any = await apiService.createUser(userData, role);
 
-      if (result && 'email_confirmation_required' in result) {
-        alert('Please verify your email.');
-        navigate(AppView.LOGIN);
-        return;
-      }
+        if (result && 'email_confirmation_required' in result) {
+          alert('Please verify your email.');
+          navigate(AppView.LOGIN);
+          return;
+        }
 
-      if (result) {
-        dispatch({
-          type: ActionTypes.COMPLETE_SETUP,
-          payload: { newUser: result as any, role },
-        });
+        if (result) {
+          dispatch({
+            type: ActionTypes.COMPLETE_SETUP,
+            payload: { newUser: result as any, role },
+          });
+        }
+      } catch (error: any) {
+        alert(`Signup failed: ${error?.message || 'Unknown error'}`);
+      } finally {
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
       }
-    } catch (error: any) {
-      alert(`Signup failed: ${error.message}`);
-    }
-  };
+    },
+    [dispatch, navigate]
+  );
 
   return { login, logout, selectRoleToSetup, completeSetup };
 };
