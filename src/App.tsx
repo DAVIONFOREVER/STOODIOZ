@@ -170,26 +170,21 @@ const App: React.FC = () => {
     dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
 
     // Force the screen to change immediately (no refresh)
-    switch (res.role) {
-      case UserRole.LABEL:
-        navigate(AppView.LABEL_DASHBOARD);
-        break;
-      case UserRole.STOODIO:
-        navigate(AppView.STOODIO_DASHBOARD);
-        break;
-      case UserRole.ENGINEER:
-        navigate(AppView.ENGINEER_DASHBOARD);
-        break;
-      case UserRole.PRODUCER:
-        navigate(AppView.PRODUCER_DASHBOARD);
-        break;
-      default:
-        navigate(AppView.ARTIST_DASHBOARD); // or AppView.THE_STAGE if you want
-    }
-  } catch (error) {
-    console.error('[App] Hydration error:', error);
-  }
-}, [dispatch, navigate]);
+switch (res.role) {
+  case UserRole.LABEL:
+    navigate(AppView.LABEL_DASHBOARD);
+    break;
+
+  // EVERYONE ELSE GOES TO THE STAGE
+  case UserRole.STOODIO:
+  case UserRole.ENGINEER:
+  case UserRole.PRODUCER:
+  case UserRole.ARTIST:
+  default:
+    navigate(AppView.THE_STAGE);
+    break;
+}
+
 
 
  useEffect(() => {
