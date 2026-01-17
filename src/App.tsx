@@ -240,7 +240,7 @@ switch (res.role) {
   };
 }, [dispatch, hydrateUser]);
 
-const performPostAuthNavigation = useCallback(
+
   (role: UserRole) => {
     switch (role) {
       case UserRole.LABEL:
