@@ -262,20 +262,22 @@ const performPostAuthNavigation = useCallback(
   [navigate]
 );
 
-    const completeSetup = useCallback(async (userData: any, role: UserRole) => {
-        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
-        try {
-            const result = await apiService.createUser(userData, role);
-            if (result) {
-                dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
-                
-            }
-        } catch (error: any) {
-            alert(`Setup failed: ${error.message}`);
-        } finally {
-            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-        }
-    }, 
+   const completeSetup = useCallback(async (userData: any, role: UserRole) => {
+  dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+
+  try {
+    const result = await apiService.createUser(userData, role);
+    if (result) {
+      dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
+      // no navigate here
+    }
+  } catch (error: any) {
+    alert(`Setup failed: ${error?.message || 'Unknown error'}`);
+  } finally {
+    dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+  }
+}, [dispatch]);
+
 
     const renderView = () => {
         switch (currentView) {
