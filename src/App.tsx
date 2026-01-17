@@ -268,14 +268,14 @@ const performPostAuthNavigation = useCallback(
             const result = await apiService.createUser(userData, role);
             if (result) {
                 dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
-                performPostAuthNavigation(role);
+                
             }
         } catch (error: any) {
             alert(`Setup failed: ${error.message}`);
         } finally {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
-    }, [dispatch, performPostAuthNavigation]);
+    }, 
 
     const renderView = () => {
         switch (currentView) {
