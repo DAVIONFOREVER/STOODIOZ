@@ -240,28 +240,6 @@ switch (res.role) {
   };
 }, [dispatch, hydrateUser]);
 
-
-  (role: UserRole) => {
-    switch (role) {
-      case UserRole.LABEL:
-        navigate(AppView.LABEL_DASHBOARD);
-        break;
-      case UserRole.STOODIO:
-        navigate(AppView.STOODIO_DASHBOARD);
-        break;
-      case UserRole.ENGINEER:
-        navigate(AppView.ENGINEER_DASHBOARD);
-        break;
-      case UserRole.PRODUCER:
-        navigate(AppView.PRODUCER_DASHBOARD);
-        break;
-      default:
-        navigate(AppView.ARTIST_DASHBOARD);
-    }
-  },
-  [navigate]
-);
-
    const completeSetup = useCallback(async (userData: any, role: UserRole) => {
   dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
