@@ -184,8 +184,10 @@ switch (res.role) {
     navigate(AppView.THE_STAGE);
     break;
 }
-
-
+  } catch (error) {
+    console.error('[App] Hydration error:', error);
+  }
+}, [dispatch, navigate]);
 
  useEffect(() => {
   // 1. Load public directory data (never blocks auth)
