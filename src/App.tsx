@@ -226,7 +226,8 @@ switch (res.role) {
       return;
     }
 
-    if (event === 'SIGNED_IN' && session?.user) {
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session?.user) {
+
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
       await hydrateUser(session.user.id);
     }
