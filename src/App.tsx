@@ -238,7 +238,8 @@ switch (res.role) {
   return () => {
     authListener.subscription.unsubscribe();
   };
-}, [dispatch, hydrateUser]);
+}, [dispatch, hydrateUser, navigate]);
+
 
    const completeSetup = useCallback(async (userData: any, role: UserRole) => {
   dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
