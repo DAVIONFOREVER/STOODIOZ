@@ -59,13 +59,19 @@ const Header: React.FC<HeaderProps> = (props) => {
     }, [isMobileMenuOpen]);
 
 
-    const handleLogoClick = () => {
-        if (userRole) {
-            onNavigate(AppView.THE_STAGE);
-        } else {
-            onNavigate(AppView.LANDING_PAGE);
-        }
-    };
+   const handleLogoClick = () => {
+    if (!userRole) {
+        onNavigate(AppView.LANDING_PAGE);
+        return;
+    }
+
+    if (userRole === UserRole.LABEL) {
+        onNavigate(AppView.LABEL_DASHBOARD);
+        return;
+    }
+
+    onNavigate(AppView.THE_STAGE);
+};
 
     const handleDashboardNavigate = () => {
         if (!userRole) return;
@@ -126,6 +132,26 @@ const Header: React.FC<HeaderProps> = (props) => {
                         <div className="hidden lg:flex items-center justify-end flex-shrink-0">
                             {userRole ? (
                                 <div className="flex items-center space-x-1">
+                                  {userRole !== UserRole.LABEL && (
+  <>
+    <button
+      onClick={() => onNavigate(AppView.THE_STAGE)}
+      className={`${navLinkClasses} flex items-center gap-1.5`}
+    >
+      <SoundWaveIcon className="w-5 h-5" />
+      <span>Stage</span>
+    </button>
+
+    <button
+      onClick={() => onNavigate(AppView.MAP_VIEW)}
+      className={`${navLinkClasses} flex items-center gap-1.5`}
+    >
+      <MapIcon className="w-5 h-5" />
+      <span>Map</span>
+    </button>
+  </>
+)}
+
                                     <button onClick={() => onNavigate(AppView.ASSET_VAULT)} className={`${navLinkClasses} flex items-center gap-1.5`} title="Vault">
                                         <BriefcaseIcon className="w-5 h-5" />
                                         <span>Vault</span>
