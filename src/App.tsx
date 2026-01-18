@@ -179,7 +179,7 @@ const App: React.FC = () => {
     // 🔑 RESET HISTORY BASED ON ROLE (THIS IS THE MISSING PIECE)
     let landingView = AppView.THE_STAGE;
 
-    if (res.role === UserRole.LABEL) {
+    if ((res.role as UserRole) === UserRole.LABEL) {
       landingView = AppView.LABEL_DASHBOARD;
     }
 
