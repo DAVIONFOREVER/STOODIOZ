@@ -278,24 +278,20 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, isLoading: action.payload.isLoading };
 
         case ActionTypes.LOGIN_SUCCESS: {
-            const { user, role: explicitRole } = action.payload;
-            let role = explicitRole;
+  const { user, role: explicitRole } = action.payload;
 
-            if (!role) {
-                if ('amenities' in user) role = UserRole.STOODIO;
-                else if ('specialties' in user) role = UserRole.ENGINEER;
-                else if ('instrumentals' in user) role = UserRole.PRODUCER;
-                else if ('bio' in user && !('is_seeking_session' in user)) role = UserRole.LABEL;
-                else role = UserRole.ARTIST;
-            }
-            
-            return {
-                ...state,
-                currentUser: user,
-                userRole: role,
-                loginError: null,
-                isLoading: false, 
-            };
+  // DO NOT GUESS ROLE. If it's not provided, keep previous role or null.
+  const role = explicitRole ?? state.userRole ?? null;
+
+  return {
+    ...state,
+    currentUser: user,
+    userRole: role,
+    loginError: null,
+    isLoading: false,
+  };
+}
+
         }
         case ActionTypes.LOGIN_FAILURE:
             return { ...state, loginError: action.payload.error, isLoading: false };
@@ -335,7 +331,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 historyIndex: 0,
                 isLoading: false,
             };
-        }
         case ActionTypes.VIEW_STOODIO_DETAILS:
             return { ...state, selectedStoodio: action.payload.stoodio };
         case ActionTypes.VIEW_ARTIST_PROFILE:
