@@ -137,9 +137,8 @@ const Header: React.FC<HeaderProps> = (props) => {
                         <div className="hidden lg:flex items-center justify-end flex-shrink-0">
                             {userRole ? (
                                 <div className="flex items-center space-x-1">
-                                 {userRole &&
- userRole !== UserRole.LABEL && (
-
+                              {userRole && userRole !== UserRole.LABEL && (
+  <>
     <button
       onClick={() => onNavigate(AppView.THE_STAGE)}
       className={`${navLinkClasses} flex items-center gap-1.5`}
