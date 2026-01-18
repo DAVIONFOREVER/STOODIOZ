@@ -162,7 +162,7 @@ const App: React.FC = () => {
      */
     
 
-  const hydrateUser = useCallback(async (userId: string) => {
+ const hydrateUser = useCallback(async (userId: string) => {
   try {
     const res = await apiService.fetchCurrentUserProfile(userId);
     if (!res) return;
@@ -170,6 +170,18 @@ const App: React.FC = () => {
     dispatch({
       type: ActionTypes.LOGIN_SUCCESS,
       payload: res,
+    });
+
+    // 🔑 RESET HISTORY BASED ON ROLE (THIS IS THE MISSING PIECE)
+    let landingView = AppView.THE_STAGE;
+
+    if (res.role === UserRole.LABEL) {
+      landingView = AppView.LABEL_DASHBOARD;
+    }
+
+    dispatch({
+      type: ActionTypes.NAVIGATE,
+      payload: { view: landingView },
     });
 
   } catch (error) {
