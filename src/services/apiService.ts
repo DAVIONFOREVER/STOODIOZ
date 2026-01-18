@@ -225,8 +225,7 @@ if (!u) {
 if (userErr) throw userErr;
 if (!u) return null;
 return { user: u, role: p.role };
-
-};
+}
 
 export const fetchLabelRoster = async (id: string) => {
     const {data:re} = await getSupabase()!.from('label_roster').select('*').eq('label_id', id);
