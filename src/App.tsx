@@ -98,7 +98,148 @@ const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
 const App: React.FC = () => {
     const state = useAppState();
     const dispatch = useAppDispatch();
-    const { 
+  // -------- AUTH BOOTSTRAP (fixes refresh-only redirect + wrong header tabs) --------
+
+const getDefaultViewForRole = (role: UserRole): AppView => {
+  switch (role) {
+    case UserRole.LABEL:
+      return AppView.LABEL_DASHBOARD; // or LABEL_ROSTER if that’s your main
+    case UserRole.STOODIO:
+      return AppView.STOODIO_DASHBOARD; // or MAP if that’s your main
+    case UserRole.ENGINEER:
+      return AppView.ENGINEER_DASHBOARD; // or THE_STAGE if that’s your main
+    case UserRole.PRODUCER:
+      return AppView.PRODUCER_DASHBOARD; // or THE_STAGE
+    case UserRole.ARTIST:
+    default:
+      return AppView.ARTIST_DASHBOARD; // or THE_STAGE
+  }
+};
+
+const hydrateUserFromDB = async (userId: string) => {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  // 1) Get role from profiles (BEST source of truth)
+  const { data: profile, error: profileErr } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("id", userId)
+    .single();
+
+  if (profileErr || !profile?.role) {
+    // If you don't have profiles.role in your DB, skip this section.
+    // We will fallback to membership tables below.
+  }
+
+  // If profiles.role exists, use it
+  if (profile?.role) {
+    const role = profile.role as UserRole;
+
+    // OPTIONAL: fetch the actual role-specific row as "currentUser"
+    // This is important if your UI expects currentUser fields for that role.
+    const table =
+      role === UserRole.ARTIST ? "artists" :
+      role === UserRole.ENGINEER ? "engineers" :
+      role === UserRole.PRODUCER ? "producers" :
+      role === UserRole.STOODIO ? "stoodioz" :
+      "labels";
+
+    const { data: userRow } = await supabase
+      .from(table)
+      .select("*")
+      .eq("profile_id", userId)
+      .maybeSingle();
+
+    if (userRow) {
+      dispatch({
+        type: ActionTypes.LOGIN_SUCCESS,
+        payload: { user: userRow, role }, // <-- role explicitly set
+      });
+
+      dispatch({
+        type: ActionTypes.NAVIGATE,
+        payload: { view: getDefaultViewForRole(role) },
+      });
+      return;
+    }
+
+    // Even if userRow not found, still set role so header is correct
+    dispatch({
+      type: ActionTypes.LOGIN_SUCCESS,
+      payload: { user: (state.currentUser as any) ?? null, role },
+    });
+    dispatch({
+      type: ActionTypes.NAVIGATE,
+      payload: { view: getDefaultViewForRole(role) },
+    });
+    return;
+  }
+
+  // 2) FALLBACK: determine role by membership tables (if no profiles.role)
+  const checks = [
+    { role: UserRole.LABEL, table: "labels" },
+    { role: UserRole.STOODIO, table: "stoodioz" },
+    { role: UserRole.ARTIST, table: "artists" },
+    { role: UserRole.ENGINEER, table: "engineers" },
+    { role: UserRole.PRODUCER, table: "producers" },
+  ] as const;
+
+  for (const c of checks) {
+    const { data: userRow } = await supabase
+      .from(c.table)
+      .select("*")
+      .eq("profile_id", userId)
+      .maybeSingle();
+
+    if (userRow) {
+      dispatch({
+        type: ActionTypes.LOGIN_SUCCESS,
+        payload: { user: userRow, role: c.role }, // <-- role explicitly set
+      });
+
+      dispatch({
+        type: ActionTypes.NAVIGATE,
+        payload: { view: getDefaultViewForRole(c.role) },
+      });
+      return;
+    }
+  }
+
+  // If nothing found, force landing/auth view
+  dispatch({ type: ActionTypes.LOGIN_FAILURE, payload: { error: "No role profile found." } });
+};
+
+useEffect(() => {
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  // A) Fixes "needs refresh" by hydrating on initial load
+  supabase.auth.getSession().then(async ({ data }) => {
+    const session = data.session;
+    if (session?.user?.id) {
+      await hydrateUserFromDB(session.user.id);
+    }
+  });
+
+  // B) Fixes "needs refresh" by reacting instantly after login/logout
+  const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user?.id) {
+      await hydrateUserFromDB(session.user.id);
+    } else {
+      dispatch({ type: ActionTypes.LOGOUT });
+      dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.LANDING_PAGE } });
+    }
+  });
+
+  return () => {
+    sub.subscription.unsubscribe();
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+// -------- END AUTH BOOTSTRAP --------
+
         history, historyIndex, currentUser, userRole, loginError, selectedStoodio, selectedEngineer,
         isLoading, bookingTime, tipModalBooking, bookingToCancel, isVibeMatcherOpen, 
         isVibeMatcherLoading, isAddFundsOpen, isPayoutOpen, isMixingModalOpen, isAriaCantataOpen,
