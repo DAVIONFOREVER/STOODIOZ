@@ -168,9 +168,13 @@ const App: React.FC = () => {
     if (!res) return;
 
     dispatch({
-      type: ActionTypes.LOGIN_SUCCESS,
-      payload: res,
-    });
+  type: ActionTypes.LOGIN_SUCCESS,
+  payload: {
+    user: res.user,
+    role: res.role as UserRole, // 🔑 CAST STRING → ENUM
+  },
+});
+
 
     // 🔑 RESET HISTORY BASED ON ROLE (THIS IS THE MISSING PIECE)
     let landingView = AppView.THE_STAGE;
