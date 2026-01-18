@@ -194,27 +194,36 @@ export const fetchCurrentUserProfile = async (id: string) => {
 
   if (!p) return null;
 
-  // 3) Load role-specific user record
-  const tables = {
-    ARTIST: 'artists',
-    ENGINEER: 'engineers',
-    PRODUCER: 'producers',
-    STOODIO: 'stoodioz',
-    LABEL: 'labels',
-  };
+ // 3) Load role-specific user record
+const tables = {
+  ARTIST: 'artists',
+  ENGINEER: 'engineers',
+  PRODUCER: 'producers',
+  STOODIO: 'stoodioz',
+  LABEL: 'labels',
+};
 
-  const table = (tables as any)[p.role];
-  if (!table) return null;
+const table = (tables as any)[p.role];
+if (!table) return null;
 
- const { data: u, error: userErr } = await s
+// Try id first (matches your createUser upsert)
+let { data: u, error: userErr } = await s
   .from(table)
   .select('*')
-  .eq('profile_id', id)
+  .eq('id', id)
   .maybeSingle();
+
+// If not found, try profile_id (covers schemas that use profile_id)
+if (!u) {
+  ({ data: u, error: userErr } = await s
+    .from(table)
+    .select('*')
+    .eq('profile_id', id)
+    .maybeSingle());
+}
 
 if (userErr) throw userErr;
 if (!u) return null;
-
 return { user: u, role: p.role };
 
 };
