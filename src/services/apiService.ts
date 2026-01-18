@@ -206,15 +206,17 @@ export const fetchCurrentUserProfile = async (id: string) => {
   const table = (tables as any)[p.role];
   if (!table) return null;
 
-  const { data: u, error: userErr } = await s
-    .from(table)
-    .select('*')
-    .eq('id', id)
-    .single();
+ const { data: u, error: userErr } = await s
+  .from(table)
+  .select('*')
+  .eq('profile_id', id)
+  .maybeSingle();
 
-  if (userErr) throw userErr;
+if (userErr) throw userErr;
+if (!u) return null;
 
-  return u ? { user: u, role: p.role } : null;
+return { user: u, role: p.role };
+
 };
 
 export const fetchLabelRoster = async (id: string) => {
@@ -222,7 +224,8 @@ export const fetchLabelRoster = async (id: string) => {
     const hydrated = [];
     for(const e of re||[]) {
         const res = await fetchCurrentUserProfile(e.user_id);
-        if(res) hydrated.push({...res.user, role_in_label: e.role, roster_id: e.id});
+       if (res?.user) hydrated.push({ ...res.user, role_in_label: e.role, roster_id: e.id });
+
     }
     return hydrated;
 };
