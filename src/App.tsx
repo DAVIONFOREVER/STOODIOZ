@@ -167,27 +167,15 @@ const App: React.FC = () => {
     const res = await apiService.fetchCurrentUserProfile(userId);
     if (!res) return;
 
-    dispatch({ type: ActionTypes.LOGIN_SUCCESS, payload: res });
+    dispatch({
+      type: ActionTypes.LOGIN_SUCCESS,
+      payload: res,
+    });
 
-    // Force the screen to change immediately (no refresh)
-switch (res.role) {
-  case UserRole.LABEL:
-    navigate(AppView.LABEL_DASHBOARD);
-    break;
-
-  // EVERYONE ELSE GOES TO THE STAGE
-  case UserRole.STOODIO:
-  case UserRole.ENGINEER:
-  case UserRole.PRODUCER:
-  case UserRole.ARTIST:
-  default:
-    navigate(AppView.THE_STAGE);
-    break;
-}
   } catch (error) {
     console.error('[App] Hydration error:', error);
   }
-}, [dispatch, navigate]);
+}, [dispatch]);
 
  useEffect(() => {
   // 1. Load public directory data (never blocks auth)
