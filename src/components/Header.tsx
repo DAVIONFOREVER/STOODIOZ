@@ -27,6 +27,11 @@ const Header: React.FC<HeaderProps> = (props) => {
         onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio
     } = props;
     const { userRole, notifications, artists, engineers, producers, stoodioz, currentUser } = useAppState();
+    console.log('[HEADER RUNTIME CHECK]', {
+  userRole,
+  currentUser,
+});
+
     const dispatch = useAppDispatch();
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
