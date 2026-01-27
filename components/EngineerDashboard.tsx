@@ -340,7 +340,7 @@ const EngineerDashboard: React.FC = () => {
           <PhotoIcon className="w-4 h-4" /> Edit Cover
         </button>
 
-        <input type="file" ref={coverImageInputRef} onChange={handleCoverFileChange} className="hidden" accept="image/*" />
+        <input type="file" ref={coverImageInputRef} onChange={handleCoverFileChange} className="hidden" accept="image/*,.heic,.heif" />
 
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
           <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
@@ -359,7 +359,7 @@ const EngineerDashboard: React.FC = () => {
                 >
                   <EditIcon className="w-8 h-8 text-white" />
                 </button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,.heic,.heif" />
               </div>
 
               <div>

@@ -72,7 +72,7 @@ const EngineerSetup: React.FC<EngineerSetupProps> = ({ onCompleteSetup, onNaviga
                             ref={fileInputRef}
                             onChange={handleImageChange}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/*,.heic,.heif"
                         />
                     </div>
                 </div>

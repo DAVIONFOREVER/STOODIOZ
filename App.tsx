@@ -653,6 +653,7 @@ const App: React.FC = () => {
               onSelectEngineer={viewEngineerProfile}
               onSelectStoodio={viewStoodioDetails}
               onSelectProducer={viewProducerProfile}
+              onOpenAria={toggleAriaCantata}
               onNavigate={navigate}
             />
           );
@@ -780,7 +781,7 @@ const App: React.FC = () => {
         return <EngineerProfile />;
 
       case AppView.PRODUCER_LIST:
-        return <ProducerList viewProducerProfile={viewProducerProfile} onToggleFollow={toggleFollow} />;
+        return <ProducerList onSelectProducer={viewProducerProfile} onToggleFollow={toggleFollow} />;
 
       case AppView.PRODUCER_PROFILE:
         return <ProducerProfile />;
@@ -796,6 +797,7 @@ const App: React.FC = () => {
             onSelectEngineer={viewEngineerProfile}
             onSelectStoodio={viewStoodioDetails}
             onSelectProducer={viewProducerProfile}
+            onOpenAria={toggleAriaCantata}
             onNavigate={navigate}
           />
         );
@@ -881,6 +883,7 @@ const App: React.FC = () => {
               onSelectEngineer={viewEngineerProfile}
               onSelectStoodio={viewStoodioDetails}
               onSelectProducer={viewProducerProfile}
+              onOpenAria={toggleAriaCantata}
               onNavigate={navigate}
             />
           );

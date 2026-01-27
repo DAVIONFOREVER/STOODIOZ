@@ -82,6 +82,15 @@
         background-size: 200% 200%;
         animation: mesh-flow 20s ease infinite;
     }
+
+    .aria-sing-pulse {
+        animation: aria-sing-pulse 2.2s ease-in-out infinite;
+    }
+
+    .aria-eq-bar {
+        animation: aria-eq-bar 0.9s ease-in-out infinite;
+        transform-origin: bottom;
+    }
 }
 
 @keyframes aria-float {
@@ -123,4 +132,15 @@
   0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
   70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+}
+
+@keyframes aria-sing-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.45; }
+  50% { transform: scale(1.02); opacity: 0.75; }
+}
+
+@keyframes aria-eq-bar {
+  0% { transform: scaleY(0.3); opacity: 0.6; }
+  50% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(0.4); opacity: 0.7; }
 }

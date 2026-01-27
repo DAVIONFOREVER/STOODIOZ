@@ -15,9 +15,10 @@ interface PostCardProps {
     onCommentOnPost: (postId: string, text: string) => void;
     onSelectAuthor: () => void;
     useFixedFrame?: boolean;
+    variant?: 'standard' | 'reel';
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onCommentOnPost, onSelectAuthor, useFixedFrame = false }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onCommentOnPost, onSelectAuthor, useFixedFrame = false, variant = 'standard' }) => {
     const { currentUser } = useAppState();
     const [showComments, setShowComments] = useState(false);
     const [commentText, setCommentText] = useState('');
@@ -55,6 +56,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     }, [isVisible, useFixedFrame]);
 
     if (!currentUser) return null;
+    const isReel = variant === 'reel';
 
     const isLiked = post.likes.includes(currentUser.id);
 
@@ -121,10 +123,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     const externalVideoUrl = post.link ? getVideoEmbedUrl(post.link.url) : null;
 
     return (
-        <div className={`cardSurface overflow-hidden ${useFixedFrame ? 'rounded-3xl' : 'rounded-2xl'}`}>
-            <div className="p-6">
+        <div className={`cardSurface overflow-hidden ${isReel ? 'rounded-[20px]' : (useFixedFrame ? 'rounded-3xl' : 'rounded-2xl')}`}>
+            <div className={isReel ? 'p-4' : 'p-6'}>
                 {/* Post Header */}
-                <div className="flex items-start justify-between gap-4 mb-4">
+                <div className={`flex items-start justify-between gap-4 ${isReel ? 'mb-5' : 'mb-4'}`}>
                     <button onClick={onSelectAuthor} className="flex items-center gap-4 group text-left">
                         <img src={getProfileImageUrl(author)} alt={getDisplayName(author)} className="w-12 h-12 rounded-xl object-cover" />
                         <div>
@@ -146,19 +148,27 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                     </div>
                 </div>
 
+                {isReel && (
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">AI Reel</span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse" />
+                        <span className="text-xs text-zinc-400">Adaptive mix • Auto spotlight</span>
+                    </div>
+                )}
 
                 {/* Post Content */}
                 {post.text && <p className="text-slate-300 whitespace-pre-wrap mb-4">{post.text}</p>}
                 
                 {useFixedFrame ? (
                     // The Stage (Feed) View using Fixed Media Frame
-                    <div className="my-4">
+                    <div className={isReel ? 'my-3' : 'my-4'}>
                         {post.image_url && (
                             <StageMediaFrame 
                                 src={post.image_url} 
                                 type="image" 
                                 displayMode={post.display_mode}
                                 focusPoint={post.focus_point}
+                                variant={isReel ? 'reel' : 'stage'}
                             />
                         )}
                         {post.video_url && (
@@ -168,6 +178,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                                 thumbnailUrl={post.video_thumbnail_url} 
                                 displayMode={post.display_mode}
                                 focusPoint={post.focus_point}
+                                variant={isReel ? 'reel' : 'stage'}
                             />
                         )}
                     </div>
@@ -302,6 +313,7 @@ export default React.memo(PostCard, (prevProps, nextProps) => {
         prevProps.post.likes.length === nextProps.post.likes.length &&
         prevProps.post.comments.length === nextProps.post.comments.length &&
         prevProps.author.id === nextProps.author.id &&
-        prevProps.useFixedFrame === nextProps.useFixedFrame
+        prevProps.useFixedFrame === nextProps.useFixedFrame &&
+        prevProps.variant === nextProps.variant
     );
 });

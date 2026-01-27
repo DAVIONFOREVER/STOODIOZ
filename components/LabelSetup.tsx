@@ -105,7 +105,7 @@ const LabelSetup: React.FC<LabelSetupProps> = ({ onNavigate, onCompleteSetup }) 
                             ref={fileInputRef}
                             type="file"
                             className="hidden"
-                            accept="image/*"
+                            accept="image/*,.heic,.heif"
                             onChange={handleImage}
                         />
                     </div>

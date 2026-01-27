@@ -162,7 +162,7 @@ const LabelDashboard: React.FC = () => {
                         ref={coverInputRef}
                         onChange={handleCoverChange}
                         className="hidden"
-                        accept="image/*"
+                        accept="image/*,.heic,.heif"
                     />
                 </div>
                 
@@ -183,7 +183,7 @@ const LabelDashboard: React.FC = () => {
                             ref={fileInputRef}
                             onChange={handleAvatarChange}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/*,.heic,.heif"
                         />
                     </div>
 

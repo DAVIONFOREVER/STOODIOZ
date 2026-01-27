@@ -33,19 +33,35 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const s = stoodioz ?? [];
   const l = labels ?? [];
 
-  const featuredStoodioz = useMemo(() => s.slice(0, 3), [s]);
-  const featuredEngineers = useMemo(() => e.slice(0, 3), [e]);
-  const featuredArtists = useMemo(() => a.slice(0, 3), [a]);
-  const featuredProducers = useMemo(() => p.slice(0, 3), [p]);
+  const dedupeById = (rows: any[]) => {
+    const seen = new Set<string>();
+    return rows.filter((row) => {
+      const key = String(row?.id || row?.profile_id || '');
+      if (!key) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const uniqueStoodioz = useMemo(() => dedupeById(s), [s]);
+  const uniqueEngineers = useMemo(() => dedupeById(e), [e]);
+  const uniqueArtists = useMemo(() => dedupeById(a), [a]);
+  const uniqueProducers = useMemo(() => dedupeById(p), [p]);
+
+  const featuredStoodioz = useMemo(() => uniqueStoodioz.slice(0, 3), [uniqueStoodioz]);
+  const featuredEngineers = useMemo(() => uniqueEngineers.slice(0, 3), [uniqueEngineers]);
+  const featuredArtists = useMemo(() => uniqueArtists.slice(0, 3), [uniqueArtists]);
+  const featuredProducers = useMemo(() => uniqueProducers.slice(0, 3), [uniqueProducers]);
 
   const counts = useMemo(() => ({
-    artists: a.length,
-    engineers: e.length,
-    producers: p.length,
-    stoodioz: s.length,
-    labels: l.length,
-    total: a.length + e.length + p.length + s.length + l.length,
-  }), [a, e, p, s, l]);
+    artists: uniqueArtists.length,
+    engineers: uniqueEngineers.length,
+    producers: uniqueProducers.length,
+    stoodioz: uniqueStoodioz.length,
+    labels: dedupeById(l).length,
+    total: uniqueArtists.length + uniqueEngineers.length + uniqueProducers.length + uniqueStoodioz.length + dedupeById(l).length,
+  }), [uniqueArtists, uniqueEngineers, uniqueProducers, uniqueStoodioz, l]);
 
   const openPulse = () => {
     // Optional: lets MapView know it was opened from "Pulse"
@@ -172,8 +188,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {featuredStoodioz.map((stoodio) => (
-            <StoodioCard key={stoodio.id} stoodio={stoodio} onSelectStoodio={onSelectStoodio} />
+          {featuredStoodioz.map((stoodio, index) => (
+            <StoodioCard key={`${stoodio.id || stoodio.profile_id || 'stoodio'}-${index}`} stoodio={stoodio} onSelectStoodio={onSelectStoodio} />
           ))}
         </div>
       </section>
@@ -194,12 +210,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {featuredProducers.map((producer) => {
+              {featuredProducers.map((producer, index) => {
                 const location = (producer as any).location_text || (producer as any).location || 'Location not set';
 
                 return (
                   <button
-                    key={producer.id}
+                    key={`${producer.id || producer.profile_id || 'producer'}-${index}`}
                     type="button"
                     onClick={() => onSelectProducer(producer)}
                     className="text-left rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl"
@@ -238,11 +254,11 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {featuredEngineers.map((engineer) => {
+            {featuredEngineers.map((engineer, index) => {
               const location = (engineer as any).location_text || (engineer as any).location || 'Location not set';
               return (
                 <button
-                  key={engineer.id}
+                  key={`${engineer.id || engineer.profile_id || 'engineer'}-${index}`}
                   type="button"
                   onClick={() => onSelectEngineer(engineer)}
                   className="text-left rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl"
@@ -281,12 +297,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {featuredArtists.map((artist) => {
+            {featuredArtists.map((artist, index) => {
               const isAria = (artist as any).email === 'aria@stoodioz.ai';
               const location = isAria ? 'AI Assistant' : ((artist as any).location_text || (artist as any).location || 'Location not set');
               return (
                 <button
-                  key={artist.id}
+                  key={`${artist.id || artist.profile_id || 'artist'}-${index}`}
                   type="button"
                   onClick={() => onSelectArtist(artist)}
                   className="text-left rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl"

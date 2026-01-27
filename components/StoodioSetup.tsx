@@ -85,7 +85,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
                             ref={fileInputRef}
                             onChange={handleImageChange}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/*,.heic,.heif"
                         />
                     </div>
                 </div>

@@ -12,9 +12,10 @@ interface PostFeedProps {
     onCommentOnPost: (postId: string, text: string) => void;
     onSelectAuthor: (author: Artist | Engineer | Stoodio | Producer | Label) => void;
     useFixedFrame?: boolean;
+    variant?: 'standard' | 'reel';
 }
 
-const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onCommentOnPost, onSelectAuthor, useFixedFrame = false }) => {
+const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onCommentOnPost, onSelectAuthor, useFixedFrame = false, variant = 'standard' }) => {
     const { currentUser } = useAppState();
 
     if (!posts || posts.length === 0) {
@@ -25,8 +26,10 @@ const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onComme
         );
     }
     
+    const isReel = variant === 'reel';
+
     return (
-        <div className="space-y-6">
+        <div className={isReel ? 'flex flex-col items-center gap-0' : 'space-y-6'}>
             {posts.map(post => {
                 const author = authors.get(post.authorId) ?? {
                     id: post.authorId,
@@ -36,15 +39,20 @@ const PostFeed: React.FC<PostFeedProps> = ({ posts, authors, onLikePost, onComme
                 if (!currentUser) return null;
                 const authorName = getDisplayName(author, 'Unknown');
                 return (
-                    <PostCard 
-                        key={post.id} 
-                        post={post} 
-                        author={author} 
-                        onLikePost={onLikePost}
-                        onCommentOnPost={onCommentOnPost}
-                        onSelectAuthor={() => onSelectAuthor(author)}
-                        useFixedFrame={useFixedFrame}
-                    />
+                    <div
+                        key={post.id}
+                        className={isReel ? 'w-full max-w-[880px]' : undefined}
+                    >
+                        <PostCard 
+                            post={post} 
+                            author={author} 
+                            onLikePost={onLikePost}
+                            onCommentOnPost={onCommentOnPost}
+                            onSelectAuthor={() => onSelectAuthor(author)}
+                            useFixedFrame={useFixedFrame}
+                            variant={variant}
+                        />
+                    </div>
                 );
             })}
         </div>

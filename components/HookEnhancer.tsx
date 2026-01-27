@@ -438,7 +438,7 @@ const HookEnhancer: React.FC = () => {
                     setLyrics(e.target.value);
                   }}
                   placeholder="Paste your hook lyrics, describe the vibe, or let AI transcribe from audio..."
-                  className="w-full min-h-[200px] rounded-xl bg-zinc-950 border border-zinc-800 text-slate-100 p-4 focus:outline-none focus:ring-2 focus:ring-green-500/40 font-mono text-sm resize-none"
+                  className="w-full min-h-[200px] rounded-xl bg-zinc-950 border border-zinc-800 text-slate-100 p-4 focus:outline-none focus:ring-2 focus:ring-green-500/40 text-sm resize-none"
                 />
               </div>
 

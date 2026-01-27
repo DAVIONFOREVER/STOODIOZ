@@ -138,7 +138,7 @@ const RoomFormModal: React.FC<{
                                 type="file" 
                                 ref={fileInputRef} 
                                 onChange={handleFileChange} 
-                                accept="image/*" 
+                                accept="image/*,.heic,.heif" 
                                 multiple 
                                 className="hidden" 
                             />

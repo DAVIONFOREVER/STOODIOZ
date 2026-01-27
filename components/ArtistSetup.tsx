@@ -72,7 +72,7 @@ const ArtistSetup: React.FC<ArtistSetupProps> = ({ onCompleteSetup, onNavigate, 
                             ref={fileInputRef}
                             onChange={handleImageChange}
                             className="hidden"
-                            accept="image/*"
+                            accept="image/*,.heic,.heif"
                         />
                     </div>
                 </div>

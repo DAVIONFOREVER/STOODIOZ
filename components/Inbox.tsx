@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Conversation, Message, Artist, Stoodio, Engineer, Booking, Producer, FileAttachment, Label } from '../types';
 import { AppView } from '../types';
-import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon, PaperclipIcon, DownloadIcon } from './icons';
+import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon, PaperclipIcon, DownloadIcon, VideoCameraIcon } from './icons';
 import { formatDistanceToNow } from 'date-fns';
 import { getProfileImageUrl } from '../constants';
 import BookingContextCard from './BookingContextCard';
@@ -242,6 +242,16 @@ const ChatThread: React.FC<{
                     </button>
                     <img src={getProfileImageUrl(participant)} alt={participant.name} className="w-10 h-10 rounded-xl object-cover" />
                     <h3 className="font-bold text-lg text-zinc-100">{participant.name}</h3>
+                    <div className="ml-auto flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => alert('Live chat rooms are coming soon. You will be able to go live from here.')}
+                            className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-orange-500/20 text-orange-300 hover:bg-orange-500/30"
+                        >
+                            <VideoCameraIcon className="w-4 h-4" />
+                            Go Live
+                        </button>
+                    </div>
                 </div>
                 <div className="flex border-b border-zinc-700/50 bg-zinc-950/80 backdrop-blur-sm">
                     <TabButton 
@@ -360,9 +370,10 @@ const ChatThread: React.FC<{
                     <div className="relative p-4 bg-zinc-950/80 backdrop-blur-sm border-t border-zinc-700/50">
                         {isAttachmentMenuOpen && (
                             <div className="absolute bottom-20 left-4 bg-zinc-800 p-2 rounded-lg border border-zinc-700 shadow-xl flex flex-col gap-1 z-20 text-zinc-200">
-                                <button onClick={() => triggerUpload('image/*')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PhotoIcon className="w-5 h-5 text-zinc-400" /> Send Photo</button>
+                                <button onClick={() => triggerUpload('image/*,.heic,.heif')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PhotoIcon className="w-5 h-5 text-zinc-400" /> Send Photo</button>
                                 <button onClick={() => handleSmartReplyClick("Here is a link.")} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><LinkIcon className="w-5 h-5 text-zinc-400" /> Send Link</button>
                                 <button onClick={() => triggerUpload('audio/*')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><MusicNoteIcon className="w-5 h-5 text-zinc-400" /> Send Music</button>
+                                <button onClick={() => alert('Live chat rooms are coming soon. You will be able to go live from here.')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><VideoCameraIcon className="w-5 h-5 text-zinc-400" /> Go Live</button>
                                 <button onClick={() => triggerUpload('*/*')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PaperclipIcon className="w-5 h-5 text-zinc-400" /> Send File</button>
                             </div>
                         )}

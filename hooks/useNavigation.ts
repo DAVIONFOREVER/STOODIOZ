@@ -21,7 +21,7 @@ export const useNavigation = () => {
     const goForward = useCallback(() => dispatch({ type: ActionTypes.GO_FORWARD }), [dispatch]);
     
     const viewStoodioDetails = useCallback((stoodio: Stoodio) => {
-        const id = stoodio?.id || (stoodio as any)?.profile_id;
+        const id = (stoodio as any)?.profile_id || stoodio?.id;
         if (id) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'stoodio');
@@ -31,7 +31,7 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
 
     const viewArtistProfile = useCallback((artist: Artist) => {
-        const id = artist?.id || (artist as any)?.profile_id;
+        const id = (artist as any)?.profile_id || artist?.id;
         if (id) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'artist');
@@ -41,7 +41,7 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
 
     const viewEngineerProfile = useCallback((engineer: Engineer) => {
-        const id = engineer?.id || (engineer as any)?.profile_id;
+        const id = (engineer as any)?.profile_id || engineer?.id;
         if (id) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'engineer');
@@ -51,7 +51,7 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
 
     const viewProducerProfile = useCallback((producer: Producer) => {
-        const id = producer?.id || (producer as any)?.profile_id;
+        const id = (producer as any)?.profile_id || producer?.id;
         if (id) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'producer');
@@ -61,7 +61,7 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
     
     const viewLabelProfile = useCallback((label: Label) => {
-        const id = label?.id || (label as any)?.profile_id;
+        const id = (label as any)?.profile_id || label?.id;
         if (id) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'label');

@@ -199,7 +199,7 @@ const EngineerDashboard: React.FC = () => {
                     ref={coverImageInputRef}
                     onChange={handleCoverFileChange}
                     className="hidden"
-                    accept="image/*"
+                    accept="image/*,.heic,.heif"
                 />
                 <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
@@ -218,7 +218,7 @@ const EngineerDashboard: React.FC = () => {
                                     ref={fileInputRef}
                                     onChange={handleFileChange}
                                     className="hidden"
-                                    accept="image/*"
+                                    accept="image/*,.heic,.heif"
                                 />
                             </div>
                             <div>

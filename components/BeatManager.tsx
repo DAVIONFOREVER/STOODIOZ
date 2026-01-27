@@ -119,7 +119,7 @@ const BeatFormModal: React.FC<{
                                     </div>
                                 )}
                                 </div>
-                                <input type="file" ref={coverArtInputRef} onChange={handleCoverArtChange} accept="image/png, image/jpeg" className="hidden" disabled={isUploading} />
+                                <input type="file" ref={coverArtInputRef} onChange={handleCoverArtChange} accept="image/png, image/jpeg, image/heic, image/heif, .heic, .heif" className="hidden" disabled={isUploading} />
                             </div>
                         </div>
 

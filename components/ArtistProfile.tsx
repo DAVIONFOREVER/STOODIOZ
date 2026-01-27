@@ -15,7 +15,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { useAria } from '../hooks/useAria';
-import { fetchUserPosts, fetchFullArtist } from '../services/apiService';
+import { fetchUserPosts, fetchFullArtist, fetchProfileByEmail } from '../services/apiService';
 import { ARIA_EMAIL, ARIA_PROFILE_IMAGE_URL, ARIA_COVER_IMAGE_URL, getProfileImageUrl, getDisplayName } from '../constants';
 import appIcon from '../assets/stoodioz-app-icon.png';
 import AriaCantataAssistant from './AriaAssistant';
@@ -25,8 +25,14 @@ import ReleaseEngine from './ReleaseEngine';
 import HookEnhancer from './HookEnhancer';
 import { CloseIcon, PauseIcon } from './icons';
 
-// Music Player Component
-const MusicPlayerSection: React.FC = () => {
+const TrackPlayer: React.FC<{
+    title: string;
+    artist: string;
+    audioSrc: string;
+    artSrc: string;
+    about: string;
+    showVisualizer?: boolean;
+}> = ({ title, artist, audioSrc, artSrc, about, showVisualizer }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -97,148 +103,179 @@ const MusicPlayerSection: React.FC = () => {
     const progressPercent = duration ? (currentTime / duration) * 100 : 0;
 
     return (
-        <div className="animate-fade-in space-y-8">
-            <div className="aria-glass p-10 rounded-[40px] aria-metal-stroke shadow-2xl relative overflow-hidden">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 mb-8 flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></div>
-                    Personal Music
-                </h3>
-                
-                {/* Album Art & Music Player */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                    {/* Album Art */}
-                    <div className="relative group">
-                        <div className="relative aspect-square rounded-3xl overflow-hidden border-2 border-orange-500/30 shadow-2xl shadow-orange-500/20">
-                            {/* Album Art Image */}
-                            <img 
-                                src="/aria/D3880F26-561D-442A-9798-2F4B338D8E20.PNG" 
-                                alt="You Me And My Pet - Album Art" 
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                onError={(e) => {
-                                    // Fallback if image doesn't exist
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                            />
-                            {/* Cover Art Text Overlay - Stoodioz Style */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/95 via-zinc-950/50 to-transparent flex flex-col justify-end p-8">
-                                <div className="space-y-4">
-                                    <h4 className="text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-none" style={{ 
-                                        textShadow: '0 2px 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 0 0 60px rgba(249, 115, 22, 0.3)',
-                                        fontFamily: 'Inter, sans-serif'
-                                    }}>
-                                        You Me And My Pet
-                                    </h4>
-                                    <p className="text-xl md:text-2xl lg:text-3xl font-black text-orange-500 uppercase tracking-[0.15em] leading-tight" style={{ 
-                                        textShadow: '0 2px 15px rgba(0,0,0,0.9), 0 0 30px rgba(249, 115, 22, 0.5), 0 0 50px rgba(249, 115, 22, 0.3)',
-                                        fontFamily: 'Inter, sans-serif'
-                                    }}>
-                                        Aria Cantata
-                                    </p>
-                                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            {/* Album Art */}
+            <div className="relative group">
+                <div className="relative aspect-square rounded-3xl overflow-hidden border-2 border-orange-500/30 shadow-2xl shadow-orange-500/20">
+                    <img 
+                        src={artSrc} 
+                        alt={`${title} - Album Art`} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                    />
+                    {showVisualizer && (
+                        <>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent aria-sing-pulse" />
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-end gap-1.5">
+                                {[0, 1, 2, 3, 4].map((i) => (
+                                    <span
+                                        key={i}
+                                        className="aria-eq-bar w-1.5 rounded-full bg-orange-400/80"
+                                        style={{ height: 14 + i * 6, animationDelay: `${i * 0.12}s` }}
+                                    />
+                                ))}
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Music Player */}
-                    <div className="space-y-6">
-                        <div className="p-6 bg-gradient-to-br from-zinc-950/90 to-zinc-900/90 rounded-2xl border border-orange-500/20 backdrop-blur-sm">
-                            <audio 
-                                ref={audioRef}
-                                src="/aria/you-me-and-my-pet.mp3"
-                                preload="metadata"
-                            />
-                            
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500/20 to-pink-500/20 border border-orange-500/30">
-                                    <MusicNoteIcon className="w-6 h-6 text-orange-400" />
-                                </div>
-                                <div>
-                                    <h5 className="text-lg font-black text-white">You Me And My Pet</h5>
-                                    <p className="text-sm text-zinc-400">Aria Cantata</p>
-                                </div>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="mb-4">
-                                <div 
-                                    className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-2 cursor-pointer"
-                                    onClick={handleProgressClick}
-                                >
-                                    <div 
-                                        className="h-full bg-gradient-to-r from-orange-500 to-pink-500 rounded-full transition-all"
-                                        style={{ width: `${progressPercent}%` }}
-                                    ></div>
-                                </div>
-                                <div className="flex justify-between text-xs text-zinc-500">
-                                    <span>{formatTime(currentTime)}</span>
-                                    <span>{formatTime(duration)}</span>
-                                </div>
-                            </div>
-
-                            {/* Player Controls */}
-                            <div className="flex items-center justify-center gap-4">
-                                <button 
-                                    className="p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    disabled
-                                    title="Previous"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                                    </svg>
-                                </button>
-                                <button 
-                                    onClick={togglePlay}
-                                    className="p-4 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg shadow-orange-500/30 transition-all"
-                                    title={isPlaying ? "Pause" : "Play"}
-                                >
-                                    {isPlaying ? (
-                                        <PauseIcon className="w-6 h-6" />
-                                    ) : (
-                                        <PlayIcon className="w-6 h-6" />
-                                    )}
-                                </button>
-                                <button 
-                                    className="p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    disabled
-                                    title="Next"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            {/* Volume Control */}
-                            <div className="mt-6 pt-6 border-t border-zinc-800">
-                                <div className="flex items-center gap-3">
-                                    <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M6.343 6.343L4.93 4.93A1 1 0 003.515 6.343L5.757 8.586a1 1 0 001.414-1.414zM17.657 17.657l1.414 1.414a1 1 0 001.414-1.414L18.485 15.414a1 1 0 00-1.414 1.414z" />
-                                    </svg>
-                                    <div 
-                                        className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden cursor-pointer"
-                                        onClick={handleVolumeChange}
-                                    >
-                                        <div 
-                                            className="h-full bg-gradient-to-r from-orange-500 to-pink-500 rounded-full transition-all"
-                                            style={{ width: `${volume * 100}%` }}
-                                        ></div>
-                                    </div>
-                                    <span className="text-xs text-zinc-500 w-8 text-right">{Math.round(volume * 100)}%</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Song Info */}
-                        <div className="p-6 bg-gradient-to-br from-zinc-950/90 to-zinc-900/90 rounded-2xl border border-zinc-800 backdrop-blur-sm">
-                            <h6 className="text-sm font-bold text-zinc-300 mb-3">About This Song</h6>
-                            <p className="text-xs text-zinc-400 leading-relaxed">
-                                Written by you, performed by Aria. This is Aria's personal music—material you've written, 
-                                brought to life with AI-generated vocals. Currently in final production.
+                        </>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/95 via-zinc-950/50 to-transparent flex flex-col justify-end p-8">
+                        <div className="space-y-4">
+                            <h4 className="text-4xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-none" style={{ 
+                                textShadow: '0 2px 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 0 0 60px rgba(249, 115, 22, 0.3)',
+                                fontFamily: 'Inter, sans-serif'
+                            }}>
+                                {title}
+                            </h4>
+                            <p className="text-xl md:text-2xl lg:text-3xl font-black text-orange-500 uppercase tracking-[0.15em] leading-tight" style={{ 
+                                textShadow: '0 2px 15px rgba(0,0,0,0.9), 0 0 30px rgba(249, 115, 22, 0.5), 0 0 50px rgba(249, 115, 22, 0.3)',
+                                fontFamily: 'Inter, sans-serif'
+                            }}>
+                                {artist}
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Music Player */}
+            <div className="space-y-6">
+                <div className="p-6 bg-gradient-to-br from-zinc-950/90 to-zinc-900/90 rounded-2xl border border-orange-500/20 backdrop-blur-sm">
+                    <audio 
+                        ref={audioRef}
+                        src={audioSrc}
+                        preload="metadata"
+                    />
+                    
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500/20 to-pink-500/20 border border-orange-500/30">
+                            <MusicNoteIcon className="w-6 h-6 text-orange-400" />
+                        </div>
+                        <div>
+                            <h5 className="text-lg font-black text-white">{title}</h5>
+                            <p className="text-sm text-zinc-400">{artist}</p>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <div 
+                            className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-2 cursor-pointer"
+                            onClick={handleProgressClick}
+                        >
+                            <div 
+                                className="h-full bg-gradient-to-r from-orange-500 to-pink-500 rounded-full transition-all"
+                                style={{ width: `${progressPercent}%` }}
+                            ></div>
+                        </div>
+                        <div className="flex justify-between text-xs text-zinc-500">
+                            <span>{formatTime(currentTime)}</span>
+                            <span>{formatTime(duration)}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-4">
+                        <button 
+                            className="p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled
+                            title="Previous"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <button 
+                            onClick={togglePlay}
+                            className="p-4 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white shadow-lg shadow-orange-500/30 transition-all"
+                            title={isPlaying ? "Pause" : "Play"}
+                        >
+                            {isPlaying ? (
+                                <PauseIcon className="w-6 h-6" />
+                            ) : (
+                                <PlayIcon className="w-6 h-6" />
+                            )}
+                        </button>
+                        <button 
+                            className="p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled
+                            title="Next"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-zinc-800">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M6.343 6.343L4.93 4.93A1 1 0 003.515 6.343L5.757 8.586a1 1 0 001.414-1.414zM17.657 17.657l1.414 1.414a1 1 0 001.414-1.414L18.485 15.414a1 1 0 00-1.414 1.414z" />
+                            </svg>
+                            <div 
+                                className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden cursor-pointer"
+                                onClick={handleVolumeChange}
+                            >
+                                <div 
+                                    className="h-full bg-gradient-to-r from-orange-500 to-pink-500 rounded-full transition-all"
+                                    style={{ width: `${volume * 100}%` }}
+                                ></div>
+                            </div>
+                            <span className="text-xs text-zinc-500 w-8 text-right">{Math.round(volume * 100)}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 bg-gradient-to-br from-zinc-950/90 to-zinc-900/90 rounded-2xl border border-zinc-800 backdrop-blur-sm">
+                    <h6 className="text-sm font-bold text-zinc-300 mb-3">About This Song</h6>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{about}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Music Player Component
+const MusicPlayerSection: React.FC = () => {
+    const tracks = [
+        {
+            title: 'The Fine Print',
+            artist: 'Aria Cantata',
+            audioSrc: '/aria/the-fine-print.mp3',
+            artSrc: '/aria/B7D0B1E8-02F9-4B46-B97D-0E67A13008BD.PNG',
+            about: 'A second personal release from Aria. The track explores agency and clarity, continuing her evolving sound.',
+            showVisualizer: true,
+        },
+        {
+            title: 'You Me And My Pet',
+            artist: 'Aria Cantata',
+            audioSrc: '/aria/you-me-and-my-pet.mp3',
+            artSrc: '/aria/D3880F26-561D-442A-9798-2F4B338D8E20.PNG',
+            about: 'A personal track performed by Aria. This material is in final production and represents her evolving sound and creative direction.',
+        },
+    ];
+
+    return (
+        <div className="animate-fade-in space-y-8">
+            {tracks.map((track, index) => (
+                <div key={track.audioSrc} className="aria-glass p-10 rounded-[40px] aria-metal-stroke shadow-2xl relative overflow-hidden">
+                    {index === 0 && (
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 mb-8 flex items-center gap-3">
+                            <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></div>
+                            Personal Music
+                        </h3>
+                    )}
+                    <TrackPlayer {...track} />
+                </div>
+            ))}
         </div>
     );
 };
@@ -331,6 +368,36 @@ const ArtistProfile: React.FC = () => {
                 if (fullData) {
                     setArtist(fullData as Artist);
                 } else {
+                    // If the stored id is an internal role id, try to resolve Aria via email
+                    const isLikelyRoleId = typeof targetId === 'string' && targetId.startsWith('artist_');
+                    if (isLikelyRoleId) {
+                        const profile = await fetchProfileByEmail(ARIA_EMAIL);
+                        if (!isMounted) return;
+                        if (profile?.id) {
+                            const ariaFull = await fetchFullArtist(profile.id);
+                            if (!isMounted) return;
+                            if (ariaFull) {
+                                setArtist(ariaFull as Artist);
+                                return;
+                            }
+                            setArtist({
+                                id: profile.id,
+                                profile_id: profile.id,
+                                name: profile.full_name || profile.username || 'Aria Cantata',
+                                full_name: profile.full_name || null,
+                                username: profile.username || null,
+                                image_url: profile.image_url || ARIA_PROFILE_IMAGE_URL,
+                                cover_image_url: ARIA_COVER_IMAGE_URL,
+                                email: profile.email || ARIA_EMAIL,
+                                genres: [],
+                                rating_overall: 0,
+                                ranking_tier: 'PROVISIONAL',
+                                role: 'ARTIST',
+                                profiles: profile,
+                            } as any);
+                            return;
+                        }
+                    }
                     setArtist(null);
                     setLoadError('Profile not found.');
                 }
@@ -665,6 +732,45 @@ const ArtistProfile: React.FC = () => {
                 {activeTab === 'music' && <MusicPlayerSection />}
                 {activeTab === 'activity' && (
                     <div className="animate-fade-in space-y-8">
+                        <div className="cardSurface p-8">
+                            <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-3 mb-6">
+                                <UsersIcon className="w-6 h-6 text-orange-400" /> Connections
+                            </h3>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div>
+                                    <h4 className="text-lg font-bold text-zinc-100 mb-3">Followers ({followers.length})</h4>
+                                    {followers.length > 0 ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {followers.map(f => {
+                                                const type = 'amenities' in f ? 'stoodio' : 'specialties' in f ? 'engineer' : 'instrumentals' in f ? 'producer' : 'artist';
+                                                const onClick = () => {
+                                                    if (type === 'artist') viewArtistProfile(f as Artist);
+                                                    else if (type === 'engineer') viewEngineerProfile(f as Engineer);
+                                                    else if (type === 'stoodio') viewStoodioDetails(f as Stoodio);
+                                                    else if (type === 'producer') viewProducerProfile(f as Producer);
+                                                };
+                                                return <ProfileCard key={f.id} profile={f} type={type} onClick={onClick} />;
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-zinc-400 text-sm">No followers yet.</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <h4 className="text-lg font-bold text-zinc-100 mb-3">Following ({followingCount})</h4>
+                                    {followingCount > 0 ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {followedArtists.map(p => <ProfileCard key={p.id} profile={p} type="artist" onClick={() => viewArtistProfile(p)} />)}
+                                            {followedEngineers.map(p => <ProfileCard key={p.id} profile={p} type="engineer" onClick={() => viewEngineerProfile(p)} />)}
+                                            {followedStoodioz.map(p => <ProfileCard key={p.id} profile={p} type="stoodio" onClick={() => viewStoodioDetails(p)} />)}
+                                            {followedProducers.map(p => <ProfileCard key={p.id} profile={p} type="producer" onClick={() => viewProducerProfile(p)} />)}
+                                        </div>
+                                    ) : (
+                                        <p className="text-zinc-400 text-sm">Not following anyone yet.</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                         <div className="space-y-8">
                             <h3 className="text-2xl font-black text-white tracking-tight flex items-center gap-3 mb-6">
                                 <SoundWaveIcon className="w-6 h-6 text-orange-400" /> Feed & Activity

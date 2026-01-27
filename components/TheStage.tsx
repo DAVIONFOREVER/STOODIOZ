@@ -4,10 +4,8 @@ import type { Post, Artist, Engineer, Stoodio, LinkAttachment, Producer, Label }
 import { AppView, UserRole } from '../types';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
-import UserProfileCard from './UserProfileCard.tsx';
-import WhoToFollow from './WhoToFollow';
-import TrendingPost from './TrendingPost.tsx';
-import { CalendarIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon } from './icons.tsx';
+import StageCreatorHub from './StageCreatorHub';
+import { SparklesIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
 import { fetchGlobalFeed } from '../services/apiService';
 import { useOnScreen } from '../hooks/useOnScreen';
@@ -24,14 +22,8 @@ interface TheStageProps {
     onSelectStoodio: (stoodio: Stoodio) => void;
     onSelectProducer: (producer: Producer) => void;
     onNavigate: (view: AppView) => void;
+    onOpenAria: () => void;
 }
-
-const QuickLink: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void }> = ({ icon, label, onClick }) => (
-    <button onClick={onClick} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-zinc-700 transition-colors">
-        {icon}
-        <span className="font-semibold text-sm">{label}</span>
-    </button>
-);
 
 const TheStage: React.FC<TheStageProps> = (props) => {
     const { 
@@ -43,7 +35,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         onSelectEngineer,
         onSelectStoodio,
         onSelectProducer,
-        onNavigate
+        onNavigate,
+        onOpenAria
     } = props;
     const { currentUser, userRole, artists, engineers, stoodioz, producers, labels } = useAppState();
 
@@ -269,40 +262,40 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     if (!currentUser) return null;
 
-    return (
-        <div>
-            <div className="grid grid-cols-12 lg:grid-cols-12 gap-8">
-                {/* Left Sidebar */}
-                <aside className="hidden lg:block lg:col-span-3">
-                    <div className="lg:sticky lg:top-28 space-y-6">
-                       <UserProfileCard user={currentUser as Artist | Engineer | Stoodio | Producer | Label} userRole={userRole} onNavigate={onNavigate} />
-                       <div className="cardSurface p-4">
-                           <h3 className="font-bold text-slate-100 px-3 mb-2">Quick Links</h3>
-                           <nav className="space-y-1">
-                               <QuickLink icon={<CalendarIcon className="w-5 h-5 text-orange-400"/>} label="My Bookings" onClick={() => onNavigate(AppView.MY_BOOKINGS)} />
-                               <QuickLink icon={<MicrophoneIcon className="w-5 h-5 text-green-400"/>} label="Discover Artists" onClick={() => onNavigate(AppView.ARTIST_LIST)} />
-                               <QuickLink icon={<SoundWaveIcon className="w-5 h-5 text-amber-400"/>} label="Discover Engineers" onClick={() => onNavigate(AppView.ENGINEER_LIST)} />
-                               <QuickLink icon={<MusicNoteIcon className="w-5 h-5 text-purple-400"/>} label="Discover Producers" onClick={() => onNavigate(AppView.PRODUCER_LIST)} />
-                               <QuickLink icon={<HouseIcon className="w-5 h-5 text-red-400"/>} label="Discover Stoodioz" onClick={() => onNavigate(AppView.STOODIO_LIST)} />
-                           </nav>
-                       </div>
-                    </div>
-                </aside>
+    const handleStartLive = () => {
+        onNavigate(AppView.INBOX);
+    };
 
-                {/* Main Content */}
-                <main className="col-span-12 lg:col-span-6">
-                    <div className="space-y-8">
-                        <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label} onPost={handleNewPost} />
-                        
+    const handleJoinLive = (_roomId: string) => {
+        onNavigate(AppView.INBOX);
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col items-center text-center gap-3">
+                <p className="text-xs uppercase tracking-[0.35em] text-zinc-500">The Stage</p>
+                <h1 className="text-3xl md:text-5xl font-extrabold text-zinc-100">The Stage</h1>
+                <p className="text-sm text-zinc-400">Always-on creator feed. Aria is ready when you are.</p>
+            </div>
+
+            <div className="grid grid-cols-12 gap-8">
+                {/* AI-Reel Feed */}
+                <main className="col-span-12 xl:col-span-8">
+                    <div className="space-y-10">
+                        <div className="cardSurface p-6">
+                            <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label} onPost={handleNewPost} />
+                        </div>
+
                         <PostFeed 
                             posts={posts} 
                             authors={authorsMap}
                             onLikePost={handleLocalLike}
                             onCommentOnPost={handleLocalComment}
                             onSelectAuthor={(author) => handleSelectUser(author as Artist | Engineer | Stoodio | Producer | Label)}
-                            useFixedFrame={true} 
+                            useFixedFrame={true}
+                            variant="reel"
                         />
-                        
+
                         {/* Infinite Scroll Sentinel */}
                         <div ref={loadMoreRef} className="py-8 text-center">
                             {isLoading && (
@@ -320,26 +313,24 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                     </div>
                 </main>
 
-                {/* Right Sidebar */}
-                 <aside className="hidden lg:block lg:col-span-3">
-                     <div className="lg:sticky lg:top-28 space-y-6">
-                        {suggestions.length > 0 && (
-                            <WhoToFollow 
-                                suggestions={suggestions}
-                                onToggleFollow={onToggleFollow}
-                                onSelectUser={handleSelectUser}
-                            />
-                        )}
-                        {trendingPost && trendingPostAuthor && (
-                            <TrendingPost
-                                post={trendingPost}
-                                author={trendingPostAuthor}
-                                onLikePost={handleLocalLike}
-                                onCommentOnPost={handleLocalComment}
-                                onSelectUser={handleSelectUser}
-                            />
-                        )}
-                     </div>
+                {/* Creator Hub */}
+                <aside className="col-span-12 xl:col-span-4">
+                    <div className="xl:sticky xl:top-24">
+                        <StageCreatorHub
+                            currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label}
+                            suggestions={suggestions}
+                            trendingPost={trendingPost}
+                            trendingPostAuthor={trendingPostAuthor}
+                            onToggleFollow={onToggleFollow}
+                            onLikePost={handleLocalLike}
+                            onCommentOnPost={handleLocalComment}
+                            onSelectUser={handleSelectUser}
+                            onNavigate={onNavigate}
+                            onOpenAria={onOpenAria}
+                            onStartLive={handleStartLive}
+                            onJoinLive={handleJoinLive}
+                        />
+                    </div>
                 </aside>
             </div>
         </div>

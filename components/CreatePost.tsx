@@ -158,7 +158,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
 
     const handleAddPhoto = () => {
         if (fileInputRef.current) {
-            fileInputRef.current.accept = "image/*";
+            fileInputRef.current.accept = "image/*,.heic,.heif";
             fileInputRef.current.click();
         }
     };

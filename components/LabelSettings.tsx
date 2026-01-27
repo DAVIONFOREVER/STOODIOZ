@@ -147,7 +147,7 @@ const LabelSettings: React.FC = () => {
           Edit Cover
         </button>
 
-        <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
+        <input ref={coverInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleCoverChange} />
 
         <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -165,7 +165,7 @@ const LabelSettings: React.FC = () => {
               >
                 <EditIcon className="w-7 h-7 text-white" />
               </button>
-              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+              <input ref={avatarInputRef} type="file" accept="image/*,.heic,.heif" className="hidden" onChange={handleAvatarChange} />
             </div>
 
             <div>

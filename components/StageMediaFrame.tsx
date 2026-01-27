@@ -10,6 +10,7 @@ interface StageMediaFrameProps {
     displayMode?: 'fit' | 'fill';
     focusPoint?: { x: number; y: number };
     altText?: string;
+    variant?: 'stage' | 'reel';
 }
 
 const StageMediaFrame: React.FC<StageMediaFrameProps> = ({ 
@@ -18,15 +19,18 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
     thumbnailUrl, 
     displayMode = 'fit', 
     focusPoint = { x: 0.5, y: 0.5 },
-    altText = 'Media content'
+    altText = 'Media content',
+    variant = 'stage'
 }) => {
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
     const videoRef = useRef<HTMLVideoElement>(null);
     const isVisible = useOnScreen(videoRef as any, '0px');
 
     // Handle video auto-play/pause based on visibility
     useEffect(() => {
         if (type === 'video' && videoRef.current) {
+            videoRef.current.muted = isMuted;
             if (isVisible) {
                 const playPromise = videoRef.current.play();
                 if (playPromise !== undefined) {
@@ -42,6 +46,10 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
     }, [isVisible, type]);
 
     const handleLoad = () => setIsLoaded(true);
+    const toggleMute = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsMuted(prev => !prev);
+    };
 
     // Determine styling based on display mode
     const objectFitClass = displayMode === 'fill' ? 'object-cover' : 'object-contain';
@@ -55,9 +63,13 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
     // Ensure we don't use the video src as a background image as it won't render.
     const backgroundSrc = type === 'video' ? thumbnailUrl : src;
 
+    const frameClassName = variant === 'reel'
+        ? 'relative w-full h-[560px] overflow-hidden rounded-[24px] bg-zinc-950 shadow-[0_20px_60px_rgba(0,0,0,0.35)] border border-zinc-800/60 mx-auto'
+        : 'relative w-full aspect-[4/5] max-w-[1080px] max-h-[1350px] overflow-hidden rounded-[20px] bg-zinc-900 shadow-lg border border-zinc-800/50 mx-auto';
+
     return (
         <div 
-            className="relative w-full aspect-[4/5] max-w-[1080px] max-h-[1350px] overflow-hidden rounded-[20px] bg-zinc-900 shadow-lg border border-zinc-800/50 mx-auto"
+            className={frameClassName}
             role="img"
             aria-label={altText}
         >
@@ -114,6 +126,17 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
                     <div className="bg-black/40 p-4 rounded-full backdrop-blur-sm">
                         <PlayIcon className="w-8 h-8 text-white/80" />
                     </div>
+                </div>
+            )}
+
+            {type === 'video' && (
+                <div className="absolute bottom-4 right-4 z-30">
+                    <button
+                        onClick={toggleMute}
+                        className="px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-semibold hover:bg-black/80 transition-colors"
+                    >
+                        {isMuted ? 'Sound Off' : 'Sound On'}
+                    </button>
                 </div>
             )}
         </div>

@@ -140,7 +140,7 @@ const ProductFormModal: React.FC<{
                             >
                                 {coverFile ? coverFile.name : product?.cover_url ? 'Click to replace cover' : 'Click to select image'}
                             </div>
-                            <input type="file" ref={coverFileRef} onChange={(e) => setCoverFile(e.target.files?.[0] || null)} accept="image/*" className="hidden" />
+                            <input type="file" ref={coverFileRef} onChange={(e) => setCoverFile(e.target.files?.[0] || null)} accept="image/*,.heic,.heif" className="hidden" />
                         </div>
                     </div>
                     <div className="p-4 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-end gap-2">
