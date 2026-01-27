@@ -418,18 +418,61 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   // Build select based on table - only select columns that definitely exist
   // Removed: followers, follower_ids, following, coordinates, show_on_map, is_online (computed or don't exist)
   let selectBase: string;
+  let selectBaseFallback: string; // Fallback without rating_overall for tables that might not have it
+  
   if (table === 'engineers') {
     selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, specialties, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, specialties, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   } else if (table === 'artists') {
-    selectBase = 'id, name, stage_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, genres, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBase = 'id, name, stage_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = 'id, name, stage_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, genres, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   } else if (table === 'producers') {
     selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, instrumentals, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, genres, instrumentals, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   } else if (table === 'stoodioz') {
     selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, amenities, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, genres, amenities, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   } else {
     // Default for labels or other tables
     selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   }
+  
+  // Helper to execute a query with fallback on column errors
+  const executeQueryWithFallback = async (queryFn: (select: string) => any, select: string, fallbackSelect: string): Promise<any> => {
+    try {
+      const result = await queryFn(select);
+      if (result?.error) {
+        const errorMsg = errMsg(result.error);
+        // If it's a column error, try fallback
+        if (errorMsg.includes('does not exist') || errorMsg.includes('column')) {
+          console.warn(`[fetchFullRoleRow] Column error, trying fallback: ${errorMsg}`);
+          const fallbackResult = await queryFn(fallbackSelect);
+          if (fallbackResult?.error) throw new Error(errMsg(fallbackResult.error));
+          // Add rating_overall as undefined so frontend can handle it
+          if (fallbackResult?.data) {
+            fallbackResult.data.rating_overall = undefined;
+          }
+          return fallbackResult;
+        }
+        throw new Error(errorMsg);
+      }
+      return result;
+    } catch (err: any) {
+      const errorMsg = err?.message || String(err);
+      if (errorMsg.includes('does not exist') || errorMsg.includes('column')) {
+        console.warn(`[fetchFullRoleRow] Column error, trying fallback: ${errorMsg}`);
+        const fallbackResult = await queryFn(fallbackSelect);
+        if (fallbackResult?.error) throw new Error(errMsg(fallbackResult.error));
+        // Add rating_overall as undefined so frontend can handle it
+        if (fallbackResult?.data) {
+          fallbackResult.data.rating_overall = undefined;
+        }
+        return fallbackResult;
+      }
+      throw err;
+    }
+  };
 
   // Helper to compute followers/following from follows table
   const computeFollowData = async (profileId: string): Promise<{ followers: number; follower_ids: string[]; following: any }> => {
@@ -482,11 +525,12 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
 
   // UUID: run byId and byProfileId in parallel to avoid 12s+12s sequential when first misses.
   if (isUuid(idOrUsername)) {
-    const byId = supabase.from(table).select(selectBase).eq('id', idOrUsername).maybeSingle();
-    const byProfileId = supabase.from(table).select(selectBase).eq('profile_id', idOrUsername).maybeSingle();
+    const byIdQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('id', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byId`);
+    const byProfileIdQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('profile_id', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byProfileId`);
+    
     const [r2, r3] = await Promise.all([
-      withTimeout(byId as any, DB_TIMEOUT_MS, `${table}.byId`),
-      withTimeout(byProfileId as any, DB_TIMEOUT_MS, `${table}.byProfileId`),
+      executeQueryWithFallback(byIdQuery, selectBase, selectBaseFallback),
+      executeQueryWithFallback(byProfileIdQuery, selectBase, selectBaseFallback),
     ]);
     let result = r2?.data || r3?.data;
     if (!result) {
@@ -500,8 +544,8 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   }
 
   // 1) Try by username (slug-style handles)
-  const byUsername = supabase.from(table).select(selectBase).eq('username', idOrUsername).maybeSingle();
-  const r1 = await withTimeout(byUsername as any, DB_TIMEOUT_MS, `${table}.byUsername`);
+  const byUsernameQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('username', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byUsername`);
+  const r1 = await executeQueryWithFallback(byUsernameQuery, selectBase, selectBaseFallback);
   if (r1?.data) {
     const profileId = r1.data.profile_id || r1.data.id;
     const followData = await computeFollowData(profileId);
@@ -509,11 +553,11 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   }
 
   // 2) and 3) byId and byProfileId in parallel
-  const byId = supabase.from(table).select(selectBase).eq('id', idOrUsername).maybeSingle();
-  const byProfileId = supabase.from(table).select(selectBase).eq('profile_id', idOrUsername).maybeSingle();
+  const byIdQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('id', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byId`);
+  const byProfileIdQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('profile_id', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byProfileId`);
   const [r2, r3] = await Promise.all([
-    withTimeout(byId as any, DB_TIMEOUT_MS, `${table}.byId`),
-    withTimeout(byProfileId as any, DB_TIMEOUT_MS, `${table}.byProfileId`),
+    executeQueryWithFallback(byIdQuery, selectBase, selectBaseFallback),
+    executeQueryWithFallback(byProfileIdQuery, selectBase, selectBaseFallback),
   ]);
   let result = r2?.data || r3?.data;
   if (!result) {
