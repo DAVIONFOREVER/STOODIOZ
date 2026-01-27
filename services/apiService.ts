@@ -420,22 +420,26 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   let selectBase: string;
   let selectBaseFallback: string; // Fallback without rating_overall for tables that might not have it
   
+  // Minimal select - only absolutely essential columns that should exist in all tables
+  const selectMinimal = (nameField: string, extraFields: string = '') => 
+    `id, ${nameField}, image_url, cover_image_url, bio, email, wallet_balance, profile_id, created_at, updated_at, links, isAdmin, subscription, role${extraFields ? ', ' + extraFields : ''}, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)`;
+  
   if (table === 'engineers') {
     selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, specialties, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, specialties, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = selectMinimal('name, display_name', 'specialties');
   } else if (table === 'artists') {
     selectBase = 'id, name, stage_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = 'id, name, stage_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, genres, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = selectMinimal('name, stage_name', 'genres');
   } else if (table === 'producers') {
     selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, instrumentals, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, genres, instrumentals, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = selectMinimal('name', 'genres, instrumentals');
   } else if (table === 'stoodioz') {
     selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, amenities, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, genres, amenities, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = selectMinimal('name, display_name', 'genres, amenities');
   } else {
     // Default for labels or other tables
     selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, sessions_completed, ranking_tier, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
+    selectBaseFallback = selectMinimal('name, display_name');
   }
   
   // Helper to execute a query with fallback on column errors
@@ -446,12 +450,31 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
         const errorMsg = errMsg(result.error);
         // If it's a column error, try fallback
         if (errorMsg.includes('does not exist') || errorMsg.includes('column')) {
-          console.warn(`[fetchFullRoleRow] Column error, trying fallback: ${errorMsg}`);
+          console.warn(`[fetchFullRoleRow] Column error, trying minimal fallback: ${errorMsg}`);
           const fallbackResult = await queryFn(fallbackSelect);
-          if (fallbackResult?.error) throw new Error(errMsg(fallbackResult.error));
-          // Add rating_overall as undefined so frontend can handle it
+          if (fallbackResult?.error) {
+            // If even minimal fails, try absolute minimum
+            const absoluteMin = `id, name, image_url, bio, email, profile_id, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio)`;
+            const minResult = await queryFn(absoluteMin);
+            if (minResult?.error) throw new Error(errMsg(minResult.error));
+            // Add missing fields as undefined/defaults
+            if (minResult?.data) {
+              minResult.data.rating_overall = undefined;
+              minResult.data.sessions_completed = undefined;
+              minResult.data.ranking_tier = undefined;
+              minResult.data.wallet_balance = undefined;
+            }
+            return minResult;
+          }
+          // Add missing fields as undefined so frontend can handle them
           if (fallbackResult?.data) {
             fallbackResult.data.rating_overall = undefined;
+            fallbackResult.data.sessions_completed = undefined;
+            fallbackResult.data.ranking_tier = undefined;
+            fallbackResult.data.is_on_streak = undefined;
+            fallbackResult.data.on_time_rate = undefined;
+            fallbackResult.data.completion_rate = undefined;
+            fallbackResult.data.repeat_hire_rate = undefined;
           }
           return fallbackResult;
         }
@@ -461,12 +484,31 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
       if (errorMsg.includes('does not exist') || errorMsg.includes('column')) {
-        console.warn(`[fetchFullRoleRow] Column error, trying fallback: ${errorMsg}`);
+        console.warn(`[fetchFullRoleRow] Column error, trying minimal fallback: ${errorMsg}`);
         const fallbackResult = await queryFn(fallbackSelect);
-        if (fallbackResult?.error) throw new Error(errMsg(fallbackResult.error));
-        // Add rating_overall as undefined so frontend can handle it
+        if (fallbackResult?.error) {
+          // If even minimal fails, try absolute minimum
+          const absoluteMin = `id, name, image_url, bio, email, profile_id, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio)`;
+          const minResult = await queryFn(absoluteMin);
+          if (minResult?.error) throw new Error(errMsg(minResult.error));
+          // Add missing fields as undefined/defaults
+          if (minResult?.data) {
+            minResult.data.rating_overall = undefined;
+            minResult.data.sessions_completed = undefined;
+            minResult.data.ranking_tier = undefined;
+            minResult.data.wallet_balance = undefined;
+          }
+          return minResult;
+        }
+        // Add missing fields as undefined so frontend can handle them
         if (fallbackResult?.data) {
           fallbackResult.data.rating_overall = undefined;
+          fallbackResult.data.sessions_completed = undefined;
+          fallbackResult.data.ranking_tier = undefined;
+          fallbackResult.data.is_on_streak = undefined;
+          fallbackResult.data.on_time_rate = undefined;
+          fallbackResult.data.completion_rate = undefined;
+          fallbackResult.data.repeat_hire_rate = undefined;
         }
         return fallbackResult;
       }
