@@ -1,0 +1,45 @@
+
+import React from 'react';
+import type { Post, Artist, Engineer, Stoodio, Producer, Label } from '../types';
+import { HeartIcon, ChatBubbleIcon } from './icons';
+import { useAppState } from '../contexts/AppContext';
+import { getProfileImageUrl } from '../constants';
+
+interface TrendingPostProps {
+    post: Post;
+    author: Artist | Engineer | Stoodio | Producer | Label;
+    onLikePost: (postId: string) => void;
+    onCommentOnPost: (postId: string, text: string) => void;
+    onSelectUser: (user: Artist | Engineer | Stoodio | Producer | Label) => void;
+}
+
+const TrendingPost: React.FC<TrendingPostProps> = ({ post, author, onSelectUser }) => {
+    const { currentUser } = useAppState();
+    const isLiked = currentUser ? post.likes.includes(currentUser.id) : false;
+
+    return (
+        <div className="p-4 cardSurface">
+            <h3 className="font-bold text-slate-100 px-1 mb-2">Trending on Stoodioz</h3>
+            <div className="cardSurface p-3">
+                <button onClick={() => onSelectUser(author)} className="flex items-center gap-3 mb-2 text-left">
+                     {/* FIX: Changed `imageUrl` to `image_url` to match the author type definition. */}
+                     <img loading="lazy" src={getProfileImageUrl(author)} alt={author.name} className="w-8 h-8 rounded-lg object-cover" />
+                    <div>
+                        <p className="font-semibold text-sm text-slate-200">{author.name}</p>
+                    </div>
+                </button>
+                <p className="text-sm text-slate-300 mb-3">{post.text.substring(0, 100)}{post.text.length > 100 ? '...' : ''}</p>
+                <div className="flex items-center gap-4 text-xs text-slate-400 font-semibold">
+                    <span className={`flex items-center gap-1 ${isLiked ? 'text-red-500' : ''}`}>
+                        <HeartIcon className="w-4 h-4" /> {post.likes.length}
+                    </span>
+                     <span className="flex items-center gap-1">
+                        <ChatBubbleIcon className="w-4 h-4" /> {post.comments.length}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default TrendingPost;

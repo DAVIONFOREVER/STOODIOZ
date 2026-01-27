@@ -1,0 +1,655 @@
+
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
+import type { Stoodio, Booking, Artist, Engineer, LinkAttachment, Post, BookingRequest, Transaction, Producer, Conversation } from '../types';
+import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType } from '../types';
+import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon, EyeIcon } from './icons';
+import CreatePost from './CreatePost';
+import PostFeed from './PostFeed';
+import AvailabilityManager from './AvailabilityManager';
+import Following from './Following';
+import FollowersList from './FollowersList';
+import RoomManager from './RoomManager';
+import EngineerManager from './EngineerManager';
+import VerificationManager from './VerificationManager';
+import Wallet from './Wallet';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import * as apiService from '../services/apiService';
+import { useNavigation } from '../hooks/useNavigation';
+import { useSocial } from '../hooks/useSocial';
+import { useProfile } from '../hooks/useProfile';
+import { getProfileImageUrl } from '../constants';
+
+const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
+const Documents = lazy(() => import('./Documents.tsx'));
+const AmenitiesManager = lazy(() => import('./AmenitiesManager.tsx'));
+const MyCourses = lazy(() => import('./MyCourses.tsx'));
+
+type JobPostData = Pick<BookingRequest, 'date' | 'start_time' | 'duration' | 'engineer_pay_rate'> & { requiredSkills?: string[] };
+
+const JobPostForm: React.FC<{ onPostJob: (data: JobPostData) => void }> = ({ onPostJob }) => {
+    const today = new Date().toISOString().split('T')[0];
+    const [date, setDate] = useState(today);
+    const [startTime, setStartTime] = useState('14:00');
+    const [duration, setDuration] = useState(4);
+    const [engineerPayRate, setEngineerPayRate] = useState(50);
+    const [requiredSkills, setRequiredSkills] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onPostJob({
+            date,
+            start_time: startTime,
+            duration,
+            engineer_pay_rate: engineerPayRate,
+            requiredSkills: requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
+        });
+    };
+    
+    const inputClasses = "mt-1 w-full p-2 bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+
+    return (
+        <form onSubmit={handleSubmit} className="p-6 mb-6 cardSurface">
+            <h3 className="text-xl font-bold text-zinc-100 mb-4">Post a New Job</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-zinc-400">Date</label>
+                    <input type="date" value={date} onChange={e => setDate(e.target.value)} min={today} className={inputClasses} />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-zinc-400">Start Time</label>
+                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClasses} />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-zinc-400">Duration (hrs)</label>
+                    <input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} min="1" className={inputClasses} />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-zinc-400">Pay Rate ($/hr)</label>
+                    <input type="number" value={engineerPayRate} onChange={e => setEngineerPayRate(Number(e.target.value))} min="20" className={inputClasses} />
+                </div>
+                <div className="md:col-span-2 lg:col-span-5">
+                    <label className="block text-sm font-medium text-zinc-400">Required Skills (optional, comma-separated)</label>
+                    <input type="text" value={requiredSkills} onChange={e => setRequiredSkills(e.target.value)} placeholder="e.g. Pro Tools, Vocal Tuning, Mixing" className={inputClasses} />
+                </div>
+                 <div className="lg:col-start-5">
+                     <button type="submit" className="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">Post Job</button>
+                </div>
+            </div>
+        </form>
+    );
+};
+
+const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; onPostJob: (data: JobPostData) => void; }> = ({ stoodio, bookings, onPostJob }) => {
+    const postedJobs = bookings
+        .filter(b => b.posted_by === UserRole.STOODIO && b.stoodio?.id === stoodio.id)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const getStatusInfo = (job: Booking) => {
+        switch(job.status) {
+            case BookingStatus.PENDING:
+                return { text: "Pending", color: "bg-yellow-400/10 text-yellow-300" };
+            case BookingStatus.CONFIRMED:
+                return { text: `Filled by ${job.engineer?.name}`, color: "bg-green-400/10 text-green-300" };
+            case BookingStatus.COMPLETED:
+                return { text: "Completed", color: "bg-blue-400/10 text-blue-300" };
+            case BookingStatus.CANCELLED:
+                 return { text: "Cancelled", color: "bg-red-400/10 text-red-300" };
+            default:
+                return { text: job.status, color: "bg-zinc-400/10 text-zinc-300" };
+        }
+    }
+
+    return (
+        <div>
+            <JobPostForm onPostJob={onPostJob} />
+             <h3 className="text-xl font-bold text-zinc-100 mb-4">Your Posted Jobs</h3>
+             <div className="space-y-4">
+                {postedJobs.length > 0 ? postedJobs.map(job => {
+                    const status = getStatusInfo(job);
+                    return (
+                        <div key={job.id} className="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700/50 grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                            <div>
+                                <p className="text-xs text-zinc-400">Date</p>
+                                <p className="font-semibold">{new Date(job.date + 'T00:00:00').toLocaleDateString()}</p>
+                            </div>
+                             <div>
+                                <p className="text-xs text-zinc-400">Payout</p>
+                                <p className="font-semibold text-green-400">${(job.engineer_pay_rate * job.duration).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-zinc-400">Status</p>
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>{status.text}</span>
+                            </div>
+                            <div className="text-right">
+                                {/* Future actions like "Cancel Job" could go here */}
+                            </div>
+                        </div>
+                    );
+                }) : (
+                    <p className="text-center py-8 text-zinc-500">You haven't posted any jobs yet.</p>
+                )}
+             </div>
+        </div>
+    );
+};
+
+const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onNavigate }) => (
+    <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 rounded-2xl text-white text-center shadow-lg shadow-orange-500/10">
+        <StarIcon className="w-10 h-10 mx-auto text-white/80 mb-2" />
+        <h3 className="text-xl font-bold mb-2">Upgrade to Stoodio Pro</h3>
+        <p className="text-sm opacity-90 mb-4">Unlock advanced features, lower service fees, and priority support to grow your business.</p>
+        <button 
+            onClick={() => onNavigate(AppView.SUBSCRIPTION_PLANS)}
+            className="bg-white text-orange-500 font-bold py-2 px-6 rounded-lg hover:bg-zinc-100 transition-all duration-300"
+        >
+            View Plans
+        </button>
+    </div>
+);
+
+const StoodioSettings: React.FC<{ stoodio: Stoodio, onUpdateStoodio: (updates: Partial<Stoodio>) => void }> = ({ stoodio, onUpdateStoodio }) => {
+    const [name, setName] = useState(stoodio.name);
+    const [description, setDescription] = useState(stoodio.description);
+    const [location, setLocation] = useState(stoodio.location);
+    const [businessAddress, setBusinessAddress] = useState(stoodio.business_address || '');
+
+    const handleSave = async () => {
+        try {
+            await onUpdateStoodio({ name, description, location, business_address: businessAddress });
+            alert('Settings saved successfully!');
+        } catch (err: any) {
+            console.error('Save failed:', err);
+            alert(`Failed to save settings: ${err?.message || 'Unknown error'}\n\nPlease check your connection and try again.`);
+        }
+    };
+
+    const hasChanges = name !== stoodio.name || description !== stoodio.description || location !== stoodio.location || businessAddress !== (stoodio.business_address || '');
+    
+    const inputClasses = "w-full p-2 bg-zinc-700 border-zinc-600 text-zinc-200 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+    const labelClasses = "block text-sm font-medium text-zinc-300 mb-1";
+
+    return (
+        <div className="p-6 cardSurface">
+            <h1 className="text-2xl font-bold text-zinc-100 mb-2 flex items-center gap-2">
+                <EditIcon className="w-6 h-6 text-orange-400" />
+                Profile Settings
+            </h1>
+            <p className="text-zinc-400 mb-6">Update your public profile information.</p>
+            <div className="space-y-4">
+                <div>
+                    <label htmlFor="stoodio-name" className={labelClasses}>Stoodio Name</label>
+                    <input type="text" id="stoodio-name" value={name} onChange={e => setName(e.target.value)} className={inputClasses} />
+                </div>
+                 <div>
+                    <label htmlFor="stoodio-desc" className={labelClasses}>Description</label>
+                    <textarea id="stoodio-desc" value={description} onChange={e => setDescription(e.target.value)} rows={4} className={inputClasses}></textarea>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="stoodio-location" className={labelClasses}>Location (City, State)</label>
+                        <input type="text" id="stoodio-location" value={location} onChange={e => setLocation(e.target.value)} className={inputClasses} />
+                    </div>
+                    <div>
+                        <label htmlFor="stoodio-address" className={labelClasses}>Business Address</label>
+                        <input type="text" id="stoodio-address" value={businessAddress} onChange={e => setBusinessAddress(e.target.value)} className={inputClasses} placeholder="123 Music Row, Nashville, TN" />
+                    </div>
+                </div>
+            </div>
+             <div className="mt-6 flex justify-end">
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!hasChanges}
+                    className="bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-all disabled:bg-zinc-600 disabled:text-zinc-400 disabled:cursor-not-allowed"
+                >
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
+type DashboardTab = 'dashboard' | 'analytics' | 'settings' | 'verification' | 'jobManagement' | 'availability' | 'rooms' | 'engineers' | 'wallet' | 'photos' | 'followers' | 'following' | 'documents' | 'amenities' | 'myCourses';
+
+const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
+    <div className="p-4 rounded-xl flex items-center gap-4 cardSurface">
+        <div className="bg-orange-500/10 p-3 rounded-lg">{icon}</div>
+        <div>
+            <p className="text-zinc-400 text-sm font-medium">{label}</p>
+            <p className="text-2xl font-bold text-zinc-100">{value}</p>
+        </div>
+    </div>
+);
+
+const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`px-4 py-3 font-semibold text-sm transition-colors whitespace-nowrap ${isActive ? 'border-b-2 border-orange-500 text-orange-400' : 'text-zinc-400 hover:text-zinc-100 border-b-2 border-transparent'}`}
+    >
+        {label}
+    </button>
+);
+
+const StoodioDashboard: React.FC = () => {
+    const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations, userRole } = useAppState();
+    const dispatch = useAppDispatch();
+    const [myPosts, setMyPosts] = useState<Post[]>([]);
+    
+    const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
+    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
+    const { updateProfile, refreshCurrentUser, verificationSubmit } = useProfile();
+    
+    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
+    const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const coverImageInputRef = useRef<HTMLInputElement>(null);
+    const photosInputRef = useRef<HTMLInputElement>(null);
+
+    if (!currentUser) {
+        return (
+            <div className="flex justify-center items-center py-20">
+                <p className="text-zinc-400">Loading user data...</p>
+            </div>
+        );
+    }
+    const stoodio = currentUser as Stoodio;
+    
+    const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+    const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
+
+    useEffect(() => {
+        if (dashboardInitialTab) {
+            setActiveTab(dashboardInitialTab as DashboardTab);
+            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } });
+        }
+    }, [dashboardInitialTab, dispatch]);
+
+    // Load full Stoodio (stoodioz_id, rooms) so RoomManager and post-a-job work
+    useEffect(() => {
+        if (currentUser?.id && userRole === 'STOODIO') refreshCurrentUser();
+    }, [currentUser?.id, userRole]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Fetch user specific posts
+    const refreshPosts = async () => {
+        if (stoodio.id) {
+            const posts = await apiService.fetchUserPosts(stoodio.id);
+            setMyPosts(posts);
+        }
+    };
+
+    useEffect(() => {
+        refreshPosts();
+    }, [stoodio.id]);
+
+    const handleNewPost = async (postData: any) => {
+        // Optimistic update
+        const tempPost: Post = {
+            id: `temp-${Date.now()}`,
+            authorId: stoodio.id,
+            authorType: UserRole.STOODIO,
+            text: postData.text,
+            image_url: postData.imageUrl,
+            video_url: postData.videoUrl,
+            video_thumbnail_url: postData.videoThumbnailUrl,
+            link: postData.link,
+            timestamp: new Date().toISOString(),
+            likes: [],
+            comments: []
+        };
+        setMyPosts(prev => [tempPost, ...prev]);
+
+        await createPost(postData, UserRole.STOODIO);
+        refreshPosts();
+    };
+
+    // --- Profile & Cover Photo Handlers ---
+    const handleImageUploadClick = () => fileInputRef.current?.click();
+    const handleCoverImageUploadClick = () => coverImageInputRef.current?.click();
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !currentUser) return;
+        try {
+            const url = await apiService.uploadAvatar(currentUser.id, file);
+            await updateProfile({ image_url: url });
+            await refreshCurrentUser();
+        } catch (e: any) {
+            console.error('Avatar upload failed', e);
+            alert(e?.message || 'Profile photo could not be saved. Check storage/RLS or try again.');
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const handleCoverFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !currentUser) return;
+        try {
+            const url = await apiService.uploadCoverImage(currentUser.id, file);
+            await updateProfile({ cover_image_url: url });
+            await refreshCurrentUser();
+        } catch (e: any) {
+            console.error('Cover upload failed', e);
+            alert(e?.message || 'Cover photo could not be saved. Check storage/RLS or try again.');
+        } finally {
+            event.target.value = '';
+        }
+    };
+    
+    // --- Studio Gallery Photo Handlers ---
+    const handlePhotosUploadClick = () => photosInputRef.current?.click();
+
+    // IMPORTANT: Don't store base64 DataURLs in DB/state (it freezes the app and bloats payloads).
+    // Upload images to storage and store URLs.
+    const processPhotoFiles = async (files: FileList) => {
+        if (!currentUser) return;
+
+        const images = Array.from(files).filter(file => file.type.startsWith('image/'));
+        if (images.length === 0) return;
+
+        setIsDraggingPhotos(false);
+
+        // Safety: limit batch size to avoid locking UI on huge drops
+        const batch = images.slice(0, 6);
+
+        try {
+            const uploadedUrls: string[] = [];
+            for (const file of batch) {
+                const url = await apiService.uploadGalleryPhoto(currentUser.id, file);
+                uploadedUrls.push(url);
+            }
+
+            if (uploadedUrls.length > 0) {
+                await updateProfile({ photos: [...(stoodio.photos || []), ...uploadedUrls] } as any);
+                await refreshCurrentUser();
+            }
+        } catch (err: any) {
+            console.error('Photo upload failed:', err);
+            alert(err?.message || 'Photo upload failed. Please try again.');
+        }
+    };
+    
+    const handlePhotosFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files) await processPhotoFiles(event.target.files);
+    };
+
+    const handlePhotoDelete = async (photoIndex: number) => {
+        if (window.confirm('Are you sure you want to delete this photo?')) {
+            const updatedPhotos = (stoodio.photos || []).filter((_, index) => index !== photoIndex);
+            await updateProfile({ photos: updatedPhotos } as any);
+            await refreshCurrentUser();
+        }
+    };
+
+    const handlePhotoDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDraggingPhotos(true); };
+    const handlePhotoDragLeave = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDraggingPhotos(false); };
+    const handlePhotoDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDraggingPhotos(false);
+        if (e.dataTransfer.files) processPhotoFiles(e.dataTransfer.files);
+    };
+
+
+     const onPostJob = async (jobData: JobPostData) => {
+        if (!currentUser || currentUser.id !== stoodio.id || !(stoodio.rooms || []).length) {
+            alert('Please add a room to your studio before posting a job.');
+            return;
+        }
+
+        const bookingRequest: BookingRequest = {
+            ...jobData,
+            room: (stoodio.rooms || [])[0],
+            total_cost: 0,
+            request_type: BookingRequestType.FIND_AVAILABLE,
+            engineer_pay_rate: jobData.engineer_pay_rate,
+        };
+        
+        try {
+            const newBooking = await apiService.createBooking({
+                ...bookingRequest,
+                stoodio_id: stoodio.id,
+                posted_by: UserRole.STOODIO,
+                booked_by_id: stoodio.id,
+            } as any);
+            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: { ...newBooking, posted_by: UserRole.STOODIO } } });
+        } catch(error) {
+            console.error("Failed to post job", error);
+        }
+    };
+
+    const upcomingBookingsCount = bookings
+        .filter(b => b.status === BookingStatus.CONFIRMED && new Date(`${b.date}T${b.start_time}`) >= new Date())
+        .length;
+    
+    const followers = [...artists, ...engineers, ...stoodioz, ...producers].filter(u => (stoodio.follower_ids || []).includes(u.id));
+    const followedArtists = artists.filter(a => (stoodio.following?.artists || []).includes(a.id));
+    const followedEngineers = engineers.filter(e => (stoodio.following?.engineers || []).includes(e.id));
+    const followedStoodioz = stoodioz.filter(s => (stoodio.following?.stoodioz || []).includes(s.id));
+    const followedProducers = producers.filter(p => (stoodio.following?.producers || []).includes(p.id));
+    
+    const isProPlan = stoodio.subscription?.plan === SubscriptionPlan.STOODIO_PRO;
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'analytics':
+                return (
+                    <Suspense fallback={<div>Loading Analytics...</div>}>
+                        <AnalyticsDashboard user={stoodio} userRole={UserRole.STOODIO} />
+                    </Suspense>
+                );
+            case 'settings':
+                return <StoodioSettings stoodio={stoodio} onUpdateStoodio={updateProfile} />;
+            case 'verification':
+                return <VerificationManager stoodio={stoodio} onVerificationSubmit={verificationSubmit} />;
+            case 'jobManagement':
+                return <StoodioJobManagement stoodio={stoodio} bookings={bookings} onPostJob={onPostJob} />;
+            case 'availability':
+                return <AvailabilityManager user={stoodio} onUpdateUser={updateProfile} />;
+            case 'amenities':
+                return (
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <AmenitiesManager stoodio={stoodio} onUpdateStoodio={updateProfile} />
+                    </Suspense>
+                );
+            case 'rooms':
+                return <RoomManager stoodio={stoodio} onRefresh={refreshCurrentUser} />;
+            case 'engineers':
+                return <EngineerManager stoodio={stoodio} allEngineers={engineers} onRefresh={refreshCurrentUser} />;
+            case 'wallet':
+                return (
+                     <Wallet
+                        user={stoodio}
+                        onAddFunds={onOpenAddFundsModal}
+                        onRequestPayout={onOpenPayoutModal}
+                        onViewBooking={viewBooking}
+                        userRole={UserRole.STOODIO}
+                    />
+                );
+            case 'photos':
+                return (
+                    <div className="p-6 cardSurface">
+                        <h3 className="text-xl font-bold mb-4">Photo Management</h3>
+                         <input
+                            type="file"
+                            ref={photosInputRef}
+                            onChange={handlePhotosFileChange}
+                            className="hidden"
+                            accept="image/*"
+                            multiple
+                        />
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
+                            {(stoodio.photos || []).map((photo, index) => (
+                                <div key={index} className="relative group">
+                                    <img src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
+                                    <button 
+                                        onClick={() => handlePhotoDelete(index)}
+                                        className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" 
+                                        aria-label="Delete photo">
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <div 
+                            onClick={handlePhotosUploadClick}
+                            onDragOver={handlePhotoDragOver}
+                            onDragLeave={handlePhotoDragLeave}
+                            onDrop={handlePhotoDrop}
+                            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                                isDraggingPhotos 
+                                ? 'border-orange-500 bg-orange-500/10' 
+                                : 'border-zinc-600 hover:border-orange-500 hover:bg-zinc-800/50'
+                            }`}
+                        >
+                            <PhotoIcon className="mx-auto h-12 w-12 text-zinc-500" />
+                            <p className="mt-2 text-sm text-zinc-400">Drag & drop photos here or click to upload</p>
+                            <button 
+                                type="button"
+                                className="mt-4 bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm"
+                            >
+                                Upload Photos
+                            </button>
+                        </div>
+                    </div>
+                );
+            case 'followers':
+                 return <FollowersList followers={followers} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectStoodio={viewStoodioDetails} onSelectProducer={viewProducerProfile} />;
+            case 'following':
+                return <Following studios={followedStoodioz} engineers={followedEngineers} artists={followedArtists} producers={followedProducers} onToggleFollow={toggleFollow} onSelectStudio={viewStoodioDetails} onSelectArtist={viewArtistProfile} onSelectEngineer={viewEngineerProfile} onSelectProducer={viewProducerProfile} />;
+            case 'documents':
+                return (
+                    <Suspense fallback={<div>Loading Documents...</div>}>
+                        <Documents conversations={conversations} />
+                    </Suspense>
+                );
+            case 'myCourses':
+                return (
+                    <Suspense fallback={<div>Loading Courses...</div>}>
+                        <MyCourses />
+                    </Suspense>
+                );
+            case 'dashboard':
+            default:
+                 return (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-8">
+                            <CreatePost currentUser={currentUser!} onPost={handleNewPost} />
+                            <PostFeed posts={myPosts} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
+                        </div>
+                         <div className="lg:col-span-1 space-y-6">
+                            {!isProPlan && <UpgradeProCard onNavigate={navigate} />}
+                        </div>
+                    </div>
+                );
+        }
+    }
+
+    return (
+        <div className="space-y-8 animate-fade-in">
+            {/* Profile Header */}
+            <div className="relative rounded-2xl overflow-hidden cardSurface group">
+                <img 
+                    src={stoodio.cover_image_url || 'https://images.unsplash.com/photo-1516223725357-628a158b6692?q=80&w=1200&auto=format&fit=crop'} 
+                    alt={`${stoodio.name}'s cover photo`}
+                    className="w-full h-48 md:h-64 object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                <button 
+                    onClick={handleCoverImageUploadClick}
+                    className="absolute top-4 right-4 bg-black/50 text-white text-xs font-semibold py-1.5 px-3 rounded-full hover:bg-black/70 transition-opacity opacity-0 group-hover:opacity-100 flex items-center gap-2"
+                >
+                    <PhotoIcon className="w-4 h-4" /> Edit Cover
+                </button>
+                <input
+                    type="file"
+                    ref={coverImageInputRef}
+                    onChange={handleCoverFileChange}
+                    className="hidden"
+                    accept="image/*"
+                />
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
+                        <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
+                            <div className="relative group/pfp flex-shrink-0">
+                                <img src={getProfileImageUrl(stoodio)} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <button 
+                                    onClick={handleImageUploadClick} 
+                                    className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
+                                    aria-label="Change profile photo"
+                                >
+                                    <EditIcon className="w-8 h-8 text-white" />
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                    accept="image/*"
+                                />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
+                                <p className="text-zinc-400 mt-1">Stoodio Dashboard</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-3">
+                             <button
+                                onClick={() => viewStoodioDetails(stoodio)}
+                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-3 rounded-lg transition-colors text-sm font-semibold border border-zinc-700 shadow-md w-full sm:w-auto justify-center"
+                            >
+                                <EyeIcon className="w-4 h-4" />
+                                View Public Profile
+                            </button>
+                            <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                                <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+                                <div className="relative">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only" 
+                                        checked={stoodio.show_on_map ?? false} 
+                                        onChange={(e) => updateProfile({ show_on_map: e.target.checked })} 
+                                    />
+                                    <div className={`block w-12 h-6 rounded-full transition-colors ${stoodio.show_on_map ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${stoodio.show_on_map ? 'translate-x-6' : ''}`}></div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                 <StatCard label="Wallet Balance" value={`$${(stoodio.wallet_balance ?? 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
+                <StatCard label="Followers" value={stoodio.followers ?? 0} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
+            </div>
+
+            <div className="cardSurface">
+                <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
+                    <TabButton label="Dashboard" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                    <TabButton label="Analytics" isActive={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+                    <TabButton label="My Courses" isActive={activeTab === 'myCourses'} onClick={() => setActiveTab('myCourses')} />
+                    <TabButton label="Settings" isActive={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+                    <TabButton label="Amenities" isActive={activeTab === 'amenities'} onClick={() => setActiveTab('amenities')} />
+                    <TabButton label="Verification" isActive={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
+                    <TabButton label="Job Management" isActive={activeTab === 'jobManagement'} onClick={() => setActiveTab('jobManagement')} />
+                    <TabButton label="Availability" isActive={activeTab === 'availability'} onClick={() => setActiveTab('availability')} />
+                    <TabButton label="Rooms" isActive={activeTab === 'rooms'} onClick={() => setActiveTab('rooms')} />
+                    <TabButton label="Engineers" isActive={activeTab === 'engineers'} onClick={() => setActiveTab('engineers')} />
+                    <TabButton label="Wallet" isActive={activeTab === 'wallet'} onClick={() => setActiveTab('wallet')} />
+                    <TabButton label="Photos" isActive={activeTab === 'photos'} onClick={() => setActiveTab('photos')} />
+                    <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
+                    <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
+                </div>
+                <div className="p-6">
+                    {renderContent()}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default StoodioDashboard;

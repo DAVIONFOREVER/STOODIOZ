@@ -1,0 +1,40 @@
+import type { Booking } from '../types';
+import { BookingStatus } from '../types';
+
+const getStartEnd = (booking: Booking): { start: Date; end: Date } | null => {
+  if (!booking?.date || !booking?.start_time || booking.start_time === 'N/A') return null;
+  const start = new Date(`${booking.date}T${booking.start_time}`);
+  if (Number.isNaN(start.getTime())) return null;
+  const durationHours = Number(booking.duration || 0);
+  if (!Number.isFinite(durationHours) || durationHours <= 0) return null;
+  const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
+  return { start, end };
+};
+
+export const isBookingActiveNow = (booking: Booking, now: Date = new Date()): boolean => {
+  if (!booking || booking.status !== BookingStatus.CONFIRMED) return false;
+  const window = getStartEnd(booking);
+  if (!window) return false;
+  const t = now.getTime();
+  return t >= window.start.getTime() && t <= window.end.getTime();
+};
+
+export const getBookingParticipantIds = (booking: Booking): string[] => {
+  const ids = new Set<string>();
+  const anyBooking = booking as any;
+  if (booking?.artist?.id) ids.add(booking.artist.id);
+  if (booking?.engineer?.id) ids.add(booking.engineer.id);
+  if (booking?.producer?.id) ids.add(booking.producer.id);
+  if (booking?.stoodio?.id) ids.add(booking.stoodio.id);
+  if (anyBooking?.booked_by_id) ids.add(String(anyBooking.booked_by_id));
+  if (anyBooking?.requested_engineer_id) ids.add(String(anyBooking.requested_engineer_id));
+  if (anyBooking?.engineer_profile_id) ids.add(String(anyBooking.engineer_profile_id));
+  if (anyBooking?.producer_id) ids.add(String(anyBooking.producer_id));
+  if (anyBooking?.stoodio_id) ids.add(String(anyBooking.stoodio_id));
+  return Array.from(ids);
+};
+
+export const isUserInActiveSession = (booking: Booking, profileId: string): boolean => {
+  if (!profileId) return false;
+  return isBookingActiveNow(booking) && getBookingParticipantIds(booking).includes(profileId);
+};

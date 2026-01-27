@@ -1,0 +1,35 @@
+{
+  "name": "stoodioz-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:fixes": "node scripts/test-profile-fixes.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "^1.17.0",
+    "@react-google-maps/api": "^2.19.3",
+    "@supabase/supabase-js": "^2.45.0",
+    "chart.js": "^4.4.3",
+    "date-fns": "^4.1.0",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.1.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^19.1.1",
+    "sharp": "^0.34.5",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.39",
+    "tailwindcss": "^3.4.6",
+    "typescript": "^5.5.4",
+    "vite": "^7.1.10"
+  }
+}

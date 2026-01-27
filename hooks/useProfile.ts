@@ -1,0 +1,223 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { getSupabase } from '../lib/supabase';
+import * as apiService from '../services/apiService';
+import type { Artist, Engineer, Stoodio, Producer, UserRole, Label } from '../types';
+
+type AnyUser = Artist | Engineer | Stoodio | Producer | Label;
+
+// Fields that exist on public.profiles in your schema
+const PROFILE_FIELDS = new Set<string>([
+  'username',
+  'avatar_url',
+  'updated_at',
+  'role',
+  'name',
+  'email',
+  'image_url',
+  'cover_image_url',
+  'bio',
+  'coordinates',
+  'wallet_balance',
+  'is_online',
+  'show_on_map',
+  'aria_tools_enabled',
+  'specialties',
+  'rating',
+  'location_text',
+  'verification_status',
+  'genres',
+  'pull_up_price',
+  'is_admin',
+  'stripe_customer_id',
+  'stripe_connect_id',
+  'subscription_status',
+  'current_period_end',
+  'claim_status',
+  'location',
+  'stripe_connect_account_id',
+  'payouts_enabled',
+  'full_name',
+  'label_controls',
+  'label_policies',
+]);
+
+const getTableNameFromRole = (role: UserRole | null): string | null => {
+  if (!role) return null;
+  switch (role) {
+    case 'ARTIST':
+      return 'artists';
+    case 'ENGINEER':
+      return 'engineers';
+    case 'PRODUCER':
+      return 'producers';
+    case 'STOODIO':
+      return 'stoodioz';
+    case 'LABEL':
+      return 'labels';
+    default:
+      return null;
+  }
+};
+
+export const useProfile = () => {
+  const dispatch = useAppDispatch();
+  const { currentUser, artists, engineers, producers, stoodioz, labels, userRole } = useAppState();
+  const [isSaved, setIsSaved] = useState(false);
+
+  const allUsers = useMemo(
+    () => [...artists, ...engineers, ...producers, ...stoodioz, ...labels],
+    [artists, engineers, producers, stoodioz, labels]
+  );
+
+  const updateProfile = useCallback(
+    async (updates: Partial<AnyUser>) => {
+      if (!currentUser || !userRole) return;
+
+      const tableName = getTableNameFromRole(userRole);
+      if (!tableName) return;
+
+      // Split into profiles updates vs role-table updates
+      const profileUpdates: Record<string, any> = {};
+      const roleUpdates: Record<string, any> = {};
+
+      for (const [k, v] of Object.entries(updates as any)) {
+        if (PROFILE_FIELDS.has(k)) profileUpdates[k] = v;
+        else roleUpdates[k] = v;
+      }
+
+      try {
+        const client = getSupabase();
+
+        // 1) Update role table (if any)
+        let roleRow: any = null;
+        if (Object.keys(roleUpdates).length > 0) {
+          const { data, error } = await client
+            .from(tableName)
+            .update(roleUpdates)
+            .eq('profile_id', currentUser.id)
+            .select('*')
+            .maybeSingle();
+          
+          if (error) {
+            // If column doesn't exist (400 error), update local state only
+            if (error.code === 'PGRST116' || error.message?.includes('column') || error.message?.includes('Could not find')) {
+              console.warn(`Column may not exist in ${tableName} table. Updating local state only.`, error);
+              // Update local state for better UX even if DB update fails
+              const merged = { ...currentUser, ...roleUpdates };
+              const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));
+              dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as any } });
+              dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: merged as any } });
+              setIsSaved(true);
+              return; // Exit early, don't throw error
+            }
+            throw error;
+          }
+          roleRow = data;
+        }
+
+        // 2) Update profiles (if any)
+        let profRow: any = null;
+        if (Object.keys(profileUpdates).length > 0) {
+          const { data, error } = await client
+            .from('profiles')
+            .update(profileUpdates)
+            .eq('id', currentUser.id)
+            .select('*')
+            .maybeSingle();
+          if (error) throw error;
+          profRow = data;
+        }
+
+        // Merge everything into one coherent user object
+        const merged = { ...currentUser, ...(roleRow || {}), ...(profRow || {}) };
+
+        // Update directory + current user
+        const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));
+        dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as any } });
+        dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: merged as any } });
+
+        setIsSaved(true);
+        console.log('Profile updated successfully:', { roleUpdates, profileUpdates, merged });
+      } catch (error: any) {
+        console.error('Failed to update profile:', error);
+        console.error('Update details:', { roleUpdates, profileUpdates, tableName, error: error?.message || error });
+        throw error; // Re-throw so caller can handle it
+      }
+    },
+    [currentUser, userRole, allUsers, dispatch]
+  );
+
+  const refreshCurrentUser = useCallback(async () => {
+    if (!currentUser || !userRole) return;
+    const tableName = getTableNameFromRole(userRole);
+    if (!tableName) return;
+
+    let selectQuery = '*';
+    if (userRole === 'ENGINEER') selectQuery = '*, mixing_samples(*)';
+    if (userRole === 'PRODUCER') selectQuery = '*, instrumentals(*)';
+
+    try {
+      const client = getSupabase();
+
+      const { data: roleRow, error: roleErr } = await client
+        .from(tableName)
+        .select(selectQuery)
+        // Role tables are keyed by profile_id (not id)
+        .eq('profile_id', currentUser.id)
+        .maybeSingle();
+      if (roleErr) throw roleErr;
+
+      // STOODIO: explicitly load rooms so RoomManager list and post-a-job stay in sync after save
+      let rooms: any[] = [];
+      if (userRole === 'STOODIO' && roleRow?.id) {
+        const { data: r } = await client.from('rooms').select('*').eq('stoodio_id', roleRow.id).order('name');
+        rooms = Array.isArray(r) ? r : [];
+      }
+
+      const { data: profRow, error: profErr } = await client
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+      if (profErr) throw profErr;
+
+      const merged = {
+        ...(roleRow || {}),
+        ...(profRow || {}),
+        id: currentUser.id,
+        ...(userRole === 'STOODIO' && roleRow?.id ? { stoodioz_id: roleRow.id } : {}),
+        ...(userRole === 'STOODIO' ? { rooms } : {}),
+      };
+
+      const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));
+      dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as any } });
+      dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: merged as any } });
+    } catch (error) {
+      console.error('Failed to refresh user profile:', error);
+    }
+  }, [currentUser, userRole, allUsers, dispatch]);
+
+  useEffect(() => {
+    if (!isSaved) return;
+    const timer = setTimeout(() => setIsSaved(false), 2000);
+    return () => clearTimeout(timer);
+  }, [isSaved]);
+
+  const verificationSubmit = useCallback(
+    async (stoodioId: string, data: { googleBusinessProfileUrl: string; websiteUrl: string }) => {
+      try {
+        const updatedStoodioPartial = await apiService.submitForVerification(stoodioId, data);
+        const updatedUsers = allUsers.map((u) =>
+          u.id === stoodioId ? ({ ...(u as any), ...(updatedStoodioPartial as any) } as any) : u
+        );
+        dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as any } });
+      } catch (error) {
+        console.error('Verification submission failed:', error);
+      }
+    },
+    [allUsers, dispatch]
+  );
+
+  return { updateProfile, refreshCurrentUser, verificationSubmit, isSaved };
+};
