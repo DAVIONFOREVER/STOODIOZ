@@ -9,6 +9,7 @@ ALTER TABLE public.artists
 ADD COLUMN IF NOT EXISTS rating_overall numeric DEFAULT 0,
 ADD COLUMN IF NOT EXISTS sessions_completed integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS ranking_tier text DEFAULT 'PROVISIONAL',
+ADD COLUMN IF NOT EXISTS genres text[] DEFAULT '{}',
 ADD COLUMN IF NOT EXISTS is_on_streak boolean DEFAULT false,
 ADD COLUMN IF NOT EXISTS on_time_rate numeric DEFAULT 0,
 ADD COLUMN IF NOT EXISTS completion_rate numeric DEFAULT 0,
