@@ -415,106 +415,21 @@ function isUuid(s: string): boolean {
 
 async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<any> {
   const supabase = getSupabase();
-  // Build select based on table - only select columns that definitely exist
-  // Removed: followers, follower_ids, following, coordinates, show_on_map, is_online (computed or don't exist)
+  // Build select based on table - role comes from profiles table, not from role tables
   let selectBase: string;
-  let selectBaseFallback: string; // Fallback without rating_overall for tables that might not have it
-  
-  // Minimal select - only absolutely essential columns that should exist in all tables
-  const selectMinimal = (nameField: string, extraFields: string = '') => 
-    `id, ${nameField}, image_url, cover_image_url, bio, email, wallet_balance, profile_id, created_at, updated_at, links, isAdmin, subscription, role${extraFields ? ', ' + extraFields : ''}, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)`;
   
   if (table === 'engineers') {
-    selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, specialties, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = selectMinimal('name, display_name', 'specialties');
+    selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, specialties, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   } else if (table === 'artists') {
-    selectBase = 'id, name, stage_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = selectMinimal('name, stage_name', 'genres');
+    selectBase = 'id, name, stage_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   } else if (table === 'producers') {
-    selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, instrumentals, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = selectMinimal('name', 'genres, instrumentals');
+    selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, instrumentals, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   } else if (table === 'stoodioz') {
-    selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, amenities, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = selectMinimal('name, display_name', 'genres, amenities');
+    selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, amenities, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   } else {
     // Default for labels or other tables
-    selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
-    selectBaseFallback = selectMinimal('name, display_name');
+    selectBase = 'id, name, display_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids, profiles:profile_id(id, username, full_name, email, role, image_url, bio, location_text)';
   }
-  
-  // Helper to execute a query with fallback on column errors
-  const executeQueryWithFallback = async (queryFn: (select: string) => any, select: string, fallbackSelect: string): Promise<any> => {
-    try {
-      const result = await queryFn(select);
-      if (result?.error) {
-        const errorMsg = errMsg(result.error);
-        // If it's a column error, try fallback
-        if (errorMsg.includes('does not exist') || errorMsg.includes('column')) {
-          console.warn(`[fetchFullRoleRow] Column error, trying minimal fallback: ${errorMsg}`);
-          const fallbackResult = await queryFn(fallbackSelect);
-          if (fallbackResult?.error) {
-            // If even minimal fails, try absolute minimum
-            const absoluteMin = `id, name, image_url, bio, email, profile_id, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio)`;
-            const minResult = await queryFn(absoluteMin);
-            if (minResult?.error) throw new Error(errMsg(minResult.error));
-            // Add missing fields as undefined/defaults
-            if (minResult?.data) {
-              minResult.data.rating_overall = undefined;
-              minResult.data.sessions_completed = undefined;
-              minResult.data.ranking_tier = undefined;
-              minResult.data.wallet_balance = undefined;
-            }
-            return minResult;
-          }
-          // Add missing fields as undefined so frontend can handle them
-          if (fallbackResult?.data) {
-            fallbackResult.data.rating_overall = undefined;
-            fallbackResult.data.sessions_completed = undefined;
-            fallbackResult.data.ranking_tier = undefined;
-            fallbackResult.data.is_on_streak = undefined;
-            fallbackResult.data.on_time_rate = undefined;
-            fallbackResult.data.completion_rate = undefined;
-            fallbackResult.data.repeat_hire_rate = undefined;
-          }
-          return fallbackResult;
-        }
-        throw new Error(errorMsg);
-      }
-      return result;
-    } catch (err: any) {
-      const errorMsg = err?.message || String(err);
-      if (errorMsg.includes('does not exist') || errorMsg.includes('column')) {
-        console.warn(`[fetchFullRoleRow] Column error, trying minimal fallback: ${errorMsg}`);
-        const fallbackResult = await queryFn(fallbackSelect);
-        if (fallbackResult?.error) {
-          // If even minimal fails, try absolute minimum
-          const absoluteMin = `id, name, image_url, bio, email, profile_id, role, profiles:profile_id(id, username, full_name, email, role, image_url, bio)`;
-          const minResult = await queryFn(absoluteMin);
-          if (minResult?.error) throw new Error(errMsg(minResult.error));
-          // Add missing fields as undefined/defaults
-          if (minResult?.data) {
-            minResult.data.rating_overall = undefined;
-            minResult.data.sessions_completed = undefined;
-            minResult.data.ranking_tier = undefined;
-            minResult.data.wallet_balance = undefined;
-          }
-          return minResult;
-        }
-        // Add missing fields as undefined so frontend can handle them
-        if (fallbackResult?.data) {
-          fallbackResult.data.rating_overall = undefined;
-          fallbackResult.data.sessions_completed = undefined;
-          fallbackResult.data.ranking_tier = undefined;
-          fallbackResult.data.is_on_streak = undefined;
-          fallbackResult.data.on_time_rate = undefined;
-          fallbackResult.data.completion_rate = undefined;
-          fallbackResult.data.repeat_hire_rate = undefined;
-        }
-        return fallbackResult;
-      }
-      throw err;
-    }
-  };
 
   // Helper to compute followers/following from follows table
   const computeFollowData = async (profileId: string): Promise<{ followers: number; follower_ids: string[]; following: any }> => {
@@ -567,17 +482,20 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
 
   // UUID: run byId and byProfileId in parallel to avoid 12s+12s sequential when first misses.
   if (isUuid(idOrUsername)) {
-    const byIdQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('id', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byId`);
-    const byProfileIdQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('profile_id', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byProfileId`);
-    
+    const byId = supabase.from(table).select(selectBase).eq('id', idOrUsername).maybeSingle();
+    const byProfileId = supabase.from(table).select(selectBase).eq('profile_id', idOrUsername).maybeSingle();
     const [r2, r3] = await Promise.all([
-      executeQueryWithFallback(byIdQuery, selectBase, selectBaseFallback),
-      executeQueryWithFallback(byProfileIdQuery, selectBase, selectBaseFallback),
+      withTimeout(byId as any, DB_TIMEOUT_MS, `${table}.byId`),
+      withTimeout(byProfileId as any, DB_TIMEOUT_MS, `${table}.byProfileId`),
     ]);
     let result = r2?.data || r3?.data;
     if (!result) {
       if (r2?.error) throw new Error(errMsg(r2.error));
       return null;
+    }
+    // Extract role from profiles relation and add to result
+    if (result.profiles) {
+      result.role = result.profiles.role;
     }
     // Compute follow data
     const profileId = result.profile_id || result.id;
@@ -586,25 +504,33 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   }
 
   // 1) Try by username (slug-style handles)
-  const byUsernameQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('username', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byUsername`);
-  const r1 = await executeQueryWithFallback(byUsernameQuery, selectBase, selectBaseFallback);
+  const byUsername = supabase.from(table).select(selectBase).eq('username', idOrUsername).maybeSingle();
+  const r1 = await withTimeout(byUsername as any, DB_TIMEOUT_MS, `${table}.byUsername`);
   if (r1?.data) {
+    // Extract role from profiles relation and add to result
+    if (r1.data.profiles) {
+      r1.data.role = r1.data.profiles.role;
+    }
     const profileId = r1.data.profile_id || r1.data.id;
     const followData = await computeFollowData(profileId);
     return { ...r1.data, ...followData };
   }
 
   // 2) and 3) byId and byProfileId in parallel
-  const byIdQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('id', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byId`);
-  const byProfileIdQuery = (select: string) => withTimeout(supabase.from(table).select(select).eq('profile_id', idOrUsername).maybeSingle() as any, DB_TIMEOUT_MS, `${table}.byProfileId`);
+  const byId = supabase.from(table).select(selectBase).eq('id', idOrUsername).maybeSingle();
+  const byProfileId = supabase.from(table).select(selectBase).eq('profile_id', idOrUsername).maybeSingle();
   const [r2, r3] = await Promise.all([
-    executeQueryWithFallback(byIdQuery, selectBase, selectBaseFallback),
-    executeQueryWithFallback(byProfileIdQuery, selectBase, selectBaseFallback),
+    withTimeout(byId as any, DB_TIMEOUT_MS, `${table}.byId`),
+    withTimeout(byProfileId as any, DB_TIMEOUT_MS, `${table}.byProfileId`),
   ]);
   let result = r2?.data || r3?.data;
   if (!result) {
     if (r2?.error) throw new Error(errMsg(r2.error));
     return null;
+  }
+  // Extract role from profiles relation and add to result
+  if (result.profiles) {
+    result.role = result.profiles.role;
   }
   // Compute follow data
   const profileId = result.profile_id || result.id;
