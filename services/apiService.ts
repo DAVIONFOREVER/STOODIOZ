@@ -323,9 +323,9 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     // Can load more on-demand when user navigates to lists
     const MAX_ROWS_PER_TABLE = 100; // Reduced from 2000 for faster loads
     
-    // Use a shorter timeout for individual queries (10s instead of 20s)
+    // Use a longer timeout for directory queries to handle slow Supabase responses
     // since we're handling errors gracefully
-    const QUERY_TIMEOUT_MS = 10_000;
+    const QUERY_TIMEOUT_MS = 20_000;
     
     // Execute queries directly - Supabase returns {data, error}
     const [a, e, p, s, l] = await Promise.all([
