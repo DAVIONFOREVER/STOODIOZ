@@ -453,6 +453,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
                         </div>
                     )}
                 </div>
+            </div>
             
             {isModalOpen && <BeatFormModal instrumental={editingInstrumental} onSave={handleSaveInstrumental} onClose={() => setIsModalOpen(false)} isUploading={isUploading} />}
         </div>
