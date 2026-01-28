@@ -6,6 +6,7 @@ import { UserRole, AppView, SubscriptionPlan } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, StarIcon, MusicNoteIcon, MagicWandIcon, EditIcon, PhotoIcon } from './icons';
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
+import StageCreatorHub from './StageCreatorHub';
 import Following from './Following.tsx';
 import FollowersList from './FollowersList.tsx';
 import AvailabilityManager from './AvailabilityManager.tsx';
@@ -67,6 +68,7 @@ const ProducerDashboard: React.FC = () => {
     const { currentUser, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations } = useAppState();
     const dispatch = useAppDispatch();
     const [myPosts, setMyPosts] = useState<Post[]>([]);
+    const postSectionRef = useRef<HTMLDivElement>(null);
     
     // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
@@ -75,6 +77,13 @@ const ProducerDashboard: React.FC = () => {
 
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
     const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
+    const onOpenAria = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+    const handleManagePosts = () => {
+        setActiveTab('dashboard');
+        requestAnimationFrame(() => {
+            postSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    };
 
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
     
@@ -273,8 +282,26 @@ const ProducerDashboard: React.FC = () => {
             default: return (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        <CreatePost currentUser={producer} onPost={handleNewPost} />
-                        <PostFeed posts={myPosts} authors={new Map([[producer.id, producer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewProducerProfile(producer)} />
+                        <StageCreatorHub
+                            currentUser={producer}
+                            suggestions={[]}
+                            trendingPost={null}
+                            trendingPostAuthor={null}
+                            onToggleFollow={() => {}}
+                            onLikePost={() => {}}
+                            onCommentOnPost={() => {}}
+                            onSelectUser={() => {}}
+                            onNavigate={navigate}
+                            onOpenAria={onOpenAria}
+                            onManagePosts={handleManagePosts}
+                            onStartLive={() => navigate(AppView.INBOX)}
+                            onJoinLive={() => navigate(AppView.INBOX)}
+                            showSideSections={false}
+                        />
+                        <div ref={postSectionRef} className="space-y-6">
+                            <CreatePost currentUser={producer} onPost={handleNewPost} />
+                            <PostFeed posts={myPosts} authors={new Map([[producer.id, producer]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewProducerProfile(producer)} />
+                        </div>
                     </div>
                      <div className="lg:col-span-1 space-y-6">
                         {!isProPlan && <UpgradeProCard onNavigate={navigate} />}

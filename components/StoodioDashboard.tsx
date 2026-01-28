@@ -5,6 +5,7 @@ import { BookingStatus, UserRole, AppView, SubscriptionPlan, BookingRequestType 
 import { BriefcaseIcon, CalendarIcon, UsersIcon, DollarSignIcon, PhotoIcon, StarIcon, EditIcon, TrashIcon, MusicNoteIcon, EyeIcon } from './icons';
 import CreatePost from './CreatePost';
 import PostFeed from './PostFeed';
+import StageCreatorHub from './StageCreatorHub';
 import AvailabilityManager from './AvailabilityManager';
 import Following from './Following';
 import FollowersList from './FollowersList';
@@ -235,6 +236,7 @@ const StoodioDashboard: React.FC = () => {
     const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations, userRole } = useAppState();
     const dispatch = useAppDispatch();
     const [myPosts, setMyPosts] = useState<Post[]>([]);
+    const postSectionRef = useRef<HTMLDivElement>(null);
     
     const { navigate, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, viewBooking } = useNavigation();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
@@ -257,6 +259,13 @@ const StoodioDashboard: React.FC = () => {
     const stoodio = currentUser as Stoodio;
     
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+    const onOpenAria = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+    const handleManagePosts = () => {
+        setActiveTab('dashboard');
+        requestAnimationFrame(() => {
+            postSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    };
     const onOpenPayoutModal = () => dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: true } });
 
     useEffect(() => {
@@ -535,8 +544,26 @@ const StoodioDashboard: React.FC = () => {
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
-                            <CreatePost currentUser={currentUser!} onPost={handleNewPost} />
-                            <PostFeed posts={myPosts} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
+                            <StageCreatorHub
+                                currentUser={stoodio}
+                                suggestions={[]}
+                                trendingPost={null}
+                                trendingPostAuthor={null}
+                                onToggleFollow={() => {}}
+                                onLikePost={() => {}}
+                                onCommentOnPost={() => {}}
+                                onSelectUser={() => {}}
+                                onNavigate={navigate}
+                                onOpenAria={onOpenAria}
+                                onManagePosts={handleManagePosts}
+                                onStartLive={() => navigate(AppView.INBOX)}
+                                onJoinLive={() => navigate(AppView.INBOX)}
+                                showSideSections={false}
+                            />
+                            <div ref={postSectionRef} className="space-y-6">
+                                <CreatePost currentUser={currentUser!} onPost={handleNewPost} />
+                                <PostFeed posts={myPosts} authors={new Map([[stoodio.id, stoodio]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={() => viewStoodioDetails(stoodio)} />
+                            </div>
                         </div>
                          <div className="lg:col-span-1 space-y-6">
                             {!isProPlan && <UpgradeProCard onNavigate={navigate} />}

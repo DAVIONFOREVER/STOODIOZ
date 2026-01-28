@@ -9,6 +9,7 @@ import Following from './Following';
 import FollowersList from './FollowersList';
 import Wallet from './Wallet';
 import VerifiedBadge from './VerifiedBadge';
+import StageCreatorHub from './StageCreatorHub';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
@@ -46,6 +47,7 @@ const ArtistDashboard: React.FC = () => {
     const { currentUser, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
     const [myPosts, setMyPosts] = useState<Post[]>([]);
+    const postSectionRef = useRef<HTMLDivElement>(null);
     
     if (!currentUser) {
         return (
@@ -63,6 +65,13 @@ const ArtistDashboard: React.FC = () => {
 
     const onOpenVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: true } });
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+    const onOpenAria = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+    const handleManagePosts = () => {
+        setActiveTab('dashboard');
+        requestAnimationFrame(() => {
+            postSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    };
 
     const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
 
@@ -197,6 +206,22 @@ const ArtistDashboard: React.FC = () => {
                  return (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
+                            <StageCreatorHub
+                                currentUser={artist}
+                                suggestions={[]}
+                                trendingPost={null}
+                                trendingPostAuthor={null}
+                                onToggleFollow={() => {}}
+                                onLikePost={() => {}}
+                                onCommentOnPost={() => {}}
+                                onSelectUser={() => {}}
+                                onNavigate={navigate}
+                                onOpenAria={onOpenAria}
+                                onManagePosts={handleManagePosts}
+                                onStartLive={() => navigate(AppView.INBOX)}
+                                onJoinLive={() => navigate(AppView.INBOX)}
+                                showSideSections={false}
+                            />
                             {isAria && (
                                 <div className="p-6 bg-gradient-to-br from-orange-500/10 to-pink-500/10 border-2 border-orange-500/30 rounded-2xl backdrop-blur-sm">
                                     <div className="flex items-center gap-3 mb-4">
@@ -210,8 +235,10 @@ const ArtistDashboard: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                            <CreatePost currentUser={artist} onPost={handleNewPost} />
-                            <PostFeed posts={myPosts} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={(author) => viewArtistProfile(author as Artist)} />
+                            <div ref={postSectionRef} className="space-y-6">
+                                <CreatePost currentUser={artist} onPost={handleNewPost} />
+                                <PostFeed posts={myPosts} authors={new Map([[artist.id, artist]])} onLikePost={likePost} onCommentOnPost={commentOnPost} onSelectAuthor={(author) => viewArtistProfile(author as Artist)} />
+                            </div>
                         </div>
                     </div>
                 );

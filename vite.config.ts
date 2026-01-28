@@ -20,6 +20,18 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         external: ['xlsx'],
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react')) return 'react';
+              if (id.includes('@supabase')) return 'supabase';
+              if (id.includes('firebase')) return 'firebase';
+              if (id.includes('stripe')) return 'stripe';
+              if (id.includes('three')) return 'three';
+              return 'vendor';
+            }
+          },
+        },
       },
     },
   };

@@ -16,6 +16,8 @@ const TABLES = {
   postComments: 'post_comments',
   conversations: 'conversations',
   messages: 'messages',
+  liveRooms: 'live_rooms',
+  liveRoomParticipants: 'live_room_participants',
   bookings: 'bookings',
   rooms: 'rooms',
   roomPhotos: 'room_photos',
@@ -273,11 +275,20 @@ let cachedPublicUsers: any = null;
 let cacheTimestamp = 0;
 const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 const EMPTY_CACHE_DURATION_MS = 30 * 1000; // 30 seconds for empty results
+const LOCAL_CACHE_KEY = 'public_users_cache_v1';
+const LOCAL_CACHE_TS_KEY = 'public_users_cache_ts_v1';
+const LOCAL_CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 // Function to clear cache (useful for debugging/force refresh)
 export function clearPublicUsersCache() {
   cachedPublicUsers = null;
   cacheTimestamp = 0;
+  try {
+    localStorage.removeItem(LOCAL_CACHE_KEY);
+    localStorage.removeItem(LOCAL_CACHE_TS_KEY);
+  } catch {
+    // ignore
+  }
   console.log('[getAllPublicUsers] Cache cleared');
 }
 
@@ -292,6 +303,28 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
   if (forceRefresh) {
     clearPublicUsersCache();
   }
+
+  const tryLoadLocalCache = () => {
+    try {
+      const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+      const ts = localStorage.getItem(LOCAL_CACHE_TS_KEY);
+      if (!raw || !ts) return null;
+      const age = Date.now() - Number(ts);
+      if (Number.isNaN(age) || age > LOCAL_CACHE_DURATION_MS) return null;
+      const parsed = JSON.parse(raw);
+      const hasData = parsed && (
+        parsed.artists?.length > 0 ||
+        parsed.engineers?.length > 0 ||
+        parsed.producers?.length > 0 ||
+        parsed.stoodioz?.length > 0 ||
+        parsed.labels?.length > 0
+      );
+      if (!hasData) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
   
   // Return cached data if available and fresh
   const now = Date.now();
@@ -310,6 +343,16 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
   if (cachedPublicUsers && cacheAge < cacheDuration) {
     console.log(`[getAllPublicUsers] Returning cached data (age: ${Math.round(cacheAge / 1000)}s, hasData: ${hasData})`);
     return cachedPublicUsers;
+  }
+
+  if (!cachedPublicUsers) {
+    const local = tryLoadLocalCache();
+    if (local) {
+      cachedPublicUsers = local;
+      cacheTimestamp = Date.now();
+      console.log('[getAllPublicUsers] Loaded directory from local cache');
+      return cachedPublicUsers;
+    }
   }
 
   const load = async () => {
@@ -542,6 +585,12 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     if (hasAnyData) {
       cachedPublicUsers = result;
       cacheTimestamp = Date.now();
+      try {
+        localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(result));
+        localStorage.setItem(LOCAL_CACHE_TS_KEY, String(cacheTimestamp));
+      } catch {
+        // ignore storage failures
+      }
       console.log('[getAllPublicUsers] Cached result with data');
     } else {
       // Don't cache empty results - force fresh fetch next time
@@ -562,6 +611,11 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     if (cachedPublicUsers) {
       console.log('[getAllPublicUsers] Returning stale cache due to timeout');
       return cachedPublicUsers;
+    }
+    const local = tryLoadLocalCache();
+    if (local) {
+      console.log('[getAllPublicUsers] Returning local cache due to timeout');
+      return local;
     }
     return {
       artists: [],
@@ -602,6 +656,28 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   }
 
   const fallbackSelectBase = 'id, name, image_url, cover_image_url, profile_id';
+
+  const runRoleSelect = async (column: string, value: string, label: string) => {
+    const primary = await withTimeout(
+      supabase.from(table).select(selectBase).eq(column, value).maybeSingle(),
+      DB_TIMEOUT_MS,
+      label
+    );
+    if (primary?.data) return primary;
+    if (primary?.error) {
+      try {
+        const fallback = await withTimeout(
+          supabase.from(table).select(fallbackSelectBase).eq(column, value).maybeSingle(),
+          DB_TIMEOUT_MS,
+          `${label}.fallback`
+        );
+        return fallback;
+      } catch {
+        return primary;
+      }
+    }
+    return primary;
+  };
 
   // Helper to compute followers/following from follows table
   const computeFollowData = async (profileId: string): Promise<{ followers: number; follower_ids: string[]; following: any }> => {
@@ -654,20 +730,10 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
 
   // UUID: run byId and byProfileId in parallel to avoid 12s+12s sequential when first misses.
   if (isUuid(idOrUsername)) {
-    const byId = supabase.from(table).select(selectBase).eq('id', idOrUsername).maybeSingle();
-    const byProfileId = supabase.from(table).select(selectBase).eq('profile_id', idOrUsername).maybeSingle();
     let [r2, r3] = await Promise.all([
-      withTimeout(byId as any, DB_TIMEOUT_MS, `${table}.byId`),
-      withTimeout(byProfileId as any, DB_TIMEOUT_MS, `${table}.byProfileId`),
+      runRoleSelect('id', idOrUsername, `${table}.byId`),
+      runRoleSelect('profile_id', idOrUsername, `${table}.byProfileId`),
     ]);
-    if (!r2?.data && !r3?.data && (isMissingColumnError(r2?.error) || isMissingColumnError(r3?.error))) {
-      const byIdFallback = supabase.from(table).select(fallbackSelectBase).eq('id', idOrUsername).maybeSingle();
-      const byProfileFallback = supabase.from(table).select(fallbackSelectBase).eq('profile_id', idOrUsername).maybeSingle();
-      [r2, r3] = await Promise.all([
-        withTimeout(byIdFallback as any, DB_TIMEOUT_MS, `${table}.byId.fallback`),
-        withTimeout(byProfileFallback as any, DB_TIMEOUT_MS, `${table}.byProfileId.fallback`),
-      ]);
-    }
     let result = r2?.data || r3?.data;
     if (!result) {
       if (r2?.error) throw new Error(errMsg(r2.error));
@@ -684,12 +750,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   }
 
   // 1) Try by username (slug-style handles)
-  const byUsername = supabase.from(table).select(selectBase).eq('username', idOrUsername).maybeSingle();
-  let r1 = await withTimeout(byUsername as any, DB_TIMEOUT_MS, `${table}.byUsername`);
-  if (!r1?.data && isMissingColumnError(r1?.error)) {
-    const byUsernameFallback = supabase.from(table).select(fallbackSelectBase).eq('username', idOrUsername).maybeSingle();
-    r1 = await withTimeout(byUsernameFallback as any, DB_TIMEOUT_MS, `${table}.byUsername.fallback`);
-  }
+  let r1 = await runRoleSelect('username', idOrUsername, `${table}.byUsername`);
   if (r1?.data) {
     const profileId = r1.data.profile_id || r1.data.id;
     let profileData: any = null;
@@ -707,20 +768,10 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   }
 
   // 2) and 3) byId and byProfileId in parallel
-  const byId = supabase.from(table).select(selectBase).eq('id', idOrUsername).maybeSingle();
-  const byProfileId = supabase.from(table).select(selectBase).eq('profile_id', idOrUsername).maybeSingle();
   let [r2, r3] = await Promise.all([
-    withTimeout(byId as any, DB_TIMEOUT_MS, `${table}.byId`),
-    withTimeout(byProfileId as any, DB_TIMEOUT_MS, `${table}.byProfileId`),
+    runRoleSelect('id', idOrUsername, `${table}.byId`),
+    runRoleSelect('profile_id', idOrUsername, `${table}.byProfileId`),
   ]);
-  if (!r2?.data && !r3?.data && (isMissingColumnError(r2?.error) || isMissingColumnError(r3?.error))) {
-    const byIdFallback = supabase.from(table).select(fallbackSelectBase).eq('id', idOrUsername).maybeSingle();
-    const byProfileFallback = supabase.from(table).select(fallbackSelectBase).eq('profile_id', idOrUsername).maybeSingle();
-    [r2, r3] = await Promise.all([
-      withTimeout(byIdFallback as any, DB_TIMEOUT_MS, `${table}.byId.fallback`),
-      withTimeout(byProfileFallback as any, DB_TIMEOUT_MS, `${table}.byProfileId.fallback`),
-    ]);
-  }
   let result = r2?.data || r3?.data;
   if (!result) {
     if (r2?.error) throw new Error(errMsg(r2.error));
@@ -928,6 +979,42 @@ export async function createPost(profileId: string, content: string, attachment?
       attachment_url,
       created_at: nowIso(),
     }).select('*').single();
+    return q as any;
+  });
+}
+
+export async function updatePostText(postId: string, text: string): Promise<any> {
+  requireVal(postId, 'postId');
+  const nextText = text ?? '';
+  const supabase = getSupabase();
+
+  const attemptUpdate = async (payload: Record<string, any>, label: string) => {
+    const q = supabase.from(TABLES.posts).update(payload).eq('id', postId).select('*').single();
+    return safeWrite(label, async () => q as any);
+  };
+
+  try {
+    return await attemptUpdate({ text: nextText, content: nextText, updated_at: nowIso() }, 'posts.update');
+  } catch (e: any) {
+    if (isMissingColumnError(e)) {
+      try {
+        return await attemptUpdate({ content: nextText, updated_at: nowIso() }, 'posts.update.contentOnly');
+      } catch (e2: any) {
+        if (isMissingColumnError(e2)) {
+          return await attemptUpdate({ text: nextText, updated_at: nowIso() }, 'posts.update.textOnly');
+        }
+        throw e2;
+      }
+    }
+    throw e;
+  }
+}
+
+export async function deletePost(postId: string): Promise<void> {
+  requireVal(postId, 'postId');
+  const supabase = getSupabase();
+  await safeWrite('posts.delete', async () => {
+    const q = supabase.from(TABLES.posts).delete().eq('id', postId);
     return q as any;
   });
 }
@@ -1872,10 +1959,22 @@ export async function scoutMarketInsights(query: string): Promise<any> {
 export async function createConversation(participantIds: string[], meta: Record<string, any> = {}): Promise<any> {
   requireVal(participantIds?.length, 'participantIds');
   const supabase = getSupabase();
-  return safeWrite('conversations.insert', async () => {
-    const q = supabase.from(TABLES.conversations).insert({ participant_ids: participantIds, ...meta, created_at: nowIso() }).select('*').single();
-    return q as any;
-  });
+  const base = { participant_ids: participantIds, ...meta, created_at: nowIso() };
+  try {
+    return await safeWrite('conversations.insert', async () => {
+      const q = supabase.from(TABLES.conversations).insert(base).select('*').single();
+      return q as any;
+    });
+  } catch (e: any) {
+    if (isMissingColumnError(e)) {
+      const fallback = { participant_ids: participantIds, ...meta };
+      return safeWrite('conversations.insert.fallback', async () => {
+        const q = supabase.from(TABLES.conversations).insert(fallback).select('*').single();
+        return q as any;
+      });
+    }
+    throw e;
+  }
 }
 
 export async function fetchConversations(profileId: string): Promise<any[]> {
@@ -1889,13 +1988,168 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
   }, []);
 }
 
-export async function sendMessage(conversationId: string, senderId: string, text: string): Promise<any> {
+export async function sendMessage(
+  conversationId: string,
+  senderId: string,
+  text: string,
+  type: string = 'text',
+  payload?: Record<string, any>
+): Promise<any> {
   requireVal(conversationId, 'conversationId');
   requireVal(senderId, 'senderId');
-  requireVal(text, 'text');
   const supabase = getSupabase();
+  const base = { conversation_id: conversationId, sender_id: senderId, text, type, created_at: nowIso() };
+  const message = payload ? { ...base, ...payload } : base;
   return safeWrite('messages.insert', async () => {
-    const q = supabase.from(TABLES.messages).insert({ conversation_id: conversationId, sender_id: senderId, text, created_at: nowIso() }).select('*').single();
+    const q = supabase.from(TABLES.messages).insert(message).select('*').single();
+    return q as any;
+  });
+}
+
+/* ============================================================
+   LIVE ROOMS
+============================================================ */
+
+export async function fetchLiveRooms(): Promise<any[]> {
+  const supabase = getSupabase();
+  const rooms = await safeSelect('live_rooms.list', async () => {
+    const q = supabase.from(TABLES.liveRooms).select('*').eq('is_live', true).order('created_at', { ascending: false });
+    return q as any;
+  }, []);
+
+  if (!Array.isArray(rooms) || rooms.length === 0) return [];
+
+  const withCounts = await Promise.all(
+    rooms.map(async (room: any) => {
+      const { count } = await supabase
+        .from(TABLES.liveRoomParticipants)
+        .select('id', { count: 'exact', head: true })
+        .eq('room_id', room.id)
+        .is('left_at', null);
+      return { ...room, listeners: count || 0 };
+    })
+  );
+
+  return withCounts;
+}
+
+export async function createLiveRoom(hostId: string, title: string): Promise<any> {
+  requireVal(hostId, 'hostId');
+  requireVal(title, 'title');
+  const supabase = getSupabase();
+
+  const room = await safeWrite('live_rooms.insert', async () => {
+    const q = supabase.from(TABLES.liveRooms).insert({ host_id: hostId, title, is_live: true, created_at: nowIso() }).select('*').single();
+    return q as any;
+  });
+
+  const conversation = await createConversation([hostId], {
+    room_id: room.id,
+    conversation_type: 'live_room',
+    title: room.title,
+  });
+
+  await safeWrite('live_rooms.attachConversation', async () => {
+    const q = supabase.from(TABLES.liveRooms).update({ conversation_id: conversation.id }).eq('id', room.id).select('*').single();
+    return q as any;
+  });
+
+  await joinLiveRoom(room.id, hostId);
+
+  return { ...room, conversation_id: conversation.id };
+}
+
+async function addConversationParticipant(conversationId: string, profileId: string): Promise<void> {
+  const supabase = getSupabase();
+  const conversation = await safeSelect('conversations.byId', async () => {
+    const q = supabase.from(TABLES.conversations).select('participant_ids').eq('id', conversationId).single();
+    return q as any;
+  }, null as any);
+
+  const participants = Array.isArray(conversation?.participant_ids) ? conversation.participant_ids : [];
+  if (participants.includes(profileId)) return;
+
+  await safeWrite('conversations.addParticipant', async () => {
+    const q = supabase
+      .from(TABLES.conversations)
+      .update({ participant_ids: [...participants, profileId] })
+      .eq('id', conversationId)
+      .select('*')
+      .single();
+    return q as any;
+  });
+}
+
+export async function joinLiveRoom(roomId: string, profileId: string): Promise<any> {
+  requireVal(roomId, 'roomId');
+  requireVal(profileId, 'profileId');
+  const supabase = getSupabase();
+
+  const room = await safeSelect('live_rooms.byId', async () => {
+    const q = supabase.from(TABLES.liveRooms).select('*').eq('id', roomId).single();
+    return q as any;
+  }, null as any);
+
+  await safeWrite('live_room_participants.upsert', async () => {
+    const q = supabase
+      .from(TABLES.liveRoomParticipants)
+      .upsert(
+        { room_id: roomId, profile_id: profileId, joined_at: nowIso(), left_at: null },
+        { onConflict: 'room_id,profile_id' }
+      )
+      .select('*')
+      .single();
+    return q as any;
+  });
+
+  let conversationId = room?.conversation_id;
+  if (!conversationId) {
+    const conversation = await createConversation([profileId], {
+      room_id: roomId,
+      conversation_type: 'live_room',
+      title: room?.title || 'Live Room',
+    });
+    conversationId = conversation?.id;
+    if (conversationId) {
+      await safeWrite('live_rooms.attachConversation', async () => {
+        const q = supabase.from(TABLES.liveRooms).update({ conversation_id: conversationId }).eq('id', roomId).select('*').single();
+        return q as any;
+      });
+    }
+  }
+
+  if (conversationId) {
+    await addConversationParticipant(conversationId, profileId);
+  }
+
+  return { ...room, conversation_id: conversationId };
+}
+
+export async function leaveLiveRoom(roomId: string, profileId: string): Promise<void> {
+  requireVal(roomId, 'roomId');
+  requireVal(profileId, 'profileId');
+  const supabase = getSupabase();
+  await safeWrite('live_room_participants.leave', async () => {
+    const q = supabase
+      .from(TABLES.liveRoomParticipants)
+      .update({ left_at: nowIso() })
+      .eq('room_id', roomId)
+      .eq('profile_id', profileId)
+      .is('left_at', null);
+    return q as any;
+  });
+}
+
+export async function endLiveRoom(roomId: string, hostId: string): Promise<void> {
+  requireVal(roomId, 'roomId');
+  requireVal(hostId, 'hostId');
+  const supabase = getSupabase();
+  await safeWrite('live_rooms.end', async () => {
+    const q = supabase
+      .from(TABLES.liveRooms)
+      .update({ is_live: false, ended_at: nowIso() })
+      .eq('id', roomId)
+      .eq('host_id', hostId);
     return q as any;
   });
 }

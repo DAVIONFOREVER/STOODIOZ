@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Post, Artist, Engineer, Stoodio, Comment, Producer, Label } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon, UsersIcon } from './icons.tsx';
+import { HeartIcon, ChatBubbleIcon, ShareIcon, PaperAirplaneIcon, CogIcon, FlagIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, PlayIcon, UsersIcon, EditIcon, CloseCircleIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
 import { useOnScreen } from '../hooks/useOnScreen.ts';
 import StageMediaFrame from './StageMediaFrame';
@@ -14,15 +14,21 @@ interface PostCardProps {
     onLikePost: (postId: string) => void;
     onCommentOnPost: (postId: string, text: string) => void;
     onSelectAuthor: () => void;
+    onEditPost?: (postId: string, text: string) => void;
+    onDeletePost?: (postId: string) => void;
+    isManaging?: boolean;
     useFixedFrame?: boolean;
     variant?: 'standard' | 'reel';
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onCommentOnPost, onSelectAuthor, useFixedFrame = false, variant = 'standard' }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onCommentOnPost, onSelectAuthor, onEditPost, onDeletePost, isManaging = false, useFixedFrame = false, variant = 'standard' }) => {
     const { currentUser } = useAppState();
     const [showComments, setShowComments] = useState(false);
     const [commentText, setCommentText] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editText, setEditText] = useState(post.text || '');
+    const [isSaving, setIsSaving] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     
     // Video optimization refs (for legacy view only)
@@ -55,8 +61,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
         }
     }, [isVisible, useFixedFrame]);
 
+    useEffect(() => {
+        setEditText(post.text || '');
+    }, [post.text]);
+
     if (!currentUser) return null;
     const isReel = variant === 'reel';
+    const canManage = currentUser.id === author.id;
 
     const isLiked = post.likes.includes(currentUser.id);
 
@@ -71,6 +82,33 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     const handleReport = () => {
         alert('Post reported. Our team will review it shortly. Thank you for helping keep Stoodioz safe.');
         setIsMenuOpen(false);
+    };
+
+    const handleEditStart = () => {
+        setIsEditing(true);
+        setIsMenuOpen(false);
+    };
+
+    const handleEditCancel = () => {
+        setIsEditing(false);
+        setEditText(post.text || '');
+    };
+
+    const handleEditSave = async () => {
+        if (!onEditPost) return;
+        setIsSaving(true);
+        try {
+            await onEditPost(post.id, editText.trim());
+            setIsEditing(false);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDelete = () => {
+        if (!onDeletePost) return;
+        setIsMenuOpen(false);
+        onDeletePost(post.id);
     };
 
     const handleCTA = (e: React.MouseEvent) => {
@@ -123,8 +161,10 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
     const externalVideoUrl = post.link ? getVideoEmbedUrl(post.link.url) : null;
 
     return (
-        <div className={`cardSurface overflow-hidden ${isReel ? 'rounded-[20px]' : (useFixedFrame ? 'rounded-3xl' : 'rounded-2xl')}`}>
-            <div className={isReel ? 'p-4' : 'p-6'}>
+        <div className={`cardSurface group relative overflow-hidden border border-zinc-800/70 bg-gradient-to-br from-zinc-950/55 via-zinc-900/45 to-zinc-950/55 shadow-[0_0_40px_rgba(249,115,22,0.08)] ${isManaging && canManage ? 'ring-1 ring-orange-500/30' : ''} ${isReel ? 'rounded-[20px]' : (useFixedFrame ? 'rounded-3xl' : 'rounded-2xl')}`}>
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(249,115,22,0.12),_transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="pointer-events-none absolute left-0 top-0 h-0.5 w-full bg-gradient-to-r from-transparent via-orange-400/60 to-transparent" />
+            <div className={isReel ? 'relative p-4' : 'relative p-6'}>
                 {/* Post Header */}
                 <div className={`flex items-start justify-between gap-4 ${isReel ? 'mb-5' : 'mb-4'}`}>
                     <button onClick={onSelectAuthor} className="flex items-center gap-4 group text-left">
@@ -139,7 +179,17 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                             <CogIcon className="w-5 h-5" />
                         </button>
                         {isMenuOpen && (
-                            <div className="absolute top-full right-0 mt-1 w-40 bg-zinc-700 rounded-md shadow-lg z-10 border border-zinc-600">
+                            <div className="absolute top-full right-0 mt-1 w-44 bg-zinc-700 rounded-md shadow-lg z-10 border border-zinc-600">
+                                {canManage && onEditPost && (
+                                    <button onClick={handleEditStart} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-zinc-600">
+                                        <EditIcon className="w-4 h-4"/> Edit Post
+                                    </button>
+                                )}
+                                {canManage && onDeletePost && (
+                                    <button onClick={handleDelete} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-300 hover:bg-zinc-600">
+                                        <CloseCircleIcon className="w-4 h-4"/> Delete Post
+                                    </button>
+                                )}
                                 <button onClick={handleReport} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-zinc-600">
                                     <FlagIcon className="w-4 h-4"/> Report Post
                                 </button>
@@ -150,14 +200,41 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
 
                 {isReel && (
                     <div className="flex flex-wrap items-center gap-2 mb-4">
-                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">AI Reel</span>
-                        <span className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse" />
-                        <span className="text-xs text-zinc-400">Adaptive mix • Auto spotlight</span>
+                        <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">The Stage</span>
                     </div>
                 )}
 
                 {/* Post Content */}
-                {post.text && <p className="text-slate-300 whitespace-pre-wrap mb-4">{post.text}</p>}
+                {isEditing ? (
+                    <div className="mb-4 space-y-3">
+                        <textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            rows={4}
+                            className="w-full bg-zinc-900/80 border border-zinc-700/80 text-slate-100 rounded-xl p-3 focus:ring-orange-500 focus:border-orange-500"
+                            placeholder="Edit your caption..."
+                        />
+                        <div className="flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={handleEditCancel}
+                                className="px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 border border-zinc-700 hover:bg-zinc-900"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleEditSave}
+                                disabled={isSaving}
+                                className="px-4 py-1.5 rounded-full text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-700"
+                            >
+                                {isSaving ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    post.text && <p className="text-slate-300 whitespace-pre-wrap mb-4">{post.text}</p>
+                )}
                 
                 {useFixedFrame ? (
                     // The Stage (Feed) View using Fixed Media Frame
@@ -247,21 +324,21 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
             )}
 
             {/* Post Actions */}
-            <div className="border-t border-zinc-700 mx-4 sm:mx-6 py-1 flex justify-around items-center text-slate-400">
+            <div className="border-t border-zinc-800/80 mx-4 sm:mx-6 my-4 py-2 flex justify-around items-center text-slate-400 bg-zinc-950/50 rounded-full backdrop-blur">
                 <button
                     onClick={() => onLikePost(post.id)}
-                    className={`flex items-center gap-1.5 font-semibold transition-colors p-2 rounded-lg text-sm ${isLiked ? 'text-red-500' : 'hover:text-red-500'}`}
+                    className={`flex items-center gap-1.5 font-semibold transition-colors p-2 rounded-lg text-sm ${isLiked ? 'text-orange-400' : 'hover:text-orange-400'}`}
                 >
                     <HeartIcon className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
                     <span className="hidden sm:inline">Like</span>
                     <span>({post.likes.length})</span>
                 </button>
-                <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-1.5 font-semibold hover:text-orange-400 transition-colors p-2 rounded-lg text-sm">
+                <button onClick={() => setShowComments(!showComments)} className={`flex items-center gap-1.5 font-semibold transition-colors p-2 rounded-lg text-sm ${showComments ? 'text-orange-400' : 'hover:text-orange-400'}`}>
                     <ChatBubbleIcon className="w-5 h-5" />
                     <span className="hidden sm:inline">Comment</span>
                     <span>({post.comments.length})</span>
                 </button>
-                <button onClick={handleShare} className="flex items-center gap-1.5 font-semibold hover:text-blue-400 transition-colors p-2 rounded-lg text-sm">
+                <button onClick={handleShare} className="flex items-center gap-1.5 font-semibold hover:text-orange-400 transition-colors p-2 rounded-lg text-sm">
                     <ShareIcon className="w-5 h-5" />
                     <span className="hidden sm:inline">Share</span>
                 </button>
@@ -275,9 +352,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                             <div key={comment.id} className="flex items-start gap-3">
                                 <img src={getProfileImageUrl({ image_url: comment.author_image_url })} alt={comment.authorName} className="w-8 h-8 rounded-lg object-cover mt-1"/>
                                 <div>
-                                    <div className="bg-zinc-700 rounded-xl p-3">
-                                        <p className="font-semibold text-sm text-slate-200">{comment.authorName}</p>
-                                        <p className="text-sm text-slate-300">{comment.text}</p>
+                                    <div className="bg-orange-500 rounded-xl p-3 shadow-[0_0_18px_rgba(249,115,22,0.25)]">
+                                        <p className="font-semibold text-sm text-white">{comment.authorName}</p>
+                                        <p className="text-sm text-white/90">{comment.text}</p>
                                     </div>
                                     <p className="text-xs text-slate-500 mt-1 pl-1">{formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}</p>
                                 </div>

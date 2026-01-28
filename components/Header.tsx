@@ -357,7 +357,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                     <button
                       onClick={() => onNavigate(AppView.INBOX)}
                       className={`${navLinkClasses} flex items-center`}
-                      aria-label="Inbox"
+                      aria-label="Message Hub"
                     >
                       <InboxIcon className="w-5 h-5" />
                     </button>
@@ -554,7 +554,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                     onClick={() => navAndCloseMobile(AppView.INBOX)}
                     className="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-900 text-slate-200"
                   >
-                    Inbox
+                    Message Hub
                   </button>
 
                   {/* Label-only actions */}

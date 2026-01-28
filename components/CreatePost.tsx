@@ -174,7 +174,11 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
     return (
         <div className="p-6 cardSurface">
             <div className="flex items-start gap-4">
-                <img src={getProfileImageUrl(currentUser)} alt={currentUser.name} className="w-12 h-12 rounded-xl object-cover" />
+                <img
+                    src={getProfileImageUrl(currentUser)}
+                    alt={currentUser.name}
+                    className="w-11 h-11 rounded-2xl object-cover ring-2 ring-orange-500/30 shadow-lg shadow-orange-500/20"
+                />
                 <div className="w-full">
                     <form onSubmit={handleSubmit}>
                          <input
@@ -187,7 +191,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                             value={text}
                             onChange={(e) => setText(e.target.value)}
                             placeholder="Share an update, a new track, or a session video..."
-                            className="w-full bg-zinc-700 border-zinc-600 text-slate-200 placeholder:text-slate-400 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500"
+                            className="w-full bg-zinc-900/70 border border-zinc-700/80 text-slate-200 placeholder:text-slate-400 rounded-xl p-3 focus:ring-orange-500 focus:border-orange-500"
                             rows={3}
                         />
 

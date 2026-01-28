@@ -5,6 +5,7 @@ import { DollarSignIcon, CalendarIcon, StarIcon, EditIcon, PhotoIcon } from './i
 
 import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
+import StageCreatorHub from './StageCreatorHub';
 import AvailabilityManager from './AvailabilityManager.tsx';
 import NotificationSettings from './NotificationSettings.tsx';
 import Wallet from './Wallet.tsx';
@@ -98,6 +99,7 @@ const EngineerDashboard: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const postSectionRef = useRef<HTMLDivElement>(null);
 
   // Guard: if user not loaded yet
   if (!currentUser) {
@@ -109,6 +111,13 @@ const EngineerDashboard: React.FC = () => {
   }
 
   const engineer = currentUser as Engineer;
+  const onOpenAria = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+  const handleManagePosts = () => {
+    setActiveTab('dashboard');
+    requestAnimationFrame(() => {
+      postSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   // If App wants to force-open a dashboard tab (e.g. documents)
   useEffect(() => {
@@ -302,14 +311,32 @@ const EngineerDashboard: React.FC = () => {
         return (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-              <CreatePost currentUser={engineer} onPost={handleNewPost} />
-              <PostFeed
-                posts={myPosts}
-                authors={authorsMap as any}
-                onLikePost={likePost}
-                onCommentOnPost={commentOnPost}
-                onSelectAuthor={() => viewEngineerProfile(engineer)}
+              <StageCreatorHub
+                currentUser={engineer}
+                suggestions={[]}
+                trendingPost={null}
+                trendingPostAuthor={null}
+                onToggleFollow={() => {}}
+                onLikePost={() => {}}
+                onCommentOnPost={() => {}}
+                onSelectUser={() => {}}
+                onNavigate={navigate}
+                onOpenAria={onOpenAria}
+                onManagePosts={handleManagePosts}
+                onStartLive={() => navigate(AppView.INBOX)}
+                onJoinLive={() => navigate(AppView.INBOX)}
+                showSideSections={false}
               />
+              <div ref={postSectionRef} className="space-y-6">
+                <CreatePost currentUser={engineer} onPost={handleNewPost} />
+                <PostFeed
+                  posts={myPosts}
+                  authors={authorsMap as any}
+                  onLikePost={likePost}
+                  onCommentOnPost={commentOnPost}
+                  onSelectAuthor={() => viewEngineerProfile(engineer)}
+                />
+              </div>
             </div>
             <div className="lg:col-span-1 space-y-6">{!isProPlan && <UpgradePlusCard onNavigate={navigate} />}</div>
           </div>

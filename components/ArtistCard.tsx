@@ -22,9 +22,9 @@ const ArtistCard: React.FC<ArtistCardProps> = ({ artist, onSelectArtist, onToggl
     };
 
     return (
-        <div className="text-center p-6 group cardSurface overflow-hidden">
+        <div className="text-center p-6 group cardSurface overflow-hidden bg-gradient-to-br from-zinc-950/80 via-zinc-900/70 to-zinc-950/90 shadow-[0_20px_60px_rgba(0,0,0,0.35)] border border-zinc-800/70 hover:-translate-y-1 transition-transform">
             <button onClick={() => onSelectArtist(artist)} className="w-full">
-                <img loading="lazy" src={getProfileImageUrl(artist)} alt={artist.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-zinc-700 group-hover:border-orange-500 transition-colors" />
+                <img loading="lazy" src={getProfileImageUrl(artist)} alt={artist.name} className="w-24 h-24 rounded-full object-cover mx-auto ring-2 ring-zinc-700/80 shadow-lg shadow-orange-500/20" />
                 <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400">{artist.name}</h3>
             </button>
             <p className="text-slate-400 text-sm mt-1 h-10 overflow-hidden">{artist.bio}</p>

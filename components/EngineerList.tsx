@@ -45,7 +45,7 @@ const EngineerList: React.FC<EngineerListProps> = ({ onSelectEngineer, onToggleF
                     <p className="text-xs text-zinc-500 mt-2">If this should have results, check Supabase RLS policies for public reads.</p>
                 </div>
             ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredEngineers.map(engineer => {
                      const isFollowing = currentUser ? (currentUser.following?.engineers || []).includes(engineer.id) : false;
                     return (

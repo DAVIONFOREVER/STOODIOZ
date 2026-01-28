@@ -6,8 +6,10 @@ import CreatePost from './CreatePost.tsx';
 import PostFeed from './PostFeed.tsx';
 import StageCreatorHub from './StageCreatorHub';
 import { SparklesIcon } from './icons.tsx';
-import { useAppState } from '../contexts/AppContext.tsx';
-import { fetchGlobalFeed } from '../services/apiService';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import { fetchGlobalFeed, updatePostText, deletePost, fetchConversations, createLiveRoom, joinLiveRoom, leaveLiveRoom } from '../services/apiService';
+import { useMessaging } from '../hooks/useMessaging';
+import LiveChatModal from './LiveChatModal';
 import { useOnScreen } from '../hooks/useOnScreen';
 import { getSupabase } from '../lib/supabase';
 import { ARIA_EMAIL, getProfileImageUrl } from '../constants';
@@ -38,7 +40,9 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         onNavigate,
         onOpenAria
     } = props;
-    const { currentUser, userRole, artists, engineers, stoodioz, producers, labels } = useAppState();
+    const { currentUser, userRole, artists, engineers, stoodioz, producers, labels, smartReplies, isSmartRepliesLoading, conversations } = useAppState();
+    const dispatch = useAppDispatch();
+    const { sendMessage, fetchSmartReplies } = useMessaging(onNavigate);
 
     // Local state for the infinite feed
     const [posts, setPosts] = useState<Post[]>([]);
@@ -46,6 +50,13 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     const [hasMore, setHasMore] = useState(true);
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const isBottomVisible = useOnScreen(loadMoreRef);
+    const [manageMode, setManageMode] = useState(false);
+    const feedTopRef = useRef<HTMLDivElement>(null);
+    const [activeLiveRoomId, setActiveLiveRoomId] = useState<string | null>(null);
+    const [activeLiveRoomTitle, setActiveLiveRoomTitle] = useState('');
+    const [activeLiveConversationId, setActiveLiveConversationId] = useState<string | null>(null);
+    const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
+    const [isLiveChatLoading, setIsLiveChatLoading] = useState(false);
 
     // Combine all users for author lookup. Guard: directory arrays can be undefined before SET_INITIAL_DATA or malformed payload.
     const authorsMap = useMemo(() => {
@@ -262,76 +273,211 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     if (!currentUser) return null;
 
-    const handleStartLive = () => {
-        onNavigate(AppView.INBOX);
+    const handleStartLive = async () => {
+        if (!currentUser) return;
+        setIsLiveChatLoading(true);
+        try {
+            const room = await createLiveRoom(currentUser.id, `${currentUser.name} Live Room`);
+            const updated = await fetchConversations(currentUser.id);
+            dispatch({
+                type: ActionTypes.SET_CONVERSATIONS,
+                payload: { conversations: updated },
+            });
+            setActiveLiveRoomId(room.id);
+            setActiveLiveRoomTitle(room.title || 'Live Room');
+            setActiveLiveConversationId(room.conversation_id || null);
+            setIsLiveChatOpen(true);
+        } catch (e) {
+            console.error('Failed to start live room', e);
+            alert('Could not start a live room.');
+        } finally {
+            setIsLiveChatLoading(false);
+        }
     };
 
-    const handleJoinLive = (_roomId: string) => {
-        onNavigate(AppView.INBOX);
+    const handleJoinLive = async (roomId: string) => {
+        if (!currentUser) return;
+        setIsLiveChatLoading(true);
+        try {
+            const room = await joinLiveRoom(roomId, currentUser.id);
+            const updated = await fetchConversations(currentUser.id);
+            dispatch({
+                type: ActionTypes.SET_CONVERSATIONS,
+                payload: { conversations: updated },
+            });
+            setActiveLiveRoomId(roomId);
+            setActiveLiveRoomTitle(room?.title || 'Live Room');
+            setActiveLiveConversationId(room?.conversation_id || null);
+            setIsLiveChatOpen(true);
+        } catch (e) {
+            console.error('Failed to join live room', e);
+            alert('Could not join that live room.');
+        } finally {
+            setIsLiveChatLoading(false);
+        }
+    };
+
+    const handleCloseLiveChat = async () => {
+        if (activeLiveRoomId && currentUser) {
+            try {
+                await leaveLiveRoom(activeLiveRoomId, currentUser.id);
+            } catch (e) {
+                console.warn('Failed to leave live room', e);
+            }
+        }
+        setIsLiveChatOpen(false);
+    };
+
+    useEffect(() => {
+        if (!activeLiveConversationId) return;
+        const conversation = conversations.find(c => c.id === activeLiveConversationId);
+        if (conversation) {
+            fetchSmartReplies(conversation.messages);
+        }
+    }, [activeLiveConversationId, conversations, fetchSmartReplies]);
+
+    const handleManagePosts = () => {
+        setManageMode(true);
+        requestAnimationFrame(() => {
+            feedTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    };
+
+    const handleEditPost = async (postId: string, text: string) => {
+        const target = posts.find(p => p.id === postId);
+        if (!currentUser || !target || target.authorId !== currentUser.id) return;
+        try {
+            await updatePostText(postId, text);
+            setPosts(prev => prev.map(p => (p.id === postId ? { ...p, text } : p)));
+        } catch (e) {
+            console.error('Failed to update post:', e);
+            alert('Sorry, we could not update that post.');
+        }
+    };
+
+    const handleDeletePost = async (postId: string) => {
+        const target = posts.find(p => p.id === postId);
+        if (!currentUser || !target || target.authorId !== currentUser.id) return;
+        if (!confirm('Delete this post? This cannot be undone.')) return;
+        try {
+            await deletePost(postId);
+            setPosts(prev => prev.filter(p => p.id !== postId));
+        } catch (e) {
+            console.error('Failed to delete post:', e);
+            alert('Sorry, we could not delete that post.');
+        }
     };
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-col items-center text-center gap-3">
-                <p className="text-xs uppercase tracking-[0.35em] text-zinc-500">The Stage</p>
-                <h1 className="text-3xl md:text-5xl font-extrabold text-zinc-100">The Stage</h1>
-                <p className="text-sm text-zinc-400">Always-on creator feed. Aria is ready when you are.</p>
-            </div>
+        <div className="relative">
+            <div
+                className="absolute inset-0 bg-[url('/stage-background.png')] bg-cover bg-center bg-no-repeat bg-fixed opacity-60"
+                aria-hidden="true"
+            />
+            <div className="absolute inset-0 stage-neon-overlay" aria-hidden="true" />
+            <div className="absolute inset-0 stage-neon-sparkle" aria-hidden="true" />
+            <div className="absolute inset-0 bg-zinc-950/55" aria-hidden="true" />
+            <div className="relative space-y-8">
+                <div className="flex flex-col items-center text-center gap-3">
+                    <p className="text-xs uppercase tracking-[0.35em] text-zinc-500">The Stage</p>
+                    <h1 className="text-3xl md:text-5xl font-extrabold text-zinc-100">The Stage</h1>
+                    <p className="text-sm text-zinc-400">Always-on creator feed. Aria is ready when you are.</p>
+                </div>
 
-            <div className="grid grid-cols-12 gap-8">
-                {/* AI-Reel Feed */}
-                <main className="col-span-12 xl:col-span-8">
-                    <div className="space-y-10">
-                        <div className="cardSurface p-6">
-                            <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label} onPost={handleNewPost} />
+                <div className="grid grid-cols-12 gap-8">
+                    {/* Creator Hub Sidebar */}
+                    <aside className="col-span-12 xl:col-span-3">
+                        <div className="xl:sticky xl:top-24">
+                            <StageCreatorHub
+                                currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label}
+                                suggestions={suggestions}
+                                trendingPost={trendingPost}
+                                trendingPostAuthor={trendingPostAuthor}
+                                onToggleFollow={onToggleFollow}
+                                onLikePost={handleLocalLike}
+                                onCommentOnPost={handleLocalComment}
+                                onSelectUser={handleSelectUser}
+                                onNavigate={onNavigate}
+                                onOpenAria={onOpenAria}
+                                onManagePosts={handleManagePosts}
+                                onStartLive={handleStartLive}
+                                onJoinLive={handleJoinLive}
+                                showTopSections={false}
+                            />
                         </div>
+                    </aside>
 
-                        <PostFeed 
-                            posts={posts} 
-                            authors={authorsMap}
-                            onLikePost={handleLocalLike}
-                            onCommentOnPost={handleLocalComment}
-                            onSelectAuthor={(author) => handleSelectUser(author as Artist | Engineer | Stoodio | Producer | Label)}
-                            useFixedFrame={true}
-                            variant="reel"
-                        />
+                    {/* AI-Reel Feed */}
+                    <main className="col-span-12 xl:col-span-9">
+                        <div className="space-y-10">
+                            <div ref={feedTopRef} className="w-full max-w-[760px] mx-auto">
+                                <CreatePost currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label} onPost={handleNewPost} />
+                            </div>
 
-                        {/* Infinite Scroll Sentinel */}
-                        <div ref={loadMoreRef} className="py-8 text-center">
-                            {isLoading && (
-                                <div className="flex justify-center">
-                                     <svg className="animate-spin h-8 w-8 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
+                            {manageMode && (
+                                <div className="w-full max-w-[760px] mx-auto cardSurface border border-orange-500/30 bg-orange-500/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs uppercase tracking-[0.25em] text-orange-300">Manage Posts</p>
+                                        <p className="text-sm text-zinc-300">Editing your posts inline. Changes save instantly.</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setManageMode(false)}
+                                        className="px-4 py-2 rounded-full bg-zinc-900/60 border border-zinc-800 text-sm font-semibold text-zinc-200 hover:bg-zinc-900"
+                                    >
+                                        Done
+                                    </button>
                                 </div>
                             )}
-                            {!hasMore && posts.length > 0 && (
-                                <p className="text-zinc-500 text-sm">You've reached the end of the stage.</p>
-                            )}
-                        </div>
-                    </div>
-                </main>
 
-                {/* Creator Hub */}
-                <aside className="col-span-12 xl:col-span-4">
-                    <div className="xl:sticky xl:top-24">
-                        <StageCreatorHub
-                            currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label}
-                            suggestions={suggestions}
-                            trendingPost={trendingPost}
-                            trendingPostAuthor={trendingPostAuthor}
-                            onToggleFollow={onToggleFollow}
-                            onLikePost={handleLocalLike}
-                            onCommentOnPost={handleLocalComment}
-                            onSelectUser={handleSelectUser}
-                            onNavigate={onNavigate}
-                            onOpenAria={onOpenAria}
-                            onStartLive={handleStartLive}
-                            onJoinLive={handleJoinLive}
-                        />
+                            <PostFeed 
+                                posts={manageMode && currentUser ? posts.filter(p => p.authorId === currentUser.id) : posts} 
+                                authors={authorsMap}
+                                onLikePost={handleLocalLike}
+                                onCommentOnPost={handleLocalComment}
+                                onSelectAuthor={(author) => handleSelectUser(author as Artist | Engineer | Stoodio | Producer | Label)}
+                                onEditPost={handleEditPost}
+                                onDeletePost={handleDeletePost}
+                                isManaging={manageMode}
+                                useFixedFrame={true}
+                                variant="reel"
+                            />
+
+                            {/* Infinite Scroll Sentinel */}
+                            <div ref={loadMoreRef} className="py-8 text-center">
+                                {isLoading && (
+                                    <div className="flex justify-center">
+                                         <svg className="animate-spin h-8 w-8 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    </div>
+                                )}
+                                {!hasMore && posts.length > 0 && (
+                                    <p className="text-zinc-500 text-sm">You've reached the end of the stage.</p>
+                                )}
+                            </div>
+                        </div>
+                    </main>
+
+                </div>
+                {isLiveChatOpen && currentUser && (
+                    <LiveChatModal
+                        conversationId={activeLiveConversationId}
+                        roomTitle={activeLiveRoomTitle}
+                        onClose={handleCloseLiveChat}
+                        currentUser={currentUser as Artist | Engineer | Stoodio | Producer | Label}
+                        onSendMessage={sendMessage}
+                        onNavigate={onNavigate}
+                        smartReplies={smartReplies}
+                        isSmartRepliesLoading={isSmartRepliesLoading}
+                    />
+                )}
+                {isLiveChatLoading && (
+                    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+                        <div className="cardSurface px-6 py-4 text-sm text-zinc-200">Connecting to live chat...</div>
                     </div>
-                </aside>
+                )}
             </div>
         </div>
     );

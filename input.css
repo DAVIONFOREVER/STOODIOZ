@@ -91,6 +91,25 @@
         animation: aria-eq-bar 0.9s ease-in-out infinite;
         transform-origin: bottom;
     }
+
+    .stage-neon-overlay {
+        background:
+          radial-gradient(circle at 18% 28%, rgba(249, 115, 22, 0.45), transparent 55%),
+          radial-gradient(circle at 68% 32%, rgba(34, 211, 238, 0.35), transparent 52%),
+          radial-gradient(circle at 48% 72%, rgba(168, 85, 247, 0.38), transparent 58%),
+          radial-gradient(circle at 85% 65%, rgba(251, 146, 60, 0.28), transparent 55%);
+        mix-blend-mode: screen;
+        filter: blur(18px);
+        animation: stage-neon-shift 14s ease-in-out infinite;
+    }
+
+    .stage-neon-sparkle {
+        background:
+          radial-gradient(circle at 25% 55%, rgba(255, 255, 255, 0.08), transparent 40%),
+          radial-gradient(circle at 80% 25%, rgba(255, 255, 255, 0.06), transparent 45%),
+          radial-gradient(circle at 65% 80%, rgba(255, 255, 255, 0.05), transparent 40%);
+        animation: stage-neon-flicker 10s ease-in-out infinite;
+    }
 }
 
 @keyframes aria-float {
@@ -116,6 +135,18 @@
 @keyframes mesh-flow {
   0%, 100% { background-position: 0% 0%; }
   50% { background-position: 100% 100%; }
+}
+
+@keyframes stage-neon-shift {
+  0%, 100% { opacity: 0.55; filter: blur(18px) hue-rotate(0deg); }
+  50% { opacity: 0.9; filter: blur(22px) hue-rotate(24deg); }
+}
+
+@keyframes stage-neon-flicker {
+  0%, 100% { opacity: 0.2; }
+  45% { opacity: 0.45; }
+  55% { opacity: 0.18; }
+  75% { opacity: 0.32; }
 }
 
 @keyframes ambient-drift {

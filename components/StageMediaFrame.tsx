@@ -64,8 +64,8 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
     const backgroundSrc = type === 'video' ? thumbnailUrl : src;
 
     const frameClassName = variant === 'reel'
-        ? 'relative w-full h-[560px] overflow-hidden rounded-[24px] bg-zinc-950 shadow-[0_20px_60px_rgba(0,0,0,0.35)] border border-zinc-800/60 mx-auto'
-        : 'relative w-full aspect-[4/5] max-w-[1080px] max-h-[1350px] overflow-hidden rounded-[20px] bg-zinc-900 shadow-lg border border-zinc-800/50 mx-auto';
+        ? 'relative w-full h-[560px] overflow-hidden rounded-[24px] bg-zinc-950/30 shadow-[0_20px_60px_rgba(0,0,0,0.35)] border border-zinc-800/40 mx-auto'
+        : 'relative w-full aspect-[4/5] max-w-[1080px] max-h-[1350px] overflow-hidden rounded-[20px] bg-zinc-900/30 shadow-lg border border-zinc-800/40 mx-auto';
 
     return (
         <div 
@@ -77,7 +77,7 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
             {/* Only render if we have a valid image source (not a video url) */}
             {backgroundSrc && (
                 <div 
-                    className="absolute inset-0 z-0 transform scale-150 opacity-50 blur-3xl transition-opacity duration-1000"
+                    className="absolute inset-0 z-0 transform scale-150 opacity-35 blur-3xl transition-opacity duration-1000"
                     style={{
                         backgroundImage: `url(${backgroundSrc})`,
                         backgroundSize: 'cover',
@@ -87,7 +87,7 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
             )}
             
             {/* Dark overlay to ensure text/controls contrast if needed */}
-            <div className="absolute inset-0 z-0 bg-black/20" />
+            <div className="absolute inset-0 z-0 bg-black/10" />
 
             {/* 2. Main Media Layer */}
             {/* If type is video, we ensure it's visible if it starts playing (audio), even if load event lags */}

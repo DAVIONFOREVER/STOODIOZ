@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import LiveRoomCard from './LiveRoomCard';
+import { useLiveRooms } from '../hooks/useLiveRooms';
+import { useAppState } from '../contexts/AppContext';
 
 interface LiveHubProps {
     onStartLive: () => void;
@@ -7,10 +9,27 @@ interface LiveHubProps {
 }
 
 const LiveHub: React.FC<LiveHubProps> = ({ onStartLive, onJoinLive }) => {
-    const rooms = [
-        { id: 'aria-room', title: 'Aria Cantata Listening Room', host: 'Aria Cantata', listeners: 128 },
-        { id: 'beat-lab', title: 'Beat Lab Live Mix', host: 'Stoodioz', listeners: 72 },
-    ];
+    const { rooms, isLoading } = useLiveRooms();
+    const { currentUser, artists, engineers, stoodioz, producers, labels } = useAppState();
+
+    const usersMap = useMemo(() => {
+        const allUsers = [
+            ...(artists ?? []),
+            ...(engineers ?? []),
+            ...(stoodioz ?? []),
+            ...(producers ?? []),
+            ...(labels ?? []),
+        ];
+        if (currentUser) allUsers.push(currentUser);
+        const map = new Map<string, any>();
+        allUsers.forEach(u => u?.id && map.set(u.id, u));
+        return map;
+    }, [artists, engineers, stoodioz, producers, labels, currentUser]);
+
+    const resolveHostName = (hostId: string) => {
+        const host = usersMap.get(hostId);
+        return host?.name || 'Live Host';
+    };
 
     return (
         <div className="cardSurface p-5 space-y-4">
@@ -27,12 +46,18 @@ const LiveHub: React.FC<LiveHubProps> = ({ onStartLive, onJoinLive }) => {
                 </button>
             </div>
             <div className="space-y-3">
+                {isLoading && (
+                    <p className="text-sm text-zinc-400">Loading live rooms...</p>
+                )}
+                {!isLoading && rooms.length === 0 && (
+                    <p className="text-sm text-zinc-400">No live rooms yet. Start the first one.</p>
+                )}
                 {rooms.map(room => (
                     <LiveRoomCard
                         key={room.id}
                         title={room.title}
-                        host={room.host}
-                        listeners={room.listeners}
+                        host={resolveHostName(room.host_id)}
+                        listeners={room.listeners || 0}
                         onJoin={() => onJoinLive(room.id)}
                     />
                 ))}

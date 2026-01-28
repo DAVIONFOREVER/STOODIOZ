@@ -203,16 +203,17 @@ const App: React.FC = () => {
     if (!isPublic) return;
 
     if (currentUser && userRole) {
-      if (isLoading) {
+      if (isLoadingRef.current) {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
       }
       const landing = userRole === UserRole.LABEL ? AppView.LABEL_DASHBOARD : AppView.THE_STAGE;
       dispatch({ type: ActionTypes.NAVIGATE, payload: { view: landing } });
     }
-  }, [currentView, currentUser, userRole, isLoading, dispatch]);
+  }, [currentView, currentUser, userRole, dispatch]);
 
   // If not authenticated, only allow public views (don't kick guests off profiles/lists)
   useEffect(() => {
+    if (isLoadingRef.current) return;
     if (currentUser || userRole) return;
     const isPublic =
       currentView === AppView.LOGIN ||
@@ -235,7 +236,8 @@ const App: React.FC = () => {
       currentView === AppView.ENGINEER_PROFILE ||
       currentView === AppView.PRODUCER_PROFILE ||
       currentView === AppView.LABEL_PROFILE ||
-      currentView === AppView.CLAIM_ENTRY;
+      currentView === AppView.CLAIM_ENTRY ||
+      currentView === AppView.INBOX;
     if (!isPublic) {
       dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.LANDING_PAGE } });
     }
@@ -255,9 +257,13 @@ const App: React.FC = () => {
   const didBootstrapRef = useRef(false);
   const currentUserRef = useRef(currentUser);
   const userRoleRef = useRef(userRole);
+  const currentViewRef = useRef(currentView);
+  const isLoadingRef = useRef(isLoading);
   const hydrateUserRef = useRef<((uid: string) => Promise<UserRole | null>) | null>(null);
   currentUserRef.current = currentUser;
   userRoleRef.current = userRole;
+  currentViewRef.current = currentView;
+  isLoadingRef.current = isLoading;
 
   // Navigation hook (drives history)
         const {
@@ -405,10 +411,11 @@ const App: React.FC = () => {
 
           lastHydratedUserIdRef.current = userId;
 
+          const viewNow = currentViewRef.current;
           const isPublic =
-            currentView === AppView.LANDING_PAGE ||
-            currentView === AppView.LOGIN ||
-            currentView === AppView.CHOOSE_PROFILE;
+            viewNow === AppView.LANDING_PAGE ||
+            viewNow === AppView.LOGIN ||
+            viewNow === AppView.CHOOSE_PROFILE;
 
           if (isPublic) {
             const landing = role === UserRole.LABEL ? AppView.LABEL_DASHBOARD : AppView.THE_STAGE;

@@ -87,7 +87,8 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
     const startConversation = useCallback(
         async (
             participant: Artist | Engineer | Stoodio | Producer | Label,
-            initialMessageText?: string
+            initialMessageText?: string,
+            navigateToInbox: boolean = true
         ) => {
             if (!currentUser) return;
 
@@ -150,7 +151,9 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
                 });
             }
 
-            navigate(AppView.INBOX);
+            if (navigateToInbox) {
+                navigate(AppView.INBOX);
+            }
         },
         [conversations, currentUser, dispatch, navigate]
     );
