@@ -168,10 +168,11 @@ export const useProfile = () => {
         .maybeSingle();
       if (roleErr) throw roleErr;
 
+      let resolvedRoleRow = roleRow;
       // STOODIO: explicitly load rooms so RoomManager list and post-a-job stay in sync after save
       let rooms: any[] = [];
-      if (userRole === 'STOODIO' && roleRow?.id) {
-        const { data: r } = await client.from('rooms').select('*').eq('stoodio_id', roleRow.id).order('name');
+      if (userRole === 'STOODIO') {
+        const { data: r } = await client.from('rooms').select('*').eq('stoodio_id', currentUser.id).order('name');
         rooms = Array.isArray(r) ? r : [];
       }
 
@@ -182,12 +183,13 @@ export const useProfile = () => {
         .maybeSingle();
       if (profErr) throw profErr;
 
+      const previousRooms = (currentUser as any)?.rooms || [];
       const merged = {
-        ...(roleRow || {}),
+        ...(resolvedRoleRow || {}),
         ...(profRow || {}),
         id: currentUser.id,
-        ...(userRole === 'STOODIO' && roleRow?.id ? { stoodioz_id: roleRow.id } : {}),
-        ...(userRole === 'STOODIO' ? { rooms } : {}),
+        ...(userRole === 'STOODIO' && resolvedRoleRow?.id ? { role_id: resolvedRoleRow.id } : {}),
+        ...(userRole === 'STOODIO' ? { rooms: resolvedRoleRow?.id ? rooms : previousRooms } : {}),
       };
 
       const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));

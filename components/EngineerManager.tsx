@@ -20,7 +20,7 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
         return (stoodio.in_house_engineers || [])
             .map(info => {
                 // FIX: Corrected property name from 'engineerId' to 'engineer_id'
-                const engineer = allEngineers.find(e => e.id === info.engineer_id);
+                const engineer = allEngineers.find(e => e.id === info.engineer_id || (e as any).role_id === info.engineer_id);
                 return engineer ? { ...info, engineer } : null;
             })
             .filter(Boolean as any as (x: any) => x is { engineer: Engineer } & InHouseEngineerInfo);
@@ -43,7 +43,8 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
                 engineer_id: selectedEngineerId,
                 pay_rate: payRate
             };
-            await upsertInHouseEngineer(info, stoodio.id);
+            const stoodioRoleId = (stoodio as any).role_id || stoodio.id;
+            await upsertInHouseEngineer(info, stoodioRoleId);
             onRefresh();
             setSelectedEngineerId('');
              // FIX: Corrected property name from 'engineerPayRate' to 'engineer_pay_rate'
@@ -57,7 +58,8 @@ const EngineerManager: React.FC<EngineerManagerProps> = ({ stoodio, allEngineers
     const handleDeleteEngineer = async (engineerId: string) => {
         if (window.confirm('Are you sure you want to remove this engineer from your in-house roster?')) {
             try {
-                await deleteInHouseEngineer(engineerId, stoodio.id);
+                const stoodioRoleId = (stoodio as any).role_id || stoodio.id;
+                await deleteInHouseEngineer(engineerId, stoodioRoleId);
                 onRefresh();
             } catch (error) {
                 console.error("Failed to remove engineer:", error);

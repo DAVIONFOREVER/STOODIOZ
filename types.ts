@@ -387,7 +387,7 @@ export interface Engineer extends BaseUser {
     bio: string;
     specialties: string[];
     is_available: boolean;
-    availability: { date: string; times: string[] }[];
+    availability: { date: string; times: string[] }[]; // Blocked times (default-open availability)
     mixing_services?: MixingServices;
     mixing_samples?: MixingSample[];
     masterclass?: Masterclass;
@@ -430,7 +430,7 @@ export interface Stoodio extends BaseUser {
     amenities: string[];
     rooms: Room[];
     in_house_engineers: InHouseEngineerInfo[];
-    availability: { date: string; times: string[] }[];
+    availability: { date: string; times: string[] }[]; // Blocked times (default-open availability)
     photos: string[];
     hourly_rate?: number; // Base rate for search display
     engineer_pay_rate?: number; // Default pay rate for freelance engineers
@@ -449,7 +449,7 @@ export interface Producer extends BaseUser {
     bio: string;
     genres: string[];
     is_available: boolean;
-    availability: { date: string; times: string[] }[];
+    availability: { date: string; times: string[] }[]; // Blocked times (default-open availability)
     instrumentals: Instrumental[];
     pull_up_price?: number;
     masterclass?: Masterclass;

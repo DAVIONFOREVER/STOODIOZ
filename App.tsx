@@ -446,8 +446,15 @@ const App: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
+    if (typeof window !== 'undefined') {
+      try {
+        (window as any).supabase = getSupabase();
+      } catch (e) {
+        console.warn('[App] Supabase client unavailable:', e);
+      }
+    }
+
     // 1) Load public directory data (should NOT block login)
-    // Force refresh on initial load to avoid stale cache
     console.log('[App] Loading public users directory...');
     // Expose cache clearing function to window for debugging
     if (typeof window !== 'undefined') {
@@ -457,10 +464,16 @@ const App: React.FC = () => {
           console.log('[App] Cache cleared - refresh the page to reload users');
         }
       };
+      (window as any).getAllPublicUsers = (forceRefresh = false) => {
+        if (!apiService.getAllPublicUsers) {
+          throw new Error('getAllPublicUsers is unavailable');
+        }
+        return apiService.getAllPublicUsers(forceRefresh);
+      };
     }
-    apiService
-      .getAllPublicUsers(true) // Force refresh on initial load
-      .then((directory) => {
+    const loadDirectory = async () => {
+      try {
+        const directory = await apiService.getAllPublicUsers(true);
         if (!isMounted) return;
         console.log('[App] Loaded directory:', {
           artists: directory.artists?.length || 0,
@@ -469,7 +482,7 @@ const App: React.FC = () => {
           stoodioz: directory.stoodioz?.length || 0,
           labels: directory.labels?.length || 0,
         });
-        // Normalize: never send undefined for directory arrays (avoids .slice/.length throws in LandingPage, TheStage, etc.)
+        // Normalize: never send undefined for directory arrays (avoids .slice/.length throws)
         dispatch({
           type: ActionTypes.SET_INITIAL_DATA,
           payload: {
@@ -481,8 +494,7 @@ const App: React.FC = () => {
             reviews: [],
           },
         });
-      })
-      .catch((e) => {
+      } catch (e) {
         console.error('[App] Failed to load public users:', e);
         // Set empty arrays as fallback so app doesn't break if this fails
         if (isMounted) {
@@ -498,7 +510,9 @@ const App: React.FC = () => {
             },
           });
         }
-      });
+      }
+    };
+    loadDirectory();
 
     // 2) Bootstrap session ONCE (but do not block login page)
     const bootstrap = async () => {

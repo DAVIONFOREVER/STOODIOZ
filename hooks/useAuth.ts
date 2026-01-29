@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { useAppDispatch, useAppState, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { AppView, UserRole } from '../types';
 import { getSupabase, performLogout } from '../lib/supabase';
@@ -50,6 +50,9 @@ function landingForRole(role: UserRole): AppView {
  */
 export const useAuth = (navigate: NavigateFn) => {
   const dispatch = useAppDispatch();
+  const { history, historyIndex } = useAppState();
+  const currentViewRef = useRef<AppView>(history[historyIndex]);
+  currentViewRef.current = history[historyIndex];
 
   // Prevent double-fire login (double click / lag / enter key repeat)
   const loginInFlightRef = useRef(false);
@@ -107,7 +110,18 @@ export const useAuth = (navigate: NavigateFn) => {
         payload: { user, role },
       });
       const hasClaim = typeof window !== 'undefined' && (sessionStorage.getItem('pending_claim_token') || localStorage.getItem('pending_claim_token'));
-      navigate(hasClaim ? AppView.CLAIM_CONFIRM : landingForRole(role));
+      if (hasClaim) {
+        navigate(AppView.CLAIM_CONFIRM);
+        return;
+      }
+      const viewNow = currentViewRef.current;
+      const isPublic =
+        viewNow === AppView.LOGIN ||
+        viewNow === AppView.LANDING_PAGE ||
+        viewNow === AppView.CHOOSE_PROFILE;
+      if (isPublic) {
+        navigate(landingForRole(role));
+      }
     },
     [dispatch, navigate]
   );

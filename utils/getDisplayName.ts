@@ -34,19 +34,39 @@ export function getDisplayName(
     stage_name?: string | null;
     display_name?: string | null;
     full_name?: string | null;
+    email?: string | null;
   } | null | undefined,
   fallback = 'Someone'
 ): string {
   if (entity == null) return fallback;
+  const email = (entity as any)?.email || '';
+  const nameLower = String(entity.name || '').toLowerCase();
+  const usernameLower = String(entity.username || '').toLowerCase();
+  if (email === 'aria@stoodioz.ai' || usernameLower === 'aria' || nameLower === 'aria' || nameLower.includes('aria cantata')) {
+    return 'Aria Cantata';
+  }
+  const nested = (entity as any)?.profiles || (entity as any)?.profile || null;
   
   // Check fields in priority order, skipping ID-like values
-  const stageName = (entity as any)?.stage_name;
-  const displayName = (entity as any)?.display_name;
-  const companyName = (entity as any)?.company_name;
-  const artistName = (entity as any)?.artist_name;
-  const fullName = (entity as any)?.full_name;
-  const name = entity?.name;
-  const username = entity?.username;
+  const stageName = (entity as any)?.stage_name || nested?.stage_name;
+  const displayName = (entity as any)?.display_name || nested?.display_name;
+  const companyName = (entity as any)?.company_name || nested?.company_name;
+  const artistName = (entity as any)?.artist_name || nested?.artist_name;
+  const fullName = (entity as any)?.full_name || nested?.full_name;
+  const name = entity?.name || nested?.name;
+  const username = entity?.username || nested?.username;
+  const emailName = (entity as any)?.email || nested?.email || '';
+
+  const formatHandle = (value: string): string | null => {
+    if (!value || typeof value !== 'string') return null;
+    const cleaned = value.replace(/[._-]+/g, ' ').trim();
+    if (!cleaned) return null;
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return null;
+    return words
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  };
   
   // Return first valid (non-ID-like) name found
   if (stageName && typeof stageName === 'string' && stageName.trim() && !looksLikeId(stageName)) {
@@ -68,7 +88,11 @@ export function getDisplayName(
     return name.trim();
   }
   if (username && typeof username === 'string' && username.trim() && !looksLikeId(username)) {
-    return username.trim();
+    return formatHandle(username) || username.trim();
+  }
+  const emailFallback = formatHandle(emailName.split('@')[0] || '');
+  if (emailFallback && !looksLikeId(emailFallback)) {
+    return emailFallback;
   }
   
   // If all fields are ID-like or empty, return fallback

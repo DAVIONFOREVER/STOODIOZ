@@ -336,19 +336,111 @@ const ArtistProfile: React.FC = () => {
     const [isReleaseEngineOpen, setIsReleaseEngineOpen] = useState(false);
     const [isHookEnhancerOpen, setIsHookEnhancerOpen] = useState(false);
 
-    const isAria = useMemo(() => artist?.email === ARIA_EMAIL, [artist]);
+    const isAria = useMemo(() => {
+        if (!artist) return false;
+        const ariaSavedId = localStorage.getItem('aria_profile_id');
+        const emailMatch = artist.email === ARIA_EMAIL;
+        const idMatch = artist.id === 'aria' || artist.profile_id === 'aria' || (ariaSavedId && (artist.id === ariaSavedId || artist.profile_id === ariaSavedId));
+        const nameLower = (artist.name || '').toLowerCase();
+        const usernameLower = (artist.username || '').toLowerCase();
+        const nameMatch = usernameLower === 'aria' || nameLower === 'aria' || nameLower === 'aria cantata';
+        return emailMatch || idMatch || nameMatch;
+    }, [artist]);
     const isOwner = useMemo(() => isAria && currentUser?.id === artist?.id, [isAria, currentUser, artist]);
+
+    const buildAriaFallback = (profile?: Partial<Artist>): Artist => ({
+        id: profile?.id || 'aria',
+        profile_id: profile?.profile_id || profile?.id || 'aria',
+        name: profile?.name || profile?.full_name || profile?.username || 'Aria Cantata',
+        full_name: profile?.full_name || 'Aria Cantata',
+        username: profile?.username || 'aria',
+        image_url: profile?.image_url || ARIA_PROFILE_IMAGE_URL,
+        cover_image_url: profile?.cover_image_url || ARIA_COVER_IMAGE_URL,
+        email: profile?.email || ARIA_EMAIL,
+        genres: profile?.genres || [],
+        rating_overall: profile?.rating_overall || 0,
+        ranking_tier: profile?.ranking_tier || 'PROVISIONAL',
+        role: 'ARTIST',
+        profiles: (profile as any)?.profiles || null,
+    } as Artist);
+
+    const readCachedArtist = (id: string) => {
+        try {
+            const key = id === 'aria' ? 'aria_profile_cache' : `artist_cache_${id}`;
+            const raw = localStorage.getItem(key);
+            return raw ? (JSON.parse(raw) as Artist) : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const writeCachedArtist = (data: Artist) => {
+        try {
+            if (!data?.id) return;
+            const key = data.email === ARIA_EMAIL ? 'aria_profile_cache' : `artist_cache_${data.id}`;
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch {
+            // ignore storage failures
+        }
+    };
 
     useEffect(() => {
         let isMounted = true;
         const resolveArtist = async () => {
             const savedId = localStorage.getItem('selected_entity_id');
             const savedType = localStorage.getItem('selected_entity_type');
-            const targetId = selectedArtist?.id || selectedArtist?.profile_id || (savedType === 'artist' ? savedId : null);
+            const ariaSavedId = localStorage.getItem('aria_profile_id');
+            let targetId = selectedArtist?.id || selectedArtist?.profile_id || (savedType === 'artist' ? savedId : null);
+            const ariaTarget =
+                targetId === 'aria' ||
+                (ariaSavedId && (targetId === ariaSavedId)) ||
+                selectedArtist?.email === ARIA_EMAIL ||
+                selectedArtist?.username?.toLowerCase() === 'aria' ||
+                (selectedArtist?.name || '').toLowerCase() === 'aria cantata';
+
+            if (!targetId && !selectedArtist && ariaSavedId) {
+                targetId = ariaSavedId;
+            }
+
+            if (!targetId && selectedArtist) {
+                try {
+                    if (selectedArtist.email && selectedArtist.email !== ARIA_EMAIL) {
+                        const profile = await fetchProfileByEmail(selectedArtist.email);
+                        if (!isMounted) return;
+                        if (profile?.id) {
+                            targetId = profile.id;
+                        }
+                    }
+                    if (!targetId && selectedArtist.username) {
+                        targetId = selectedArtist.username;
+                    }
+                } catch {
+                    // ignore resolution failures; will fall back below
+                }
+            }
 
             if (!targetId) {
                 if (isMounted) {
-                    setLoadError('No profile selected.');
+                    if (ariaTarget) {
+                        setArtist({
+                            id: 'aria',
+                            profile_id: 'aria',
+                            name: 'Aria Cantata',
+                            full_name: 'Aria Cantata',
+                            username: 'aria',
+                            image_url: ARIA_PROFILE_IMAGE_URL,
+                            cover_image_url: ARIA_COVER_IMAGE_URL,
+                            email: ARIA_EMAIL,
+                            genres: [],
+                            rating_overall: 0,
+                            ranking_tier: 'PROVISIONAL',
+                            role: 'ARTIST',
+                            profiles: null,
+                        } as any);
+                    } else {
+                        setArtist(selectedArtist || null);
+                        setLoadError('Profile could not be resolved.');
+                    }
                     setIsLoadingDetails(false);
                 }
                 return;
@@ -363,48 +455,70 @@ const ArtistProfile: React.FC = () => {
             if (existing) setArtist(existing);
 
             try {
-                const fullData = await fetchFullArtist(targetId);
+                let resolvedId = targetId;
+                if (resolvedId === 'aria') {
+                    const profile = await fetchProfileByEmail(ARIA_EMAIL);
+                    if (!isMounted) return;
+                    if (profile?.id) {
+                        localStorage.setItem('aria_profile_id', profile.id);
+                        resolvedId = profile.id;
+                    }
+                }
+
+                const fullData = await fetchFullArtist(resolvedId);
                 if (!isMounted) return;
                 if (fullData) {
                     setArtist(fullData as Artist);
+                    writeCachedArtist(fullData as Artist);
+                    if (fullData?.email === ARIA_EMAIL && fullData?.id) {
+                        localStorage.setItem('aria_profile_id', fullData.id);
+                    }
                 } else {
-                    // If the stored id is an internal role id, try to resolve Aria via email
-                    const isLikelyRoleId = typeof targetId === 'string' && targetId.startsWith('artist_');
-                    if (isLikelyRoleId) {
-                        const profile = await fetchProfileByEmail(ARIA_EMAIL);
+                    if (ariaTarget) {
+                        const ariaProfile = await fetchProfileByEmail(ARIA_EMAIL);
                         if (!isMounted) return;
-                        if (profile?.id) {
-                            const ariaFull = await fetchFullArtist(profile.id);
-                            if (!isMounted) return;
-                            if (ariaFull) {
-                                setArtist(ariaFull as Artist);
-                                return;
-                            }
+                        if (ariaProfile?.id) {
+                            localStorage.setItem('aria_profile_id', ariaProfile.id);
                             setArtist({
-                                id: profile.id,
-                                profile_id: profile.id,
-                                name: profile.full_name || profile.username || 'Aria Cantata',
-                                full_name: profile.full_name || null,
-                                username: profile.username || null,
-                                image_url: profile.image_url || ARIA_PROFILE_IMAGE_URL,
+                                id: ariaProfile.id,
+                                profile_id: ariaProfile.id,
+                                name: ariaProfile.full_name || ariaProfile.username || 'Aria Cantata',
+                                full_name: ariaProfile.full_name || null,
+                                username: ariaProfile.username || null,
+                                image_url: ariaProfile.image_url || ARIA_PROFILE_IMAGE_URL,
                                 cover_image_url: ARIA_COVER_IMAGE_URL,
-                                email: profile.email || ARIA_EMAIL,
+                                email: ariaProfile.email || ARIA_EMAIL,
                                 genres: [],
                                 rating_overall: 0,
                                 ranking_tier: 'PROVISIONAL',
                                 role: 'ARTIST',
-                                profiles: profile,
+                                profiles: ariaProfile,
                             } as any);
                             return;
                         }
+                        if (resolvedId === 'aria' || selectedArtist?.email === ARIA_EMAIL) {
+                        setArtist(buildAriaFallback());
+                        setLoadError('Live data unavailable. Showing Aria fallback.');
+                        return;
                     }
-                    setArtist(null);
+                    }
+                    setArtist(existing || null);
                     setLoadError('Profile not found.');
                 }
             } catch (e) {
                 console.error("Failed to load artist details", e);
-                if (isMounted) {
-                    setArtist(null);
+                if (!isMounted) return;
+                const cached = readCachedArtist(targetId);
+                if (cached) {
+                    setArtist(cached);
+                    setLoadError('Live data timed out. Showing cached profile.');
+                    return;
+                }
+                if (ariaTarget) {
+                    setArtist(buildAriaFallback(selectedArtist as any));
+                    setLoadError('Live data timed out. Showing Aria fallback.');
+                } else {
+                    setArtist(existing || null);
                     setLoadError('Unable to load this profile right now.');
                 }
             } finally {

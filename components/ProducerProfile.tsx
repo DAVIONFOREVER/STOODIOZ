@@ -163,9 +163,9 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 text-left cardSurface">
-            <img src={getProfileImageUrl(profile)} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+            <img src={getProfileImageUrl(profile)} alt={getDisplayName(profile)} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
-                <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
+                <p className="font-semibold text-sm text-slate-200 truncate">{getDisplayName(profile)}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
             </div>
         </button>

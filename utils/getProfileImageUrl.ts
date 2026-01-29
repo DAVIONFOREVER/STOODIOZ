@@ -3,10 +3,23 @@ const ARIA_IMG = '/aria/0F91FD16-F2C6-4F90-8B50-925A73EF5BB3.PNG';
 const ARIA_EMAIL = 'aria@stoodioz.ai';
 
 export function getProfileImageUrl(
-  user: { email?: string | null; image_url?: string | null } | null | undefined,
+  user: { email?: string | null; image_url?: string | null; avatar_url?: string | null; profiles?: any; profile?: any; name?: string | null; username?: string | null } | null | undefined,
   fallback = FALLBACK
 ): string {
   if (user == null) return fallback;
-  if (user.email === ARIA_EMAIL) return ARIA_IMG;
-  return user.image_url || fallback;
+  const nested = (user as any)?.profiles || (user as any)?.profile || null;
+  const email = user.email || nested?.email;
+  const nameLower = String(user.name || nested?.name || '').toLowerCase();
+  const usernameLower = String(user.username || nested?.username || '').toLowerCase();
+  if (email === ARIA_EMAIL || nameLower === 'aria' || nameLower.includes('aria cantata') || usernameLower === 'aria') {
+    return ARIA_IMG;
+  }
+
+  return (
+    user.image_url ||
+    user.avatar_url ||
+    nested?.image_url ||
+    nested?.avatar_url ||
+    fallback
+  );
 }

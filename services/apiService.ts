@@ -226,12 +226,12 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
   const role = profile.role as UserRole;
   if (!role) throw new Error('User has no role');
 
-  // STOODIO: fetch stoodioz.id so RoomManager and rooms FK work (rooms.stoodio_id -> stoodioz.id)
+  // STOODIO: capture role-table id for in-house engineer ops
   let user: any = { ...profile };
   if (role === 'STOODIO') {
     try {
       const { data: sz } = await supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle();
-      if (sz?.id) user.stoodioz_id = sz.id;
+      if (sz?.id) user.role_id = sz.id;
     } catch (_) { /* non-fatal */ }
   }
   return { user, role };
@@ -254,7 +254,7 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
     const q = supabase.from(TABLES.profiles).insert({ ...payload, created_at: nowIso(), updated_at: nowIso() }).select('*').single();
     return q as any;
   });
-  // STOODIO: create stoodioz row so rooms.stoodio_id FK and RoomManager work (profile_id -> stoodioz.id)
+  // STOODIO: create stoodioz row for role data
   if (role === 'STOODIO' && result?.id) {
     const { error: szErr } = await supabase.from('stoodioz').insert({ profile_id: result.id }).select('id').single();
     if (szErr) throw new Error(`stoodioz insert: ${errMsg(szErr)}`);
@@ -299,6 +299,12 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
   stoodioz: any[];
   labels: any[];
 }> {
+  const normalizeRole = (role: any): 'ARTIST' | 'ENGINEER' | 'PRODUCER' | 'STOODIO' | 'LABEL' => {
+    const raw = String(role || '').toUpperCase().trim();
+    if (raw === 'STOODIOZ' || raw === 'STUDIO' || raw === 'STUDIOZ') return 'STOODIO';
+    if (raw === 'ENGINEER' || raw === 'PRODUCER' || raw === 'LABEL' || raw === 'ARTIST') return raw as any;
+    return 'ARTIST';
+  };
   // Clear cache if force refresh requested
   if (forceRefresh) {
     clearPublicUsersCache();
@@ -367,6 +373,16 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
         labels: [],
       };
     }
+    const PROFILES_FAST_TIMEOUT_MS = 8000;
+    const profilesSelectFull = 'id, username, full_name, display_name, role, email, image_url, avatar_url, bio, location_text';
+    const profilesSelectFallback = 'id, username, full_name, role, email, image_url, bio, location_text';
+    const runProfilesSelect = async (select: string, label: string, timeoutMs: number) => {
+      return await withTimeout(
+        supabase.from('profiles').select(select).limit(500),
+        timeoutMs,
+        label
+      ).catch((err) => ({ data: null, error: err }));
+    };
     // Reduced limit for faster initial load - only load what's needed for landing page
     // Can load more on-demand when user navigates to lists
     const MAX_ROWS_PER_TABLE = 100; // Reduced from 2000 for faster loads
@@ -403,13 +419,30 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
 
     // Execute queries directly - Supabase returns {data, error}
     const [a, e, p, s, l] = await Promise.all([
-      runSelect('artists', selectArtists, 'artists'),
-      runSelect('engineers', selectEngineers, 'engineers'),
-      runSelect('producers', selectProducers, 'producers'),
-      runSelect('stoodioz', selectStoodioz, 'stoodioz'),
-      runSelect('labels', selectLabels, 'labels'),
+      runSelect('artists_v', selectArtists, 'artists_v'),
+      runSelect('engineers_v', selectEngineers, 'engineers_v'),
+      runSelect('producers_v', selectProducers, 'producers_v'),
+      runSelect('stoodioz_v', selectStoodioz, 'stoodioz_v'),
+      runSelect('labels_v', selectLabels, 'labels_v'),
     ]);
     
+    // If views are missing (or error), fall back to base tables
+    if (a.error || e.error || p.error || s.error || l.error) {
+      console.warn('[getAllPublicUsers] view query failed, retrying base tables');
+      const [a2, e2, p2, s2, l2] = await Promise.all([
+        runSelect('artists', selectArtists, 'artists'),
+        runSelect('engineers', selectEngineers, 'engineers'),
+        runSelect('producers', selectProducers, 'producers'),
+        runSelect('stoodioz', selectStoodioz, 'stoodioz'),
+        runSelect('labels', selectLabels, 'labels'),
+      ]);
+      if (a.error) a.data = a2.data;
+      if (e.error) e.data = e2.data;
+      if (p.error) p.data = p2.data;
+      if (s.error) s.data = s2.data;
+      if (l.error) l.data = l2.data;
+    }
+
     // Log detailed results for debugging
     console.log('[getAllPublicUsers] Query results:', {
       artists: { count: a.data?.length || 0, error: a.error?.message || null },
@@ -435,10 +468,12 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
         role_id: row?.id ?? null,
         id: profileId || row?.id || null,
         profile_id: profileId || row?.profile_id || null,
+        display_name: row.display_name ?? profiles.display_name ?? null,
         full_name: row.full_name ?? profiles.full_name ?? null,
         username: row.username ?? profiles.username ?? null,
-        image_url: row.image_url || profiles.image_url || null,
+        image_url: row.image_url || profiles.image_url || profiles.avatar_url || null,
         email: row.email ?? profiles.email ?? null,
+        name: row.name ?? profiles.display_name ?? profiles.full_name ?? profiles.username ?? ((profiles.email === 'aria@stoodioz.ai' || row.email === 'aria@stoodioz.ai') ? 'Aria Cantata' : row.name),
         role,
       };
     };
@@ -485,6 +520,77 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       ...result.labels,
     ];
 
+    const shouldBackfillFromProfiles =
+      result.artists.length === 0 ||
+      result.engineers.length === 0 ||
+      result.producers.length === 0 ||
+      result.stoodioz.length === 0 ||
+      result.labels.length === 0;
+
+    if (shouldBackfillFromProfiles) {
+      try {
+        let profilesRes: any = await runProfilesSelect(profilesSelectFull, 'profiles.directory.backfill', QUERY_TIMEOUT_MS);
+        if (profilesRes?.error && isMissingColumnError(profilesRes.error)) {
+          profilesRes = await runProfilesSelect(profilesSelectFallback, 'profiles.directory.backfill.fallback', QUERY_TIMEOUT_MS);
+        }
+        const rows = Array.isArray((profilesRes as any)?.data) ? (profilesRes as any).data : [];
+        if (rows.length > 0) {
+          const existingIds = new Set(
+            allRows
+              .map((row: any) => row?.profile_id || row?.id)
+              .filter((id: any) => typeof id === 'string' && id.length > 0)
+          );
+          const mapProfile = (row: any) => ({
+            id: row.id,
+            profile_id: row.id,
+            name:
+              row.display_name ||
+              row.full_name ||
+              row.username ||
+              (row.email === 'aria@stoodioz.ai' ? 'Aria Cantata' : 'User'),
+            display_name: row.display_name || null,
+            full_name: row.full_name || null,
+            username: row.username || null,
+            email: row.email || null,
+            image_url: row.image_url || row.avatar_url || null,
+            cover_image_url: null,
+            bio: row.bio,
+            location_text: row.location_text,
+            genres: [],
+            rating_overall: 0,
+            ranking_tier: 'PROVISIONAL',
+            role: normalizeRole(row.role),
+            profiles: row,
+          });
+
+          const additions = rows
+            .map(mapProfile)
+            .filter((row: any) => row?.id && !existingIds.has(row.id));
+
+          if (additions.length > 0) {
+            const byRole = {
+              artists: additions.filter((u: any) => u.role === 'ARTIST'),
+              engineers: additions.filter((u: any) => u.role === 'ENGINEER'),
+              producers: additions.filter((u: any) => u.role === 'PRODUCER'),
+              stoodioz: additions.filter((u: any) => u.role === 'STOODIO'),
+              labels: additions.filter((u: any) => u.role === 'LABEL'),
+            };
+
+            result = {
+              artists: result.artists.concat(byRole.artists),
+              engineers: result.engineers.concat(byRole.engineers),
+              producers: result.producers.concat(byRole.producers),
+              stoodioz: result.stoodioz.concat(byRole.stoodioz),
+              labels: result.labels.concat(byRole.labels),
+            };
+            console.warn('[getAllPublicUsers] Backfilled missing roles from profiles');
+          }
+        }
+      } catch (backfillErr) {
+        console.warn('[getAllPublicUsers] profiles backfill failed:', backfillErr);
+      }
+    }
+
     const profileIds = Array.from(
       new Set(
         allRows
@@ -495,14 +601,26 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
 
     if (profileIds.length > 0) {
       try {
-        const profilesRes = await withTimeout(
+      const enrichSelectFull = 'id, username, full_name, display_name, image_url, avatar_url, email';
+      const enrichSelectFallback = 'id, username, full_name, image_url, email';
+      let profilesRes: any = await withTimeout(
+        supabase
+          .from('profiles')
+          .select(enrichSelectFull)
+          .in('id', profileIds),
+        QUERY_TIMEOUT_MS,
+        'profiles.directory.enrich'
+      ).catch((err) => ({ data: null, error: err }));
+      if (profilesRes?.error && isMissingColumnError(profilesRes.error)) {
+        profilesRes = await withTimeout(
           supabase
             .from('profiles')
-            .select('id, username, full_name, image_url, email')
+            .select(enrichSelectFallback)
             .in('id', profileIds),
           QUERY_TIMEOUT_MS,
-          'profiles.directory.enrich'
-        );
+          'profiles.directory.enrich.fallback'
+        ).catch((err) => ({ data: null, error: err }));
+      }
         const profileMap = new Map(
           ((profilesRes as any)?.data || []).map((p: any) => [p.id, p])
         );
@@ -511,14 +629,18 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
           const profile = profileMap.get(row?.profile_id);
           if (!profile) return row;
           const name = row?.name;
-          const safeName = !name || looksLikeId(String(name))
-            ? (profile.full_name || profile.username || name)
-            : name;
+          const safeName = profile?.display_name
+            ? profile.display_name
+            : (!name || looksLikeId(String(name))
+              ? (profile.full_name || profile.username || (profile.email === 'aria@stoodioz.ai' ? 'Aria Cantata' : name))
+              : name);
           return {
             ...row,
+            profiles: row?.profiles ?? profile,
+            display_name: row.display_name ?? profile.display_name ?? null,
             full_name: row.full_name ?? profile.full_name ?? null,
             username: row.username ?? profile.username ?? null,
-            image_url: row.image_url || profile.image_url || null,
+            image_url: row.image_url || profile.image_url || profile.avatar_url || null,
             email: row.email ?? profile.email ?? null,
             name: safeName,
           };
@@ -540,26 +662,28 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     const isEmpty = result.artists.length === 0 && result.engineers.length === 0 && result.producers.length === 0 && result.stoodioz.length === 0 && result.labels.length === 0;
     if (isEmpty) {
       try {
-        const profilesSelect = 'id, username, full_name, role, image_url, bio, location_text';
-        const profilesRes = await withTimeout(
-          supabase.from('profiles').select(profilesSelect).limit(500),
-          QUERY_TIMEOUT_MS,
-          'profiles.directory'
-        );
+        let profilesRes: any = await runProfilesSelect(profilesSelectFull, 'profiles.directory', QUERY_TIMEOUT_MS);
+        if (profilesRes?.error && isMissingColumnError(profilesRes.error)) {
+          profilesRes = await runProfilesSelect(profilesSelectFallback, 'profiles.directory.fallback', QUERY_TIMEOUT_MS);
+        }
         const rows = Array.isArray((profilesRes as any)?.data) ? (profilesRes as any).data : [];
         if (rows.length > 0) {
           const normalized = rows.map((row: any) => ({
             id: row.id,
             profile_id: row.id,
-            name: row.full_name || row.username || 'User',
-            image_url: row.image_url,
+            name: row.display_name || row.full_name || row.username || 'User',
+            display_name: row.display_name || null,
+            full_name: row.full_name || null,
+            username: row.username || null,
+            email: row.email || null,
+            image_url: row.image_url || row.avatar_url,
             cover_image_url: null,
             bio: row.bio,
             location_text: row.location_text,
             genres: [],
             rating_overall: 0,
             ranking_tier: 'PROVISIONAL',
-            role: String(row.role || '').toUpperCase(),
+            role: normalizeRole(row.role),
             profiles: row
           }));
           result = {
@@ -656,6 +780,14 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   }
 
   const fallbackSelectBase = 'id, name, image_url, cover_image_url, profile_id';
+  const minimalSelectBase = 'id, profile_id';
+
+  const shouldTryFallback = (error: any): boolean => {
+    if (!error) return false;
+    const status = Number(error?.status || error?.statusCode || 0);
+    if (status === 400) return true;
+    return isMissingColumnError(error);
+  };
 
   const runRoleSelect = async (column: string, value: string, label: string) => {
     const primary = await withTimeout(
@@ -664,13 +796,22 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
       label
     );
     if (primary?.data) return primary;
-    if (primary?.error) {
+    if (primary?.error && shouldTryFallback(primary.error)) {
       try {
         const fallback = await withTimeout(
           supabase.from(table).select(fallbackSelectBase).eq(column, value).maybeSingle(),
           DB_TIMEOUT_MS,
           `${label}.fallback`
         );
+        if (fallback?.data) return fallback;
+        if (fallback?.error && shouldTryFallback(fallback.error)) {
+          const minimal = await withTimeout(
+            supabase.from(table).select(minimalSelectBase).eq(column, value).maybeSingle(),
+            DB_TIMEOUT_MS,
+            `${label}.minimal`
+          );
+          return minimal;
+        }
         return fallback;
       } catch {
         return primary;
@@ -756,7 +897,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     let profileData: any = null;
     if (profileId) {
       const profRes = await withTimeout(
-        supabase.from('profiles').select('id, username, full_name, email, role, image_url, bio, location_text').eq('id', profileId).maybeSingle(),
+    supabase.from('profiles').select('id, username, full_name, display_name, email, role, image_url, avatar_url, bio, location_text').eq('id', profileId).maybeSingle(),
         DB_TIMEOUT_MS,
         `${table}.profiles.byId`
       ).catch(() => ({ data: null }));
@@ -782,7 +923,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   let profileData: any = null;
   if (profileId) {
     const profRes = await withTimeout(
-      supabase.from('profiles').select('id, username, full_name, email, role, image_url, bio, location_text').eq('id', profileId).maybeSingle(),
+    supabase.from('profiles').select('id, username, full_name, display_name, email, role, image_url, avatar_url, bio, location_text').eq('id', profileId).maybeSingle(),
       DB_TIMEOUT_MS,
       `${table}.profiles.byId`
     ).catch(() => ({ data: null }));
@@ -800,7 +941,9 @@ export async function fetchFullArtist(idOrUsername: string): Promise<any> {
   if (!data) return null;
   const profile = data?.profiles || {};
   const out = { ...data, ...profile, role: profile.role || 'ARTIST' };
-  out.id = profile?.id ?? data?.profile_id ?? out.id;
+  out.role_id = data?.id ?? null;
+  out.profile_id = profile?.id ?? data?.profile_id ?? null;
+  out.id = out.profile_id ?? out.id;
   return out;
 }
 
@@ -808,7 +951,7 @@ export async function fetchProfileByEmail(email: string): Promise<any | null> {
   if (!email) return null;
   const supabase = getSupabase();
   const res = await withTimeout(
-    supabase.from('profiles').select('id, email, full_name, username, image_url').eq('email', email).maybeSingle(),
+    supabase.from('profiles').select('id, email, full_name, display_name, username, image_url, avatar_url').eq('email', email).maybeSingle(),
     DB_TIMEOUT_MS,
     'profiles.byEmail'
   );
@@ -820,7 +963,11 @@ export async function fetchFullEngineer(idOrUsername: string): Promise<any> {
   const data = await fetchFullRoleRow('engineers', idOrUsername);
   if (!data) return null;
   const profile = data?.profiles || {};
-  return { ...data, ...profile, role: profile.role || 'ENGINEER' };
+  const out = { ...data, ...profile, role: profile.role || 'ENGINEER' };
+  out.role_id = data?.id ?? null;
+  out.profile_id = profile?.id ?? data?.profile_id ?? null;
+  out.id = out.profile_id ?? out.id;
+  return out;
 }
 
 export async function fetchInstrumentalsForProducer(producerId: string): Promise<any[]> {
@@ -846,7 +993,9 @@ export async function fetchFullProducer(idOrUsername: string): Promise<any> {
   const data = await fetchFullRoleRow('producers', idOrUsername);
   const profile = data?.profiles || {};
   const merged = { ...data, ...profile, role: profile.role || 'PRODUCER' };
-  merged.id = profile?.id ?? data?.profile_id ?? merged.id;
+  merged.role_id = data?.id ?? null;
+  merged.profile_id = profile?.id ?? data?.profile_id ?? null;
+  merged.id = merged.profile_id ?? merged.id;
   const profileId = merged.id;
   if (profileId) {
     const inst = await fetchInstrumentalsForProducer(profileId);
@@ -872,12 +1021,14 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
   if (!data) return null;
   const profile = data?.profiles || {};
   const out = { ...data, ...profile, role: profile.role || 'STOODIO' };
-  out.id = profile?.id ?? data?.profile_id ?? out.id;
+  out.role_id = data?.id ?? null;
+  out.profile_id = profile?.id ?? data?.profile_id ?? null;
+  out.id = out.profile_id ?? out.id;
   // Load rooms so public profile (StoodioDetail) and booking flow can show and use them
-  if (data?.id) {
+  if (out.id) {
     try {
       const supabase = getSupabase();
-      const roomsPromise = supabase.from('rooms').select('*').eq('stoodio_id', data.id).order('name');
+      const roomsPromise = supabase.from('rooms').select('*').eq('stoodio_id', out.id).order('name');
       const res = await withTimeout(roomsPromise as Promise<{ data?: any[]; error?: any }>, DB_TIMEOUT_MS, 'stoodioz.rooms');
       out.rooms = Array.isArray(res?.data) ? res.data : [];
     } catch (e) {
@@ -951,11 +1102,8 @@ export async function fetchUserPosts(profileId: string): Promise<any[]> {
   if (!profileId) return [];
   const supabase = getSupabase();
   const raw = await safeSelect('posts.byProfile', async () => {
-    const { data, error } = await supabase
-      .from(TABLES.posts)
-      .select('*')
-      .eq('author_id', profileId)
-      .order('created_at', { ascending: false });
+    const query = supabase.from(TABLES.posts).select('*').order('created_at', { ascending: false });
+    const { data, error } = await (query as any).eq('author_id', profileId);
     return { data, error };
   }, []);
   const rows = Array.isArray(raw) ? raw : [];

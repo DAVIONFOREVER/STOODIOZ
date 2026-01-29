@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
 import Calendar from './Calendar';
@@ -12,7 +12,7 @@ import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { AppView } from '../types';
 import { fetchUserPosts, fetchFullStoodio } from '../services/apiService';
-import { getProfileImageUrl } from '../constants';
+import { getProfileImageUrl, getDisplayName } from '../constants';
 import appIcon from '../assets/stoodioz-app-icon.png';
 
 const ProfileCard: React.FC<{
@@ -38,9 +38,9 @@ const ProfileCard: React.FC<{
 
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg text-left cardSurface">
-            <img src={getProfileImageUrl(profile)} alt={profile.name} className="w-12 h-12 rounded-md object-cover" />
+            <img src={getProfileImageUrl(profile)} alt={getDisplayName(profile)} className="w-12 h-12 rounded-md object-cover" />
             <div className="flex-grow overflow-hidden">
-                <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>
+                <p className="font-semibold text-sm text-slate-200 truncate">{getDisplayName(profile)}</p>
                 <p className="text-xs text-slate-400 truncate flex items-center gap-1.5">{icon}{details}</p>
             </div>
         </button>
@@ -61,6 +61,9 @@ const StoodioDetail: React.FC = () => {
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const lastLoadedIdRef = useRef<string | null>(null);
+    const galleryScrollRef = useRef<HTMLDivElement | null>(null);
+    const [galleryIndex, setGalleryIndex] = useState(0);
+    const [isGalleryPaused, setIsGalleryPaused] = useState(false);
 
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ date: string, time: string } | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio?.rooms?.[0] || null);
@@ -68,6 +71,24 @@ const StoodioDetail: React.FC = () => {
     useEffect(() => {
         if (selectedStoodio) setStoodio(selectedStoodio);
     }, [selectedStoodio]);
+
+    const readCachedStoodio = useCallback((id: string) => {
+        try {
+            const raw = localStorage.getItem(`stoodio_cache_${id}`);
+            return raw ? (JSON.parse(raw) as Stoodio) : null;
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const writeCachedStoodio = useCallback((data: Stoodio) => {
+        try {
+            if (!data?.id) return;
+            localStorage.setItem(`stoodio_cache_${data.id}`, JSON.stringify(data));
+        } catch {
+            // ignore storage failures
+        }
+    }, []);
 
     useEffect(() => {
         if (stoodio?.rooms?.length) {
@@ -96,19 +117,38 @@ const StoodioDetail: React.FC = () => {
             setIsLoadingDetails(true);
             setLoadError(null);
 
+            const cached = readCachedStoodio(targetId);
+            if (cached && !stoodio) {
+                setStoodio(cached);
+            }
+
             try {
                 const fullData = await fetchFullStoodio(targetId);
                 if (!isMounted) return;
-                if (fullData) setStoodio(fullData as Stoodio);
-                else {
+                if (fullData) {
+                    setStoodio(fullData as Stoodio);
+                    writeCachedStoodio(fullData as Stoodio);
+                } else {
                     setStoodio(null);
                     setLoadError('Profile not found.');
                 }
             } catch (e) {
                 console.error('Failed to load stoodio details', e);
-                if (isMounted) {
-                    setStoodio(null);
-                    setLoadError('Unable to load this profile right now.');
+                if (!isMounted) return;
+                // Fallback to cached directory data so the UI still renders
+                const fallback = stoodioz.find((s) => s.id === targetId || s.profile_id === targetId) || selectedStoodio || null;
+                if (fallback) {
+                    setStoodio(fallback as Stoodio);
+                    setLoadError('Live data timed out. Showing cached profile.');
+                } else {
+                    const cachedFallback = readCachedStoodio(targetId);
+                    if (cachedFallback) {
+                        setStoodio(cachedFallback);
+                        setLoadError('Live data timed out. Showing cached profile.');
+                    } else {
+                        setStoodio(null);
+                        setLoadError('Unable to load this profile right now.');
+                    }
                 }
             } finally {
                 if (isMounted) setIsLoadingDetails(false);
@@ -147,6 +187,51 @@ const StoodioDetail: React.FC = () => {
         }));
         return [...staticPhotos, ...postMedia];
     }, [stoodio?.photos, posts]);
+
+    const galleryCount = galleryImages.length;
+
+    const getGalleryMetrics = useCallback(() => {
+        const el = galleryScrollRef.current;
+        if (!el) return null;
+        const first = el.querySelector('[data-gallery-item]') as HTMLElement | null;
+        if (!first) return null;
+        const gap = parseFloat(getComputedStyle(el).columnGap || '16') || 16;
+        return { itemWidth: first.getBoundingClientRect().width, gap };
+    }, []);
+
+    const scrollGalleryToIndex = useCallback((index: number) => {
+        const el = galleryScrollRef.current;
+        const metrics = getGalleryMetrics();
+        if (!el || !metrics) return;
+        const nextIndex = Math.max(0, Math.min(index, galleryCount - 1));
+        const offset = (metrics.itemWidth + metrics.gap) * nextIndex;
+        el.scrollTo({ left: offset, behavior: 'smooth' });
+        setGalleryIndex(nextIndex);
+    }, [galleryCount, getGalleryMetrics]);
+
+    const scrollGalleryBy = useCallback((direction: -1 | 1) => {
+        scrollGalleryToIndex(galleryIndex + direction);
+    }, [galleryIndex, scrollGalleryToIndex]);
+
+    const handleGalleryScroll = useCallback(() => {
+        const el = galleryScrollRef.current;
+        const metrics = getGalleryMetrics();
+        if (!el || !metrics) return;
+        const index = Math.round(el.scrollLeft / (metrics.itemWidth + metrics.gap));
+        const clamped = Math.max(0, Math.min(index, galleryCount - 1));
+        if (clamped !== galleryIndex) {
+            setGalleryIndex(clamped);
+        }
+    }, [galleryCount, galleryIndex, getGalleryMetrics]);
+
+    useEffect(() => {
+        if (galleryCount <= 1 || isGalleryPaused) return;
+        const t = setInterval(() => {
+            const next = (galleryIndex + 1) % galleryCount;
+            scrollGalleryToIndex(next);
+        }, 5000);
+        return () => clearInterval(t);
+    }, [galleryCount, galleryIndex, isGalleryPaused, scrollGalleryToIndex]);
 
     const allUsers = useMemo(
         () => [...(artists ?? []), ...(engineers ?? []), ...(stoodioz ?? []), ...(producers ?? [])],
@@ -305,6 +390,80 @@ const StoodioDetail: React.FC = () => {
                 </div>
             )}
 
+            {/* Media Gallery (Top Scroll) */}
+            <div className="mb-10">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-2xl font-bold text-orange-400 flex items-center gap-2">
+                        <PhotoIcon className="w-6 h-6" /> Media Gallery
+                    </h3>
+                    <span className="text-xs uppercase tracking-[0.35em] text-zinc-500">Swipe</span>
+                </div>
+                <div
+                    className="relative"
+                    onMouseEnter={() => setIsGalleryPaused(true)}
+                    onMouseLeave={() => setIsGalleryPaused(false)}
+                >
+                    {galleryCount > 1 && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => scrollGalleryBy(-1)}
+                                className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-zinc-700/60 bg-zinc-900/80 p-2 text-zinc-200 shadow-[0_0_20px_rgba(0,0,0,0.5)] hover:border-orange-400/60 hover:text-orange-300"
+                                aria-label="Scroll gallery left"
+                            >
+                                <ChevronLeftIcon className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => scrollGalleryBy(1)}
+                                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-zinc-700/60 bg-zinc-900/80 p-2 text-zinc-200 shadow-[0_0_20px_rgba(0,0,0,0.5)] hover:border-orange-400/60 hover:text-orange-300"
+                                aria-label="Scroll gallery right"
+                            >
+                                <ChevronRightIcon className="w-5 h-5" />
+                            </button>
+                        </>
+                    )}
+                    <div
+                        ref={galleryScrollRef}
+                        onScroll={handleGalleryScroll}
+                        className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-zinc-700/70 scrollbar-track-transparent"
+                    >
+                        {galleryImages.map((item, index) => (
+                            <div
+                                key={item.id || index}
+                                data-gallery-item
+                                className="relative snap-start min-w-[240px] sm:min-w-[280px] lg:min-w-[320px] aspect-video rounded-2xl overflow-hidden bg-zinc-900/70 border border-zinc-700/70 shadow-[0_0_20px_rgba(249,115,22,0.12)]"
+                            >
+                                <img src={item.url} alt="Gallery" className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
+                                {item.type === 'video' && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                        <PlayIcon className="w-10 h-10 text-white drop-shadow-lg" />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        {galleryImages.length === 0 && (
+                            <div className="text-zinc-500 w-full text-center py-10">No media to display.</div>
+                        )}
+                    </div>
+                </div>
+                {galleryCount > 1 && (
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                        {galleryImages.map((_, index) => (
+                            <button
+                                key={`dot-${index}`}
+                                type="button"
+                                onClick={() => scrollGalleryToIndex(index)}
+                                className={`h-1.5 rounded-full transition-all ${
+                                    index === galleryIndex ? 'w-8 bg-orange-400' : 'w-3 bg-zinc-700 hover:bg-zinc-500'
+                                }`}
+                                aria-label={`Go to gallery item ${index + 1}`}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
                 {/* Left Column: Stoodio Info */}
                 <div className="lg:col-span-3">
@@ -360,24 +519,6 @@ const StoodioDetail: React.FC = () => {
                         ) : (
                             <p className="text-slate-400">No rooms listed yet.</p>
                         )}
-                    </div>
-
-                    {/* Combined Media Gallery */}
-                    <div className="mb-8">
-                        <h3 className="text-2xl font-bold mb-4 text-orange-400 flex items-center gap-2"><PhotoIcon className="w-6 h-6" /> Media Gallery</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {galleryImages.map((item, index) => (
-                                <div key={item.id || index} className="relative group aspect-video rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700">
-                                    <img src={item.url} alt="Gallery" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                                    {item.type === 'video' && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
-                                            <PlayIcon className="w-10 h-10 text-white drop-shadow-lg" />
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                            {galleryImages.length === 0 && <p className="text-zinc-500 col-span-full">No media to display.</p>}
-                        </div>
                     </div>
 
                     {/* Posts & Updates */}
@@ -494,7 +635,7 @@ const StoodioDetail: React.FC = () => {
                         </div>
 
                         <Calendar 
-                            availability={stoodio.availability || []}
+                            blockedTimes={stoodio.availability || []}
                             bookings={bookings}
                             onSelectTimeSlot={handleSelectTimeSlot}
                             selectedTimeSlot={selectedTimeSlot}

@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import type { Stoodio, Room } from '../types';
 import { SmokingPolicy } from '../types';
 import { HouseIcon, DollarSignIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
-import { upsertRoom, deleteRoom, uploadRoomPhoto, getStoodiozIdByProfileId, ensureStoodiozForProfile } from '../services/apiService';
+import { upsertRoom, deleteRoom, uploadRoomPhoto } from '../services/apiService';
 
 interface RoomManagerProps {
     stoodio: Stoodio;
@@ -174,14 +174,11 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
 
     const handleSaveRoom = async (roomToSave: Room, newPhotoFiles: File[]) => {
         setIsUploading(true);
-        // stoodio_id must be stoodioz.id (FK in rooms). Prefer stoodioz_id from profile/refresh; else resolve; else ensure row exists.
-        let stoodioId = (stoodio as any).stoodioz_id;
-        if (!stoodioId && stoodio?.id) {
-            stoodioId = (await getStoodiozIdByProfileId(stoodio.id)) ?? (await ensureStoodiozForProfile(stoodio.id)) ?? undefined;
-        }
+        // stoodio_id now uses profiles.id (Option B unification)
+        const stoodioId = stoodio?.id;
         if (!stoodioId) {
             setIsUploading(false);
-            alert('Studio record not found. Please complete your studio setup in Settings, or refresh the page and try again.');
+            alert('Studio profile not found. Please refresh the page and try again.');
             return;
         }
         try {

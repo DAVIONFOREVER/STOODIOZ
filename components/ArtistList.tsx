@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import type { Artist } from '../types';
 import ArtistCard from './ArtistCard.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
-import { ARIA_EMAIL } from '../constants.ts';
+import { ARIA_EMAIL, ARIA_PROFILE_IMAGE_URL } from '../constants.ts';
 
 interface ArtistListProps {
     onSelectArtist: (artist: Artist) => void;
@@ -17,8 +17,22 @@ const ArtistList: React.FC<ArtistListProps> = ({ onSelectArtist, onToggleFollow 
     const sortedArtists = useMemo(() => {
         const list = artists ?? [];
         const aria = list.find(a => a.email === ARIA_EMAIL);
+        const ariaFallbackId = (() => {
+            try {
+                return localStorage.getItem('aria_profile_id') || 'aria';
+            } catch {
+                return 'aria';
+            }
+        })();
+        const fallbackAria: Artist = {
+            id: ariaFallbackId,
+            profile_id: ariaFallbackId,
+            name: 'Aria Cantata',
+            image_url: ARIA_PROFILE_IMAGE_URL,
+            email: ARIA_EMAIL,
+        } as Artist;
         const otherArtists = list.filter(a => a.email !== ARIA_EMAIL);
-        return [aria, ...otherArtists].filter((a): a is Artist => !!a);
+        return [aria ?? fallbackAria, ...otherArtists].filter((a): a is Artist => !!a);
     }, [artists]);
 
     const filteredArtists = useMemo(() => {
