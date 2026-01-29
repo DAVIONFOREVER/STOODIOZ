@@ -32,7 +32,7 @@ const LiveChatModal: React.FC<LiveChatModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-5xl h-[80vh] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden">
+            <div className="w-full max-w-5xl h-[80dvh] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden">
                 {conversation ? (
                     <ChatThread
                         conversation={conversation as Conversation}

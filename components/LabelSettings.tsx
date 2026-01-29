@@ -53,6 +53,18 @@ const LabelSettings: React.FC = () => {
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const MAX_IMAGE_MB = 8;
+  const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
+  const validateImageFile = (file: File) => {
+    if (!allowedImageTypes.includes(file.type)) {
+      throw new Error('Unsupported image type. Please upload JPG, PNG, WEBP, HEIC, or HEIF.');
+    }
+    const maxBytes = MAX_IMAGE_MB * 1024 * 1024;
+    if (file.size > maxBytes) {
+      throw new Error(`Image is too large. Max size is ${MAX_IMAGE_MB}MB.`);
+    }
+  };
 
   const [name, setName] = useState(label?.name || '');
   const [bio, setBio] = useState((label as any)?.bio || '');
@@ -78,6 +90,7 @@ const LabelSettings: React.FC = () => {
     if (!file) return;
 
     try {
+      validateImageFile(file);
       const url = await apiService.uploadAvatar(label.id, file);
       await updateProfile({ image_url: url } as any);
       await refreshCurrentUser();
@@ -94,6 +107,7 @@ const LabelSettings: React.FC = () => {
     if (!file) return;
 
     try {
+      validateImageFile(file);
       const url = await apiService.uploadCoverImage(label.id, file);
       await updateProfile({ cover_image_url: url } as any);
       await refreshCurrentUser();

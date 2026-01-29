@@ -79,8 +79,8 @@ export const useSocial = () => {
 
             if (postData.imageFile) {
                 try {
-                    const uploadedUrl = await apiService.uploadPostAttachment(postData.imageFile, currentUser.id);
-                    finalPostData.image_url = uploadedUrl;
+                    const uploaded = await apiService.uploadPostAttachment(currentUser.id, postData.imageFile);
+                    finalPostData.image_url = uploaded.url;
                 } catch (err) {
                     console.error("Failed to upload image:", err);
                     alert("Failed to upload image. Post was not created.");
@@ -92,8 +92,8 @@ export const useSocial = () => {
 
             if (postData.videoFile) {
                 try {
-                    const uploadedUrl = await apiService.uploadPostAttachment(postData.videoFile, currentUser.id);
-                    finalPostData.video_url = uploadedUrl;
+                    const uploaded = await apiService.uploadPostAttachment(currentUser.id, postData.videoFile);
+                    finalPostData.video_url = uploaded.url;
                 } catch (err) {
                     console.error("Failed to upload video:", err);
                     alert("Failed to upload video. Post was not created.");

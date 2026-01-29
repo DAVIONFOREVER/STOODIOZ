@@ -21,7 +21,7 @@ const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
 const MyCourses = lazy(() => import('./MyCourses.tsx'));
 
-type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following' | 'documents' | 'myCourses';
+type DashboardTab = 'dashboard' | 'analytics' | 'wallet' | 'followers' | 'following' | 'documents' | 'deliverables' | 'myCourses';
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="p-4 flex items-center gap-4 cardSurface">
@@ -194,6 +194,12 @@ const ArtistDashboard: React.FC = () => {
                         <Documents conversations={conversations} />
                     </Suspense>
                 );
+            case 'deliverables':
+                return (
+                    <Suspense fallback={<div>Loading Deliverables...</div>}>
+                        <Documents conversations={conversations} variant="deliverables" />
+                    </Suspense>
+                );
             case 'myCourses':
                 return (
                     <Suspense fallback={<div>Loading Courses...</div>}>
@@ -221,6 +227,7 @@ const ArtistDashboard: React.FC = () => {
                                 onStartLive={() => navigate(AppView.INBOX)}
                                 onJoinLive={() => navigate(AppView.INBOX)}
                                 showSideSections={false}
+                                showQuickAccess={false}
                             />
                             {isAria && (
                                 <div className="p-6 bg-gradient-to-br from-orange-500/10 to-pink-500/10 border-2 border-orange-500/30 rounded-2xl backdrop-blur-sm">
@@ -339,6 +346,7 @@ const ArtistDashboard: React.FC = () => {
                     <TabButton label="Followers" isActive={activeTab === 'followers'} onClick={() => setActiveTab('followers')} />
                     <TabButton label="Following" isActive={activeTab === 'following'} onClick={() => setActiveTab('following')} />
                     <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} />
+                    <TabButton label="Deliverables" isActive={activeTab === 'deliverables'} onClick={() => setActiveTab('deliverables')} />
                 </div>
                 <div className="p-6">
                     {renderContent()}

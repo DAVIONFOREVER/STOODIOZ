@@ -717,10 +717,13 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       }
       console.log('[getAllPublicUsers] Cached result with data');
     } else {
-      // Don't cache empty results - force fresh fetch next time
-      console.warn('[getAllPublicUsers] No data found - not caching empty result');
-      cachedPublicUsers = null;
-      cacheTimestamp = 0;
+      // Don't overwrite cache with empty results - return last known data if available
+      console.warn('[getAllPublicUsers] No data found - preserving previous cache');
+      if (cachedPublicUsers) {
+        return cachedPublicUsers;
+      }
+      const local = tryLoadLocalCache();
+      if (local) return local;
     }
     
     return result;
@@ -773,7 +776,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   } else if (table === 'producers') {
     selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, instrumentals, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids';
   } else if (table === 'stoodioz') {
-    selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, amenities, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids';
+    selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, amenities, photos, description, location, business_address, verification_status, availability, hourly_rate, engineer_pay_rate, in_house_engineers, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids';
   } else {
     // Default for labels or other tables
     selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids';
@@ -1299,6 +1302,27 @@ export async function fetchUserDocuments(profileId: string): Promise<any[]> {
   }, []);
 }
 
+export async function deleteDocument(doc: { id: string; storage_path?: string | null }): Promise<void> {
+  requireVal(doc?.id, 'document id');
+  const supabase = getSupabase();
+  const path = doc.storage_path ? [doc.storage_path] : [];
+
+  if (path.length > 0) {
+    try {
+      // Best-effort: remove file from storage bucket
+      // @ts-ignore
+      await supabase.storage.from(BUCKETS.documents).remove(path);
+    } catch {
+      // ignore storage delete failures
+    }
+  }
+
+  await safeWrite('documents.delete', async () => {
+    const q = supabase.from(TABLES.documents).delete().eq('id', doc.id);
+    return q as any;
+  });
+}
+
 export async function uploadBeatFile(profileId: string, file: File, meta: Record<string, any> = {}): Promise<any> {
   requireVal(profileId, 'profileId');
   requireVal(file, 'file');
@@ -1342,6 +1366,18 @@ export async function uploadPostAttachment(profileId: string, file: File): Promi
   requireVal(profileId, 'profileId');
   requireVal(file, 'file');
   return uploadToBucket(BUCKETS.postAttachments, randPath(`posts/${profileId}`, file.name), file);
+}
+
+export async function deletePostAttachments(paths: string[]): Promise<void> {
+  const cleaned = (paths || []).filter(Boolean);
+  if (cleaned.length === 0) return;
+  const supabase = getSupabase();
+  try {
+    // @ts-ignore
+    await supabase.storage.from(BUCKETS.postAttachments).remove(cleaned);
+  } catch (e) {
+    console.warn('[deletePostAttachments] failed', e);
+  }
 }
 
 /* ============================================================
@@ -2154,6 +2190,58 @@ export async function sendMessage(
   });
 }
 
+export async function fetchConversationByParticipants(participantIds: string[]): Promise<any | null> {
+  if (!participantIds || participantIds.length === 0) return null;
+  const supabase = getSupabase();
+  const res = await safeSelect('conversations.byParticipants', async () => {
+    // @ts-ignore
+    const q = supabase
+      .from(TABLES.conversations)
+      .select('*')
+      .contains('participant_ids', participantIds)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    return q as any;
+  }, []);
+  return Array.isArray(res) && res.length > 0 ? res[0] : null;
+}
+
+export async function sendLabelBroadcast(
+  labelProfileId: string,
+  recipientIds: string[],
+  message: string,
+  meta: Record<string, any> = {}
+): Promise<{ sent: number; failed: number }> {
+  requireVal(labelProfileId, 'labelProfileId');
+  requireVal(message, 'message');
+  const uniqueRecipients = Array.from(new Set(recipientIds.filter(Boolean).map(String)));
+  let sent = 0;
+  let failed = 0;
+
+  for (const recipientId of uniqueRecipients) {
+    try {
+      let convo = await fetchConversationByParticipants([labelProfileId, recipientId]);
+      if (!convo?.id) {
+        convo = await createConversation([labelProfileId, recipientId], {
+          conversation_type: 'label_broadcast',
+          title: 'Label Announcement',
+        });
+      }
+      if (convo?.id) {
+        await sendMessage(convo.id, labelProfileId, message, 'text', meta);
+        sent += 1;
+      } else {
+        failed += 1;
+      }
+    } catch (e) {
+      console.error('[sendLabelBroadcast] failed for recipient', recipientId, e);
+      failed += 1;
+    }
+  }
+
+  return { sent, failed };
+}
+
 /* ============================================================
    LIVE ROOMS
 ============================================================ */
@@ -2415,7 +2503,7 @@ export async function createCheckoutSessionForBooking(
   });
 }
 
-export async function createCheckoutSessionForWallet(amount: number, profileId: string): Promise<{ sessionId: string }> {
+export async function createCheckoutSessionForWallet(amount: number, profileId: string, note?: string): Promise<{ sessionId: string }> {
   const origin = getAppOrigin();
   const successUrl = origin ? `${origin}/?stripe=success` : '';
   const cancelUrl = origin ? `${origin}/?stripe=cancel` : '';
@@ -2426,6 +2514,7 @@ export async function createCheckoutSessionForWallet(amount: number, profileId: 
   return callEdgeFunction('create-wallet-checkout', {
     amountCents,
     payerProfileId: profileId,
+    note: note || '',
     successUrl,
     cancelUrl,
   });

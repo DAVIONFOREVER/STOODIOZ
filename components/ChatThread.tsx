@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Conversation, Message, Booking, Artist, Engineer, Stoodio, Producer, Label } from '../types';
-import { AppView } from '../types';
+import { AppView, BookingStatus } from '../types';
 import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, CloseIcon, MusicNoteIcon, PaperclipIcon, DownloadIcon, VideoCameraIcon } from './icons';
 import BookingContextCard from './BookingContextCard';
 import { getProfileImageUrl } from '../constants';
@@ -86,6 +86,16 @@ const ChatThread: React.FC<ChatThreadProps> = ({
         [conversation.messages]
     );
 
+    const allowLargeUploads = useMemo(() => {
+        const hasActiveBooking = !!booking && [
+            BookingStatus.PENDING,
+            BookingStatus.PENDING_APPROVAL,
+            BookingStatus.CONFIRMED,
+        ].includes(booking.status);
+        const hasNoDeliverablesYet = documentMessages.length === 0;
+        return hasActiveBooking || hasNoDeliverablesYet;
+    }, [booking, documentMessages.length]);
+
     const documentsCount = useMemo(
         () => documentMessages.reduce((acc, msg) => acc + (msg.files?.length || 0), 0),
         [documentMessages]
@@ -150,12 +160,28 @@ const ChatThread: React.FC<ChatThreadProps> = ({
         const file = e.target.files?.[0];
         if (!file) return;
 
+        const MB = 1024 * 1024;
+        const GB = 1024 * MB;
+        const MAX_STANDARD_BYTES = 10 * MB;
+        const MAX_DELIVERABLE_BYTES = 2 * GB;
+        const maxBytes = allowLargeUploads ? MAX_DELIVERABLE_BYTES : MAX_STANDARD_BYTES;
+
+        if (file.size > maxBytes) {
+            const limitLabel = allowLargeUploads ? '2GB' : '10MB';
+            const reason = allowLargeUploads
+                ? 'Please split the file or compress it before sending.'
+                : 'Large files are only allowed when a session is scheduled or before the first deliverable is sent.';
+            alert(`This file exceeds the ${limitLabel} limit. ${reason}`);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         setIsUploading(true);
         setIsAttachmentMenuOpen(false);
         simulateProgress();
 
         try {
-            const url = await apiService.uploadPostAttachment(file, currentUser.id);
+            const { url, path } = await apiService.uploadPostAttachment(currentUser.id, file);
 
             if (file.type.startsWith('image/')) {
                 onSendMessage(conversation.id, {
@@ -174,7 +200,13 @@ const ChatThread: React.FC<ChatThreadProps> = ({
                 onSendMessage(conversation.id, {
                     type: 'files',
                     text: 'Sent a file',
-                    files: [{ name: file.name, url: url, size: `${(file.size / 1024).toFixed(1)} KB` }],
+                    files: [{
+                        name: file.name,
+                        url: url,
+                        size: `${(file.size / 1024).toFixed(1)} KB`,
+                        storage_path: path,
+                        uploaded_at: new Date().toISOString(),
+                    }],
                 });
             }
         } catch (error) {

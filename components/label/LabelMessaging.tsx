@@ -1,16 +1,58 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { PaperAirplaneIcon } from '../icons';
+import { useAppState } from '../../contexts/AppContext';
+import * as apiService from '../../services/apiService';
+import type { RosterMember } from '../../types';
 
 const LabelMessaging: React.FC = () => {
+    const { currentUser, userRole } = useAppState();
     const [message, setMessage] = useState('');
     const [recipient, setRecipient] = useState('all');
+    const [roster, setRoster] = useState<RosterMember[]>([]);
+    const [isSending, setIsSending] = useState(false);
+
+    useEffect(() => {
+        if (!currentUser?.id || userRole !== 'LABEL') return;
+        let active = true;
+        apiService.fetchLabelRoster(currentUser.id)
+            .then((rows) => {
+                if (active) setRoster(rows || []);
+            })
+            .catch((err) => console.error('Failed to load roster for messaging', err));
+        return () => { active = false; };
+    }, [currentUser?.id, userRole]);
+
+    const activeRoster = useMemo(() => (
+        roster.filter((m) => !m.shadow_profile && !m.is_pending)
+    ), [roster]);
+
+    const filteredRoster = useMemo(() => {
+        if (recipient === 'all') return activeRoster;
+        const role = recipient.toLowerCase();
+        return activeRoster.filter((m) => String(m.role_in_label || '').toLowerCase().includes(role));
+    }, [activeRoster, recipient]);
 
     const handleSend = (e: React.FormEvent) => {
         e.preventDefault();
-        if(!message.trim()) return;
-        alert(`UI-Only: Announcement sent to ${recipient === 'all' ? 'all active roster members' : recipient}`);
-        setMessage('');
+        if(!message.trim() || !currentUser?.id) return;
+        setIsSending(true);
+        apiService
+            .sendLabelBroadcast(
+                currentUser.id,
+                filteredRoster.map((m) => m.id),
+                message.trim(),
+                { label_id: currentUser.id, audience: recipient }
+            )
+            .then(({ sent, failed }) => {
+                alert(`Announcement sent to ${sent} member(s).${failed ? ` ${failed} failed.` : ''}`);
+                setMessage('');
+            })
+            .catch((err) => {
+                console.error('Failed to send broadcast', err);
+                alert('Failed to send announcement. Please try again.');
+            })
+            .finally(() => setIsSending(false));
     };
 
     return (
@@ -49,10 +91,11 @@ const LabelMessaging: React.FC = () => {
                     <div className="flex justify-end">
                         <button 
                             type="submit"
-                            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-orange-500/20"
+                            disabled={isSending}
+                            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-orange-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             <PaperAirplaneIcon className="w-5 h-5" />
-                            Send Broadcast
+                            {isSending ? 'Sending…' : 'Send Broadcast'}
                         </button>
                     </div>
                 </form>

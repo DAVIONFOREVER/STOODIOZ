@@ -162,7 +162,7 @@ const BeatContractModal: React.FC<BeatContractModalProps> = ({ type, onClose, in
             onClick={handleBackdropClick}
         >
             <div 
-                className="w-full max-w-2xl max-h-[90vh] flex flex-col cardSurface"
+                className="w-full max-w-2xl max-h-[90dvh] flex flex-col cardSurface"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-4 border-b border-zinc-700/50 flex justify-between items-center flex-shrink-0">

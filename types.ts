@@ -587,6 +587,8 @@ export interface FileAttachment {
     url: string;
     size: string;
     rawContent?: Uint8Array; // For client-side generation
+    storage_path?: string;
+    uploaded_at?: string;
 }
 
 export interface Conversation {

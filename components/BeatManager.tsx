@@ -89,7 +89,7 @@ const BeatFormModal: React.FC<{
                     <button onClick={onClose} disabled={isUploading}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>
                 </div>
                 <form onSubmit={handleSubmit}>
-                    <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <div className="p-6 space-y-4 max-h-[70dvh] overflow-y-auto">
                         <div>
                             <label className="block text-sm font-medium text-zinc-300 mb-1">Title</label>
                             <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className={inputClasses}/>

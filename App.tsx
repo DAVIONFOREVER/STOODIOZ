@@ -959,7 +959,15 @@ const App: React.FC = () => {
       {isVibeMatcherOpen && <VibeMatcherModal onClose={closeVibeMatcher} onAnalyze={vibeMatch} isLoading={isVibeMatcherLoading} />}
       {bookingToCancel && <BookingCancellationModal booking={bookingToCancel} onClose={closeCancelModal} onConfirm={confirmCancellation} />}
       {isAddFundsOpen && <AddFundsModal onClose={closeAddFundsModal} onConfirm={addFunds} />}
-      {isPayoutOpen && currentUser && <RequestPayoutModal onClose={closePayoutModal} onConfirm={requestPayout} currentBalance={(currentUser as any).wallet_balance ?? 0} />}
+      {isPayoutOpen && currentUser && (
+        <RequestPayoutModal
+          onClose={closePayoutModal}
+          onConfirm={requestPayout}
+          currentBalance={(currentUser as any).wallet_balance ?? 0}
+          hasConnect={Boolean((currentUser as any).stripe_connect_account_id || (currentUser as any).stripe_connect_id)}
+          payoutsEnabled={(currentUser as any).payouts_enabled !== false}
+        />
+      )}
 
       {isMixingModalOpen && (selectedEngineer || (bookingIntent && bookingIntent.engineer)) && (
         <MixingRequestModal

@@ -70,10 +70,16 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal }) => {
         fetchRoster();
     }, [currentUser, reloadSignal]);
 
-    const handleRemove = async (rosterId: string) => {
+    const handleRemove = async (member: RosterMember) => {
         if (!currentUser) return;
         if (window.confirm("Are you sure you want to remove this member from your roster?")) {
-             setRoster(prev => prev.filter(m => m.roster_id !== rosterId));
+            try {
+                await apiService.removeArtistFromLabelRoster(currentUser.id, member.id);
+                setRoster(prev => prev.filter(m => m.roster_id !== member.roster_id));
+            } catch (err) {
+                console.error('Failed to remove roster member:', err);
+                alert('Failed to remove roster member. Please try again.');
+            }
         }
     };
 
@@ -104,6 +110,11 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal }) => {
                                 <StatusBadge member={member} />
                             </div>
                         </div>
+                        {member.ranking_tier && (
+                            <div className="mb-4">
+                                <RankingBadge tier={member.ranking_tier as any} short />
+                            </div>
+                        )}
                         
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             <div className="bg-zinc-800/50 p-2.5 rounded-lg text-center border border-zinc-700/50">
@@ -154,7 +165,7 @@ const LabelArtists: React.FC<LabelArtistsProps> = ({ reloadSignal }) => {
                             <img src={getProfileImageUrl(selectedArtist)} alt={selectedArtist.name} className="w-24 h-24 rounded-2xl object-cover border-4 border-zinc-900 mb-4 shadow-xl" />
                             <h2 className="text-3xl font-extrabold text-zinc-100">{selectedArtist.name}</h2>
                             <p className="text-orange-400 font-bold text-sm uppercase tracking-widest mt-1">{selectedArtist.role_in_label}</p>
-                            <p className="text-zinc-400 mt-4 leading-relaxed">{selectedArtist.bio || "Active Sony Music talent."}</p>
+                            <p className="text-zinc-400 mt-4 leading-relaxed">{selectedArtist.bio || "No bio available."}</p>
                             <div className="mt-8 pt-6 border-t border-zinc-800 flex justify-end">
                                 <button onClick={() => setSelectedArtist(null)} className="px-6 py-2 bg-zinc-800 rounded-lg font-bold text-sm">Close</button>
                             </div>

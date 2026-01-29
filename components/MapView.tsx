@@ -38,7 +38,7 @@ type FilterType = 'ALL' | 'STOODIO' | 'ENGINEER' | 'PRODUCER' | 'ARTIST' | 'JOB'
 // --- MAP CONFIGURATION ---
 const mapContainerStyle = {
   width: '100%',
-  height: 'calc(100vh - 10rem)',
+  height: 'calc(100dvh - 10rem)',
 };
 
 const defaultCenter = { lat: 39.8283, lng: -98.5795 };
@@ -681,7 +681,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             
             {/* Job Board Panel - Shows when Jobs filter is active */}
             {activeFilter === 'JOB' && (
-                <div className="absolute bottom-4 left-4 right-4 z-10 max-h-[60vh] overflow-y-auto">
+                <div className="absolute bottom-4 left-4 right-4 z-10 max-h-[60dvh] overflow-y-auto">
                     <div className="bg-zinc-900/95 backdrop-blur-sm rounded-xl border border-zinc-700/50 shadow-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
                             <div>

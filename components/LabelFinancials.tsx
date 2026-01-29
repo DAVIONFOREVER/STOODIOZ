@@ -7,6 +7,7 @@ import * as apiService from '../services/apiService';
 import { USER_SILHOUETTE_URL, getProfileImageUrl } from '../constants';
 import type { LabelContract, LabelBudgetOverview, Transaction, LabelBudgetMode, Booking, RosterMember } from '../types';
 import appIcon from '../assets/stoodioz-app-icon.png';
+import { redirectToCheckout } from '../lib/stripe';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode; subtext?: string }> = ({ label, value, icon, subtext }) => (
     <div className="bg-zinc-800 border border-zinc-700/50 p-6 rounded-xl flex items-center gap-4 shadow-lg hover:border-orange-500/30 transition-colors">
@@ -156,12 +157,14 @@ const LabelFinancials: React.FC = () => {
         if (!currentUser || !topUpAmount) return;
         const amount = parseFloat(topUpAmount);
         try {
-            await apiService.addLabelFunds(currentUser.id, amount, topUpNote || 'Manual Top Up');
-            setTopUpAmount('');
-            setTopUpNote('');
-            alert("Funds authorized successfully.");
-            loadData();
+            if (!Number.isFinite(amount) || amount <= 0) {
+                alert('Enter a valid amount.');
+                return;
+            }
+            const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, currentUser.id, topUpNote || '');
+            await redirectToCheckout(sessionId);
         } catch (error) {
+            console.error('Failed to start top-up checkout', error);
             alert("Failed to add funds.");
         }
     };

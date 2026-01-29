@@ -6,9 +6,11 @@ interface RequestPayoutModalProps {
     onClose: () => void;
     onConfirm: (amount: number) => void;
     currentBalance: number;
+    hasConnect: boolean;
+    payoutsEnabled: boolean;
 }
 
-const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConfirm, currentBalance }) => {
+const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConfirm, currentBalance, hasConnect, payoutsEnabled }) => {
     const [amount, setAmount] = useState<string>(String(currentBalance));
 
     const handleConfirm = () => {
@@ -19,6 +21,7 @@ const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConf
     };
 
     const isInvalid = !amount || parseFloat(amount) <= 0 || parseFloat(amount) > currentBalance;
+    const isBlocked = !hasConnect || !payoutsEnabled;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
@@ -37,6 +40,12 @@ const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConf
                     <p className="text-sm font-semibold text-slate-200 mb-6">
                         Available Balance: <span className="text-green-400">${currentBalance.toFixed(2)}</span>
                     </p>
+                    {isBlocked && (
+                        <div className="mb-4 p-3 rounded-lg border border-orange-500/30 bg-orange-500/10 text-sm text-orange-200">
+                            {!hasConnect && <p>Connect your Stripe account to receive payouts.</p>}
+                            {hasConnect && !payoutsEnabled && <p>Payouts are currently disabled for this account.</p>}
+                        </div>
+                    )}
 
                      <div className="relative">
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">$</span>
@@ -55,7 +64,7 @@ const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConf
                 <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-2xl">
                     <button
                         onClick={handleConfirm}
-                        disabled={isInvalid}
+                        disabled={isInvalid || isBlocked}
                         className="w-full text-white bg-orange-500 hover:bg-orange-600 disabled:bg-slate-600 disabled:cursor-not-allowed font-bold rounded-lg text-lg px-5 py-3.5 text-center transition-all shadow-md shadow-orange-500/20"
                     >
                        Request Payout of ${parseFloat(amount || '0').toFixed(2)}

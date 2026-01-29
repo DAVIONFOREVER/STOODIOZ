@@ -98,7 +98,7 @@ const LabelActivity: React.FC = () => {
                             id: `booking-completed-${b.id}`,
                             type: 'booking',
                             title: 'Session Completed',
-                            description: `For ${b.artist?.name || 'An artist'}. Total: $${b.total_cost.toFixed(2)}`,
+                            description: `For ${b.artist?.name || 'An artist'}. Total: $${Number(b.total_cost || 0).toFixed(2)}`,
                             date: b.date,
                             icon: <CheckCircleIcon className="w-5 h-5 text-green-400"/>
                         });
@@ -132,7 +132,7 @@ const LabelActivity: React.FC = () => {
                         id: 'budget-update-1',
                         type: 'system',
                         title: 'Budget Updated',
-                        description: `Total budget is now $${budgetData.budget.total_budget.toLocaleString()}`,
+                        description: `Total budget is now $${Number(budgetData.budget.total_budget || 0).toLocaleString()}`,
                         date: 'N/A', // No reliable timestamp for this derived event
                         icon: <BellIcon className="w-5 h-5 text-zinc-400"/>
                     });

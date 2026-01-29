@@ -19,7 +19,7 @@ class RootErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <div style={{
-          minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           background: '#fef3c7', color: '#1f2937', padding: 24, fontFamily: 'system-ui, sans-serif', textAlign: 'center',
         }}>
           <h1 style={{ fontSize: '1.5rem', marginBottom: 8 }}>Something went wrong</h1>

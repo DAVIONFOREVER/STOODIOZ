@@ -15,7 +15,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { amountCents, payerProfileId, successUrl, cancelUrl } = body || {};
+    const { amountCents, payerProfileId, successUrl, cancelUrl, note } = body || {};
 
     if (!payerProfileId) throw new Error('Missing payerProfileId');
     if (!amountCents || amountCents < 50) throw new Error('Amount too low');
@@ -36,6 +36,7 @@ serve(async (req) => {
       metadata: {
         type: 'wallet_topup',
         payer_profile_id: String(payerProfileId),
+        note: note ? String(note) : '',
       },
       success_url: successUrl,
       cancel_url: cancelUrl,

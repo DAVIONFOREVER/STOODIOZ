@@ -109,7 +109,7 @@ const ProjectManager: React.FC = () => {
                                     <h2 className="text-2xl font-bold text-zinc-100">{selectedProject.name}</h2>
                                     <div className="flex items-center gap-2 mt-2">
                                         <UsersIcon className="w-4 h-4 text-orange-400" />
-                                        <span className="text-sm text-zinc-400">Lead Artist: {artists.find(a => a.id === selectedProject.artist_id)?.name || 'Generic Sony Roster'}</span>
+                                        <span className="text-sm text-zinc-400">Lead Artist: {artists.find(a => a.id === selectedProject.artist_id)?.name || 'Unknown Artist'}</span>
                                     </div>
                                 </div>
                                 <div className="text-right">

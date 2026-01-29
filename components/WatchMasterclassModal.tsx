@@ -36,7 +36,7 @@ const WatchMasterclassModal: React.FC<WatchMasterclassModalProps> = ({ mastercla
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-lg flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
-            <div className="w-full max-w-4xl h-[90vh] flex flex-col cardSurface animate-slide-up">
+            <div className="w-full max-w-4xl h-[90dvh] flex flex-col cardSurface animate-slide-up">
                 <div className="p-4 border-b border-zinc-700 flex justify-between items-center flex-shrink-0">
                     <div>
                         <h2 className="text-xl font-bold text-orange-400">{masterclass.title}</h2>

@@ -87,7 +87,7 @@ const ProductFormModal: React.FC<{
                     </button>
                 </div>
                 <form onSubmit={handleSubmit}>
-                    <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <div className="p-6 space-y-4 max-h-[70dvh] overflow-y-auto">
                         <div>
                             <label className="block text-sm font-medium text-zinc-300 mb-1">Type</label>
                             <select value={type} onChange={(e) => setType(e.target.value as ProducerProductType)} className={inputCls} required>

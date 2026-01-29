@@ -243,6 +243,24 @@ const TrackPlayer: React.FC<{
     );
 };
 
+const ARIA_GALLERY_IMAGES = [
+    '/aria/0F91FD16-F2C6-4F90-8B50-925A73EF5BB3.PNG',
+    '/aria/3A20BA94-2508-4905-8C5A-27F9C4A4A885 2.PNG',
+    '/aria/447903D2-49A6-41A9-88FB-3A9E56BDC151.PNG',
+    '/aria/49865374-4F6A-4EDD-84AB-6F7F6BD8F4E1.PNG',
+    '/aria/4A4AC086-96E4-44D9-912A-0D9B9F128576.PNG',
+    '/aria/69A845AD-5999-4E03-B4AF-F426837B7759.PNG',
+    '/aria/7A0AC145-EA4D-4F2C-9BB1-81C0A188417D.PNG',
+    '/aria/87A02BE3-D525-4319-9FE5-9C47EE022787 2.PNG',
+    '/aria/8BE47D0C-1207-4285-BB6C-E3D792F4F547.PNG',
+    '/aria/B5EC9F3D-6947-4113-9B19-8E4B1453F782.PNG',
+    '/aria/B7D0B1E8-02F9-4B46-B97D-0E67A13008BD.PNG',
+    '/aria/C0C49F08-6DD9-41F2-8905-6403B2451156.PNG',
+    '/aria/D3880F26-561D-442A-9798-2F4B338D8E20.PNG',
+    '/aria/D4262BE5-A0D7-49B6-9855-B81610AD2833.PNG',
+    '/aria/DA503840-86BC-4114-A5B9-EBE56D21630A.PNG',
+];
+
 // Music Player Component
 const MusicPlayerSection: React.FC = () => {
     const tracks = [
@@ -628,7 +646,7 @@ const ArtistProfile: React.FC = () => {
                 
                 {/* Cover Section with Aria-style Profile Photo Layout */}
                 <div
-                    className="relative min-h-[50vh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                    className="relative min-h-[50dvh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                     style={{ 
                         backgroundImage: `url(${artist.cover_image_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'})`, 
                         backgroundSize: 'cover', 
@@ -761,7 +779,7 @@ const ArtistProfile: React.FC = () => {
     return (
         <div className="max-w-7xl mx-auto pb-32 animate-fade-in">
             <div
-                className="relative min-h-[50vh] rounded-[40px] overflow-hidden aria-mesh-gradient border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                className="relative min-h-[50dvh] rounded-[40px] overflow-hidden aria-mesh-gradient border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                 style={{ backgroundImage: `url(${ARIA_COVER_IMAGE_URL})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
             >
                 <div className="absolute inset-0 bg-black/30"></div>
@@ -810,7 +828,7 @@ const ArtistProfile: React.FC = () => {
                             </div>
                         </div>
                         <div className="lg:col-span-5 space-y-8">
-                            <div className="aria-panel-sunken rounded-[40px] p-8 h-[75vh] flex flex-col relative shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)]">
+                            <div className="aria-panel-sunken rounded-[40px] p-8 h-[75dvh] flex flex-col relative shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)]">
                                 <div className="flex-grow overflow-hidden flex flex-col">
                                     {!isAriaChatOpen ? (
                                         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -838,6 +856,24 @@ const ArtistProfile: React.FC = () => {
                                             clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })}
                                         />
                                     )}
+                                </div>
+                            </div>
+                            <div className="aria-glass p-6 rounded-[32px] aria-metal-stroke shadow-2xl">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-orange-400">Aria Photo Gallery</h3>
+                                    <span className="text-xs text-zinc-500">Swipe</span>
+                                </div>
+                                <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
+                                    {ARIA_GALLERY_IMAGES.map((src) => (
+                                        <div key={src} className="snap-start shrink-0 w-56 h-72 rounded-2xl overflow-hidden bg-zinc-900/60 border border-white/5 shadow-[0_0_24px_rgba(249,115,22,0.1)]">
+                                            <img
+                                                src={encodeURI(src)}
+                                                alt="Aria photo"
+                                                className="w-full h-full object-cover"
+                                                loading="lazy"
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -926,7 +962,7 @@ const ArtistProfile: React.FC = () => {
             {isMixDoctorOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMixDoctorOpen(false)}></div>
-                    <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl">
+                    <div className="relative w-full max-w-5xl max-h-[90dvh] overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl">
                         <div className="sticky top-0 bg-zinc-900 border-b border-zinc-700 p-6 flex justify-between items-center z-10">
                             <div>
                                 <h2 className="text-2xl font-bold text-zinc-100">Mix Doctor</h2>
@@ -950,7 +986,7 @@ const ArtistProfile: React.FC = () => {
             {isReleaseEngineOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsReleaseEngineOpen(false)}></div>
-                    <div className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl">
+                    <div className="relative w-full max-w-6xl max-h-[90dvh] overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl">
                         <div className="sticky top-0 bg-zinc-900 border-b border-zinc-700 p-6 flex justify-between items-center z-10">
                             <div>
                                 <h2 className="text-2xl font-bold text-zinc-100">Release Engine</h2>
@@ -974,7 +1010,7 @@ const ArtistProfile: React.FC = () => {
             {isHookEnhancerOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsHookEnhancerOpen(false)}></div>
-                    <div className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl">
+                    <div className="relative w-full max-w-6xl max-h-[90dvh] overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl">
                         <div className="sticky top-0 bg-zinc-900 border-b border-zinc-700 p-6 flex justify-between items-center z-10">
                             <div>
                                 <h2 className="text-2xl font-bold text-zinc-100">Hook Enhancer Pro</h2>

@@ -4,10 +4,12 @@ import * as apiService from '../services/apiService';
 import type { Booking } from '../types';
 import { UserRole, AppView } from '../types';
 import { redirectToCheckout } from '../lib/stripe';
+import { useProfile } from '../hooks/useProfile';
 
 export const useSession = (navigate: (view: any) => void) => {
   const dispatch = useAppDispatch();
   const { userRole, bookings, currentUser } = useAppState();
+  const { refreshCurrentUser } = useProfile();
 
   const startSession = useCallback(
     (booking: Booking) => {
@@ -88,15 +90,27 @@ export const useSession = (navigate: (view: any) => void) => {
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
       try {
+        const hasConnect = Boolean((currentUser as any).stripe_connect_account_id || (currentUser as any).stripe_connect_id);
+        if (!hasConnect) {
+          alert('Please connect your Stripe account before requesting a payout.');
+          return;
+        }
+        if ((currentUser as any).payouts_enabled === false) {
+          alert('Payouts are not enabled for this account yet.');
+          return;
+        }
         await apiService.initiatePayout(currentUser.id, amount);
+        await refreshCurrentUser();
+        alert('Payout requested. Funds should arrive in 2-3 business days.');
       } catch (error) {
         console.error('Failed to request payout:', error);
+        alert((error as Error)?.message || 'Failed to request payout. Please try again.');
       } finally {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         dispatch({ type: ActionTypes.SET_PAYOUT_MODAL_OPEN, payload: { isOpen: false } });
       }
     },
-    [currentUser, userRole, dispatch]
+    [currentUser, userRole, dispatch, refreshCurrentUser]
   );
 
   return { startSession, endSession, confirmTip, addFunds, requestPayout };

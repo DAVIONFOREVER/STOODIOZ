@@ -69,7 +69,7 @@ const RoomFormModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-            <div className="w-full max-w-lg cardSurface max-h-[90vh] overflow-y-auto">
+            <div className="w-full max-w-lg cardSurface max-h-[90dvh] overflow-y-auto">
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center sticky top-0 bg-zinc-900 z-10">
                     <h2 className="text-xl font-bold text-zinc-100">{room?.id ? 'Edit Room' : 'Add New Room'}</h2>
                     <button onClick={onClose} disabled={isUploading}><CloseIcon className="w-6 h-6 text-zinc-400 hover:text-zinc-100" /></button>

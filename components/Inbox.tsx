@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Conversation, Message, Artist, Stoodio, Engineer, Booking, Producer, FileAttachment, Label } from '../types';
-import { AppView } from '../types';
+import { AppView, BookingStatus } from '../types';
 import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon, PaperclipIcon, DownloadIcon, VideoCameraIcon } from './icons';
 import { formatDistanceToNow } from 'date-fns';
 import { getDisplayName, getProfileImageUrl } from '../constants';
@@ -217,12 +217,34 @@ const ChatThread: React.FC<{
         const file = e.target.files?.[0];
         if (!file) return;
 
+        const MB = 1024 * 1024;
+        const GB = 1024 * MB;
+        const MAX_STANDARD_BYTES = 10 * MB;
+        const MAX_DELIVERABLE_BYTES = 2 * GB;
+        const hasNoDeliverablesYet = !conversation?.messages?.some((msg: any) => msg.type === 'files' && msg.files?.length);
+        const allowLargeUploads = (!!associatedBooking && [
+            BookingStatus.PENDING,
+            BookingStatus.PENDING_APPROVAL,
+            BookingStatus.CONFIRMED,
+        ].includes(associatedBooking.status)) || hasNoDeliverablesYet;
+
+        const maxBytes = allowLargeUploads ? MAX_DELIVERABLE_BYTES : MAX_STANDARD_BYTES;
+        if (file.size > maxBytes) {
+            const limitLabel = allowLargeUploads ? '2GB' : '10MB';
+            const reason = allowLargeUploads
+                ? 'Please split the file or compress it before sending.'
+                : 'Large files are only allowed when a session is scheduled or before the first deliverable is sent.';
+            alert(`This file exceeds the ${limitLabel} limit. ${reason}`);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         setIsUploading(true);
         setIsAttachmentMenuOpen(false);
         simulateProgress();
 
         try {
-            const url = await apiService.uploadPostAttachment(file, currentUser.id);
+            const { url, path } = await apiService.uploadPostAttachment(currentUser.id, file);
             
             if (file.type.startsWith('image/')) {
                 onSendMessage(conversation.id, { 
@@ -242,7 +264,13 @@ const ChatThread: React.FC<{
                  onSendMessage(conversation.id, { 
                     type: 'files', 
                     text: 'Sent a file',
-                    files: [{ name: file.name, url: url, size: `${(file.size / 1024).toFixed(1)} KB` }]
+                    files: [{
+                        name: file.name,
+                        url: url,
+                        size: `${(file.size / 1024).toFixed(1)} KB`,
+                        storage_path: path,
+                        uploaded_at: new Date().toISOString(),
+                    }]
                 });
             }
 
@@ -532,8 +560,18 @@ const Inbox: React.FC = () => {
             ...(producers ?? []),
             ...(labels ?? []),
         ];
-        return currentUser ? list.filter(u => u?.id && u.id !== currentUser.id) : list.filter(u => u?.id);
-    }, [artists, engineers, stoodioz, producers, labels, currentUser]);
+        const convoParticipants = (conversations || [])
+            .flatMap((c) => (c.participants || []))
+            .filter(Boolean);
+        const merged = [...list, ...convoParticipants];
+        const unique = new Map<string, any>();
+        merged.forEach((u: any) => {
+            if (!u?.id) return;
+            if (currentUser && u.id === currentUser.id) return;
+            if (!unique.has(u.id)) unique.set(u.id, u);
+        });
+        return Array.from(unique.values());
+    }, [artists, engineers, stoodioz, producers, labels, conversations, currentUser]);
 
     const filteredUsers = useMemo(() => {
         const term = searchQuery.trim().toLowerCase();
@@ -616,7 +654,7 @@ const Inbox: React.FC = () => {
 
     if (!currentUser) {
         return (
-            <div className="flex h-[calc(100vh-10rem)] items-center justify-center cardSurface border border-zinc-800/70 bg-zinc-950/70">
+            <div className="flex h-[calc(100dvh-10rem)] items-center justify-center cardSurface border border-zinc-800/70 bg-zinc-950/70">
                 <div className="text-center">
                     <p className="text-slate-200 font-semibold">Message Hub</p>
                     <p className="text-sm text-slate-500 mt-1">Sign in to access your conversations.</p>
@@ -626,7 +664,7 @@ const Inbox: React.FC = () => {
     }
 
     return (
-        <div className="flex h-[calc(100vh-10rem)] overflow-hidden cardSurface border border-zinc-800/70 bg-zinc-950/70">
+        <div className="flex h-[calc(100dvh-10rem)] overflow-hidden cardSurface border border-zinc-800/70 bg-zinc-950/70">
             <div className={`w-full md:w-1/3 ${selectedConversationId ? 'hidden md:block' : ''}`}>
                 <div className="h-full flex flex-col border-r border-zinc-800/60">
                     <div className="p-5 border-b border-zinc-800/60 bg-gradient-to-br from-zinc-950 via-zinc-950/80 to-zinc-900/50">

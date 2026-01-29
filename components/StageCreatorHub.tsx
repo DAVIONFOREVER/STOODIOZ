@@ -23,6 +23,7 @@ interface StageCreatorHubProps {
     onJoinLive: (roomId: string) => void;
     showTopSections?: boolean;
     showSideSections?: boolean;
+    showQuickAccess?: boolean;
 }
 
 const StageCreatorHub: React.FC<StageCreatorHubProps> = ({
@@ -40,7 +41,8 @@ const StageCreatorHub: React.FC<StageCreatorHubProps> = ({
     onStartLive,
     onJoinLive,
     showTopSections = true,
-    showSideSections = true
+    showSideSections = true,
+    showQuickAccess = true
 }) => {
     return (
         <div className={`space-y-6 ${showTopSections ? 'pb-24 md:pb-0' : ''}`}>
@@ -103,129 +105,140 @@ const StageCreatorHub: React.FC<StageCreatorHubProps> = ({
                                 </button>
                             </div>
 
-                            <div className="pt-4 border-t border-zinc-800/80">
-                                <p className="text-xs uppercase tracking-[0.25em] text-zinc-400">Quick Access</p>
-                                <div className="grid grid-cols-2 gap-2 mt-3">
-                                    <button onClick={onManagePosts} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors shadow-[0_0_12px_rgba(249,115,22,0.08)]">
-                                        <div className="flex items-center gap-2">
-                                            <EditIcon className="w-4 h-4 text-orange-400" />
-                                            <p className="text-xs font-semibold text-zinc-100">My Posts</p>
-                                        </div>
+                        </div>
+                    </div>
+
+                    {showTopSections && showQuickAccess && (
+                        <div className="cardSurface p-5 space-y-3 md:hidden">
+                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-400">Quick Access</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button onClick={onManagePosts} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
+                                    <EditIcon className="w-5 h-5 text-orange-400" />
+                                    <p className="mt-2 text-sm font-semibold text-zinc-100">My Posts</p>
+                                </button>
+                                <button onClick={() => onNavigate(AppView.MY_BOOKINGS)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
+                                    <CalendarIcon className="w-5 h-5 text-orange-400" />
+                                    <p className="mt-2 text-sm font-semibold text-zinc-100">My Bookings</p>
+                                </button>
+                                <button onClick={() => onNavigate(AppView.ARTIST_LIST)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
+                                    <MicrophoneIcon className="w-5 h-5 text-green-400" />
+                                    <p className="mt-2 text-sm font-semibold text-zinc-100">Find Artists</p>
+                                </button>
+                                <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
+                                    <SoundWaveIcon className="w-5 h-5 text-amber-400" />
+                                    <p className="mt-2 text-sm font-semibold text-zinc-100">Find Engineers</p>
+                                </button>
+                                <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
+                                    <MusicNoteIcon className="w-5 h-5 text-purple-400" />
+                                    <p className="mt-2 text-sm font-semibold text-zinc-100">Find Producers</p>
+                                </button>
+                                <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
+                                    <HouseIcon className="w-5 h-5 text-red-400" />
+                                    <p className="mt-2 text-sm font-semibold text-zinc-100">Find Stoodioz</p>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {showTopSections && showQuickAccess && (
+                        <div className="md:hidden fixed bottom-4 left-4 right-4 z-40">
+                            <div className="cardSurface border border-zinc-800/80 bg-zinc-950/90 backdrop-blur p-2">
+                                <div className="grid grid-cols-4 gap-2">
+                                    <button
+                                        onClick={onManagePosts}
+                                        className="flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-zinc-300 hover:bg-zinc-900/60 transition-colors"
+                                    >
+                                        <EditIcon className="w-5 h-5 text-orange-400" />
+                                        <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Posts</span>
                                     </button>
-                                    <button onClick={() => onNavigate(AppView.MY_BOOKINGS)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors shadow-[0_0_12px_rgba(249,115,22,0.08)]">
-                                        <div className="flex items-center gap-2">
-                                            <CalendarIcon className="w-4 h-4 text-orange-400" />
-                                            <p className="text-xs font-semibold text-zinc-100">My Bookings</p>
-                                        </div>
+                                    <button
+                                        onClick={onOpenAria}
+                                        className="flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-zinc-300 hover:bg-zinc-900/60 transition-colors"
+                                    >
+                                        <MagicWandIcon className="w-5 h-5 text-purple-400" />
+                                        <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Aria</span>
                                     </button>
-                                    <button onClick={() => onNavigate(AppView.ARTIST_LIST)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors">
-                                        <div className="flex items-center gap-2">
-                                            <MicrophoneIcon className="w-4 h-4 text-green-400" />
-                                            <p className="text-xs font-semibold text-zinc-100">Find Artists</p>
-                                        </div>
+                                    <button
+                                        onClick={() => onNavigate(AppView.INBOX)}
+                                        className="flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-zinc-300 hover:bg-zinc-900/60 transition-colors"
+                                    >
+                                        <MagicWandIcon className="w-5 h-5 text-emerald-400" />
+                                        <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Replies</span>
                                     </button>
-                                    <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors">
-                                        <div className="flex items-center gap-2">
-                                            <SoundWaveIcon className="w-4 h-4 text-amber-400" />
-                                            <p className="text-xs font-semibold text-zinc-100">Find Engineers</p>
-                                        </div>
-                                    </button>
-                                    <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors">
-                                        <div className="flex items-center gap-2">
-                                            <MusicNoteIcon className="w-4 h-4 text-purple-400" />
-                                            <p className="text-xs font-semibold text-zinc-100">Find Producers</p>
-                                        </div>
-                                    </button>
-                                    <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors">
-                                        <div className="flex items-center gap-2">
-                                            <HouseIcon className="w-4 h-4 text-red-400" />
-                                            <p className="text-xs font-semibold text-zinc-100">Find Stoodioz</p>
-                                        </div>
+                                    <button
+                                        onClick={onStartLive}
+                                        className="flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-zinc-300 hover:bg-zinc-900/60 transition-colors"
+                                    >
+                                        <MicrophoneIcon className="w-5 h-5 text-cyan-400" />
+                                        <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Live</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div className="cardSurface p-5 space-y-3 md:hidden">
-                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-400">Quick Access</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={onManagePosts} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
-                                <EditIcon className="w-5 h-5 text-orange-400" />
-                                <p className="mt-2 text-sm font-semibold text-zinc-100">My Posts</p>
-                            </button>
-                            <button onClick={() => onNavigate(AppView.MY_BOOKINGS)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
-                                <CalendarIcon className="w-5 h-5 text-orange-400" />
-                                <p className="mt-2 text-sm font-semibold text-zinc-100">My Bookings</p>
-                            </button>
-                            <button onClick={() => onNavigate(AppView.ARTIST_LIST)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
-                                <MicrophoneIcon className="w-5 h-5 text-green-400" />
-                                <p className="mt-2 text-sm font-semibold text-zinc-100">Find Artists</p>
-                            </button>
-                            <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
-                                <SoundWaveIcon className="w-5 h-5 text-amber-400" />
-                                <p className="mt-2 text-sm font-semibold text-zinc-100">Find Engineers</p>
-                            </button>
-                            <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
-                                <MusicNoteIcon className="w-5 h-5 text-purple-400" />
-                                <p className="mt-2 text-sm font-semibold text-zinc-100">Find Producers</p>
-                            </button>
-                            <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:bg-zinc-900 transition-colors">
-                                <HouseIcon className="w-5 h-5 text-red-400" />
-                                <p className="mt-2 text-sm font-semibold text-zinc-100">Find Stoodioz</p>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="md:hidden fixed bottom-4 left-4 right-4 z-40">
-                        <div className="cardSurface border border-zinc-800/80 bg-zinc-950/90 backdrop-blur p-2">
-                            <div className="grid grid-cols-4 gap-2">
-                                <button
-                                    onClick={onManagePosts}
-                                    className="flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-zinc-300 hover:bg-zinc-900/60 transition-colors"
-                                >
-                                    <EditIcon className="w-5 h-5 text-orange-400" />
-                                    <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Posts</span>
-                                </button>
-                                <button
-                                    onClick={onOpenAria}
-                                    className="flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-zinc-300 hover:bg-zinc-900/60 transition-colors"
-                                >
-                                    <MagicWandIcon className="w-5 h-5 text-purple-400" />
-                                    <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Aria</span>
-                                </button>
-                                <button
-                                    onClick={() => onNavigate(AppView.INBOX)}
-                                    className="flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-zinc-300 hover:bg-zinc-900/60 transition-colors"
-                                >
-                                    <MagicWandIcon className="w-5 h-5 text-emerald-400" />
-                                    <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Replies</span>
-                                </button>
-                                <button
-                                    onClick={onStartLive}
-                                    className="flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-zinc-300 hover:bg-zinc-900/60 transition-colors"
-                                >
-                                    <MicrophoneIcon className="w-5 h-5 text-cyan-400" />
-                                    <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Live</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </>
             )}
 
+            {showQuickAccess && (
+                <div className="cardSurface p-5 space-y-3">
+                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-400">Quick Access</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button onClick={onManagePosts} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors shadow-[0_0_12px_rgba(249,115,22,0.08)]">
+                            <div className="flex items-center gap-2">
+                                <EditIcon className="w-4 h-4 text-orange-400" />
+                                <p className="text-xs font-semibold text-zinc-100">My Posts</p>
+                            </div>
+                        </button>
+                        <button onClick={() => onNavigate(AppView.MY_BOOKINGS)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors shadow-[0_0_12px_rgba(249,115,22,0.08)]">
+                            <div className="flex items-center gap-2">
+                                <CalendarIcon className="w-4 h-4 text-orange-400" />
+                                <p className="text-xs font-semibold text-zinc-100">My Bookings</p>
+                            </div>
+                        </button>
+                        <button onClick={() => onNavigate(AppView.ARTIST_LIST)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors">
+                            <div className="flex items-center gap-2">
+                                <MicrophoneIcon className="w-4 h-4 text-green-400" />
+                                <p className="text-xs font-semibold text-zinc-100">Find Artists</p>
+                            </div>
+                        </button>
+                        <button onClick={() => onNavigate(AppView.ENGINEER_LIST)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors">
+                            <div className="flex items-center gap-2">
+                                <SoundWaveIcon className="w-4 h-4 text-amber-400" />
+                                <p className="text-xs font-semibold text-zinc-100">Find Engineers</p>
+                            </div>
+                        </button>
+                        <button onClick={() => onNavigate(AppView.PRODUCER_LIST)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors">
+                            <div className="flex items-center gap-2">
+                                <MusicNoteIcon className="w-4 h-4 text-purple-400" />
+                                <p className="text-xs font-semibold text-zinc-100">Find Producers</p>
+                            </div>
+                        </button>
+                        <button onClick={() => onNavigate(AppView.STOODIO_LIST)} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-2.5 py-2 text-left hover:bg-zinc-900 transition-colors">
+                            <div className="flex items-center gap-2">
+                                <HouseIcon className="w-4 h-4 text-red-400" />
+                                <p className="text-xs font-semibold text-zinc-100">Find Stoodioz</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            )}
             {showSideSections && (
                 <>
                     <LiveHub onStartLive={onStartLive} onJoinLive={onJoinLive} />
 
-                    {suggestions.length > 0 && (
+                    {suggestions.length > 0 ? (
                         <WhoToFollow
                             suggestions={suggestions}
                             onToggleFollow={onToggleFollow}
                             onSelectUser={onSelectUser}
                         />
+                    ) : (
+                        <div className="p-4 cardSurface">
+                            <h3 className="font-bold text-slate-100 px-3 mb-2">Who to Follow</h3>
+                            <p className="text-sm text-zinc-400 px-3">No suggestions yet.</p>
+                        </div>
                     )}
-                    {trendingPost && trendingPostAuthor && (
+                    {trendingPost && trendingPostAuthor ? (
                         <TrendingPost
                             post={trendingPost}
                             author={trendingPostAuthor}
@@ -233,6 +246,11 @@ const StageCreatorHub: React.FC<StageCreatorHubProps> = ({
                             onCommentOnPost={onCommentOnPost}
                             onSelectUser={onSelectUser}
                         />
+                    ) : (
+                        <div className="p-4 cardSurface">
+                            <h3 className="font-bold text-slate-100 px-1 mb-2">Trending on Stoodioz</h3>
+                            <p className="text-sm text-zinc-400">No trending posts yet.</p>
+                        </div>
                     )}
                 </>
             )}

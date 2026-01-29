@@ -31,6 +31,22 @@ const LiveHub: React.FC<LiveHubProps> = ({ onStartLive, onJoinLive }) => {
         return host?.name || 'Live Host';
     };
 
+    const filteredRooms = useMemo(() => {
+        const MAX_STALE_HOURS = 6;
+        return (rooms || []).filter((room) => {
+            const host = usersMap.get(room.host_id);
+            if (!host) return false;
+            if (host?.is_shadow) return false;
+            if (!room.created_at) return true;
+            const ageMs = Date.now() - new Date(room.created_at).getTime();
+            const ageHours = ageMs / (1000 * 60 * 60);
+            const listeners = room.listeners || 0;
+            // Hide stale rooms with no real activity
+            if (ageHours > MAX_STALE_HOURS && listeners <= 1) return false;
+            return true;
+        });
+    }, [rooms, usersMap]);
+
     return (
         <div className="cardSurface p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -49,10 +65,10 @@ const LiveHub: React.FC<LiveHubProps> = ({ onStartLive, onJoinLive }) => {
                 {isLoading && (
                     <p className="text-sm text-zinc-400">Loading live rooms...</p>
                 )}
-                {!isLoading && rooms.length === 0 && (
+                {!isLoading && filteredRooms.length === 0 && (
                     <p className="text-sm text-zinc-400">No live rooms yet. Start the first one.</p>
                 )}
-                {rooms.map(room => (
+                {filteredRooms.map(room => (
                     <LiveRoomCard
                         key={room.id}
                         title={room.title}

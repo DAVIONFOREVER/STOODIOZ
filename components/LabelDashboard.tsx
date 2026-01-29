@@ -51,11 +51,24 @@ const LabelDashboard: React.FC = () => {
     // Refs for image uploads
     const fileInputRef = useRef<HTMLInputElement>(null);
     const coverInputRef = useRef<HTMLInputElement>(null);
+    const MAX_IMAGE_MB = 8;
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
+    const validateImageFile = (file: File) => {
+        if (!allowedImageTypes.includes(file.type)) {
+            throw new Error('Unsupported image type. Please upload JPG, PNG, WEBP, HEIC, or HEIF.');
+        }
+        const maxBytes = MAX_IMAGE_MB * 1024 * 1024;
+        if (file.size > maxBytes) {
+            throw new Error(`Image is too large. Max size is ${MAX_IMAGE_MB}MB.`);
+        }
+    };
 
     const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file || !currentUser) return;
         try {
+            validateImageFile(file);
             const url = await apiService.uploadAvatar(currentUser.id, file);
             await updateProfile({ image_url: url });
             await refreshCurrentUser();
@@ -71,6 +84,7 @@ const LabelDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (!file || !currentUser) return;
         try {
+            validateImageFile(file);
             const url = await apiService.uploadCoverImage(currentUser.id, file);
             await updateProfile({ cover_image_url: url });
             await refreshCurrentUser();

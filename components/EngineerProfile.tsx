@@ -201,7 +201,7 @@ const EngineerProfile: React.FC = () => {
             
             {/* Cover Section with Aria-style Profile Photo Layout */}
             <div
-                className="relative min-h-[50vh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                className="relative min-h-[50dvh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                 style={{ 
                     backgroundImage: `url(${(engineer as any).cover_image_url || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'})`, 
                     backgroundSize: 'cover', 

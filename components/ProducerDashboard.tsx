@@ -297,6 +297,7 @@ const ProducerDashboard: React.FC = () => {
                             onStartLive={() => navigate(AppView.INBOX)}
                             onJoinLive={() => navigate(AppView.INBOX)}
                             showSideSections={false}
+                            showQuickAccess={false}
                         />
                         <div ref={postSectionRef} className="space-y-6">
                             <CreatePost currentUser={producer} onPost={handleNewPost} />

@@ -71,8 +71,11 @@ const LabelProfile: React.FC = () => {
 
     const isSelf = currentUser?.id === label.id;
     const visibility = label.section_visibility || {
-        mission: true, roster: true, metrics: true, services: true, partnerships: true, opportunities: true
+        mission: true, roster: true, metrics: false, services: true, partnerships: true, opportunities: true
     };
+    const hasMetrics =
+        !!label.public_metrics &&
+        Object.values(label.public_metrics).some((v) => typeof v === 'number' && v > 0);
     
     // Visibility check: Only show if:
     // 1. User is viewing their own label profile, OR
@@ -98,7 +101,7 @@ const LabelProfile: React.FC = () => {
 
             {/* Cover Section with Aria-style Profile Photo Layout */}
             <div
-                className="relative min-h-[50vh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                className="relative min-h-[50dvh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                 style={{ 
                     backgroundImage: `url(${label.cover_image_url || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'})`, 
                     backgroundSize: 'cover', 
@@ -186,7 +189,7 @@ const LabelProfile: React.FC = () => {
                     )}
 
                     {/* Stats / Metrics */}
-                    {visibility.metrics && label.public_metrics && (
+                    {visibility.metrics && hasMetrics && label.public_metrics && (
                         <div className="cardSurface p-6">
                             <h3 className="text-lg font-bold text-zinc-100 mb-4 flex items-center gap-2"><ChartBarIcon className="w-5 h-5 text-purple-400"/> Key Results</h3>
                             <div className="space-y-4">
