@@ -20,11 +20,13 @@ export const useSocial = () => {
         
         // 1. OPTIMISTIC UPDATE: Calculate new state immediately
         const targetUser = allUsers.find(u => u.id === id);
+        const targetId = String(id || targetUser?.profile_id || targetUser?.id || '');
+        if (!targetId) return;
         
         let isFollowing = false;
         if ('following' in currentUser) {
              const key = `${type}s` as keyof typeof currentUser.following;
-             isFollowing = (currentUser.following[key] || []).includes(id);
+             isFollowing = (currentUser.following[key] || []).includes(targetId);
         }
 
         // Create optimistic copy
@@ -37,13 +39,13 @@ export const useSocial = () => {
                 // Unfollow
                 optimisticUser.following = {
                     ...optimisticUser.following,
-                    [key]: currentList.filter((uid: string) => uid !== id)
+                    [key]: currentList.filter((uid: string) => uid !== targetId)
                 };
             } else {
                 // Follow
                 optimisticUser.following = {
                     ...optimisticUser.following,
-                    [key]: [...currentList, id]
+                    [key]: [...currentList, targetId]
                 };
             }
             // Dispatch update immediately
@@ -52,7 +54,7 @@ export const useSocial = () => {
 
         // 2. Perform API Call in Background
         try {
-            await apiService.toggleFollow(currentUser, { id } as any, type, isFollowing);
+            await apiService.toggleFollow(currentUser.id, targetId);
         } catch(error) {
             console.error("Failed to toggle follow:", error);
             // Revert on error

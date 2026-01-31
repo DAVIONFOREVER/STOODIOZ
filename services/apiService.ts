@@ -1294,7 +1294,7 @@ export async function toggleFollow(followerId: string, followingId: string): Pro
 
   // Check existing
   const existing = await safeSelect('follows.check', async () => {
-    const q = supabase.from(TABLES.follows).select('id').eq('follower_id', followerId).eq('following_id', followingId).limit(1);
+    const q = supabase.from(TABLES.follows).select('follower_id').eq('follower_id', followerId).eq('following_id', followingId).limit(1);
     return q as any;
   }, []);
 
