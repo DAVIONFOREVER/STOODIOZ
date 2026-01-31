@@ -40,6 +40,8 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
             case BookingStatus.PENDING_APPROVAL:
                 const approver = requestedEngineer?.name || 'the engineer';
                 return { statusText: `Awaiting approval from ${approver}...`, statusColor: 'text-yellow-400', participantName: null };
+            case BookingStatus.PENDING_LABEL_APPROVAL:
+                return { statusText: 'Awaiting label approval...', statusColor: 'text-yellow-400', participantName: null };
             case BookingStatus.CONFIRMED:
                 // FIX: Corrected property 'requestType' to 'request_type'
                 if (booking.request_type === BookingRequestType.BRING_YOUR_OWN) {
@@ -52,6 +54,8 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                 return { statusText: 'Session Completed', statusColor: 'text-green-400', participantName: completedParticipant };
             case BookingStatus.CANCELLED:
                 return { statusText: 'Cancelled', statusColor: 'text-red-400', participantName: null };
+            case BookingStatus.DENIED:
+                return { statusText: 'Denied', statusColor: 'text-red-400', participantName: null };
             default:
                 return { statusText: booking.status, statusColor: 'text-slate-400', participantName: null };
         }
@@ -72,7 +76,7 @@ const MyBookings: React.FC<MyBookingsProps> = ({ bookings, engineers, onOpenTipM
                         const { statusText, statusColor, participantName } = getStatusAndParticipant(booking);
                         // FIX: Corrected property 'startTime' to 'start_time'
                         const isUpcoming = new Date(`${booking.date}T${booking.start_time}`) >= new Date();
-                        const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;
+                        const canCancel = [BookingStatus.PENDING, BookingStatus.PENDING_APPROVAL, BookingStatus.PENDING_LABEL_APPROVAL, BookingStatus.CONFIRMED].includes(booking.status) && isUpcoming;
                         return (
                         <div key={booking.id} className={`bg-zinc-800 rounded-2xl shadow-lg p-6 flex flex-col md:flex-row gap-6 border border-zinc-700 hover:border-orange-500/50 transition-colors duration-300 ${booking.status === BookingStatus.CANCELLED ? 'opacity-60' : ''}`}>
                             <div className="flex-shrink-0">

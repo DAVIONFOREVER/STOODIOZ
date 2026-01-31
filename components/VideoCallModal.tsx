@@ -17,7 +17,9 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
     const localStreamRef = useRef<MediaStream | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
-    const [status, setStatus] = useState<'connecting' | 'connected' | 'ended'>('connecting');
+    const [status, setStatus] = useState<'connecting' | 'connected' | 'ended' | 'error'>('connecting');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [permissionHint, setPermissionHint] = useState<string | null>(null);
 
     useEffect(() => {
         const supabase = getSupabase();
@@ -46,7 +48,19 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
                 setStatus('connected');
             };
 
-            const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            if (typeof window !== 'undefined' && !window.isSecureContext) {
+                throw new Error('Video chat requires HTTPS (secure context).');
+            }
+            if (!navigator.mediaDevices?.getUserMedia) {
+                throw new Error('Camera or microphone access is not supported on this device.');
+            }
+            let localStream: MediaStream;
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            } catch {
+                // Fallback to audio-only if camera is blocked
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            }
             localStreamRef.current = localStream;
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = localStream;
@@ -97,9 +111,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
             .subscribe(async () => {
                 try {
                     await setupPeer();
-                } catch (e) {
+                } catch (e: any) {
+                    const msg = e?.message || 'Video chat failed to start.';
                     console.error('Video call setup failed', e);
-                    onClose();
+                    setErrorMessage(msg);
+                    setStatus('error');
                 }
             });
 
@@ -145,6 +161,25 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
         onClose();
     };
 
+    const requestPermissions = async () => {
+        try {
+            setPermissionHint(null);
+            if (typeof window !== 'undefined' && !window.isSecureContext) {
+                setPermissionHint('Video chat requires HTTPS (secure context).');
+                return;
+            }
+            if (!navigator.mediaDevices?.getUserMedia) {
+                setPermissionHint('Camera or microphone access is not supported on this device.');
+                return;
+            }
+            const temp = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            temp.getTracks().forEach((t) => t.stop());
+            setPermissionHint('Permissions granted. Try starting the call again.');
+        } catch {
+            setPermissionHint('Please allow camera and microphone access in your browser.');
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
             <div className="w-full max-w-4xl bg-zinc-950 border border-zinc-800 rounded-3xl p-4 space-y-4">
@@ -152,13 +187,26 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
                     <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-orange-400">Video Call</p>
                         <p className="text-sm text-zinc-400">
-                            {status === 'connecting' ? 'Connecting...' : status === 'connected' ? 'Live' : 'Ended'}
+                            {status === 'connecting' ? 'Connecting...' : status === 'connected' ? 'Live' : status === 'error' ? 'Unavailable' : 'Ended'}
                         </p>
                     </div>
                     <button onClick={hangUp} className="p-2 rounded-full bg-zinc-800 hover:bg-zinc-700">
                         <CloseIcon className="w-5 h-5" />
                     </button>
                 </div>
+                {(status === 'error' || permissionHint) && (
+                    <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 text-sm text-orange-200">
+                        {permissionHint || errorMessage || 'Video chat is unavailable right now. Please check camera/mic permissions and HTTPS.'}
+                        <div className="mt-3">
+                            <button
+                                onClick={requestPermissions}
+                                className="px-3 py-1.5 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600"
+                            >
+                                Allow Camera & Mic
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="aspect-video rounded-2xl overflow-hidden bg-black/80">

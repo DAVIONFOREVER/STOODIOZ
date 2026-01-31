@@ -46,6 +46,8 @@ export const useAria = (deps: AriaHookDependencies) => {
                         deps.navigate(userRole === 'LABEL' ? AppView.LABEL_DASHBOARD : AppView.ARTIST_DASHBOARD);
                         dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
                     } catch (e) { alert("Report generation failed."); }
+                } else {
+                    alert("Log in to save reports to Documents.");
                 }
                 onClose();
                 break;
@@ -91,6 +93,8 @@ export const useAria = (deps: AriaHookDependencies) => {
                         dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
                         onClose();
                     } catch (e) { console.error("Aria Doc Gen Error:", e); }
+                } else if (!currentUser) {
+                    alert("Log in to save documents to your vault.");
                 }
                 break;
 

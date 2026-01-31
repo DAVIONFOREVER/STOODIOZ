@@ -22,6 +22,7 @@ import type {
   Masterclass,
   AriaNudgeData,
   Label,
+  ReviewTarget,
 } from '../types';
 import { AppView, UserRole } from '../types';
 
@@ -36,6 +37,7 @@ export interface AppState {
   producers: Producer[];
   labels: Label[];
   reviews: Review[];
+  reviewTarget: ReviewTarget | null;
   bookings: Booking[];
   conversations: Conversation[];
   notifications: AppNotification[];
@@ -147,6 +149,7 @@ export enum ActionTypes {
   OPEN_REVIEW_MASTERCLASS_MODAL = 'OPEN_REVIEW_MASTERCLASS_MODAL',
   CLOSE_REVIEW_MASTERCLASS_MODAL = 'CLOSE_REVIEW_MASTERCLASS_MODAL',
   SET_REVIEWS = 'SET_REVIEWS',
+  SET_REVIEW_TARGET = 'SET_REVIEW_TARGET',
   SET_DIRECTIONS_INTENT = 'SET_DIRECTIONS_INTENT',
 }
 
@@ -215,6 +218,7 @@ type Payload = {
   [ActionTypes.OPEN_REVIEW_MASTERCLASS_MODAL]: { masterclass: Masterclass; owner: Engineer | Producer };
   [ActionTypes.CLOSE_REVIEW_MASTERCLASS_MODAL]: undefined;
   [ActionTypes.SET_REVIEWS]: { reviews: Review[] };
+  [ActionTypes.SET_REVIEW_TARGET]: { target: ReviewTarget | null };
   [ActionTypes.SET_DIRECTIONS_INTENT]: { bookingId: string | null };
 };
 
@@ -259,6 +263,7 @@ const initialState: AppState = {
   producers: [],
   labels: [],
   reviews: [],
+  reviewTarget: null,
   bookings: [],
   conversations: [],
   notifications: [],
@@ -582,6 +587,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
     case ActionTypes.SET_REVIEWS:
       return { ...state, reviews: action.payload.reviews };
+
+    case ActionTypes.SET_REVIEW_TARGET:
+      return { ...state, reviewTarget: action.payload.target };
 
     case ActionTypes.SET_DIRECTIONS_INTENT:
       return {

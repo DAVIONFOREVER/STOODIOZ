@@ -15,7 +15,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { useAria } from '../hooks/useAria';
-import { fetchUserPosts, fetchFullArtist, fetchProfileByEmail } from '../services/apiService';
+import { fetchUserPosts, fetchFullArtist, fetchProfileByEmail, fetchProfileByDisplayName, fetchProfileByUsername } from '../services/apiService';
 import { ARIA_EMAIL, ARIA_PROFILE_IMAGE_URL, ARIA_COVER_IMAGE_URL, getProfileImageUrl, getDisplayName } from '../constants';
 import appIcon from '../assets/stoodioz-app-icon.png';
 import AriaCantataAssistant from './AriaAssistant';
@@ -24,6 +24,8 @@ import MixDoctor from './MixDoctor';
 import ReleaseEngine from './ReleaseEngine';
 import HookEnhancer from './HookEnhancer';
 import { CloseIcon, PauseIcon } from './icons';
+
+let activeAriaAudio: HTMLAudioElement | null = null;
 
 const TrackPlayer: React.FC<{
     title: string;
@@ -45,16 +47,41 @@ const TrackPlayer: React.FC<{
 
         const updateTime = () => setCurrentTime(audio.currentTime);
         const updateDuration = () => setDuration(audio.duration);
-        const handleEnded = () => setIsPlaying(false);
+        const handlePlay = () => {
+            if (activeAriaAudio && activeAriaAudio !== audio) {
+                activeAriaAudio.pause();
+            }
+            activeAriaAudio = audio;
+            setIsPlaying(true);
+        };
+        const handlePause = () => {
+            if (activeAriaAudio === audio) {
+                activeAriaAudio = null;
+            }
+            setIsPlaying(false);
+        };
+        const handleEnded = () => {
+            if (activeAriaAudio === audio) {
+                activeAriaAudio = null;
+            }
+            setIsPlaying(false);
+        };
 
         audio.addEventListener('timeupdate', updateTime);
         audio.addEventListener('loadedmetadata', updateDuration);
+        audio.addEventListener('play', handlePlay);
+        audio.addEventListener('pause', handlePause);
         audio.addEventListener('ended', handleEnded);
 
         return () => {
             audio.removeEventListener('timeupdate', updateTime);
             audio.removeEventListener('loadedmetadata', updateDuration);
+            audio.removeEventListener('play', handlePlay);
+            audio.removeEventListener('pause', handlePause);
             audio.removeEventListener('ended', handleEnded);
+            if (activeAriaAudio === audio) {
+                activeAriaAudio = null;
+            }
         };
     }, []);
 
@@ -68,12 +95,11 @@ const TrackPlayer: React.FC<{
         const audio = audioRef.current;
         if (!audio) return;
 
-        if (isPlaying) {
-            audio.pause();
-        } else {
+        if (audio.paused) {
             audio.play();
+        } else {
+            audio.pause();
         }
-        setIsPlaying(!isPlaying);
     };
 
     const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -405,10 +431,22 @@ const ArtistProfile: React.FC = () => {
     useEffect(() => {
         let isMounted = true;
         const resolveArtist = async () => {
+            const isUuid = (value: string | null | undefined) =>
+                typeof value === 'string' &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+            const isRoleLikeId = (value: string | null | undefined) =>
+                typeof value === 'string' &&
+                /^(artist|artis|engin|produc|stood|label|user)_/i.test(value);
+
             const savedId = localStorage.getItem('selected_entity_id');
             const savedType = localStorage.getItem('selected_entity_type');
             const ariaSavedId = localStorage.getItem('aria_profile_id');
-            let targetId = selectedArtist?.id || selectedArtist?.profile_id || (savedType === 'artist' ? savedId : null);
+            let targetId = selectedArtist?.profile_id || (savedType === 'artist' ? savedId : null);
+            if (!targetId && selectedArtist?.id === 'aria') {
+                targetId = 'aria';
+            } else if (!targetId && isUuid(selectedArtist?.id)) {
+                targetId = selectedArtist?.id as string;
+            }
             const ariaTarget =
                 targetId === 'aria' ||
                 (ariaSavedId && (targetId === ariaSavedId)) ||
@@ -420,7 +458,23 @@ const ArtistProfile: React.FC = () => {
                 targetId = ariaSavedId;
             }
 
-            if (!targetId && selectedArtist) {
+            if (savedType === 'artist_handle' && savedId) {
+                try {
+                    const byDisplay = await fetchProfileByDisplayName(savedId);
+                    if (!isMounted) return;
+                    if (byDisplay?.id) {
+                        targetId = byDisplay.id;
+                    } else {
+                        const byUser = await fetchProfileByUsername(savedId);
+                        if (!isMounted) return;
+                        if (byUser?.id) targetId = byUser.id;
+                    }
+                } catch {
+                    // ignore resolution failures; will fall back below
+                }
+            }
+
+            if ((targetId && isRoleLikeId(targetId)) || (!targetId && selectedArtist)) {
                 try {
                     if (selectedArtist.email && selectedArtist.email !== ARIA_EMAIL) {
                         const profile = await fetchProfileByEmail(selectedArtist.email);
@@ -429,8 +483,20 @@ const ArtistProfile: React.FC = () => {
                             targetId = profile.id;
                         }
                     }
+                    if (!targetId && selectedArtist.display_name) {
+                        const profile = await fetchProfileByDisplayName(selectedArtist.display_name);
+                        if (!isMounted) return;
+                        if (profile?.id) {
+                            targetId = profile.id;
+                        }
+                    }
                     if (!targetId && selectedArtist.username) {
-                        targetId = selectedArtist.username;
+                        const profile = await fetchProfileByUsername(selectedArtist.username);
+                        if (!isMounted) return;
+                        if (profile?.id) {
+                            targetId = profile.id;
+                        }
+                        if (!targetId) targetId = selectedArtist.username;
                     }
                 } catch {
                     // ignore resolution failures; will fall back below
@@ -792,7 +858,9 @@ const ArtistProfile: React.FC = () => {
                             <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-orange-500 to-purple-600 p-3 rounded-2xl shadow-2xl ring-4 ring-zinc-950"><MagicWandIcon className="w-8 h-8 text-white" /></div>
                         </div>
                     </div>
-                    <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-4 text-glow">{artist.name}</h1>
+                    <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-4 text-glow">
+                        {getDisplayName(artist)}
+                    </h1>
                     <div className="flex items-center gap-4"><span className="text-[11px] font-black uppercase tracking-[0.4em] text-orange-400 bg-orange-500/10 px-6 py-2 rounded-full border border-orange-500/20 backdrop-blur-md">Operational Intelligence</span><VerifiedIcon className="w-6 h-6 text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.5)]" /></div>
                 </div>
             </div>

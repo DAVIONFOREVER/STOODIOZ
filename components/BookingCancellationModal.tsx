@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { differenceInHours } from 'date-fns';
 import type { Booking } from '../types';
-import { CloseIcon, TrashIcon } from './icons';
+import { CloseIcon, TrashIcon, AlertTriangleIcon } from './icons';
 
 interface BookingCancellationModalProps {
     booking: Booking;
@@ -46,10 +46,15 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
-            <div className="w-full max-w-lg transform transition-all cardSurface">
-                <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-100">Cancel Booking</h2>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
+            <div className="w-full max-w-lg transform transition-all cardSurface border border-zinc-800">
+                <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+                    <div>
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-orange-400">Cancellation</p>
+                        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2 mt-1">
+                            <AlertTriangleIcon className="w-6 h-6 text-orange-400" /> Cancel Booking
+                        </h2>
+                    </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
                         <CloseIcon className="w-6 h-6" />
                     </button>
@@ -97,7 +102,7 @@ const BookingCancellationModal: React.FC<BookingCancellationModalProps> = ({ boo
 
                 </div>
 
-                <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-2xl flex justify-end gap-3">
+                <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 rounded-b-2xl flex justify-end gap-3">
                      <button type="button" onClick={onClose} className="text-slate-300 bg-transparent hover:bg-zinc-700 font-bold rounded-lg text-sm px-5 py-3 text-center transition-colors border border-zinc-600">
                         Keep Booking
                     </button>

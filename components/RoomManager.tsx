@@ -1,9 +1,9 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Stoodio, Room } from '../types';
 import { SmokingPolicy } from '../types';
 import { HouseIcon, DollarSignIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon } from './icons';
-import { upsertRoom, deleteRoom, uploadRoomPhoto } from '../services/apiService';
+import { upsertRoom, deleteRoom, uploadRoomPhoto, fetchFullStoodio } from '../services/apiService';
 
 interface RoomManagerProps {
     stoodio: Stoodio;
@@ -166,6 +166,28 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRoom, setEditingRoom] = useState<Partial<Room> | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [rooms, setRooms] = useState<Room[]>(stoodio.rooms || []);
+
+    useEffect(() => {
+        setRooms(stoodio.rooms || []);
+    }, [stoodio.rooms]);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (rooms.length === 0 && stoodio.id) {
+            fetchFullStoodio(stoodio.id)
+                .then((full) => {
+                    if (!isMounted) return;
+                    if (full?.rooms) setRooms(full.rooms);
+                })
+                .catch((err) => {
+                    console.warn('Failed to refresh rooms list:', err);
+                });
+        }
+        return () => {
+            isMounted = false;
+        };
+    }, [rooms.length, stoodio.id]);
 
     const handleOpenModal = (room: Partial<Room> | null = null) => {
         setEditingRoom(room);
@@ -235,7 +257,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
             </div>
             
             <div className="space-y-4">
-                {(stoodio.rooms || []).length > 0 ? stoodio.rooms.map(room => (
+                {rooms.length > 0 ? rooms.map(room => (
                     <div key={room.id} className="cardSurface p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-orange-500/30 transition-colors">
                         <div className="flex items-start gap-4 flex-grow">
                             {room.photos && room.photos.length > 0 ? (

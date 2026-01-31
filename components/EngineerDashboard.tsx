@@ -13,6 +13,8 @@ import MixingServicesManager from './MixingServicesManager.tsx';
 import MixingSampleManager from './MixingSampleManager.tsx';
 import Following from './Following.tsx';
 import FollowersList from './FollowersList.tsx';
+import VerifiedBadge from './VerifiedBadge';
+import ProfileBioEditor from './ProfileBioEditor';
 
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 import { useNavigation } from '../hooks/useNavigation.ts';
@@ -77,12 +79,23 @@ const UpgradePlusCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ on
   </div>
 );
 
-const JobBoardPlaceholder: React.FC = () => (
-  <div className="cardSurface p-6">
-    <h3 className="text-xl font-bold text-zinc-100 mb-2">Job Board</h3>
+const JobBoardPlaceholder: React.FC<{ isProPlan: boolean; onUpgrade: () => void }> = ({ isProPlan, onUpgrade }) => (
+  <div className="cardSurface p-6 space-y-3">
+    <h3 className="text-xl font-bold text-zinc-100">Job Board</h3>
     <p className="text-zinc-400 text-sm">
-      This tab is reserved for Engineer Plus job matching and inbound requests. (Safe placeholder so the UI never breaks.)
+      {isProPlan
+        ? 'Your Engineer Plus job board is warming up. It will populate as new requests arrive.'
+        : 'Job Board access requires Engineer Plus. All other dashboard tabs stay fully available.'}
     </p>
+    {!isProPlan && (
+      <button
+        type="button"
+        onClick={onUpgrade}
+        className="inline-flex items-center justify-center rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white hover:bg-orange-600 transition-colors"
+      >
+        View Engineer Plus
+      </button>
+    )}
   </div>
 );
 
@@ -242,7 +255,7 @@ const EngineerDashboard: React.FC = () => {
         );
 
       case 'jobBoard':
-        return <JobBoardPlaceholder />;
+        return <JobBoardPlaceholder isProPlan={isProPlan} onUpgrade={() => navigate(AppView.SUBSCRIPTION_PLANS)} />;
 
       case 'availability':
         return <AvailabilityManager user={engineer} onUpdateUser={updateProfile} />;
@@ -349,14 +362,19 @@ const EngineerDashboard: React.FC = () => {
     <div className="space-y-8 animate-fade-in">
       {/* Profile Header */}
       <div className="relative rounded-2xl overflow-hidden cardSurface group">
-        <img
-          src={
-            engineer.cover_image_url ||
-            'https://images.unsplash.com/photo-1617886322207-6f504e7472c5?q=80&w=1200&auto=format&fit=crop'
-          }
-          alt={`${engineer.name}'s cover photo`}
-          className="w-full h-48 md:h-64 object-cover"
-        />
+        <div className="h-48 md:h-64 bg-zinc-900 relative">
+          {engineer.cover_image_url ? (
+            <img
+              src={engineer.cover_image_url}
+              alt={`${engineer.name}'s cover photo`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
+              <p className="text-zinc-700 font-bold text-4xl opacity-20 uppercase tracking-widest">Engineer</p>
+            </div>
+          )}
+        </div>
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
 
@@ -409,6 +427,19 @@ const EngineerDashboard: React.FC = () => {
                 <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${(engineer as any).is_available ? 'translate-x-6' : ''}`}></div>
               </div>
             </label>
+            <label className="flex items-center cursor-pointer self-center sm:self-auto">
+              <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={Boolean((engineer as any).show_on_map)}
+                  onChange={(e) => updateProfile({ show_on_map: e.target.checked } as any)}
+                />
+                <div className={`block w-12 h-6 rounded-full transition-colors ${(engineer as any).show_on_map ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${(engineer as any).show_on_map ? 'translate-x-6' : ''}`}></div>
+              </div>
+            </label>
           </div>
         </div>
       </div>
@@ -419,6 +450,15 @@ const EngineerDashboard: React.FC = () => {
         <StatCard label="Upcoming Sessions" value={upcomingBookings.length} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
         <StatCard label="Overall Rating" value={Number((engineer as any).rating_overall || 0).toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
       </div>
+
+      <ProfileBioEditor
+        value={engineer.bio || ''}
+        placeholder="Share your specialties, workflow, and availability details."
+        onSave={async (next) => {
+          await updateProfile({ bio: next });
+          await refreshCurrentUser();
+        }}
+      />
 
       {/* Tabs */}
       <div className="cardSurface">

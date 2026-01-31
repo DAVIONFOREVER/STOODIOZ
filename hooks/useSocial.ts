@@ -8,9 +8,12 @@ import { UserRole } from '../types';
 
 export const useSocial = () => {
     const dispatch = useAppDispatch();
-    const { currentUser, userRole, notifications, artists, engineers, producers, stoodioz } = useAppState();
+    const { currentUser, userRole, notifications, artists, engineers, producers, stoodioz, labels } = useAppState();
 
-    const allUsers = useMemo(() => [...artists, ...engineers, ...producers, ...stoodioz], [artists, engineers, producers, stoodioz]);
+    const allUsers = useMemo(
+        () => [...artists, ...engineers, ...producers, ...stoodioz, ...labels],
+        [artists, engineers, producers, stoodioz, labels]
+    );
     
     const toggleFollow = useCallback(async (type: 'stoodio' | 'engineer' | 'artist' | 'producer' | 'label', id: string) => {
         if (!currentUser) return;

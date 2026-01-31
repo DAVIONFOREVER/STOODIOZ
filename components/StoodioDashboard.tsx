@@ -13,6 +13,7 @@ import RoomManager from './RoomManager';
 import EngineerManager from './EngineerManager';
 import VerificationManager from './VerificationManager';
 import Wallet from './Wallet';
+import ProfileBioEditor from './ProfileBioEditor';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import { useNavigation } from '../hooks/useNavigation';
@@ -578,11 +579,19 @@ const StoodioDashboard: React.FC = () => {
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
-                <img 
-                    src={stoodio.cover_image_url || 'https://images.unsplash.com/photo-1516223725357-628a158b6692?q=80&w=1200&auto=format&fit=crop'} 
-                    alt={`${stoodio.name}'s cover photo`}
-                    className="w-full h-48 md:h-64 object-cover"
-                />
+                <div className="h-48 md:h-64 bg-zinc-900 relative">
+                    {stoodio.cover_image_url ? (
+                        <img 
+                            src={stoodio.cover_image_url}
+                            alt={`${stoodio.name}'s cover photo`}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
+                            <p className="text-zinc-700 font-bold text-4xl opacity-20 uppercase tracking-widest">Stoodio</p>
+                        </div>
+                    )}
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                 <button 
                     onClick={handleCoverImageUploadClick}
@@ -653,6 +662,15 @@ const StoodioDashboard: React.FC = () => {
                 <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                 <StatCard label="Followers" value={stoodio.followers ?? 0} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
             </div>
+
+            <ProfileBioEditor
+                value={(stoodio as any).bio || stoodio.description || ''}
+                placeholder="Describe your studio vibe, gear, and session flow."
+                onSave={async (next) => {
+                    await updateProfile({ bio: next, description: next } as any);
+                    await refreshCurrentUser();
+                }}
+            />
 
             <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">

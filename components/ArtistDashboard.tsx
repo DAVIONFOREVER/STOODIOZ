@@ -9,6 +9,7 @@ import Following from './Following';
 import FollowersList from './FollowersList';
 import Wallet from './Wallet';
 import VerifiedBadge from './VerifiedBadge';
+import ProfileBioEditor from './ProfileBioEditor';
 import StageCreatorHub from './StageCreatorHub';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
@@ -257,11 +258,19 @@ const ArtistDashboard: React.FC = () => {
             {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
                 {/* Cover Image */}
-                <img 
-                    src={artist.cover_image_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'} 
-                    alt={`${artist.name}'s cover photo`}
-                    className="w-full h-48 md:h-64 object-cover"
-                />
+                <div className="h-48 md:h-64 bg-zinc-900 relative">
+                    {artist.cover_image_url ? (
+                        <img 
+                            src={artist.cover_image_url}
+                            alt={`${artist.name}'s cover photo`}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
+                            <p className="text-zinc-700 font-bold text-4xl opacity-20 uppercase tracking-widest">Artist</p>
+                        </div>
+                    )}
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                 
                 {/* Edit Cover Button */}
@@ -326,6 +335,19 @@ const ArtistDashboard: React.FC = () => {
                                 <MagicWandIcon className="w-5 h-5"/>
                                 AI Vibe Matcher
                             </button>
+                            <label className="flex items-center cursor-pointer self-center sm:self-auto">
+                                <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        checked={Boolean((artist as any).show_on_map)}
+                                        onChange={(e) => updateProfile({ show_on_map: e.target.checked } as any)}
+                                    />
+                                    <div className={`block w-12 h-6 rounded-full transition-colors ${(artist as any).show_on_map ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${(artist as any).show_on_map ? 'translate-x-6' : ''}`}></div>
+                                </div>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -336,6 +358,15 @@ const ArtistDashboard: React.FC = () => {
                 <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                 <StatCard label="Followers" value={artist.followers ?? 0} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
             </div>
+
+            <ProfileBioEditor
+                value={artist.bio || ''}
+                placeholder="Describe your sound, story, and the kind of sessions you want."
+                onSave={async (next) => {
+                    await updateProfile({ bio: next });
+                    await refreshCurrentUser();
+                }}
+            />
 
              <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">

@@ -14,7 +14,7 @@ import { useBookings } from '../hooks/useBookings.ts';
 import { useMasterclass } from '../hooks/useMasterclass.ts';
 import MixingSamplePlayer from './MixingSamplePlayer.tsx';
 import MasterclassCard from './MasterclassCard.tsx';
-import { fetchUserPosts, fetchFullEngineer } from '../services/apiService';
+import { fetchUserPosts, fetchFullEngineer, fetchReviewsForTarget } from '../services/apiService';
 import { getProfileImageUrl, getDisplayName } from '../constants';
 
 const ProfileCard: React.FC<{
@@ -52,9 +52,9 @@ const ProfileCard: React.FC<{
 
 
 const EngineerProfile: React.FC = () => {
-    const { selectedEngineer, currentUser, reviews, artists, engineers, stoodioz, producers } = useAppState();
+    const { selectedEngineer, currentUser, artists, engineers, stoodioz, producers } = useAppState();
     const dispatch = useAppDispatch();
-    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile } = useNavigation();
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, openReviewPage } = useNavigation();
     const { toggleFollow, likePost, commentOnPost } = useSocial();
     const { startConversation } = useMessaging(useNavigation().navigate);
     const { initiateBookingWithEngineer } = useBookings(useNavigation().navigate);
@@ -62,6 +62,7 @@ const EngineerProfile: React.FC = () => {
 
     const [engineer, setEngineer] = useState<Engineer | null>(selectedEngineer || null);
     const [posts, setPosts] = useState<Post[]>([]);
+    const [profileReviews, setProfileReviews] = useState<any[]>([]);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const lastLoadedIdRef = useRef<string | null>(null);
@@ -73,9 +74,15 @@ const EngineerProfile: React.FC = () => {
     useEffect(() => {
         let isMounted = true;
         const resolveEngineer = async () => {
+            const isUuid = (value: string | null | undefined) =>
+                typeof value === 'string' &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
             const savedId = localStorage.getItem('selected_entity_id');
             const savedType = localStorage.getItem('selected_entity_type');
-            const targetId = selectedEngineer?.id || selectedEngineer?.profile_id || (savedType === 'engineer' ? savedId : null);
+            let targetId = selectedEngineer?.profile_id || (savedType === 'engineer' ? savedId : null);
+            if (!targetId && isUuid(selectedEngineer?.id)) {
+                targetId = selectedEngineer?.id as string;
+            }
 
             if (!targetId) {
                 if (isMounted) {
@@ -114,7 +121,7 @@ const EngineerProfile: React.FC = () => {
         return () => {
             isMounted = false;
         };
-    }, [selectedEngineer?.id]);
+    }, [selectedEngineer?.id, selectedEngineer?.profile_id]);
 
     useEffect(() => {
         if (!isLoadingDetails) return;
@@ -130,6 +137,16 @@ const EngineerProfile: React.FC = () => {
         if (engineer?.id) {
             fetchUserPosts(engineer.id).then(setPosts);
         }
+    }, [engineer?.id]);
+
+    useEffect(() => {
+        if (!engineer?.id) return;
+        fetchReviewsForTarget(UserRole.ENGINEER, engineer.id)
+            .then((data) => setProfileReviews(Array.isArray(data) ? data : []))
+            .catch((err) => {
+                console.error('Failed to load engineer reviews', err);
+                setProfileReviews([]);
+            });
     }, [engineer?.id]);
 
     const mediaItems = useMemo(() => {
@@ -151,8 +168,8 @@ const EngineerProfile: React.FC = () => {
     }, [currentUser, engineer]);
     const engineerReviews = useMemo(() => {
         if (!engineer) return [];
-        return (reviews ?? []).filter(r => r.engineer_id === engineer.id);
-    }, [reviews, engineer]);
+        return (profileReviews ?? []).filter((r) => r.engineer_id === engineer.id);
+    }, [profileReviews, engineer]);
     const followers = useMemo(() => {
         if (!engineer) return [];
         return allUsers.filter(u => (engineer.follower_ids || []).includes(u.id));
@@ -269,6 +286,16 @@ const EngineerProfile: React.FC = () => {
                         >
                             {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
                             {isFollowing ? 'Following' : 'Follow'}
+                        </button>
+                    </div>
+                )}
+                {(!currentUser || currentUser.id !== engineer.id) && (
+                    <div className="mt-4">
+                        <button
+                            onClick={() => openReviewPage({ id: engineer.id, role: UserRole.ENGINEER, name: getDisplayName(engineer, 'Engineer'), image_url: getProfileImageUrl(engineer) })}
+                            className="px-6 py-3 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all font-bold flex items-center gap-2 shadow-xl"
+                        >
+                            Reviews
                         </button>
                     </div>
                 )}

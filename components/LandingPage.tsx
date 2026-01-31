@@ -63,6 +63,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
     total: uniqueArtists.length + uniqueEngineers.length + uniqueProducers.length + uniqueStoodioz.length + dedupeById(l).length,
   }), [uniqueArtists, uniqueEngineers, uniqueProducers, uniqueStoodioz, l]);
 
+
   const openPulse = () => {
     // Optional: lets MapView know it was opened from "Pulse"
     try {

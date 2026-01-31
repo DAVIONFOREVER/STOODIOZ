@@ -3,6 +3,7 @@
 
 import { getSupabase } from '../lib/supabase';
 import type { UserRole } from '../types';
+import { getDisplayName } from '../utils/getDisplayName';
 
 const DB_TIMEOUT_MS = 30_000; // Increase to reduce false timeouts
 const STORAGE_TIMEOUT_MS = 20_000;
@@ -31,6 +32,8 @@ const TABLES = {
   labelProjects: 'label_projects',
   labelProjectTasks: 'label_project_tasks',
   labelTransactions: 'label_transactions',
+  labelBudgets: 'label_budgets',
+  labelApprovals: 'label_booking_approvals',
   labelContracts: 'label_contracts',
   unregisteredStudios: 'unregistered_studios',
   mixingSampleRatings: 'mixing_sample_ratings',
@@ -310,13 +313,13 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     clearPublicUsersCache();
   }
 
-  const tryLoadLocalCache = () => {
+  const tryLoadLocalCache = (allowStale = false) => {
     try {
       const raw = localStorage.getItem(LOCAL_CACHE_KEY);
       const ts = localStorage.getItem(LOCAL_CACHE_TS_KEY);
       if (!raw || !ts) return null;
       const age = Date.now() - Number(ts);
-      if (Number.isNaN(age) || age > LOCAL_CACHE_DURATION_MS) return null;
+      if (!allowStale && (Number.isNaN(age) || age > LOCAL_CACHE_DURATION_MS)) return null;
       const parsed = JSON.parse(raw);
       const hasData = parsed && (
         parsed.artists?.length > 0 ||
@@ -374,8 +377,8 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       };
     }
     const PROFILES_FAST_TIMEOUT_MS = 8000;
-    const profilesSelectFull = 'id, username, full_name, display_name, role, email, image_url, avatar_url, bio, location_text';
-    const profilesSelectFallback = 'id, username, full_name, role, email, image_url, bio, location_text';
+    const profilesSelectFull = 'id, username, full_name, display_name, role, email, image_url, avatar_url, bio, location_text, coordinates, show_on_map';
+    const profilesSelectFallback = 'id, username, full_name, role, email, image_url, bio, location_text, coordinates, show_on_map';
     const runProfilesSelect = async (select: string, label: string, timeoutMs: number) => {
       return await withTimeout(
         supabase.from('profiles').select(select).limit(500),
@@ -459,10 +462,69 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     if (s.error) console.error('[getAllPublicUsers] stoodioz error:', s.error);
     if (l.error) console.error('[getAllPublicUsers] labels error:', l.error);
     
+    const looksLikeId = (value: string): boolean => {
+      if (!value || typeof value !== 'string') return false;
+      const trimmed = value.trim().toLowerCase();
+      return /^(artis|engin|produc|stood|label|user)_[a-f0-9]{4,}/i.test(trimmed) ||
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+    };
+    const looksLikeEmail = (value: any) =>
+      typeof value === 'string' && value.includes('@') && value.includes('.');
+    const looksLikePlaceholder = (value: any) =>
+      typeof value === 'string' && ['someone', 'unknown', 'user', 'n/a', 'na', 'none'].includes(value.trim().toLowerCase());
+    const formatHandle = (value: string): string | null => {
+      if (!value || typeof value !== 'string') return null;
+      let cleaned = value.replace(/[._-]+/g, ' ').trim();
+      if (cleaned && !cleaned.includes(' ') && /by/i.test(cleaned)) {
+        cleaned = cleaned.replace(/([a-z])by([a-z])/gi, '$1 by $2');
+      }
+      if (!cleaned) return null;
+      const words = cleaned.split(/\s+/).filter(Boolean);
+      if (words.length === 0) return null;
+      return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    };
+    const nameFromEmail = (email?: string | null): string | null => {
+      if (!email || typeof email !== 'string' || !email.includes('@')) return null;
+      const local = email.split('@')[0] || '';
+      const cleaned = local.replace(/[._-]+/g, ' ').trim();
+      if (!cleaned) return null;
+      return cleaned
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    };
+
     // Ensure we always have arrays, even if data is null/undefined
     const normalizeDirectoryRow = (row: any, role: string) => {
       const profiles = row?.profiles || {};
-      const profileId = row?.profile_id || profiles?.id || null;
+      const isUuid = (value: any) =>
+        typeof value === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+      const profileId =
+        (isUuid(row?.profile_id) && row?.profile_id) ||
+        (isUuid(profiles?.id) && profiles?.id) ||
+        (isUuid(row?.id) && row?.id) ||
+        row?.profile_id ||
+        profiles?.id ||
+        row?.id ||
+        null;
+      const rawName = row?.name ?? profiles?.display_name ?? profiles?.username ?? null;
+      const rawUsername = row?.username ?? profiles?.username ?? null;
+      const rawEmail = row?.email ?? profiles?.email ?? null;
+      const safeName =
+        (rawName &&
+          !looksLikeId(String(rawName)) &&
+          !looksLikePlaceholder(String(rawName)) &&
+          !looksLikeEmail(String(rawName)) &&
+          String(rawName).trim()) ||
+        (rawUsername &&
+          !looksLikeId(String(rawUsername)) &&
+          !looksLikeEmail(String(rawUsername)) &&
+          (formatHandle(String(rawUsername)) || String(rawUsername))) ||
+        (profiles?.display_name || profiles?.username || null) ||
+        nameFromEmail(rawEmail || profiles?.email) ||
+        'User';
       return {
         ...row,
         role_id: row?.id ?? null,
@@ -473,7 +535,7 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
         username: row.username ?? profiles.username ?? null,
         image_url: row.image_url || profiles.image_url || profiles.avatar_url || null,
         email: row.email ?? profiles.email ?? null,
-        name: row.name ?? profiles.display_name ?? profiles.full_name ?? profiles.username ?? ((profiles.email === 'aria@stoodioz.ai' || row.email === 'aria@stoodioz.ai') ? 'Aria Cantata' : row.name),
+        name: (profiles.email === 'aria@stoodioz.ai' || row.email === 'aria@stoodioz.ai') ? 'Aria Cantata' : safeName,
         role,
       };
     };
@@ -503,13 +565,6 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       producers: dedupeById(result.producers),
       stoodioz: dedupeById(result.stoodioz),
       labels: dedupeById(result.labels),
-    };
-
-    const looksLikeId = (value: string): boolean => {
-      if (!value || typeof value !== 'string') return false;
-      const trimmed = value.trim().toLowerCase();
-      return /^(artis|engin|produc|stood|label|user)_[a-f0-9]{4,}/i.test(trimmed) ||
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
     };
 
     const allRows = [
@@ -545,8 +600,8 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
             profile_id: row.id,
             name:
               row.display_name ||
-              row.full_name ||
               row.username ||
+              nameFromEmail(row.email) ||
               (row.email === 'aria@stoodioz.ai' ? 'Aria Cantata' : 'User'),
             display_name: row.display_name || null,
             full_name: row.full_name || null,
@@ -556,6 +611,8 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
             cover_image_url: null,
             bio: row.bio,
             location_text: row.location_text,
+            coordinates: row.coordinates,
+            show_on_map: row.show_on_map,
             genres: [],
             rating_overall: 0,
             ranking_tier: 'PROVISIONAL',
@@ -601,8 +658,8 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
 
     if (profileIds.length > 0) {
       try {
-      const enrichSelectFull = 'id, username, full_name, display_name, image_url, avatar_url, email';
-      const enrichSelectFallback = 'id, username, full_name, image_url, email';
+      const enrichSelectFull = 'id, username, full_name, display_name, image_url, avatar_url, email, location_text, coordinates, show_on_map';
+      const enrichSelectFallback = 'id, username, full_name, image_url, email, location_text, coordinates, show_on_map';
       let profilesRes: any = await withTimeout(
         supabase
           .from('profiles')
@@ -625,15 +682,15 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
           ((profilesRes as any)?.data || []).map((p: any) => [p.id, p])
         );
 
-        const enrichRow = (row: any) => {
+          const enrichRow = (row: any) => {
           const profile = profileMap.get(row?.profile_id);
           if (!profile) return row;
           const name = row?.name;
           const safeName = profile?.display_name
             ? profile.display_name
-            : (!name || looksLikeId(String(name))
-              ? (profile.full_name || profile.username || (profile.email === 'aria@stoodioz.ai' ? 'Aria Cantata' : name))
-              : name);
+            : (!name || looksLikeId(String(name)) || looksLikePlaceholder(String(name)) || looksLikeEmail(String(name)))
+              ? (profile.username || nameFromEmail(profile.email) || (profile.email === 'aria@stoodioz.ai' ? 'Aria Cantata' : name))
+              : name;
           return {
             ...row,
             profiles: row?.profiles ?? profile,
@@ -642,6 +699,9 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
             username: row.username ?? profile.username ?? null,
             image_url: row.image_url || profile.image_url || profile.avatar_url || null,
             email: row.email ?? profile.email ?? null,
+            location_text: row.location_text ?? profile.location_text ?? null,
+            coordinates: row.coordinates ?? profile.coordinates ?? null,
+            show_on_map: row.show_on_map ?? profile.show_on_map ?? null,
             name: safeName,
           };
         };
@@ -668,10 +728,13 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
         }
         const rows = Array.isArray((profilesRes as any)?.data) ? (profilesRes as any).data : [];
         if (rows.length > 0) {
-          const normalized = rows.map((row: any) => ({
+        const normalized = rows.map((row: any) => ({
             id: row.id,
             profile_id: row.id,
-            name: row.display_name || row.full_name || row.username || 'User',
+          name:
+            row.display_name ||
+            row.username ||
+            'User',
             display_name: row.display_name || null,
             full_name: row.full_name || null,
             username: row.username || null,
@@ -680,6 +743,8 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
             cover_image_url: null,
             bio: row.bio,
             location_text: row.location_text,
+          coordinates: row.coordinates,
+          show_on_map: row.show_on_map,
             genres: [],
             rating_overall: 0,
             ranking_tier: 'PROVISIONAL',
@@ -719,10 +784,10 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     } else {
       // Don't overwrite cache with empty results - return last known data if available
       console.warn('[getAllPublicUsers] No data found - preserving previous cache');
-      if (cachedPublicUsers) {
+    if (cachedPublicUsers) {
         return cachedPublicUsers;
       }
-      const local = tryLoadLocalCache();
+    const local = tryLoadLocalCache(true);
       if (local) return local;
     }
     
@@ -739,7 +804,7 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       console.log('[getAllPublicUsers] Returning stale cache due to timeout');
       return cachedPublicUsers;
     }
-    const local = tryLoadLocalCache();
+    const local = tryLoadLocalCache(true);
     if (local) {
       console.log('[getAllPublicUsers] Returning local cache due to timeout');
       return local;
@@ -878,8 +943,9 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
       runRoleSelect('id', idOrUsername, `${table}.byId`),
       runRoleSelect('profile_id', idOrUsername, `${table}.byProfileId`),
     ]);
-    let result = r2?.data || r3?.data;
+    let result = r3?.data || r2?.data;
     if (!result) {
+      if (r3?.error) throw new Error(errMsg(r3.error));
       if (r2?.error) throw new Error(errMsg(r2.error));
       return null;
     }
@@ -957,6 +1023,36 @@ export async function fetchProfileByEmail(email: string): Promise<any | null> {
     supabase.from('profiles').select('id, email, full_name, display_name, username, image_url, avatar_url').eq('email', email).maybeSingle(),
     DB_TIMEOUT_MS,
     'profiles.byEmail'
+  );
+  return (res as any)?.data || null;
+}
+
+export async function fetchProfileByDisplayName(displayName: string): Promise<any | null> {
+  if (!displayName) return null;
+  const supabase = getSupabase();
+  const res = await withTimeout(
+    supabase
+      .from('profiles')
+      .select('id, email, full_name, display_name, username, image_url, avatar_url')
+      .ilike('display_name', displayName)
+      .maybeSingle(),
+    DB_TIMEOUT_MS,
+    'profiles.byDisplayName'
+  );
+  return (res as any)?.data || null;
+}
+
+export async function fetchProfileByUsername(username: string): Promise<any | null> {
+  if (!username) return null;
+  const supabase = getSupabase();
+  const res = await withTimeout(
+    supabase
+      .from('profiles')
+      .select('id, email, full_name, display_name, username, image_url, avatar_url')
+      .ilike('username', username)
+      .maybeSingle(),
+    DB_TIMEOUT_MS,
+    'profiles.byUsername'
   );
   return (res as any)?.data || null;
 }
@@ -1599,9 +1695,168 @@ export async function respondToBooking(bookingId: string, status: 'approved' | '
   requireVal(bookingId, 'bookingId');
   const supabase = getSupabase();
   await safeWrite('bookings.respond', async () => {
-    const q = supabase.from(TABLES.bookings).update({ status, note: note || null, updated_at: nowIso() }).eq('id', bookingId);
+    const nextStatus = status === 'approved' ? 'CONFIRMED' : 'DENIED';
+    const q = supabase.from(TABLES.bookings).update({ status: nextStatus, note: note || null, updated_at: nowIso() }).eq('id', bookingId);
     return q as any;
   });
+}
+
+export async function approveLabelBooking(
+  bookingId: string,
+  labelProfileId: string,
+  approverProfileId: string
+): Promise<any> {
+  requireVal(bookingId, 'bookingId');
+  requireVal(labelProfileId, 'labelProfileId');
+  requireVal(approverProfileId, 'approverProfileId');
+  const supabase = getSupabase();
+
+  const booking = await safeSelect('label_approvals.booking', async () => {
+    const q = supabase.from(TABLES.bookings).select('*').eq('id', bookingId).maybeSingle();
+    return q as any;
+  }, null);
+
+  if (!booking) throw new Error('Booking not found.');
+  if (booking?.label_profile_id && String(booking.label_profile_id) !== String(labelProfileId)) {
+    throw new Error('Booking does not belong to this label.');
+  }
+  const totalCost = Number(booking.total_cost || 0);
+  if (!Number.isFinite(totalCost) || totalCost <= 0) throw new Error('Booking total is missing.');
+
+  const artistId = booking.artist_profile_id || booking.booked_by_id || booking.artist_id || booking.artist?.id;
+  if (!artistId) throw new Error('Artist profile is missing from booking.');
+
+  const roster = await safeSelect('label_approvals.roster', async () => {
+    const orClause =
+      `and(label_profile_id.eq.${labelProfileId},artist_profile_id.eq.${artistId}),` +
+      `and(label_profile_id.eq.${labelProfileId},user_id.eq.${artistId}),` +
+      `and(label_id.eq.${labelProfileId},artist_profile_id.eq.${artistId}),` +
+      `and(label_id.eq.${labelProfileId},user_id.eq.${artistId})`;
+    const q = supabase.from(TABLES.labelRoster).select('*').or(orClause).maybeSingle();
+    return q as any;
+  }, null);
+
+  if (!roster) throw new Error('No label roster allocation found for this artist.');
+  const remaining = Number(roster?.remaining_amount ?? roster?.allocation_amount ?? 0);
+  if (remaining < totalCost) {
+    const shortfall = Math.max(0, totalCost - remaining);
+    throw new Error(`Insufficient allocation. Short by $${shortfall.toFixed(2)}.`);
+  }
+
+  const nextRemaining = Math.max(0, remaining - totalCost);
+
+  const updatedBooking = await safeWrite('label_approvals.booking.update', async () => {
+    const q = supabase.from(TABLES.bookings).update({ status: 'CONFIRMED', updated_at: nowIso() }).eq('id', bookingId).select('*').single();
+    return q as any;
+  });
+
+  await safeWrite('label_approvals.record', async () => {
+    const q = supabase.from(TABLES.labelApprovals).upsert({
+      booking_id: bookingId,
+      label_profile_id: labelProfileId,
+      artist_profile_id: artistId,
+      status: 'APPROVED',
+      funding_source: 'ALLOCATION',
+      funding_amount: totalCost,
+      approved_by_profile_id: approverProfileId,
+      approved_at: nowIso(),
+      updated_at: nowIso(),
+    }, { onConflict: 'booking_id' });
+    return q as any;
+  });
+
+  await safeWrite('label_approvals.roster.update', async () => {
+    const q = supabase.from(TABLES.labelRoster).update({ remaining_amount: nextRemaining, updated_at: nowIso() }).eq('id', roster.id);
+    return q as any;
+  });
+
+  await safeWrite('label_transactions.insert(spend)', async () => {
+    const q = supabase.from(TABLES.labelTransactions).insert({
+      label_profile_id: labelProfileId,
+      artist_id: artistId,
+      booking_id: bookingId,
+      amount: -Math.abs(totalCost),
+      kind: 'spend',
+      note: 'Label booking approval',
+      created_at: nowIso(),
+    });
+    return q as any;
+  });
+
+  const artistName = roster?.name || roster?.email || booking?.artist?.name || null;
+  await safeWrite('label_notifications.insert(approved)', async () => {
+    const q = supabase.from('label_notifications').insert({
+      label_id: labelProfileId,
+      type: 'booking',
+      title: 'Booking approved',
+      message: `Booking ${bookingId.slice(0, 8)} approved and funded.`,
+      priority: 'normal',
+      related_booking_id: bookingId,
+      related_artist_name: artistName,
+      created_at: nowIso(),
+    });
+    return q as any;
+  });
+
+  return updatedBooking;
+}
+
+export async function denyLabelBooking(
+  bookingId: string,
+  labelProfileId: string,
+  approverProfileId: string,
+  note?: string
+): Promise<any> {
+  requireVal(bookingId, 'bookingId');
+  requireVal(labelProfileId, 'labelProfileId');
+  requireVal(approverProfileId, 'approverProfileId');
+  const supabase = getSupabase();
+
+  const booking = await safeSelect('label_approvals.booking', async () => {
+    const q = supabase.from(TABLES.bookings).select('*').eq('id', bookingId).maybeSingle();
+    return q as any;
+  }, null);
+
+  if (!booking) throw new Error('Booking not found.');
+  if (booking?.label_profile_id && String(booking.label_profile_id) !== String(labelProfileId)) {
+    throw new Error('Booking does not belong to this label.');
+  }
+  const artistId = booking.artist_profile_id || booking.booked_by_id || booking.artist_id || booking.artist?.id;
+
+  const updatedBooking = await safeWrite('label_approvals.booking.deny', async () => {
+    const q = supabase.from(TABLES.bookings).update({ status: 'DENIED', note: note || null, updated_at: nowIso() }).eq('id', bookingId).select('*').single();
+    return q as any;
+  });
+
+  await safeWrite('label_approvals.record.deny', async () => {
+    const q = supabase.from(TABLES.labelApprovals).upsert({
+      booking_id: bookingId,
+      label_profile_id: labelProfileId,
+      artist_profile_id: artistId,
+      status: 'REJECTED',
+      approved_by_profile_id: approverProfileId,
+      approved_at: nowIso(),
+      updated_at: nowIso(),
+    }, { onConflict: 'booking_id' });
+    return q as any;
+  });
+
+  const artistName = booking?.artist?.name || null;
+  await safeWrite('label_notifications.insert(denied)', async () => {
+    const q = supabase.from('label_notifications').insert({
+      label_id: labelProfileId,
+      type: 'booking',
+      title: 'Booking denied',
+      message: `Booking ${bookingId.slice(0, 8)} denied.`,
+      priority: 'normal',
+      related_booking_id: bookingId,
+      related_artist_name: artistName,
+      created_at: nowIso(),
+    });
+    return q as any;
+  });
+
+  return updatedBooking;
 }
 
 export async function fetchBookingById(bookingId: string): Promise<any> {
@@ -1680,6 +1935,29 @@ export async function setArtistAllocation(
   requireVal(labelProfileId, 'labelProfileId');
   requireVal(artistProfileId, 'artistProfileId');
   const supabase = getSupabase();
+
+  let nextRemaining: number | null = null;
+  if (allocationAmount != null) {
+    const existing = await safeSelect('label_roster.allocation.current', async () => {
+      const q = supabase
+        .from(TABLES.labelRoster)
+        .select('allocation_amount,remaining_amount')
+        .or(
+          `and(label_profile_id.eq.${labelProfileId},artist_profile_id.eq.${artistProfileId}),` +
+          `and(label_profile_id.eq.${labelProfileId},user_id.eq.${artistProfileId}),` +
+          `and(label_id.eq.${labelProfileId},artist_profile_id.eq.${artistProfileId}),` +
+          `and(label_id.eq.${labelProfileId},user_id.eq.${artistProfileId})`
+        )
+        .maybeSingle();
+      return q as any;
+    }, null);
+
+    const currentAllocation = Number(existing?.allocation_amount || 0);
+    const currentRemaining = Number(existing?.remaining_amount ?? existing?.allocation_amount ?? 0);
+    const delta = Number(allocationAmount || 0) - currentAllocation;
+    nextRemaining = Math.max(0, currentRemaining + delta);
+  }
+
   const payload: Record<string, any> = {
     label_profile_id: labelProfileId,
     artist_profile_id: artistProfileId,
@@ -1687,6 +1965,7 @@ export async function setArtistAllocation(
   };
   if (allocationPct != null) payload.allocation_pct = allocationPct;
   if (allocationAmount != null) payload.allocation_amount = allocationAmount;
+  if (nextRemaining != null) payload.remaining_amount = nextRemaining;
   return safeWrite('label_roster.upsert(allocation)', async () => {
     const q = supabase.from(TABLES.labelRoster).upsert(payload, { onConflict: 'label_profile_id,artist_profile_id' }).select('*').single();
     return q as any;
@@ -1694,25 +1973,77 @@ export async function setArtistAllocation(
 }
 
 export async function fetchLabelPerformance(labelProfileId: string, days = 30): Promise<any> {
-  // Lightweight aggregation; if tables aren’t present, return safe defaults.
+  if (!labelProfileId) return [];
   const since = new Date(Date.now() - days * 86400_000).toISOString();
 
-  const bookings = await fetchLabelBookings(labelProfileId);
-  const totalBookings = bookings.length;
-  const approved = bookings.filter((b: any) => (b.status || '').toLowerCase() === 'approved').length;
+  const [roster, bookings, posts] = await Promise.all([
+    fetchLabelRoster(labelProfileId),
+    fetchLabelBookings(labelProfileId),
+    safeSelect('posts.labelRecent', async () => {
+      const supabase = getSupabase();
+      const q = supabase.from(TABLES.posts).select('*').eq('label_profile_id', labelProfileId).gte('created_at', since);
+      return q as any;
+    }, []),
+  ]);
 
-  const posts = await safeSelect('posts.labelRecent', async () => {
-    const supabase = getSupabase();
-    const q = supabase.from(TABLES.posts).select('*').eq('label_profile_id', labelProfileId).gte('created_at', since);
-    return q as any;
-  }, []);
+  const performanceMap = new Map<string, any>();
 
-  return {
-    rangeDays: days,
-    totalBookings,
-    approvedBookings: approved,
-    recentPosts: Array.isArray(posts) ? posts.length : 0,
-  };
+  (roster || []).forEach((row: any) => {
+    const artistId = row.artist_profile_id || row.user_id || row.id;
+    if (!artistId) return;
+    performanceMap.set(String(artistId), {
+      artist_id: String(artistId),
+      artist_name: getDisplayName(row, 'Unknown Artist'),
+      total_sessions: 0,
+      completed_sessions: 0,
+      total_spent: 0,
+      avg_cost: 0,
+      recent_posts: 0,
+    });
+  });
+
+  (bookings || []).forEach((b: any) => {
+    const artistId =
+      b.artist?.id ||
+      b.artist_profile_id ||
+      b.artist_id ||
+      b.booked_by_id ||
+      null;
+    if (!artistId) return;
+    const key = String(artistId);
+    const entry = performanceMap.get(key) || {
+      artist_id: key,
+      artist_name: b.artist?.name || 'Unknown Artist',
+      total_sessions: 0,
+      completed_sessions: 0,
+      total_spent: 0,
+      avg_cost: 0,
+      recent_posts: 0,
+    };
+
+    entry.total_sessions += 1;
+    const status = String(b.status || '').toUpperCase();
+    if (status === 'COMPLETED') {
+      entry.completed_sessions += 1;
+      entry.total_spent += Number(b.total_cost || 0);
+    }
+    entry.avg_cost = entry.completed_sessions > 0 ? entry.total_spent / entry.completed_sessions : 0;
+    performanceMap.set(key, entry);
+  });
+
+  const postsByArtist = new Map<string, number>();
+  (posts || []).forEach((p: any) => {
+    const authorId = p.author_id || p.profile_id;
+    if (!authorId) return;
+    const key = String(authorId);
+    postsByArtist.set(key, (postsByArtist.get(key) || 0) + 1);
+  });
+
+  performanceMap.forEach((entry) => {
+    entry.recent_posts = postsByArtist.get(entry.artist_id) || 0;
+  });
+
+  return Array.from(performanceMap.values());
 }
 
 export async function getRosterActivity(labelProfileId: string, days = 14): Promise<any[]> {
@@ -1744,10 +2075,30 @@ export async function getRosterActivity(labelProfileId: string, days = 14): Prom
 export async function fetchLabelTransactions(labelProfileId: string): Promise<any[]> {
   if (!labelProfileId) return [];
   const supabase = getSupabase();
-  return safeSelect('label_transactions.byLabel', async () => {
+  const rows = await safeSelect('label_transactions.byLabel', async () => {
     const q = supabase.from(TABLES.labelTransactions).select('*').eq('label_profile_id', labelProfileId).order('created_at', { ascending: false });
     return q as any;
   }, []);
+  return (rows || []).map((row: any) => {
+    const amount = Number(row?.amount || 0);
+    const description = row?.description || row?.note || (amount >= 0 ? 'Label funding' : 'Label spend');
+    const category = row?.category || (amount >= 0 ? 'LABEL_TOP_UP' : 'SESSION_PAYMENT');
+    return {
+      id: row?.id,
+      date: row?.date || row?.created_at || nowIso(),
+      description,
+      amount,
+      category,
+      status: row?.status || 'COMPLETED',
+      related_booking_id: row?.booking_id || row?.related_booking_id || null,
+      related_user_name: row?.artist_name || row?.related_user_name || null,
+      note: row?.note || null,
+      source: row?.source || 'label',
+      artist_name: row?.artist_name || null,
+      artist_id: row?.artist_id || null,
+      label_id: row?.label_profile_id || null,
+    };
+  });
 }
 
 export async function fetchLabelNotifications(labelProfileId: string): Promise<any[]> {
@@ -1833,15 +2184,87 @@ export async function updateProjectTask(taskId: string, patch: Record<string, an
 }
 
 export async function getLabelBudgetOverview(labelProfileId: string): Promise<any> {
-  // Safe placeholder: derive from transactions if present
-  const tx = await fetchLabelTransactions(labelProfileId);
-  const spent = tx.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
-  return { spent, transactions: tx.length };
+  if (!labelProfileId) return { budget: null, artists: [] };
+  const supabase = getSupabase();
+
+  const budget = await safeSelect('label_budgets.byLabel', async () => {
+    const q = supabase.from(TABLES.labelBudgets).select('*').eq('label_id', labelProfileId).maybeSingle();
+    return q as any;
+  }, null);
+
+  const roster = await safeSelect('label_roster.allocations', async () => {
+    const q = supabase
+      .from(TABLES.labelRoster)
+      .select('id,label_profile_id,label_id,artist_profile_id,user_id,allocation_amount,remaining_amount,name,email,artist:artist_profile_id(id,name,full_name,display_name,username,image_url),user:user_id(id,name,full_name,display_name,username,image_url)')
+      .or(`label_profile_id.eq.${labelProfileId},label_id.eq.${labelProfileId}`)
+      .is('dropped_at', null);
+    return q as any;
+  }, []);
+
+  const transactions = await fetchLabelTransactions(labelProfileId);
+  const spendByArtist = new Map<string, number>();
+  let totalSpent = 0;
+
+  (transactions || []).forEach((t: any) => {
+    const amount = Number(t?.amount || 0);
+    if (amount >= 0) return;
+    const spend = Math.abs(amount);
+    totalSpent += spend;
+    const artistId = t?.artist_id || null;
+    if (artistId) {
+      spendByArtist.set(artistId, (spendByArtist.get(artistId) || 0) + spend);
+    }
+  });
+
+  const artists = (roster || []).map((row: any) => {
+    const artistProfile = row?.artist || row?.user || null;
+    const artistId = row?.artist_profile_id || row?.user_id || artistProfile?.id || row?.id;
+    const allocationAmount = Number(row?.allocation_amount || 0);
+    const amountSpent = spendByArtist.get(artistId) || 0;
+    const remainingAmount = row?.remaining_amount != null
+      ? Number(row.remaining_amount)
+      : Math.max(0, allocationAmount - amountSpent);
+
+    return {
+      artist_id: String(artistId || ''),
+      artist_name: getDisplayName(artistProfile || row, 'Unknown Artist'),
+      artist_image_url: artistProfile?.image_url || '',
+      allocation_amount: allocationAmount,
+      amount_spent: amountSpent,
+      remaining_amount: remainingAmount,
+    };
+  });
+
+  const defaultBudget = {
+    id: '',
+    label_id: labelProfileId,
+    total_budget: 0,
+    amount_spent: totalSpent,
+    currency: 'usd',
+    fiscal_year: String(new Date().getFullYear()),
+    budget_mode: 'MANUAL',
+    monthly_allowance: null,
+    reset_day: null,
+  };
+
+  return {
+    budget: budget ? { ...budget, amount_spent: totalSpent } : defaultBudget,
+    artists,
+  };
 }
 
 export async function setLabelBudget(labelProfileId: string, budget: Record<string, any>): Promise<any> {
-  // Store in profiles or a dedicated table if you have one; best-effort update profiles
-  return updateUser(labelProfileId, { label_budget: budget, updated_at: nowIso() });
+  requireVal(labelProfileId, 'labelProfileId');
+  const supabase = getSupabase();
+  const payload = {
+    label_id: labelProfileId,
+    ...budget,
+    updated_at: nowIso(),
+  };
+  return safeWrite('label_budgets.upsert', async () => {
+    const q = supabase.from(TABLES.labelBudgets).upsert(payload, { onConflict: 'label_id' }).select('*').single();
+    return q as any;
+  });
 }
 
 export async function updateLabelBudgetMode(
@@ -1850,10 +2273,14 @@ export async function updateLabelBudgetMode(
   monthlyAllowance?: number,
   resetDay?: number
 ): Promise<any> {
-  const patch: Record<string, any> = { budget_mode: mode, updated_at: nowIso() };
+  const patch: Record<string, any> = { label_id: labelProfileId, budget_mode: mode, updated_at: nowIso() };
   if (monthlyAllowance != null) patch.monthly_allowance = monthlyAllowance;
   if (resetDay != null) patch.reset_day = resetDay;
-  return updateUser(labelProfileId, patch);
+  const supabase = getSupabase();
+  return safeWrite('label_budgets.upsert(mode)', async () => {
+    const q = supabase.from(TABLES.labelBudgets).upsert(patch, { onConflict: 'label_id' }).select('*').single();
+    return q as any;
+  });
 }
 
 export async function addLabelFunds(labelProfileId: string, amount: number, note?: string): Promise<any> {
@@ -2451,6 +2878,18 @@ export async function initiatePayout(_profileId: string, _amount: number): Promi
   });
 }
 
+export async function createConnectOnboarding(profileId: string): Promise<{ url: string; accountId?: string }> {
+  requireVal(profileId, 'profileId');
+  const origin = getAppOrigin();
+  const returnUrl = origin ? `${origin}/?connect=return` : '';
+  const refreshUrl = origin ? `${origin}/?connect=refresh` : '';
+  return callEdgeFunction('create-connect-onboarding', {
+    profileId,
+    returnUrl,
+    refreshUrl,
+  });
+}
+
 export async function createCheckoutSessionForSubscription(_planId: string, _profileId: string): Promise<{ sessionId: string }> {
   const origin = getAppOrigin();
   const successUrl = origin ? `${origin}/?stripe=success` : '';
@@ -2750,5 +3189,116 @@ export async function fetchLabelTransactionsSummary(labelProfileId: string): Pro
 export async function fullLogoutCleanup(): Promise<void> {
   const supabase = getSupabase();
   try { await supabase.auth.signOut(); } catch {}
+}
+
+/* ============================================================
+   REVIEWS
+============================================================ */
+
+const reviewTargetColumn = (role: string): string | null => {
+  const key = String(role || '').toUpperCase();
+  if (key === 'STOODIO') return 'stoodio_id';
+  if (key === 'ENGINEER') return 'engineer_id';
+  if (key === 'PRODUCER') return 'producer_id';
+  if (key === 'ARTIST') return 'artist_id';
+  return null;
+};
+
+export async function fetchReviewsForTarget(role: string, targetId: string): Promise<any[]> {
+  requireVal(role, 'role');
+  requireVal(targetId, 'targetId');
+  const column = reviewTargetColumn(role);
+  if (!column) throw new Error('Unsupported review target role.');
+  const supabase = getSupabase();
+  return safeSelect('reviews.fetch', async () => {
+    const q = supabase
+      .from('reviews')
+      .select('*')
+      .eq(column, targetId)
+      .order('date', { ascending: false });
+    return q as any;
+  }, []);
+}
+
+export async function createReview(params: {
+  targetRole: string;
+  targetId: string;
+  reviewerId: string;
+  reviewerName: string;
+  rating: number;
+  comment?: string | null;
+}): Promise<{ review: any; rating_overall: number }> {
+  requireVal(params?.targetRole, 'targetRole');
+  requireVal(params?.targetId, 'targetId');
+  requireVal(params?.reviewerId, 'reviewerId');
+  requireVal(params?.reviewerName, 'reviewerName');
+  const column = reviewTargetColumn(params.targetRole);
+  if (!column) throw new Error('Unsupported review target role.');
+  const payload: Record<string, any> = {
+    reviewer_id: params.reviewerId,
+    reviewer_name: params.reviewerName,
+    rating: Number(params.rating || 0),
+    comment: params.comment ?? null,
+    date: nowIso(),
+    [column]: params.targetId,
+  };
+  const supabase = getSupabase();
+  const review = await safeWrite('reviews.create', async () => {
+    const q = supabase.from('reviews').insert(payload).select('*').single();
+    return q as any;
+  });
+
+  // Recalculate average rating and update ranking signal
+  const ratings = await safeSelect('reviews.avg', async () => {
+    const q = supabase.from('reviews').select('rating').eq(column, params.targetId);
+    return q as any;
+  }, []);
+  const ratingValues = Array.isArray(ratings) ? ratings.map((r) => Number(r.rating || 0)).filter((v) => Number.isFinite(v)) : [];
+  const avg = ratingValues.length ? ratingValues.reduce((s, v) => s + v, 0) / ratingValues.length : Number(params.rating || 0);
+  const rating_overall = Number(avg.toFixed(2));
+  await updateUser(params.targetId, { rating_overall });
+
+  return { review, rating_overall };
+}
+
+/* ============================================================
+   APP REVIEWS
+============================================================ */
+
+export async function fetchAppReviews(category: 'app' | 'business' = 'app'): Promise<any[]> {
+  const supabase = getSupabase();
+  return safeSelect('app_reviews.fetch', async () => {
+    const q = supabase
+      .from('app_reviews')
+      .select('*')
+      .eq('category', category)
+      .order('created_at', { ascending: false });
+    return q as any;
+  }, []);
+}
+
+export async function createAppReview(params: {
+  reviewerId: string;
+  reviewerName: string;
+  reviewerAvatarUrl?: string | null;
+  rating: number;
+  comment?: string | null;
+  category?: 'app' | 'business';
+}): Promise<any> {
+  requireVal(params?.reviewerId, 'reviewerId');
+  requireVal(params?.reviewerName, 'reviewerName');
+  const supabase = getSupabase();
+  const payload = {
+    reviewer_id: params.reviewerId,
+    reviewer_name: params.reviewerName,
+    reviewer_avatar_url: params.reviewerAvatarUrl ?? null,
+    rating: Number(params.rating || 0),
+    comment: params.comment ?? null,
+    category: params.category || 'app',
+  };
+  return safeWrite('app_reviews.create', async () => {
+    const q = supabase.from('app_reviews').insert(payload).select('*').single();
+    return q as any;
+  });
 }
 

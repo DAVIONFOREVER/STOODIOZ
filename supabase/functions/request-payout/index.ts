@@ -109,6 +109,26 @@ serve(async (req) => {
       },
     });
 
+    // Attempt instant payout from the connected account balance
+    let payoutId: string | null = null;
+    try {
+      const payout = await stripe.payouts.create(
+        {
+          amount: Math.round(payoutAmount * 100),
+          currency: 'usd',
+          method: 'instant',
+          metadata: {
+            profile_id: String(profileId),
+            type: 'instant_payout',
+          },
+        },
+        { stripeAccount: String(connectAccountId) }
+      );
+      payoutId = payout.id;
+    } catch (payoutErr) {
+      console.warn('[request-payout] Instant payout failed, transfer completed:', payoutErr);
+    }
+
     const currentTx = Array.isArray(profile.wallet_transactions)
       ? profile.wallet_transactions
       : [];
@@ -124,7 +144,7 @@ serve(async (req) => {
       wallet_transactions: nextTx,
     });
 
-    return new Response(JSON.stringify({ transferId: transfer.id }), {
+    return new Response(JSON.stringify({ transferId: transfer.id, payoutId }), {
       headers: { ...corsHeaders, 'content-type': 'application/json' },
     });
   } catch (error) {

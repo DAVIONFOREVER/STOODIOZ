@@ -67,7 +67,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
                     <button onClick={onAddFunds} className="flex items-center gap-2 bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors text-sm">
                         <ArrowUpCircleIcon className="w-5 h-5"/> Add Funds
                     </button>
-                    {(userRole === UserRole.ENGINEER || userRole === UserRole.STOODIO || userRole === UserRole.PRODUCER || userRole === UserRole.LABEL) && onRequestPayout && (
+                    {(userRole === UserRole.ENGINEER || userRole === UserRole.STOODIO || userRole === UserRole.PRODUCER || userRole === UserRole.LABEL || userRole === UserRole.ARTIST) && onRequestPayout && (
                         <button onClick={onRequestPayout} className="flex items-center gap-2 bg-zinc-700 text-slate-200 font-semibold py-2 px-4 rounded-lg hover:bg-zinc-600 transition-colors text-sm">
                             <ArrowDownCircleIcon className="w-5 h-5"/> Request Payout
                         </button>

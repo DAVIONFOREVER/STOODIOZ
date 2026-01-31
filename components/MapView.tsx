@@ -13,10 +13,18 @@ import MapInfoPopup from './MapInfoPopup.tsx';
 import { getSupabase } from '../lib/supabase.ts';
 import { RankingTier } from '../types';
 import * as apiService from '../services/apiService.ts';
+import { getActiveStoodioBookings, getStoodioRoomAvailability } from '../utils/booking.ts';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio | Label;
 type MapJob = Booking & { itemType: 'JOB'; coordinates: Location }; // Added explicit coordinates
+type StoodioMapMeta = {
+    activeBookings: number;
+    hasActiveSession: boolean;
+    roomsTotal: number | null;
+    roomsAvailable: number | null;
+    nextBookingStart?: string | null;
+};
 interface UnregisteredStudio {
   id: string;
   name: string;
@@ -100,6 +108,8 @@ const MapMarker: React.FC<{
     const [isHovered, setIsHovered] = React.useState(false);
     const isJob = 'itemType' in item && (item as any).itemType === 'JOB';
     const isUnregisteredStudio = 'itemType' in item && (item as any).itemType === 'UNREGISTERED_STUDIO';
+    const isStoodio = !isJob && !isUnregisteredStudio && 'amenities' in item;
+    const mapMeta = (item as any).mapMeta as StoodioMapMeta | undefined;
 
     const getRoleInfo = () => {
         if (isJob) {
@@ -161,15 +171,33 @@ const MapMarker: React.FC<{
                     {icon}
                 </div>
 
-                <div className="px-2 py-1 rounded-lg bg-zinc-950/80 border border-zinc-800 backdrop-blur text-[10px] leading-tight text-center max-w-[140px]">
+                <div className="px-2 py-1 rounded-lg bg-zinc-950/80 border border-zinc-800 backdrop-blur text-[10px] leading-tight text-center max-w-[160px]">
                     <div className="text-slate-100 font-semibold truncate">{displayName}</div>
                     <div className={`${textColor} font-bold uppercase tracking-wide`}>{roleLabel}</div>
+                    {isStoodio && mapMeta && (
+                        <div className="mt-1 flex flex-col gap-0.5 text-[9px] text-zinc-400">
+                            <span className={mapMeta.hasActiveSession ? 'text-green-400 font-semibold' : ''}>
+                                {mapMeta.hasActiveSession ? 'In Session' : 'No Active Session'}
+                            </span>
+                            {mapMeta.roomsTotal !== null && (
+                                <span>
+                                    Rooms: {mapMeta.roomsAvailable ?? 0}/{mapMeta.roomsTotal}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </button>
 
             {/* Hover Action Button */}
             {isHovered && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-2 z-50">
+                    {isStoodio && mapMeta && (
+                        <div className="mb-2 px-3 py-1.5 rounded-md bg-black/80 border border-zinc-700 text-[10px] text-zinc-300 whitespace-nowrap">
+                            {mapMeta.hasActiveSession ? 'In Session Now' : 'Available'} ·
+                            {mapMeta.roomsTotal !== null ? ` ${mapMeta.roomsAvailable ?? 0}/${mapMeta.roomsTotal} rooms` : ' Rooms unknown'}
+                        </div>
+                    )}
                     {showBookButton && onBook && (
                         <button
                             onClick={(e) => {
@@ -399,8 +427,21 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         // Labels are NOT shown on the map
         // Jobs are handled separately below
 
-        // Filter visible users based on DB flag
-        let visibleUsers = items.filter(u => u.show_on_map && u.coordinates);
+        const bookedStoodioIds = new Set(
+            (bookings || [])
+                .map((b: any) => b?.stoodio?.id || b?.stoodio_id)
+                .filter(Boolean)
+                .map((id) => String(id))
+        );
+
+        // Filter visible users based on DB flag, but always show stoodios with bookings
+        let visibleUsers = items.filter(u => {
+            if (!u.coordinates) return false;
+            if ('amenities' in u) {
+                return Boolean(u.show_on_map) || bookedStoodioIds.has(String(u.id));
+            }
+            return Boolean(u.show_on_map);
+        });
 
         // Apply realtime updates overrides
         const liveUpdatedUsers = visibleUsers.map(user => {
@@ -427,7 +468,29 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             }
         }
         
-        let allItems: MapItem[] = liveUpdatedUsers;
+        const usersWithMeta = liveUpdatedUsers.map((user) => {
+            if (!('amenities' in user)) return user;
+            const activeBookings = getActiveStoodioBookings(bookings, user.id);
+            const availability = getStoodioRoomAvailability(user as Stoodio, bookings);
+            const nextBooking = (bookings || [])
+                .filter((b: any) => (b?.stoodio?.id || b?.stoodio_id) === user.id && b?.status === BookingStatus.CONFIRMED)
+                .map((b) => ({ booking: b, start: new Date(`${b.date}T${b.start_time}`) }))
+                .filter((b) => Number.isFinite(b.start.getTime()) && b.start.getTime() > Date.now())
+                .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+
+            return {
+                ...user,
+                mapMeta: {
+                    activeBookings: activeBookings.length,
+                    hasActiveSession: activeBookings.length > 0,
+                    roomsTotal: availability.totalRooms,
+                    roomsAvailable: availability.availableRooms,
+                    nextBookingStart: nextBooking ? nextBooking.start.toISOString() : null,
+                } as StoodioMapMeta,
+            };
+        });
+
+        let allItems: MapItem[] = usersWithMeta;
         // Only show jobs when "All" or "JOB" filter is active
         if (activeFilter === 'ALL' || activeFilter === 'JOB') {
             allItems.push(...jobs);
@@ -652,7 +715,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                         {'itemType' in selectedItem && selectedItem.itemType === 'JOB' ? (
                              <MapJobPopup job={selectedItem as Booking & { itemType: 'JOB' }} onClose={() => setSelectedItem(null)} />
                         ) : (
-                             <MapInfoPopup user={selectedItem as MapUser} onClose={() => setSelectedItem(null)} onSelect={handleSelectProfile} onNavigate={navigateToStudio}/>
+                             <MapInfoPopup user={selectedItem as MapUser} onClose={() => setSelectedItem(null)} onSelect={handleSelectProfile} onNavigate={navigateToStudio} mapMeta={(selectedItem as any).mapMeta}/>
                         )}
                     </OverlayViewF>
                 )}

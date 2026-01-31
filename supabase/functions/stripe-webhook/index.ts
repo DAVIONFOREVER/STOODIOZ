@@ -64,6 +64,26 @@ async function fetchProfileByStripeCustomer(customerId: string): Promise<Profile
   return Array.isArray(rows) ? rows[0] : null;
 }
 
+async function fetchProfileByConnectId(connectId: string): Promise<ProfileRow | null> {
+  const res = await supabaseFetch(
+    `profiles?or=(stripe_connect_account_id.eq.${encodeURIComponent(connectId)},stripe_connect_id.eq.${encodeURIComponent(connectId)})&select=id,stripe_connect_account_id,stripe_connect_id,payouts_enabled`,
+    { method: 'GET' }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json().catch(() => []);
+  return Array.isArray(rows) ? rows[0] : null;
+}
+
+async function fetchBooking(bookingId: string): Promise<{ id: string; status?: string | null } | null> {
+  const res = await supabaseFetch(
+    `bookings?id=eq.${encodeURIComponent(bookingId)}&select=id,status`,
+    { method: 'GET' }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json().catch(() => []);
+  return Array.isArray(rows) ? rows[0] : null;
+}
+
 async function updateProfile(profileId: string, patch: Record<string, unknown>) {
   await supabaseFetch(`profiles?id=eq.${encodeURIComponent(profileId)}`, {
     method: 'PATCH',
@@ -157,7 +177,13 @@ async function handleCheckoutSessionCompleted(session: any) {
 
   if (type === 'booking') {
     if (bookingId) {
-      await updateBookingStatus(bookingId, 'CONFIRMED');
+      const booking = await fetchBooking(bookingId);
+      const status = String(booking?.status || '').toUpperCase();
+      const isPendingLabelApproval =
+        status === 'PENDING_LABEL_APPROVAL' || status === 'PENDING_APPROVAL';
+      if (!isPendingLabelApproval) {
+        await updateBookingStatus(bookingId, 'CONFIRMED');
+      }
     }
     const payeeId = metadata.payee_profile_id || metadata.stoodio_id;
     if (payeeId) {
@@ -368,6 +394,19 @@ serve(async (req) => {
     }
 
     switch (event.type) {
+      case 'account.updated': {
+        const account = event.data.object as any;
+        const connectId = String(account.id || '');
+        if (connectId) {
+          const profile = await fetchProfileByConnectId(connectId);
+          if (profile?.id) {
+            await updateProfile(profile.id, {
+              payouts_enabled: Boolean(account.payouts_enabled),
+            });
+          }
+        }
+        break;
+      }
       case 'checkout.session.completed': {
         const session = event.data.object as any;
         await handleCheckoutSessionCompleted(session);

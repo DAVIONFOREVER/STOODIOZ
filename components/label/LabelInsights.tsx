@@ -1,8 +1,8 @@
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { useAppState } from '../../contexts/AppContext';
-import { fetchLabelPerformance, getRosterActivity } from '../../services/apiService';
-import { ChartBarIcon, UsersIcon, DollarSignIcon } from '../icons';
+import { fetchLabelPerformance, fetchLabelRoster } from '../../services/apiService';
+import { ChartBarIcon } from '../icons';
 
 // Local icon to avoid modifying icons.tsx
 const TrendingUpIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -45,19 +45,24 @@ const TrendRow: React.FC<{ artistName: string; score: number; isImproving: boole
 const LabelInsights: React.FC = () => {
     const { currentUser } = useAppState();
     const [performance, setPerformance] = useState<any[]>([]);
-    const [activity, setActivity] = useState<any[]>([]);
+    const [roster, setRoster] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function load() {
-            if (!currentUser?.id) return;
+            if (!currentUser?.id) {
+                setLoading(false);
+                return;
+            }
             setLoading(true);
 
-            const perf = await fetchLabelPerformance(currentUser.id);
-            const act = await getRosterActivity(currentUser.id);
+            const [perf, rosterRows] = await Promise.all([
+                fetchLabelPerformance(currentUser.id),
+                fetchLabelRoster(currentUser.id),
+            ]);
 
-            setPerformance(perf || []);
-            setActivity(act || []);
+            setPerformance(Array.isArray(perf) ? perf : []);
+            setRoster(Array.isArray(rosterRows) ? rosterRows : []);
             setLoading(false);
         }
         load();
@@ -85,23 +90,41 @@ const LabelInsights: React.FC = () => {
       lowActivity.length > 0 ? `${lowActivity.length} artists show low activity (<5 sessions). Consider A&R review.` : null,
     ].filter(Boolean);
 
+    const performanceByArtist = useMemo(() => {
+        const map = new Map<string, any>();
+        performance.forEach((p) => map.set(String(p.artist_id), p));
+        return map;
+    }, [performance]);
+
+    const rosterScores = useMemo(() => {
+        return roster
+            .map((row: any) => {
+                const artistId = row.artist_profile_id || row.user_id || row.id;
+                const perf = performanceByArtist.get(String(artistId));
+                const outputScore = Number(row.output_score || 0) ||
+                    Math.round((Number(perf?.completed_sessions || 0) * 10) + (Number(perf?.total_sessions || 0) * 2));
+                return {
+                    artist_id: String(artistId || ''),
+                    artist_name: perf?.artist_name || row?.name || 'Unknown Artist',
+                    output_score: outputScore,
+                };
+            })
+            .filter((row) => row.artist_id);
+    }, [roster, performanceByArtist]);
+
     const improving = useMemo(() => {
-        if (activity.length === 0) return [];
-        return activity
+        return rosterScores
             .filter(a => a.output_score > 0)
             .sort((a, b) => b.output_score - a.output_score)
-            .slice(0, 3)
-            .map(act => ({ ...act, artist_name: performance.find(p => p.artist_id === act.user_id)?.artist_name || '...' }));
-    }, [activity, performance]);
+            .slice(0, 3);
+    }, [rosterScores]);
 
     const declining = useMemo(() => {
-        if (activity.length === 0) return [];
-        return activity
+        return rosterScores
             .filter(a => a.output_score > 0)
             .sort((a, b) => a.output_score - b.output_score)
-            .slice(0, 3)
-            .map(act => ({ ...act, artist_name: performance.find(p => p.artist_id === act.user_id)?.artist_name || '...' }));
-    }, [activity, performance]);
+            .slice(0, 3);
+    }, [rosterScores]);
 
     if (loading) return <p className='text-zinc-400 p-10 text-center'>Loading insights...</p>;
 
@@ -132,7 +155,7 @@ const LabelInsights: React.FC = () => {
                     <h3 className="text-lg font-bold text-zinc-100 mb-4">Top 3 Rising Artists (by Output Score)</h3>
                     <div className="space-y-2">
                         {improving.length > 0 ? improving.map(artist => (
-                            <TrendRow key={artist.user_id} artistName={artist.artist_name} score={artist.output_score} isImproving={true} />
+                            <TrendRow key={artist.artist_id} artistName={artist.artist_name} score={artist.output_score} isImproving={true} />
                         )) : <p className="text-zinc-500 text-sm">Not enough activity to show trends.</p>}
                     </div>
                 </div>
@@ -140,7 +163,7 @@ const LabelInsights: React.FC = () => {
                     <h3 className="text-lg font-bold text-zinc-100 mb-4">Top 3 Declining Artists (by Output Score)</h3>
                     <div className="space-y-2">
                         {declining.length > 0 ? declining.map(artist => (
-                            <TrendRow key={artist.user_id} artistName={artist.artist_name} score={artist.output_score} isImproving={false} />
+                            <TrendRow key={artist.artist_id} artistName={artist.artist_name} score={artist.output_score} isImproving={false} />
                         )) : <p className="text-zinc-500 text-sm">No declining trends detected.</p>}
                     </div>
                 </div>

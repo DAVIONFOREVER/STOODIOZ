@@ -1,11 +1,14 @@
 
 import { useCallback } from 'react';
 import { useAppDispatch, ActionTypes } from '../contexts/AppContext';
-import type { Stoodio, Artist, Engineer, Producer, Location, Booking, Label } from '../types';
+import type { Stoodio, Artist, Engineer, Producer, Location, Booking, Label, ReviewTarget } from '../types';
 import { AppView } from '../types';
 
 export const useNavigation = () => {
     const dispatch = useAppDispatch();
+    const isUuid = (value: any) =>
+        typeof value === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
     
     const navigate = useCallback((view: AppView) => {
         // FIX: Persist the view to localStorage so it survives page refreshes
@@ -21,8 +24,12 @@ export const useNavigation = () => {
     const goForward = useCallback(() => dispatch({ type: ActionTypes.GO_FORWARD }), [dispatch]);
     
     const viewStoodioDetails = useCallback((stoodio: Stoodio) => {
-        const id = (stoodio as any)?.profile_id || stoodio?.id;
-        if (id) {
+        const profileId = (stoodio as any)?.profile_id;
+        const id = stoodio?.id;
+        if (isUuid(profileId)) {
+            localStorage.setItem('selected_entity_id', String(profileId));
+            localStorage.setItem('selected_entity_type', 'stoodio');
+        } else if (isUuid(id)) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'stoodio');
         }
@@ -31,8 +38,18 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
 
     const viewArtistProfile = useCallback((artist: Artist) => {
-        const id = (artist as any)?.profile_id || artist?.id;
-        if (id) {
+        const profileId = (artist as any)?.profile_id;
+        const id = artist?.id;
+        if (isUuid(profileId)) {
+            localStorage.setItem('selected_entity_id', String(profileId));
+            localStorage.setItem('selected_entity_type', 'artist');
+        } else if ((artist as any)?.display_name) {
+            localStorage.setItem('selected_entity_id', String((artist as any).display_name));
+            localStorage.setItem('selected_entity_type', 'artist_handle');
+        } else if ((artist as any)?.username) {
+            localStorage.setItem('selected_entity_id', String((artist as any).username));
+            localStorage.setItem('selected_entity_type', 'artist_handle');
+        } else if (isUuid(id)) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'artist');
         }
@@ -41,8 +58,12 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
 
     const viewEngineerProfile = useCallback((engineer: Engineer) => {
-        const id = (engineer as any)?.profile_id || engineer?.id;
-        if (id) {
+        const profileId = (engineer as any)?.profile_id;
+        const id = engineer?.id;
+        if (isUuid(profileId)) {
+            localStorage.setItem('selected_entity_id', String(profileId));
+            localStorage.setItem('selected_entity_type', 'engineer');
+        } else if (isUuid(id)) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'engineer');
         }
@@ -51,8 +72,12 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
 
     const viewProducerProfile = useCallback((producer: Producer) => {
-        const id = (producer as any)?.profile_id || producer?.id;
-        if (id) {
+        const profileId = (producer as any)?.profile_id;
+        const id = producer?.id;
+        if (isUuid(profileId)) {
+            localStorage.setItem('selected_entity_id', String(profileId));
+            localStorage.setItem('selected_entity_type', 'producer');
+        } else if (isUuid(id)) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'producer');
         }
@@ -61,8 +86,12 @@ export const useNavigation = () => {
     }, [dispatch, navigate]);
     
     const viewLabelProfile = useCallback((label: Label) => {
-        const id = (label as any)?.profile_id || label?.id;
-        if (id) {
+        const profileId = (label as any)?.profile_id;
+        const id = label?.id;
+        if (isUuid(profileId)) {
+            localStorage.setItem('selected_entity_id', String(profileId));
+            localStorage.setItem('selected_entity_type', 'label');
+        } else if (isUuid(id)) {
             localStorage.setItem('selected_entity_id', String(id));
             localStorage.setItem('selected_entity_type', 'label');
         }
@@ -93,6 +122,18 @@ export const useNavigation = () => {
     
     const goToLabelImport = useCallback(() => navigate(AppView.LABEL_IMPORT), [navigate]);
 
+    const openReviewPage = useCallback((target: ReviewTarget) => {
+        if (target) {
+            try {
+                localStorage.setItem('review_target', JSON.stringify(target));
+            } catch {
+                // ignore storage failures
+            }
+            dispatch({ type: ActionTypes.SET_REVIEW_TARGET, payload: { target } });
+        }
+        navigate(AppView.REVIEW_PAGE);
+    }, [dispatch, navigate]);
+
     return { 
         navigate, 
         goBack, 
@@ -105,6 +146,7 @@ export const useNavigation = () => {
         navigateToStudio,
         startNavigationForBooking,
         viewBooking,
-        goToLabelImport
+        goToLabelImport,
+        openReviewPage
     };
 };

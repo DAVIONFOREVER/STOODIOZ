@@ -1,6 +1,8 @@
 
-import React, { useState } from 'react';
-import { CheckCircleIcon, ClockIcon, CalendarIcon, UserGroupIcon } from '../icons';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircleIcon } from '../icons';
+import { useAppState } from '../../contexts/AppContext';
+import { useProfile } from '../../hooks/useProfile';
 
 const ToggleCard: React.FC<{ label: string; description: string; checked: boolean; onChange: (v: boolean) => void }> = ({ label, description, checked, onChange }) => (
     <div className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
@@ -17,15 +19,67 @@ const ToggleCard: React.FC<{ label: string; description: string; checked: boolea
 );
 
 const LabelPolicies: React.FC = () => {
+    const { currentUser } = useAppState();
+    const { updateProfile, refreshCurrentUser } = useProfile();
+    const [isSaving, setIsSaving] = useState(false);
+
+    const initialPolicies = useMemo(() => {
+        const raw = (currentUser as any)?.label_policies;
+        return raw && typeof raw === 'object' ? raw : null;
+    }, [currentUser]);
+
     const [allowRemote, setAllowRemote] = useState(true);
     const [allowInPerson, setAllowInPerson] = useState(true);
     const [allowWeekends, setAllowWeekends] = useState(false);
     const [minDuration, setMinDuration] = useState(2);
     const [maxDuration, setMaxDuration] = useState(8);
 
+    useEffect(() => {
+        if (!initialPolicies) return;
+        setAllowRemote(Boolean(initialPolicies.allowRemote ?? true));
+        setAllowInPerson(Boolean(initialPolicies.allowInPerson ?? true));
+        setAllowWeekends(Boolean(initialPolicies.allowWeekends ?? false));
+        setMinDuration(Number(initialPolicies.minDuration ?? 2));
+        setMaxDuration(Number(initialPolicies.maxDuration ?? 8));
+    }, [initialPolicies]);
+
+    const handleSave = async () => {
+        if (!currentUser) return;
+        setIsSaving(true);
+        try {
+            await updateProfile({
+                label_policies: {
+                    allowRemote,
+                    allowInPerson,
+                    allowWeekends,
+                    minDuration,
+                    maxDuration,
+                },
+            } as any);
+            await refreshCurrentUser();
+        } catch (e) {
+            console.error('Failed to save label policies', e);
+            alert('Failed to save policies. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto p-6 animate-fade-in">
-            <h1 className="text-3xl font-bold text-zinc-100 mb-6">Session Policies</h1>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-zinc-100">Session Policies</h1>
+                    <p className="text-zinc-400 text-sm">Define which session types your roster can request.</p>
+                </div>
+                <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-60"
+                >
+                    <CheckCircleIcon className="w-5 h-5" /> {isSaving ? 'Saving...' : 'Save Policies'}
+                </button>
+            </div>
             <div className="cardSurface p-6 space-y-4">
                 <ToggleCard 
                     label="Allow Remote Sessions" 

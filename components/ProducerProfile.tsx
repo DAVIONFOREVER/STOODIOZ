@@ -176,7 +176,7 @@ const ProducerProfile: React.FC = () => {
     const { selectedProducer, currentUser, artists, engineers, stoodioz, producers, userRole } = useAppState();
     const dispatch = useAppDispatch();
     
-    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, navigate } = useNavigation();
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, navigate, openReviewPage } = useNavigation();
     const { toggleFollow, likePost, commentOnPost } = useSocial();
     const { startConversation } = useMessaging(navigate);
     const { initiateBookingWithProducer } = useBookings(navigate);
@@ -197,9 +197,15 @@ const ProducerProfile: React.FC = () => {
     useEffect(() => {
         let isMounted = true;
         const resolveProducer = async () => {
+            const isUuid = (value: string | null | undefined) =>
+                typeof value === 'string' &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
             const savedId = localStorage.getItem('selected_entity_id');
             const savedType = localStorage.getItem('selected_entity_type');
-            const targetId = selectedProducer?.id || selectedProducer?.profile_id || (savedType === 'producer' ? savedId : null);
+            let targetId = selectedProducer?.profile_id || (savedType === 'producer' ? savedId : null);
+            if (!targetId && isUuid(selectedProducer?.id)) {
+                targetId = selectedProducer?.id as string;
+            }
 
             if (!targetId) {
                 if (isMounted) {
@@ -238,7 +244,7 @@ const ProducerProfile: React.FC = () => {
         return () => {
             isMounted = false;
         };
-    }, [selectedProducer?.id]);
+    }, [selectedProducer?.id, selectedProducer?.profile_id]);
 
     useEffect(() => {
         if (!isLoadingDetails) return;
@@ -470,6 +476,16 @@ const ProducerProfile: React.FC = () => {
                         >
                             {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
                             {isFollowing ? 'Following' : 'Follow'}
+                        </button>
+                    </div>
+                )}
+                {!isSelf && (
+                    <div className="mt-4">
+                        <button
+                            onClick={() => openReviewPage({ id: producer.id, role: UserRole.PRODUCER, name: getDisplayName(producer, 'Producer'), image_url: getProfileImageUrl(producer) })}
+                            className="px-6 py-3 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all font-bold flex items-center gap-2 shadow-xl"
+                        >
+                            Reviews
                         </button>
                     </div>
                 )}

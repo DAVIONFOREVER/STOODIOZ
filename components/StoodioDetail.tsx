@@ -11,7 +11,7 @@ import { useBookings } from '../hooks/useBookings';
 import { useSocial } from '../hooks/useSocial';
 import { useMessaging } from '../hooks/useMessaging';
 import { AppView } from '../types';
-import { fetchUserPosts, fetchFullStoodio } from '../services/apiService';
+import { fetchUserPosts, fetchFullStoodio, fetchReviewsForTarget } from '../services/apiService';
 import { getProfileImageUrl, getDisplayName } from '../constants';
 import appIcon from '../assets/stoodioz-app-icon.png';
 
@@ -49,15 +49,16 @@ const ProfileCard: React.FC<{
 
 
 const StoodioDetail: React.FC = () => {
-    const { selectedStoodio, reviews, bookings, artists, engineers, stoodioz, producers, currentUser, userRole } = useAppState();
+    const { selectedStoodio, bookings, artists, engineers, stoodioz, producers, currentUser, userRole } = useAppState();
     
-    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, navigate } = useNavigation();
+    const { goBack, viewArtistProfile, viewEngineerProfile, viewStoodioDetails, viewProducerProfile, navigate, openReviewPage } = useNavigation();
     const { openBookingModal } = useBookings(navigate);
     const { toggleFollow, likePost, commentOnPost } = useSocial();
     const { startConversation } = useMessaging(navigate);
     
     const [stoodio, setStoodio] = useState<Stoodio | null>(selectedStoodio || null);
     const [posts, setPosts] = useState<Post[]>([]);
+    const [profileReviews, setProfileReviews] = useState<any[]>([]);
     const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const lastLoadedIdRef = useRef<string | null>(null);
@@ -99,9 +100,15 @@ const StoodioDetail: React.FC = () => {
     useEffect(() => {
         let isMounted = true;
         const resolveStoodio = async () => {
+            const isUuid = (value: string | null | undefined) =>
+                typeof value === 'string' &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
             const savedId = localStorage.getItem('selected_entity_id');
             const savedType = localStorage.getItem('selected_entity_type');
-            const targetId = selectedStoodio?.id || selectedStoodio?.profile_id || (savedType === 'stoodio' ? savedId : null);
+            let targetId = selectedStoodio?.profile_id || (savedType === 'stoodio' ? savedId : null);
+            if (!targetId && isUuid(selectedStoodio?.id)) {
+                targetId = selectedStoodio?.id as string;
+            }
 
             if (!targetId) {
                 if (isMounted) {
@@ -159,7 +166,7 @@ const StoodioDetail: React.FC = () => {
         return () => {
             isMounted = false;
         };
-    }, [selectedStoodio?.id]);
+    }, [selectedStoodio?.id, selectedStoodio?.profile_id]);
 
     useEffect(() => {
         if (!isLoadingDetails) return;
@@ -175,6 +182,16 @@ const StoodioDetail: React.FC = () => {
         if (stoodio?.id) {
             fetchUserPosts(stoodio.id).then(setPosts);
         }
+    }, [stoodio?.id]);
+
+    useEffect(() => {
+        if (!stoodio?.id) return;
+        fetchReviewsForTarget(UserRole.STOODIO, stoodio.id)
+            .then((data) => setProfileReviews(Array.isArray(data) ? data : []))
+            .catch((err) => {
+                console.error('Failed to load stoodio reviews', err);
+                setProfileReviews([]);
+            });
     }, [stoodio?.id]);
 
     const galleryImages = useMemo(() => {
@@ -263,7 +280,7 @@ const StoodioDetail: React.FC = () => {
 
     const isFollowing = currentUser && currentUser.following && currentUser.following.stoodioz ? currentUser.following.stoodioz.includes(stoodio.id) : false;
 
-    const stoodioReviews = (reviews ?? []).filter(r => r.stoodio_id === stoodio.id);
+    const stoodioReviews = (profileReviews ?? []).filter((r) => r.stoodio_id === stoodio.id);
 
     const curArtists = artists ?? [];
     const curEngineers = engineers ?? [];
@@ -378,6 +395,16 @@ const StoodioDetail: React.FC = () => {
                         >
                             {isFollowing ? <UserCheckIcon className="w-5 h-5" /> : <UserPlusIcon className="w-5 h-5" />}
                             {isFollowing ? 'Following' : 'Follow'}
+                        </button>
+                    </div>
+                )}
+                {(!currentUser || currentUser.id !== stoodio.id) && (
+                    <div className="mt-4">
+                        <button
+                            onClick={() => openReviewPage({ id: stoodio.id, role: UserRole.STOODIO, name: stoodio.name, image_url: getProfileImageUrl(stoodio) })}
+                            className="px-6 py-3 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all font-bold flex items-center gap-2 shadow-xl"
+                        >
+                            Reviews
                         </button>
                     </div>
                 )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CloseIcon } from './icons';
+import { CloseIcon, DollarSignIcon } from './icons';
 
 interface AddFundsModalProps {
     onClose: () => void;
@@ -18,19 +18,24 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onConfirm }) => 
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
-            <div className="w-full max-w-md transform transition-all cardSurface">
-                <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-100">Add Funds to Wallet</h2>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
+            <div className="w-full max-w-md transform transition-all cardSurface border border-zinc-800">
+                <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+                    <div>
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-orange-400">Wallet</p>
+                        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2 mt-1">
+                            <DollarSignIcon className="w-6 h-6 text-orange-400" /> Add Funds
+                        </h2>
+                    </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </div>
 
-                <div className="p-6 text-center">
-                    <p className="text-slate-300 mb-6">Select an amount or enter a custom amount to add to your balance.</p>
+                <div className="p-6 text-center space-y-5">
+                    <p className="text-slate-300">Select an amount or enter a custom amount to add to your balance.</p>
 
-                    <div className="flex justify-center gap-4 mb-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {quickAmounts.map(amt => (
                             <button
                                 key={amt}
@@ -58,7 +63,7 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onConfirm }) => 
                     </div>
                 </div>
 
-                <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-2xl">
+                <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 rounded-b-2xl">
                     <button
                         onClick={handleConfirm}
                         disabled={!amount || parseFloat(amount) <= 0}

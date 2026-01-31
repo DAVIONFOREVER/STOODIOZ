@@ -54,6 +54,12 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
                     title: 'Request Sent!',
                     message: `Your session request ${atStoodio} has been sent to ${approver}. We'll notify you of their response.`
                 };
+            case BookingStatus.PENDING_LABEL_APPROVAL:
+                return {
+                    icon: <ClockIcon className="w-20 h-20 text-yellow-500" />,
+                    title: 'Awaiting Label Approval',
+                    message: 'Your booking is pending label approval. We will notify you once it is approved.'
+                };
             case BookingStatus.CONFIRMED:
             default:
                 if (request_type === BookingRequestType.BRING_YOUR_OWN) {

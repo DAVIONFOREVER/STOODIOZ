@@ -80,6 +80,7 @@ const StoodioInsights = lazy(() => import('./components/StoodioInsights.tsx'));
 const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const AssetVault = lazy(() => import('./components/AssetVault.tsx'));
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx'));
+const ReviewPage = lazy(() => import('./components/ReviewPage.tsx'));
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
   if (currentUser && (currentUser as any).animated_logo_url) {
@@ -192,6 +193,7 @@ const App: React.FC = () => {
       AppView.PRODUCER_PROFILE,
       AppView.STOODIO_DETAIL,
       AppView.LABEL_PROFILE,
+      AppView.REVIEW_PAGE,
     ];
     if (profileAndDetailViews.includes(currentView)) return;
 
@@ -236,6 +238,7 @@ const App: React.FC = () => {
       currentView === AppView.ENGINEER_PROFILE ||
       currentView === AppView.PRODUCER_PROFILE ||
       currentView === AppView.LABEL_PROFILE ||
+      currentView === AppView.REVIEW_PAGE ||
       currentView === AppView.CLAIM_ENTRY ||
       currentView === AppView.INBOX;
     if (!isPublic) {
@@ -278,6 +281,16 @@ const App: React.FC = () => {
     navigateToStudio,
     startNavigationForBooking,
   } = useNavigation();
+
+  const dashboardForRole = (role?: UserRole | null) => {
+    if (!role) return AppView.THE_STAGE;
+    if (role === UserRole.STOODIO) return AppView.STOODIO_DASHBOARD;
+    if (role === UserRole.ENGINEER) return AppView.ENGINEER_DASHBOARD;
+    if (role === UserRole.PRODUCER) return AppView.PRODUCER_DASHBOARD;
+    if (role === UserRole.ARTIST) return AppView.ARTIST_DASHBOARD;
+    if (role === UserRole.LABEL) return AppView.LABEL_DASHBOARD;
+    return AppView.THE_STAGE;
+  };
 
   // Stripe success: beat_purchase or kit_purchase -> fetch booking, auto-download/open, clean URL, go to MY_BOOKINGS
   useEffect(() => {
@@ -351,6 +364,25 @@ const App: React.FC = () => {
     })();
   }, [navigate]);
 
+  // Stripe cancel or wallet top-up success: return to dashboard instead of landing page
+  useEffect(() => {
+    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    if (!q) return;
+    const stripeStatus = q.get('stripe');
+    if (!stripeStatus) return;
+    const beatPurchase = q.get('beat_purchase') === '1';
+    const kitPurchase = q.get('kit_purchase') === '1';
+    if (stripeStatus === 'success' && (beatPurchase || kitPurchase)) return;
+
+    const u = new URL(window.location.href);
+    u.searchParams.delete('stripe');
+    u.searchParams.delete('beat_purchase');
+    u.searchParams.delete('kit_purchase');
+    u.searchParams.delete('booking_id');
+    window.history.replaceState({}, '', u.pathname + (u.search || ''));
+    navigate(dashboardForRole(userRoleRef.current || userRole));
+  }, [navigate, userRole]);
+
   // Auth hook (UI login/logout)
   const { login, logout, selectRoleToSetup } = useAuth(navigate);
 
@@ -364,6 +396,21 @@ const App: React.FC = () => {
   const { confirmRemoteMix, initiateInStudioMix } = useMixing(navigate);
   const { handleSubscribe } = useSubscription(navigate);
   const { startConversation } = useMessaging(navigate);
+
+  const startStripeConnect = async () => {
+    if (!currentUser?.id) return;
+    try {
+      const res = await apiService.createConnectOnboarding(currentUser.id);
+      if (res?.url) {
+        window.location.href = res.url;
+      } else {
+        alert('Unable to start Stripe onboarding. Please try again.');
+      }
+    } catch (e) {
+      console.error('Stripe connect onboarding failed', e);
+      alert('Stripe onboarding failed. Please try again.');
+    }
+  };
 
   // Aria
   const { executeCommand, handleAriaNudgeClick, handleDismissAriaNudge } = useAria({
@@ -473,8 +520,35 @@ const App: React.FC = () => {
     }
     const loadDirectory = async () => {
       try {
-        const directory = await apiService.getAllPublicUsers(true);
+        let directory = await apiService.getAllPublicUsers(false);
         if (!isMounted) return;
+        let hasAnyData =
+          (directory.artists?.length || 0) > 0 ||
+          (directory.engineers?.length || 0) > 0 ||
+          (directory.producers?.length || 0) > 0 ||
+          (directory.stoodioz?.length || 0) > 0 ||
+          (directory.labels?.length || 0) > 0;
+        const stateHasAny =
+          (state.artists?.length || 0) > 0 ||
+          (state.engineers?.length || 0) > 0 ||
+          (state.producers?.length || 0) > 0 ||
+          (state.stoodioz?.length || 0) > 0 ||
+          (state.labels?.length || 0) > 0;
+        if (!hasAnyData && stateHasAny) {
+          console.warn('[App] Directory empty; preserving existing lists.');
+          return;
+        }
+        if (!hasAnyData) {
+          const retry = await apiService.getAllPublicUsers(true);
+          if (!isMounted) return;
+          directory = retry;
+          hasAnyData =
+            (directory.artists?.length || 0) > 0 ||
+            (directory.engineers?.length || 0) > 0 ||
+            (directory.producers?.length || 0) > 0 ||
+            (directory.stoodioz?.length || 0) > 0 ||
+            (directory.labels?.length || 0) > 0;
+        }
         console.log('[App] Loaded directory:', {
           artists: directory.artists?.length || 0,
           engineers: directory.engineers?.length || 0,
@@ -496,7 +570,15 @@ const App: React.FC = () => {
         });
       } catch (e) {
         console.error('[App] Failed to load public users:', e);
-        // Set empty arrays as fallback so app doesn't break if this fails
+        // Don't blow away existing directory lists on transient errors
+        if (!isMounted) return;
+        const stateHasAny =
+          (state.artists?.length || 0) > 0 ||
+          (state.engineers?.length || 0) > 0 ||
+          (state.producers?.length || 0) > 0 ||
+          (state.stoodioz?.length || 0) > 0 ||
+          (state.labels?.length || 0) > 0;
+        if (stateHasAny) return;
         if (isMounted) {
           dispatch({
             type: ActionTypes.SET_INITIAL_DATA,
@@ -857,6 +939,9 @@ const App: React.FC = () => {
       case AppView.LABEL_PROFILE:
         return <LabelProfile />;
 
+      case AppView.REVIEW_PAGE:
+        return <ReviewPage />;
+
       case AppView.CLAIM_PROFILE:
         return <ClaimProfile />;
 
@@ -963,6 +1048,7 @@ const App: React.FC = () => {
         <RequestPayoutModal
           onClose={closePayoutModal}
           onConfirm={requestPayout}
+          onConnect={startStripeConnect}
           currentBalance={(currentUser as any).wallet_balance ?? 0}
           hasConnect={Boolean((currentUser as any).stripe_connect_account_id || (currentUser as any).stripe_connect_id)}
           payoutsEnabled={(currentUser as any).payouts_enabled !== false}

@@ -81,9 +81,34 @@ export const useProfile = () => {
       const profileUpdates: Record<string, any> = {};
       const roleUpdates: Record<string, any> = {};
 
+      const protectedProfileFields = new Set([
+        'display_name',
+        'username',
+        'name',
+        'full_name',
+        'location_text',
+        'location',
+      ]);
+      const looksLikeId = (value: string) =>
+        /^(artis|engin|produc|stood|label|user)_[a-f0-9]{4,}/i.test(value) ||
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+      const looksLikePlaceholder = (value: string) =>
+        ['someone', 'unknown', 'user', 'n/a', 'na', 'none'].includes(value);
+      const looksLikeEmail = (value: string) => value.includes('@') && value.includes('.');
+
       for (const [k, v] of Object.entries(updates as any)) {
-        if (PROFILE_FIELDS.has(k)) profileUpdates[k] = v;
-        else roleUpdates[k] = v;
+        if (PROFILE_FIELDS.has(k)) {
+          if (protectedProfileFields.has(k)) {
+            const raw = typeof v === 'string' ? v : '';
+            const trimmed = raw.trim();
+            if (!trimmed) continue;
+            const lower = trimmed.toLowerCase();
+            if (looksLikePlaceholder(lower) || looksLikeId(lower) || looksLikeEmail(lower)) continue;
+          }
+          profileUpdates[k] = v;
+        } else {
+          roleUpdates[k] = v;
+        }
       }
 
       try {
@@ -172,8 +197,32 @@ export const useProfile = () => {
       // STOODIO: explicitly load rooms so RoomManager list and post-a-job stay in sync after save
       let rooms: any[] = [];
       if (userRole === 'STOODIO') {
-        const { data: r } = await client.from('rooms').select('*').eq('stoodio_id', currentUser.id).order('name');
+        const stoodioRoleId = (resolvedRoleRow as any)?.id || (currentUser as any)?.role_id || currentUser.id;
+        const { data: r } = await client.from('rooms').select('*').eq('stoodio_id', stoodioRoleId).order('name');
         rooms = Array.isArray(r) ? r : [];
+      }
+      // PRODUCER: instrumentals can be keyed to profile_id, so load directly by profile id
+      let instrumentals: any[] = [];
+      if (userRole === 'PRODUCER') {
+        try {
+          instrumentals = await apiService.fetchInstrumentalsForProducer(currentUser.id);
+        } catch {
+          instrumentals = Array.isArray((resolvedRoleRow as any)?.instrumentals) ? (resolvedRoleRow as any)?.instrumentals : [];
+        }
+      }
+      // ENGINEER: mixing samples can be keyed to profile_id, so load directly by profile id
+      let mixingSamples: any[] = [];
+      if (userRole === 'ENGINEER') {
+        try {
+          const { data: samples } = await client
+            .from('mixing_samples')
+            .select('*')
+            .eq('engineer_id', currentUser.id)
+            .order('created_at', { ascending: false });
+          mixingSamples = Array.isArray(samples) ? samples : [];
+        } catch {
+          mixingSamples = Array.isArray((resolvedRoleRow as any)?.mixing_samples) ? (resolvedRoleRow as any)?.mixing_samples : [];
+        }
       }
 
       const { data: profRow, error: profErr } = await client
@@ -190,6 +239,8 @@ export const useProfile = () => {
         id: currentUser.id,
         ...(userRole === 'STOODIO' && resolvedRoleRow?.id ? { role_id: resolvedRoleRow.id } : {}),
         ...(userRole === 'STOODIO' ? { rooms: resolvedRoleRow?.id ? rooms : previousRooms } : {}),
+        ...(userRole === 'PRODUCER' ? { instrumentals } : {}),
+        ...(userRole === 'ENGINEER' ? { mixing_samples: mixingSamples } : {}),
       };
 
       const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));

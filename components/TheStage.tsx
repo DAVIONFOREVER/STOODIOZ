@@ -58,6 +58,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
     const [isLiveChatLoading, setIsLiveChatLoading] = useState(false);
 
+    const [extraAuthors, setExtraAuthors] = useState<Map<string, any>>(new Map());
+
     // Combine all users for author lookup. Guard: directory arrays can be undefined before SET_INITIAL_DATA or malformed payload.
     const authorsMap = useMemo(() => {
         const curArtists = artists ?? [];
@@ -71,9 +73,51 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         if (currentUser) allUsers.push(currentUser);
 
         const map = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
-        allUsers.forEach(u => { if (u != null && u.id) map.set(u.id, u); });
+        allUsers.forEach(u => {
+            if (u != null && u.id) map.set(u.id, u);
+            const pid = (u as any)?.profile_id;
+            if (pid && !map.has(pid)) map.set(pid, u);
+        });
+        extraAuthors.forEach((u, id) => {
+            if (!map.has(id)) map.set(id, u as any);
+        });
         return map;
-    }, [artists, engineers, stoodioz, producers, labels, currentUser]);
+    }, [artists, engineers, stoodioz, producers, labels, currentUser, extraAuthors]);
+
+    useEffect(() => {
+        if (!posts.length) return;
+        const missingIds = Array.from(
+            new Set(posts.map(p => p.authorId).filter(id => id && !authorsMap.has(id)))
+        );
+        if (missingIds.length === 0) return;
+        const supabase = getSupabase();
+        if (!supabase) return;
+
+        supabase
+            .from('profiles')
+            .select('id, username, full_name, display_name, image_url, avatar_url, email')
+            .in('id', missingIds.slice(0, 200))
+            .then(({ data }) => {
+                if (!Array.isArray(data) || data.length === 0) return;
+                setExtraAuthors(prev => {
+                    const next = new Map(prev);
+                    data.forEach((row: any) => {
+                        if (row?.id && !next.has(row.id)) {
+                            next.set(row.id, {
+                                id: row.id,
+                                profile_id: row.id,
+                                name: row.display_name || row.full_name || row.username || row.email || 'User',
+                                image_url: row.image_url || row.avatar_url || null,
+                                email: row.email || null,
+                                profiles: row,
+                            });
+                        }
+                    });
+                    return next;
+                });
+            })
+            .catch(() => undefined);
+    }, [posts, authorsMap]);
 
     // Suggestions logic - Safe for Labels and undefined directory arrays
     const suggestions = useMemo(() => {

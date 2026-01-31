@@ -29,26 +29,31 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
 
     // Handle video auto-play/pause based on visibility
     useEffect(() => {
-        if (type === 'video' && videoRef.current) {
-            videoRef.current.muted = isMuted;
-            if (isVisible) {
-                const playPromise = videoRef.current.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                         // Auto-play was prevented, usually due to browser policies
-                         // We don't log here to avoid console noise
-                    });
-                }
-            } else {
-                videoRef.current.pause();
+        if (type !== 'video' || !videoRef.current) return;
+        videoRef.current.muted = isMuted;
+        if (isVisible) {
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                    // Auto-play was prevented, usually due to browser policies
+                });
             }
+        } else {
+            videoRef.current.pause();
         }
-    }, [isVisible, type]);
+    }, [isVisible, isMuted, type]);
 
     const handleLoad = () => setIsLoaded(true);
     const toggleMute = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setIsMuted(prev => !prev);
+        const nextMuted = !isMuted;
+        setIsMuted(nextMuted);
+        if (videoRef.current) {
+            videoRef.current.muted = nextMuted;
+            if (!nextMuted) {
+                videoRef.current.play().catch(() => {});
+            }
+        }
     };
 
     // Determine styling based on display mode
@@ -113,7 +118,6 @@ const StageMediaFrame: React.FC<StageMediaFrameProps> = ({
                         poster={thumbnailUrl}
                         controls={false} 
                         loop
-                        muted 
                         playsInline
                         preload="metadata"
                     />

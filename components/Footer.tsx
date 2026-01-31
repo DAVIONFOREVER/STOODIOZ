@@ -39,6 +39,9 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                         <p>&copy; 2025 Stoodioz Inc. All rights reserved.</p>
                     </div>
                     <div className="flex items-center gap-6 mt-4 sm:mt-0">
+                        <button onClick={() => onNavigate(AppView.REVIEW_PAGE)} className="hover:text-orange-400 transition-colors">
+                            Reviews
+                        </button>
                         <button onClick={() => onNavigate(AppView.PRIVACY_POLICY)} className="hover:text-orange-400 transition-colors">
                             Privacy Policy
                         </button>

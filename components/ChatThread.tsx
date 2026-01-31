@@ -90,6 +90,7 @@ const ChatThread: React.FC<ChatThreadProps> = ({
         const hasActiveBooking = !!booking && [
             BookingStatus.PENDING,
             BookingStatus.PENDING_APPROVAL,
+            BookingStatus.PENDING_LABEL_APPROVAL,
             BookingStatus.CONFIRMED,
         ].includes(booking.status);
         const hasNoDeliverablesYet = documentMessages.length === 0;

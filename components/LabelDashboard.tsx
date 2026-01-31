@@ -1,5 +1,5 @@
 
-import React, { useState, lazy, Suspense, useRef } from 'react';
+import React, { useState, lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import * as apiService from '../services/apiService';
 import { useNavigation } from '../hooks/useNavigation';
 import { AppView, UserRole } from '../types';
@@ -15,7 +15,6 @@ import LabelPolicies from './label/LabelPolicies';
 import LabelMessaging from './label/LabelMessaging';
 import LabelReports from './label/LabelReports';
 import LabelQAReview from './label/LabelQAReview';
-import LabelActivity from './label/LabelActivity';
 import LabelInsights from './label/LabelInsights';
 import LabelApprovals from './label/LabelApprovals';
 import LabelPerformance from './label/LabelPerformance';
@@ -24,11 +23,15 @@ import Wallet from './Wallet';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { useProfile } from '../hooks/useProfile';
 import { PhotoIcon, UsersIcon, EditIcon, EyeIcon, DollarSignIcon } from './icons';
-import { getProfileImageUrl } from '../constants';
+import { ARIA_EMAIL, getProfileImageUrl } from '../constants';
+import { useSocial } from '../hooks/useSocial';
+import CreatePost from './CreatePost';
+import PostFeed from './PostFeed';
+import StageCreatorHub from './StageCreatorHub';
 
 const Documents = lazy(() => import('./Documents.tsx'));
 
-type LabelTab = 'roster' | 'wallet' | 'bookings' | 'approvals' | 'performance' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'activity' | 'insights' | 'settings' | 'documents';
+type LabelTab = 'roster' | 'wallet' | 'bookings' | 'approvals' | 'performance' | 'posts' | 'budget' | 'analytics' | 'financials' | 'notifications' | 'controls' | 'policies' | 'messaging' | 'reports' | 'qa' | 'insights' | 'settings' | 'documents';
 
 const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ text, onClick }) => (
     <button
@@ -41,12 +44,15 @@ const ImportRosterButton: React.FC<{ text: string, onClick: () => void }> = ({ t
 );
 
 const LabelDashboard: React.FC = () => {
-    const { navigate } = useNavigation();
-    const { conversations, currentUser, userRole } = useAppState();
+    const { navigate, viewLabelProfile, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewStoodioDetails } = useNavigation();
+    const { conversations, currentUser, userRole, artists, engineers, producers, stoodioz, labels } = useAppState();
     const dispatch = useAppDispatch();
     const { updateProfile, refreshCurrentUser } = useProfile();
-    const [activeTab, setActiveTab] = useState<LabelTab>('roster');
+    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
+    const [activeTab, setActiveTab] = useState<LabelTab>('posts');
     const [showRosterImport, setShowRosterImport] = useState(false);
+    const [myPosts, setMyPosts] = useState<any[]>([]);
+    const postSectionRef = useRef<HTMLDivElement>(null);
 
     // Refs for image uploads
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -104,12 +110,175 @@ const LabelDashboard: React.FC = () => {
         dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
     };
 
+    const onOpenAria = () => {
+        dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+    };
+
+    const refreshPosts = useCallback(async () => {
+        if (!currentUser?.id) return;
+        const posts = await apiService.fetchUserPosts(currentUser.id);
+        setMyPosts(posts || []);
+    }, [currentUser?.id]);
+
+    useEffect(() => {
+        refreshPosts();
+    }, [refreshPosts]);
+
+    const handleNewPost = useCallback(
+        async (postData: any) => {
+            if (!currentUser) return;
+            const tempPost = {
+                id: `temp-${Date.now()}`,
+                authorId: currentUser.id,
+                authorType: UserRole.LABEL,
+                text: postData.text,
+                image_url: postData.imageUrl,
+                video_url: postData.videoUrl,
+                video_thumbnail_url: postData.videoThumbnailUrl,
+                link: postData.link,
+                timestamp: new Date().toISOString(),
+                likes: [],
+                comments: []
+            };
+            setMyPosts((prev) => [tempPost, ...prev]);
+            await createPost(postData, UserRole.LABEL);
+            await refreshPosts();
+        },
+        [currentUser, createPost, refreshPosts]
+    );
+
+    const handleEditPost = useCallback(async (postId: string, text: string) => {
+        if (!currentUser) return;
+        const target = myPosts.find((p: any) => p.id === postId);
+        if (!target || target.authorId !== currentUser.id) return;
+        try {
+            await apiService.updatePostText(postId, text);
+            setMyPosts((prev) => prev.map((p: any) => (p.id === postId ? { ...p, text } : p)));
+        } catch (e) {
+            console.error('Failed to update post:', e);
+            alert('Sorry, we could not update that post.');
+        }
+    }, [currentUser, myPosts]);
+
+    const handleDeletePost = useCallback(async (postId: string) => {
+        if (!currentUser) return;
+        const target = myPosts.find((p: any) => p.id === postId);
+        if (!target || target.authorId !== currentUser.id) return;
+        if (!confirm('Delete this post? This cannot be undone.')) return;
+        try {
+            await apiService.deletePost(postId);
+            setMyPosts((prev) => prev.filter((p: any) => p.id !== postId));
+        } catch (e) {
+            console.error('Failed to delete post:', e);
+            alert('Sorry, we could not delete that post.');
+        }
+    }, [currentUser, myPosts]);
+
+    const suggestions = useMemo(() => {
+        const allUsers = [
+            ...(artists ?? []),
+            ...(engineers ?? []),
+            ...(stoodioz ?? []),
+            ...(producers ?? []),
+            ...(labels ?? []),
+        ].filter(Boolean);
+        if (!currentUser) return allUsers.filter((u: any) => u?.email !== ARIA_EMAIL).slice(0, 4);
+        const f = (currentUser as any)?.following || {};
+        const followedIds = new Set([
+            ...(f?.artists || []),
+            ...(f?.engineers || []),
+            ...(f?.stoodioz || []),
+            ...(f?.producers || []),
+            ...(f?.labels || []),
+            currentUser.id,
+        ]);
+        return allUsers.filter((u: any) => u && !followedIds.has(u.id) && u.email !== ARIA_EMAIL).slice(0, 4);
+    }, [currentUser, artists, engineers, stoodioz, producers, labels]);
+
+    const trendingPost = useMemo(() => {
+        if (!myPosts.length) return null;
+        return [...myPosts].sort((a: any, b: any) => {
+            const aScore = (a?.likes?.length || 0) + (a?.comments?.length || 0);
+            const bScore = (b?.likes?.length || 0) + (b?.comments?.length || 0);
+            return bScore - aScore;
+        })[0];
+    }, [myPosts]);
+
+    const trendingPostAuthor = useMemo(() => {
+        if (!trendingPost || !currentUser) return null;
+        return currentUser as any;
+    }, [trendingPost, currentUser]);
+
+    const handleManagePosts = useCallback(() => {
+        setActiveTab('posts');
+        requestAnimationFrame(() => {
+            postSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }, []);
+
+    const handleSelectUser = useCallback((user: any) => {
+        const role = String(user?.role || user?.user_role || '').toUpperCase();
+        if (role === 'ARTIST') return viewArtistProfile(user);
+        if (role === 'ENGINEER') return viewEngineerProfile(user);
+        if (role === 'PRODUCER') return viewProducerProfile(user);
+        if (role === 'STOODIO') return viewStoodioDetails(user);
+        return viewLabelProfile(user);
+    }, [viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewStoodioDetails, viewLabelProfile]);
+
+    const handleStartLive = useCallback(() => {
+        navigate(AppView.THE_STAGE);
+    }, [navigate]);
+
+    const handleJoinLive = useCallback(() => {
+        navigate(AppView.THE_STAGE);
+    }, [navigate]);
+
     const renderContent = () => {
         switch (activeTab) {
             case 'roster': return <LabelArtists />;
             case 'bookings': return <LabelBookings />;
             case 'approvals': return <LabelApprovals />;
             case 'performance': return <LabelPerformance />;
+            case 'posts':
+                if (!currentUser) {
+                    return <div className="p-10 text-center text-zinc-500">Loading posts...</div>;
+                }
+                return (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2 space-y-6" ref={postSectionRef}>
+                            <CreatePost currentUser={currentUser as any} onPost={handleNewPost} />
+                            <PostFeed
+                                posts={myPosts}
+                                authors={new Map([[currentUser?.id || '', currentUser as any]])}
+                                onLikePost={likePost}
+                                onCommentOnPost={commentOnPost}
+                                onSelectAuthor={(author) => viewLabelProfile(author as any)}
+                                onEditPost={handleEditPost}
+                                onDeletePost={handleDeletePost}
+                                isManaging={true}
+                            />
+                        </div>
+                        <div className="lg:col-span-1 space-y-6">
+                            <StageCreatorHub
+                                currentUser={currentUser as any}
+                                suggestions={suggestions}
+                                trendingPost={trendingPost as any}
+                                trendingPostAuthor={trendingPostAuthor as any}
+                                onToggleFollow={toggleFollow}
+                                onLikePost={likePost}
+                                onCommentOnPost={commentOnPost}
+                                onSelectUser={handleSelectUser}
+                                onNavigate={navigate}
+                                onOpenAria={onOpenAria}
+                                onManagePosts={handleManagePosts}
+                                onStartLive={handleStartLive}
+                                onJoinLive={handleJoinLive}
+                                showSideSections={true}
+                                showQuickAccess={false}
+                            />
+                        </div>
+                    </div>
+                );
             case 'budget': return <LabelBudgetDashboard />;
             case 'financials': return <LabelFinancials />;
             case 'notifications': return <LabelNotifications />;
@@ -119,7 +288,6 @@ const LabelDashboard: React.FC = () => {
             case 'messaging': return <LabelMessaging />;
             case 'reports': return <LabelReports />;
             case 'qa': return <LabelQAReview />;
-            case 'activity': return <LabelActivity />;
             case 'insights': return <LabelInsights />;
             case 'settings': return <LabelSettings />;
             case 'wallet': 
@@ -215,6 +383,12 @@ const LabelDashboard: React.FC = () => {
                            View Profile
                         </button>
                         <button
+                           onClick={() => navigate(AppView.THE_STAGE)}
+                           className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"
+                        >
+                           The Stage
+                        </button>
+                        <button
                            onClick={handleAddFunds}
                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors shadow-lg flex items-center justify-center gap-2 text-sm"
                         >
@@ -233,7 +407,7 @@ const LabelDashboard: React.FC = () => {
             <div className="cardSurface">
                 {/* Tab Navigation */}
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto scrollbar-hide">
-                    {['wallet', 'roster', 'bookings', 'approvals', 'performance', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'activity', 'insights', 'documents', 'settings'].map((tab) => (
+                    {['posts', 'wallet', 'roster', 'bookings', 'approvals', 'performance', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'insights', 'documents', 'settings'].map((tab) => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as LabelTab)}

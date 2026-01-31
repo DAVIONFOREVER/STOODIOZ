@@ -205,18 +205,7 @@ const MixDoctor: React.FC = () => {
     });
   }, []);
 
-  const handleFileSelect = async (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith('audio/')) {
-      setError('Please select an audio file (MP3, WAV, etc.)');
-      return;
-    }
-
-    setError(null);
-    setAudioFile(file);
-    const url = URL.createObjectURL(file);
-    setAudioUrl(url);
-
+  const runAnalysis = async (file: File) => {
     setIsAnalyzing(true);
     try {
       const result = await analyzeAudio(file);
@@ -227,6 +216,22 @@ const MixDoctor: React.FC = () => {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleFileSelect = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      setError('Please select an audio file (MP3, WAV, etc.)');
+      return;
+    }
+
+    setError(null);
+    setAnalysis(null);
+    setAudioFile(file);
+    const url = URL.createObjectURL(file);
+    setAudioUrl(url);
+
+    await runAnalysis(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -283,6 +288,9 @@ ${isProducer ? 'Can you analyze this beat and tell me what needs to be fixed? I 
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const audioContext = audioContextRef.current;
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {});
+      }
 
       // Create analyser node
       if (!analyserRef.current) {
@@ -752,6 +760,20 @@ ${isProducer ? 'Can you analyze this beat and tell me what needs to be fixed? I 
                 </div>
               )}
 
+              {!analysis && !isAnalyzing && (
+                <div className="p-6 bg-gradient-to-r from-zinc-900/70 to-zinc-950/70 border border-orange-500/20 rounded-2xl backdrop-blur-sm space-y-3">
+                  <p className="text-zinc-300 font-semibold">Analysis not ready yet.</p>
+                  <p className="text-sm text-zinc-500">Click below to run Mix Doctor analysis.</p>
+                  <button
+                    type="button"
+                    onClick={() => audioFile && runAnalysis(audioFile)}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-all"
+                  >
+                    Analyze Audio
+                  </button>
+                </div>
+              )}
+
               {analysis && !isAnalyzing && (
                 <div className="space-y-6">
                   {/* Frequency Spectrum Visualizer */}
@@ -760,23 +782,40 @@ ${isProducer ? 'Can you analyze this beat and tell me what needs to be fixed? I 
                       <ChartBarIcon className="w-5 h-5 text-orange-400" />
                       Frequency Spectrum
                     </h4>
-                    <div className="h-32 bg-zinc-950 rounded-xl p-4 border border-zinc-800 flex items-end justify-center gap-1">
-                      {analysis.frequencySpectrum.slice(0, 32).map((band, i) => {
-                        const height = Math.max(4, band.magnitude * 100);
-                        return (
-                          <div
-                            key={i}
-                            className="flex-1 bg-gradient-to-t rounded-t transition-all hover:opacity-80"
-                            style={{
-                              height: `${height}%`,
-                              background: `linear-gradient(to top, ${band.freq < 250 ? '#f97316' : band.freq < 4000 ? '#a855f7' : '#3b82f6'}, ${band.freq < 250 ? '#ea580c' : band.freq < 4000 ? '#9333ea' : '#2563eb'})`,
-                              minHeight: '4px'
-                            }}
-                            title={`${band.freq.toFixed(0)}Hz: ${(band.magnitude * 100).toFixed(1)}%`}
-                          />
-                        );
-                      })}
-                    </div>
+                    {realTimeData ? (
+                      <div className="space-y-3">
+                        <canvas
+                          ref={spectrumCanvasRef}
+                          width={640}
+                          height={160}
+                          className="w-full h-32 bg-zinc-950 rounded-xl border border-zinc-800"
+                        />
+                        <canvas
+                          ref={waveformCanvasRef}
+                          width={640}
+                          height={120}
+                          className="w-full h-24 bg-zinc-950 rounded-xl border border-zinc-800"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-32 bg-zinc-950 rounded-xl p-4 border border-zinc-800 flex items-end justify-center gap-1">
+                        {analysis.frequencySpectrum.slice(0, 32).map((band, i) => {
+                          const height = Math.max(4, band.magnitude * 100);
+                          return (
+                            <div
+                              key={i}
+                              className="flex-1 bg-gradient-to-t rounded-t transition-all hover:opacity-80"
+                              style={{
+                                height: `${height}%`,
+                                background: `linear-gradient(to top, ${band.freq < 250 ? '#f97316' : band.freq < 4000 ? '#a855f7' : '#3b82f6'}, ${band.freq < 250 ? '#ea580c' : band.freq < 4000 ? '#9333ea' : '#2563eb'})`,
+                                minHeight: '4px'
+                              }}
+                              title={`${band.freq.toFixed(0)}Hz: ${(band.magnitude * 100).toFixed(1)}%`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="flex justify-between mt-2 text-xs text-zinc-500">
                       <span>20Hz</span>
                       <span>20kHz</span>
@@ -1181,6 +1220,9 @@ ${isProducer ? 'Can you analyze this beat and tell me what needs to be fixed? I 
                       // Pause preview audio when original starts playing
                       if (previewAudioRef.current && !previewAudioRef.current.paused) {
                         previewAudioRef.current.pause();
+                      }
+                      if (audioContextRef.current?.state === 'suspended') {
+                        audioContextRef.current.resume().catch(() => {});
                       }
                     }}
                   />

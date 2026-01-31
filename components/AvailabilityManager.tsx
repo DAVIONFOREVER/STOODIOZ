@@ -130,8 +130,8 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({ user, onUpdat
 
             {/* Days Grid */}
             <div className="grid grid-cols-7 gap-2 text-center text-[11px] text-slate-400 mb-3">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
-                    <div key={day} className="uppercase tracking-[0.2em] text-zinc-500">{day}</div>
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                    <div key={`${day}-${index}`} className="uppercase tracking-[0.2em] text-zinc-500">{day}</div>
                 ))}
             </div>
             <div className="grid grid-cols-7 gap-2">

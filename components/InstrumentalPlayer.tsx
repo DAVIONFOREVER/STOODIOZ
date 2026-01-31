@@ -12,6 +12,18 @@ interface InstrumentalPlayerProps {
 
 const TAG = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
+const PlayingBars: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <div className={`flex items-end gap-1 ${className}`} aria-hidden="true">
+        {[6, 10, 8, 12].map((h, idx) => (
+            <span
+                key={idx}
+                className="w-1 rounded-sm bg-purple-400 animate-bounce"
+                style={{ height: h, animationDelay: `${idx * 0.12}s`, animationDuration: '0.9s' }}
+            />
+        ))}
+    </div>
+);
+
 const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, onPurchase, producer }) => {
     const { currentUser } = useAppState();
     const [playingId, setPlayingId] = useState<string | null>(null);
@@ -416,12 +428,15 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
                                 <div className="col-span-1 flex items-center">
                                     <button
                                         onClick={() => handlePlayPause(instrumental)}
-                                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                        className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 overflow-visible ${
                                             isPlaying
                                                 ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/50'
                                                 : 'bg-zinc-800 text-purple-400 hover:bg-purple-500/20 border border-purple-500/30'
                                         }`}
                                     >
+                                        {isPlaying && (
+                                            <span className="absolute inset-0 rounded-full border border-purple-400/60 animate-ping" />
+                                        )}
                                         {isPlaying ? (
                                             <PauseIcon className="w-5 h-5" />
                                         ) : (
@@ -432,9 +447,12 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
 
                                 {/* Title & Tags */}
                                 <div className="col-span-3 flex flex-col justify-center">
-                                    <p className="font-black text-lg text-slate-100 mb-2 tracking-tight">
-                                        {instrumental.title}
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-black text-lg text-slate-100 mb-2 tracking-tight">
+                                            {instrumental.title}
+                                        </p>
+                                        {isPlaying && <PlayingBars className="mb-2" />}
+                                    </div>
                                     <div className="flex flex-wrap gap-2">
                                         {tags.length > 0 ? (
                                             tags.map((tag) => (

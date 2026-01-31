@@ -46,6 +46,7 @@ export enum AppView {
     LABEL_PROFILE = 'LABEL_PROFILE',
     ASSET_VAULT = 'ASSET_VAULT',
     MASTER_CALENDAR = 'MASTER_CALENDAR',
+    REVIEW_PAGE = 'REVIEW_PAGE',
 }
 
 export enum UserRole {
@@ -147,9 +148,11 @@ export enum TransactionStatus {
 export enum BookingStatus {
     PENDING = 'PENDING',
     PENDING_APPROVAL = 'PENDING_APPROVAL',
+    PENDING_LABEL_APPROVAL = 'PENDING_LABEL_APPROVAL',
     CONFIRMED = 'CONFIRMED',
     COMPLETED = 'COMPLETED',
     CANCELLED = 'CANCELLED',
+    DENIED = 'DENIED',
 }
 
 export enum BookingRequestType {
@@ -303,6 +306,7 @@ export interface BaseUser {
     image_url: string;
     cover_image_url?: string;
     animated_logo_url?: string;
+    bio?: string;
     followers: number;
     follower_ids: string[];
     following: Following;
@@ -559,10 +563,29 @@ export interface Review {
     producer_id?: string;
     artist_id?: string;
     masterclass_id?: string;
+    reviewer_id?: string;
     reviewer_name: string;
     rating: number;
     comment: string;
     date: string;
+}
+
+export interface ReviewTarget {
+    id: string;
+    role: UserRole;
+    name?: string;
+    image_url?: string | null;
+}
+
+export interface AppReview {
+    id: string;
+    reviewer_id?: string;
+    reviewer_name: string;
+    reviewer_avatar_url?: string | null;
+    rating: number;
+    comment?: string | null;
+    category: 'app' | 'business';
+    created_at: string;
 }
 
 export interface Message {
@@ -732,6 +755,7 @@ export interface ArtistBudget {
     artist_image_url: string;
     allocation_amount: number;
     amount_spent: number;
+    remaining_amount?: number;
 }
 
 export interface LabelBudgetOverview {

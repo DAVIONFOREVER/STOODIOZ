@@ -85,7 +85,7 @@ export const useSession = (navigate: (view: any) => void) => {
 
   const requestPayout = useCallback(
     async (amount: number) => {
-      if (!currentUser || !userRole || userRole === UserRole.ARTIST) return;
+      if (!currentUser || !userRole) return;
 
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 

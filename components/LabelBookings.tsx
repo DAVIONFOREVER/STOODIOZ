@@ -10,6 +10,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     switch (status) {
         case 'PENDING':
         case 'PENDING_APPROVAL':
+        case 'PENDING_LABEL_APPROVAL':
             classes += " bg-yellow-500/20 text-yellow-400";
             break;
         case 'CONFIRMED':
@@ -19,6 +20,7 @@ const StatusBadge = ({ status }: { status: string }) => {
             classes += " bg-green-500/20 text-green-400";
             break;
         case 'CANCELLED':
+        case 'DENIED':
             classes += " bg-red-500/20 text-red-400";
             break;
         default:
@@ -207,9 +209,11 @@ const LabelBookings: React.FC = () => {
                         <option value="ALL">All Statuses</option>
                         <option value="PENDING">Pending</option>
                         <option value="PENDING_APPROVAL">Pending Approval</option>
+                        <option value="PENDING_LABEL_APPROVAL">Pending Label Approval</option>
                         <option value="CONFIRMED">Confirmed</option>
                         <option value="COMPLETED">Completed</option>
                         <option value="CANCELLED">Cancelled</option>
+                        <option value="DENIED">Denied</option>
                     </select>
                 </div>
 

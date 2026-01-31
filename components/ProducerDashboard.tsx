@@ -15,6 +15,7 @@ import BeatManager from './BeatManager.tsx';
 import KitsManager from './KitsManager.tsx';
 import ProducerSettings from './ProducerSettings.tsx';
 import VerifiedBadge from './VerifiedBadge';
+import ProfileBioEditor from './ProfileBioEditor';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 import { useNavigation } from '../hooks/useNavigation.ts';
 import { useSocial } from '../hooks/useSocial.ts';
@@ -316,12 +317,19 @@ const ProducerDashboard: React.FC = () => {
         <div className="space-y-8 animate-fade-in">
             {/* Profile Header */}
             <div className="relative rounded-2xl overflow-hidden cardSurface group">
-                <img 
-                    // FIX: Corrected property name from 'coverImageUrl' to 'cover_image_url' to match the type definition.
-                    src={producer.cover_image_url || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'} 
-                    alt={`${producer.name}'s cover photo`}
-                    className="w-full h-48 md:h-64 object-cover"
-                />
+                <div className="h-48 md:h-64 bg-zinc-900 relative">
+                    {producer.cover_image_url ? (
+                        <img 
+                            src={producer.cover_image_url}
+                            alt={`${producer.name}'s cover photo`}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
+                            <p className="text-zinc-700 font-bold text-4xl opacity-20 uppercase tracking-widest">Producer</p>
+                        </div>
+                    )}
+                </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                 <button 
                     onClick={handleCoverImageUploadClick}
@@ -391,6 +399,29 @@ const ProducerDashboard: React.FC = () => {
                                 <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ${Boolean(producer.is_available ?? false) ? 'translate-x-6' : 'translate-x-0'}`}></div>
                             </div>
                         </label>
+                        <label className="flex items-center cursor-pointer self-center sm:self-auto" htmlFor="show-on-map-toggle">
+                            <span className="text-sm font-medium text-zinc-300 mr-3">Show on Map</span>
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    id="show-on-map-toggle"
+                                    className="sr-only peer"
+                                    checked={Boolean((producer as any).show_on_map)}
+                                    onChange={async (e) => {
+                                        const newValue = e.target.checked;
+                                        try {
+                                            await updateProfile({ show_on_map: newValue } as any);
+                                        } catch (error: any) {
+                                            console.error('[ProducerDashboard] Failed to update show_on_map:', error);
+                                            alert(`Failed to update map visibility: ${error?.message || 'Unknown error'}`);
+                                            e.target.checked = !newValue;
+                                        }
+                                    }}
+                                />
+                                <div className={`block w-12 h-6 rounded-full transition-colors duration-200 ${Boolean((producer as any).show_on_map) ? 'bg-orange-500' : 'bg-zinc-600'}`}></div>
+                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ${Boolean((producer as any).show_on_map) ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                            </div>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -401,6 +432,15 @@ const ProducerDashboard: React.FC = () => {
                 <StatCard label="Followers" value={producer.followers ?? 0} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 <StatCard label="Overall Rating" value={(producer.rating_overall || 0).toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
             </div>
+
+             <ProfileBioEditor
+                value={producer.bio || ''}
+                placeholder="Tell clients about your sound, genres, and what you offer."
+                onSave={async (next) => {
+                    await updateProfile({ bio: next });
+                    await refreshCurrentUser();
+                }}
+             />
 
              <div className="cardSurface">
                 <div className="flex border-b border-zinc-700/50 overflow-x-auto">

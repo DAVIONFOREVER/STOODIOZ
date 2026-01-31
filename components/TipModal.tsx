@@ -4,7 +4,7 @@
 
 import React, { useState, useMemo } from 'react';
 import type { Booking } from '../types';
-import { CloseIcon } from './icons';
+import { CloseIcon, HeartIcon } from './icons';
 import { getProfileImageUrl } from '../constants';
 
 interface TipModalProps {
@@ -50,22 +50,27 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
-            <div className="w-full max-w-md transform transition-all cardSurface">
-                <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-100">Add a Tip</h2>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
+            <div className="w-full max-w-md transform transition-all cardSurface border border-zinc-800">
+                <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+                    <div>
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-orange-400">Thank You</p>
+                        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2 mt-1">
+                            <HeartIcon className="w-6 h-6 text-pink-400" /> Add a Tip
+                        </h2>
+                    </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </div>
 
-                <div className="p-6 text-center">
+                <div className="p-6 text-center space-y-5">
                     {/* FIX: Changed `imageUrl` to `image_url` to match the Engineer type definition. */}
                     <img src={getProfileImageUrl(booking.engineer)} alt={booking.engineer.name} className="w-24 h-24 rounded-xl object-cover mx-auto mb-4 border-4 border-zinc-700 shadow-lg" />
                     <p className="text-xl font-semibold text-slate-100">Enjoyed your session with {booking.engineer.name}?</p>
                     <p className="text-slate-400 mt-1">Show your appreciation by leaving a tip on their payout of ${engineerPayout.toFixed(2)}.</p>
 
-                    <div className="flex justify-center gap-4 my-6">
+                    <div className="grid grid-cols-3 gap-3">
                         {tipOptions.map(pct => (
                             <button 
                                 key={pct}
@@ -103,7 +108,7 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
 
                 </div>
 
-                <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-2xl">
+                <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 rounded-b-2xl">
                     <button 
                         onClick={handleConfirm}
                         disabled={finalTipAmount <= 0}

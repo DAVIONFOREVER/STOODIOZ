@@ -10,6 +10,18 @@ interface MixingSamplePlayerProps {
     engineerId?: string;
 }
 
+const PlayingBars: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <div className={`flex items-end gap-1 ${className}`} aria-hidden="true">
+        {[6, 10, 8, 12].map((h, idx) => (
+            <span
+                key={idx}
+                className="w-1 rounded-sm bg-orange-400 animate-bounce"
+                style={{ height: h, animationDelay: `${idx * 0.12}s`, animationDuration: '0.9s' }}
+            />
+        ))}
+    </div>
+);
+
 const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples, engineerId }) => {
     const { currentUser } = useAppState();
     const [playingId, setPlayingId] = useState<string | null>(null);
@@ -380,12 +392,15 @@ const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples, 
                                 <div className="col-span-1 flex items-center">
                                     <button
                                         onClick={() => handlePlayPause(sample)}
-                                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                        className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 overflow-visible ${
                                             isPlaying
                                                 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/50'
                                                 : 'bg-zinc-800 text-orange-400 hover:bg-orange-500/20 border border-orange-500/30'
                                         }`}
                                     >
+                                        {isPlaying && (
+                                            <span className="absolute inset-0 rounded-full border border-orange-400/60 animate-ping" />
+                                        )}
                                         {isPlaying ? (
                                             <PauseIcon className="w-5 h-5" />
                                         ) : (
@@ -396,9 +411,12 @@ const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples, 
 
                                 {/* Title & Description */}
                                 <div className="col-span-4 flex flex-col justify-center">
-                                    <p className="font-black text-lg text-slate-100 mb-2 tracking-tight">
-                                        {sample.title}
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-black text-lg text-slate-100 mb-2 tracking-tight">
+                                            {sample.title}
+                                        </p>
+                                        {isPlaying && <PlayingBars className="mb-2" />}
+                                    </div>
                                     <p className="text-sm text-zinc-400 line-clamp-2">
                                         {sample.description || 'No description'}
                                     </p>

@@ -77,9 +77,38 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                 assets: operationalContext.assets,
                 projects: operationalContext.projects
             };
-            const response = await askAriaCantata(newHistory, text, currentUser as any, userRole, context);
+            const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T) =>
+                new Promise<T>((resolve) => {
+                    const timer = setTimeout(() => resolve(fallback), ms);
+                    promise
+                        .then((result) => {
+                            clearTimeout(timer);
+                            resolve(result);
+                        })
+                        .catch(() => {
+                            clearTimeout(timer);
+                            resolve(fallback);
+                        });
+                });
 
-            if (response.type !== 'speak' && response.type !== 'error') {
+            const response = await withTimeout(
+                askAriaCantata(newHistory, text, currentUser as any, userRole, context),
+                25000,
+                { type: 'speak', target: null, value: null, text: "I'm still analyzing. Try again in a moment." }
+            );
+
+            const isMixDoctorPrompt =
+                text.toLowerCase().includes('mix doctor') ||
+                text.toLowerCase().includes('audio analysis');
+            const requiresLoginAction = response.type === 'generateDocument' || response.type === 'generateReport';
+
+            if (requiresLoginAction && (!currentUser || isMixDoctorPrompt)) {
+                const suffix = !currentUser
+                    ? '\n\nLog in if you want this saved to Documents.'
+                    : '\n\nI can save this to Documents after we review it here.';
+                const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: `${response.text}${suffix}` }] };
+                setHistory([...newHistory, modelMessage]);
+            } else if (response.type !== 'speak' && response.type !== 'error') {
                 await onExecuteCommand(response, onClose);
                 const modelMessage: AriaCantataMessage = { role: 'model', parts: [{ text: response.text }] };
                 setHistory([...newHistory, modelMessage]);

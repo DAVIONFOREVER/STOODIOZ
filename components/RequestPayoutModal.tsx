@@ -5,12 +5,13 @@ import { CloseIcon, BanknotesIcon } from './icons';
 interface RequestPayoutModalProps {
     onClose: () => void;
     onConfirm: (amount: number) => void;
+    onConnect?: () => void;
     currentBalance: number;
     hasConnect: boolean;
     payoutsEnabled: boolean;
 }
 
-const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConfirm, currentBalance, hasConnect, payoutsEnabled }) => {
+const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConfirm, onConnect, currentBalance, hasConnect, payoutsEnabled }) => {
     const [amount, setAmount] = useState<string>(String(currentBalance));
 
     const handleConfirm = () => {
@@ -24,16 +25,21 @@ const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConf
     const isBlocked = !hasConnect || !payoutsEnabled;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
-            <div className="w-full max-w-md transform transition-all cardSurface">
-                <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2"><BanknotesIcon className="w-6 h-6 text-orange-400"/> Request Payout</h2>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
+            <div className="w-full max-w-md transform transition-all cardSurface border border-zinc-800">
+                <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+                    <div>
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-orange-400">Payout</p>
+                        <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2 mt-1">
+                            <BanknotesIcon className="w-6 h-6 text-orange-400"/> Request Payout
+                        </h2>
+                    </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-200">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </div>
 
-                <div className="p-6">
+                <div className="p-6 space-y-4">
                     <p className="text-slate-300 mb-2">
                         Enter the amount you'd like to withdraw to your linked bank account. Payouts are typically processed within 2-3 business days.
                     </p>
@@ -41,8 +47,20 @@ const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConf
                         Available Balance: <span className="text-green-400">${currentBalance.toFixed(2)}</span>
                     </p>
                     {isBlocked && (
-                        <div className="mb-4 p-3 rounded-lg border border-orange-500/30 bg-orange-500/10 text-sm text-orange-200">
-                            {!hasConnect && <p>Connect your Stripe account to receive payouts.</p>}
+                        <div className="mb-4 p-3 rounded-lg border border-orange-500/30 bg-orange-500/10 text-sm text-orange-200 space-y-2">
+                            {!hasConnect && (
+                                <>
+                                    <p>Connect your Stripe account to receive payouts.</p>
+                                    <button
+                                        type="button"
+                                        onClick={onConnect}
+                                        disabled={!onConnect}
+                                        className="w-full mt-2 bg-orange-500 text-white font-semibold py-2 px-3 rounded-lg text-sm hover:bg-orange-600 disabled:bg-zinc-600 disabled:cursor-not-allowed"
+                                    >
+                                        Connect Stripe
+                                    </button>
+                                </>
+                            )}
                             {hasConnect && !payoutsEnabled && <p>Payouts are currently disabled for this account.</p>}
                         </div>
                     )}
@@ -61,7 +79,7 @@ const RequestPayoutModal: React.FC<RequestPayoutModalProps> = ({ onClose, onConf
                     {parseFloat(amount) > currentBalance && <p className="text-red-400 text-sm text-center mt-2">Amount cannot exceed your available balance.</p>}
                 </div>
 
-                <div className="p-6 bg-zinc-800/50 border-t border-zinc-700 rounded-b-2xl">
+                <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 rounded-b-2xl">
                     <button
                         onClick={handleConfirm}
                         disabled={isInvalid || isBlocked}

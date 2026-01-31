@@ -225,6 +225,7 @@ const ChatThread: React.FC<{
         const allowLargeUploads = (!!associatedBooking && [
             BookingStatus.PENDING,
             BookingStatus.PENDING_APPROVAL,
+            BookingStatus.PENDING_LABEL_APPROVAL,
             BookingStatus.CONFIRMED,
         ].includes(associatedBooking.status)) || hasNoDeliverablesYet;
 
