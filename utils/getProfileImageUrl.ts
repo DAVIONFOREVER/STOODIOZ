@@ -15,11 +15,10 @@ export function getProfileImageUrl(
     return ARIA_IMG;
   }
 
-  return (
-    user.image_url ||
-    user.avatar_url ||
-    nested?.image_url ||
-    nested?.avatar_url ||
-    fallback
-  );
+  const url =
+    (user.image_url && String(user.image_url).trim()) ||
+    (user.avatar_url && String(user.avatar_url).trim()) ||
+    (nested?.image_url && String(nested.image_url).trim()) ||
+    (nested?.avatar_url && String(nested.avatar_url).trim());
+  return url || fallback;
 }

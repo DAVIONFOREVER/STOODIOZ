@@ -262,7 +262,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
     // FIX: Replaced google.maps.Map with any.
     const [map, setMap] = useState<any | null>(null);
+    const mapRef = useRef<any | null>(null);
     const [userLocation, setUserLocation] = useState<Location | null>(null);
+    const [locationError, setLocationError] = useState<string | null>(null);
+    const [isLocating, setIsLocating] = useState(false);
     const [selectedItem, setSelectedItem] = useState<MapItem | null>(null);
     const [activeFilter, setActiveFilter] = useState<FilterType>('ALL');
     // FIX: Replaced google.maps.DirectionsResult with any.
@@ -296,8 +299,13 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         );
     }
     
-    // Effect for user's own location
-    useEffect(() => {
+    const requestUserLocation = useCallback(() => {
+        if (!navigator.geolocation) {
+            setLocationError('Geolocation is not supported by this browser.');
+            return;
+        }
+        setIsLocating(true);
+        setLocationError(null);
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const newLocation = {
@@ -305,15 +313,34 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                     lon: position.coords.longitude,
                 };
                 setUserLocation(newLocation);
+                setIsLocating(false);
                 // Only pan on initial load, or if tracking
-                if (map && !directionsIntent && !selectedItem) {
-                    map.panTo({ lat: newLocation.lat, lng: newLocation.lon });
+                const mapInstance = mapRef.current;
+                if (mapInstance && !directionsIntent && !selectedItem) {
+                    mapInstance.panTo({ lat: newLocation.lat, lng: newLocation.lon });
                 }
             },
-            () => console.log("Could not get user's location."),
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            (error) => {
+                setIsLocating(false);
+                const code = (error as GeolocationPositionError)?.code;
+                if (code === 1) {
+                    setLocationError('Location permission denied. Enable it in your browser settings.');
+                } else if (code === 2) {
+                    setLocationError('Location unavailable. Try again or check network/GPS.');
+                } else if (code === 3) {
+                    setLocationError('Location request timed out. Try again.');
+                } else {
+                    setLocationError('Unable to get location.');
+                }
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
-    }, [map, directionsIntent, selectedItem]);
+    }, [directionsIntent, selectedItem]);
+
+    // Effect for user's own location
+    useEffect(() => {
+        requestUserLocation();
+    }, [requestUserLocation]);
 
     // Effect for Supabase real-time channel
     useEffect(() => {
@@ -506,10 +533,11 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     
     const handleMarkerClick = useCallback((item: MapItem) => {
         setSelectedItem(item);
-        if (item.coordinates && map) {
-            map.panTo({ lat: item.coordinates.lat, lng: item.coordinates.lon });
+        const mapInstance = mapRef.current;
+        if (item.coordinates && mapInstance) {
+            mapInstance.panTo({ lat: item.coordinates.lat, lng: item.coordinates.lon });
         }
-    }, [map]);
+    }, []);
 
     const handleSelectProfile = (user: MapUser) => {
         if ('amenities' in user) onSelectStoodio(user as Stoodio);
@@ -656,8 +684,14 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         }
     }, [fetchLocation]);
     
-    const onLoad = useCallback((mapInstance: any) => setMap(mapInstance), []);
-    const onUnmount = useCallback((mapInstance: any) => setMap(null), []);
+    const onLoad = useCallback((mapInstance: any) => {
+        mapRef.current = mapInstance;
+        setMap(mapInstance);
+    }, []);
+    const onUnmount = useCallback(() => {
+        mapRef.current = null;
+        setMap(null);
+    }, []);
     
     const directionsCallback = (res: any | null, status: any) => {
         if (status === 'OK' && res) setDirections(res);
@@ -720,6 +754,18 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                     </OverlayViewF>
                 )}
             </GoogleMap>
+            {locationError && (
+                <div className="absolute top-4 right-4 z-10 bg-zinc-900/90 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-3 py-2 shadow-lg max-w-[240px]">
+                    <div className="font-semibold mb-1">Location unavailable</div>
+                    <div className="text-zinc-400">{locationError}</div>
+                    <button
+                        onClick={requestUserLocation}
+                        className="mt-2 text-orange-400 hover:text-orange-300 font-semibold"
+                    >
+                        {isLocating ? 'Locating…' : 'Retry'}
+                    </button>
+                </div>
+            )}
              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 p-1 bg-zinc-900/80 backdrop-blur-sm rounded-full shadow-lg flex items-center gap-1">
                 <TabButton label="All" active={activeFilter === 'ALL'} onClick={() => setActiveFilter('ALL')} icon={<UsersIcon className="w-4 h-4" />} />
                 <TabButton label="Stoodios" active={activeFilter === 'STOODIO'} onClick={() => setActiveFilter('STOODIO')} icon={<HouseIcon className="w-4 h-4" />} />

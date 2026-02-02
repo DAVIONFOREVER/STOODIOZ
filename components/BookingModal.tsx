@@ -3,7 +3,7 @@ import type { BookingRequest, Room, Instrumental } from '../types';
 import { BookingRequestType } from '../types';
 import { SERVICE_FEE_PERCENTAGE } from '../constants';
 import { CloseIcon, CalendarIcon, ClockIcon, DurationIcon, PriceIcon, UserGroupIcon, MusicNoteIcon } from './icons.tsx';
-import { useAppState } from '../contexts/AppContext.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 
 interface BookingModalProps {
     onClose: () => void;
@@ -13,6 +13,7 @@ interface BookingModalProps {
 const BookingModal: React.FC<BookingModalProps> = (props) => {
     const { onClose, onConfirm } = props;
     const { stoodioz, engineers, producers, currentUser, isLoading, bookingTime, bookingIntent, selectedStoodio } = useAppState();
+    const dispatch = useAppDispatch();
 
     const stoodio = selectedStoodio;
 
@@ -111,6 +112,12 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 
     const handleConfirmBooking = (e: React.FormEvent) => {
         e.preventDefault();
+
+        const walletBalance = Number(currentUser?.wallet_balance ?? 0);
+        if (totalCost > walletBalance) {
+            dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
+            return;
+        }
 
         const finalMixingDetails = bookingIntent?.mixingDetails || (addMixing && canOfferMixing && selectedEngineerForMixing ? {
             type: 'IN_STUDIO',

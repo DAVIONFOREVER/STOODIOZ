@@ -99,7 +99,8 @@ const StageCreatorHub: React.FC<StageCreatorHubProps> = ({
                                 <button onClick={onStartLive} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-left hover:bg-zinc-900 transition-colors shadow-[0_0_16px_rgba(34,211,238,0.08)]">
                                     <div className="flex items-center gap-2">
                                         <MicrophoneIcon className="w-4 h-4 text-cyan-400" />
-                                        <p className="text-sm font-semibold text-zinc-100">Go Live Chat</p>
+                                        <p className="text-sm font-semibold text-zinc-100">Go Live</p>
+                                        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Chat-only</span>
                                     </div>
                                     <p className="mt-1 text-[11px] text-zinc-400">Jump to inbox</p>
                                 </button>
@@ -171,6 +172,7 @@ const StageCreatorHub: React.FC<StageCreatorHubProps> = ({
                                     >
                                         <MicrophoneIcon className="w-5 h-5 text-cyan-400" />
                                         <span className="mt-1 text-[10px] uppercase tracking-[0.2em]">Live</span>
+                                        <span className="text-[9px] uppercase tracking-[0.2em] text-zinc-500">Chat-only</span>
                                     </button>
                                 </div>
                             </div>

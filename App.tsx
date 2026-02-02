@@ -21,6 +21,7 @@ import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 import { getSupabase } from './lib/supabase.ts';
 import * as apiService from './services/apiService.ts';
 import { getAriaNudge } from './services/geminiService.ts';
+import { ARIA_EMAIL } from './constants.ts';
 
 import appIcon from './assets/stoodioz-app-icon.png';
 import Header from './components/Header.tsx';
@@ -258,6 +259,7 @@ const App: React.FC = () => {
   const hydrateInFlightRef = useRef<Promise<UserRole | null> | null>(null);
   const lastHydratedUserIdRef = useRef<string | null>(null);
   const didBootstrapRef = useRef(false);
+  const didLoadDirectoryRef = useRef(false);
   const currentUserRef = useRef(currentUser);
   const userRoleRef = useRef(userRole);
   const currentViewRef = useRef(currentView);
@@ -519,6 +521,8 @@ const App: React.FC = () => {
       };
     }
     const loadDirectory = async () => {
+      if (didLoadDirectoryRef.current) return;
+      didLoadDirectoryRef.current = true;
       try {
         let directory = await apiService.getAllPublicUsers(false);
         if (!isMounted) return;
@@ -595,6 +599,18 @@ const App: React.FC = () => {
       }
     };
     loadDirectory();
+    const directoryRetry = setTimeout(() => {
+      const hasAny =
+        (state.artists?.length || 0) > 0 ||
+        (state.engineers?.length || 0) > 0 ||
+        (state.producers?.length || 0) > 0 ||
+        (state.stoodioz?.length || 0) > 0 ||
+        (state.labels?.length || 0) > 0;
+      if (!hasAny) {
+        didLoadDirectoryRef.current = false;
+        loadDirectory();
+      }
+    }, 2000);
 
     // 2) Bootstrap session ONCE (but do not block login page)
     const bootstrap = async () => {
@@ -638,10 +654,12 @@ const App: React.FC = () => {
           // Reset guards
           lastHydratedUserIdRef.current = null;
           hydrateInFlightRef.current = null;
+          didLoadDirectoryRef.current = false;
 
           dispatch({ type: ActionTypes.LOGOUT });
           dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
           dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.LANDING_PAGE } });
+          loadDirectory();
           return;
         }
 
@@ -666,6 +684,7 @@ const App: React.FC = () => {
 
     return () => {
       isMounted = false;
+      clearTimeout(directoryRetry);
       listener.subscription.unsubscribe();
     };
     // Intentionally run once on mount. Refs (currentUserRef, userRoleRef, hydrateUserRef) hold latest values for the auth listener.
@@ -724,8 +743,27 @@ const App: React.FC = () => {
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
       try {
-        const result = await apiService.createUser(userData, role);
+        let result = await apiService.createUser(userData, role);
         if (result) {
+          // Auto-follow Aria forever on signup
+          try {
+            const ariaProfile = await apiService.fetchProfileByEmail(ARIA_EMAIL);
+            if (ariaProfile?.id && result?.id && String(ariaProfile.id) !== String(result.id)) {
+              await apiService.toggleFollow(result.id, ariaProfile.id);
+              const defaults = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
+              const existing = (result as any).following || defaults;
+              const artists = Array.isArray(existing.artists) ? existing.artists : [];
+              const nextFollowing = {
+                ...defaults,
+                ...existing,
+                artists: artists.includes(ariaProfile.id) ? artists : [...artists, ariaProfile.id],
+              };
+              result = { ...result, following: nextFollowing };
+            }
+          } catch (e) {
+            console.warn('[completeSetup] auto-follow Aria failed:', e);
+          }
+
           dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
           const hasClaim = typeof window !== 'undefined' && (sessionStorage.getItem('pending_claim_token') || localStorage.getItem('pending_claim_token'));
           if (hasClaim) navigate(AppView.CLAIM_CONFIRM);

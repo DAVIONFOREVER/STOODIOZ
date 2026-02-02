@@ -20,6 +20,14 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
     const [status, setStatus] = useState<'connecting' | 'connected' | 'ended' | 'error'>('connecting');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [permissionHint, setPermissionHint] = useState<string | null>(null);
+    const readyIntervalRef = useRef<number | null>(null);
+    const hasSentOfferRef = useRef(false);
+    const isPeerReadyRef = useRef(false);
+    const statusRef = useRef(status);
+
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
 
     useEffect(() => {
         const supabase = getSupabase();
@@ -67,15 +75,23 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
             }
             localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
 
-            if (isCaller) {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
+            const sendOffer = async () => {
+                if (hasSentOfferRef.current || !peerRef.current) return;
+                hasSentOfferRef.current = true;
+                const offer = await peerRef.current.createOffer();
+                await peerRef.current.setLocalDescription(offer);
                 channel.send({
                     type: 'broadcast',
                     event: 'signal',
                     payload: { from: currentUserId, type: 'offer', sdp: offer },
                 });
+            };
+
+            if (isCaller && isPeerReadyRef.current) {
+                await sendOffer();
             }
+
+            return sendOffer;
         };
 
         channel
@@ -85,6 +101,20 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
                 const pc = peerRef.current;
                 if (!pc) return;
                 const data = payload.payload;
+                if (data.type === 'ready') {
+                    isPeerReadyRef.current = true;
+                    if (isCaller && !hasSentOfferRef.current && pc.signalingState === 'stable') {
+                        const offer = await pc.createOffer();
+                        await pc.setLocalDescription(offer);
+                        hasSentOfferRef.current = true;
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'signal',
+                            payload: { from: currentUserId, type: 'offer', sdp: offer },
+                        });
+                    }
+                    return;
+                }
                 if (data.type === 'offer') {
                     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
                     const answer = await pc.createAnswer();
@@ -110,7 +140,24 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
             })
             .subscribe(async () => {
                 try {
-                    await setupPeer();
+                    const sendOffer = await setupPeer();
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'signal',
+                        payload: { from: currentUserId, type: 'ready' },
+                    });
+                    if (!isCaller && !readyIntervalRef.current) {
+                        readyIntervalRef.current = window.setInterval(() => {
+                            if (statusRef.current === 'connected' || statusRef.current === 'ended') return;
+                            channel.send({
+                                type: 'broadcast',
+                                event: 'signal',
+                                payload: { from: currentUserId, type: 'ready' },
+                            });
+                        }, 2000);
+                    } else if (isCaller && isPeerReadyRef.current && sendOffer) {
+                        await sendOffer();
+                    }
                 } catch (e: any) {
                     const msg = e?.message || 'Video chat failed to start.';
                     console.error('Video call setup failed', e);
@@ -120,6 +167,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
             });
 
         return () => {
+            if (readyIntervalRef.current) {
+                clearInterval(readyIntervalRef.current);
+                readyIntervalRef.current = null;
+            }
             try {
                 supabase.removeChannel(channel);
             } catch (e) {

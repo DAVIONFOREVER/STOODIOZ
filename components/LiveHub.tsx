@@ -51,7 +51,10 @@ const LiveHub: React.FC<LiveHubProps> = ({ onStartLive, onJoinLive }) => {
         <div className="cardSurface p-5 space-y-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-orange-400 font-semibold">Live</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-xs uppercase tracking-[0.25em] text-orange-400 font-semibold">Live</p>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Chat-only</span>
+                    </div>
                     <h3 className="text-lg font-bold text-zinc-100 mt-1">Live Chat Rooms</h3>
                 </div>
                 <button

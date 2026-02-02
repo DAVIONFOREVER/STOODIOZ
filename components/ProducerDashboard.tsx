@@ -174,18 +174,11 @@ const ProducerDashboard: React.FC = () => {
         try {
             console.log('Starting avatar upload for producer:', currentUser.id);
             
-            // uploadAvatar uploads to storage and calls updateUser to update the database
+            // uploadAvatar uploads to storage and calls updateUser (profiles). Then updateProfile
+            // syncs to producers table so landing page and profile show the photo.
             const url = await apiService.uploadAvatar(currentUser.id, file);
-            console.log('Avatar uploaded successfully, URL:', url);
-            
-            // Refresh the current user to get the latest data from the database
-            // This will update both the currentUser state and the producers array
+            await updateProfile({ image_url: url });
             await refreshCurrentUser();
-            console.log('User profile refreshed');
-            
-            // Force a small delay to ensure state propagation
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
         } catch (e: any) {
             console.error('Avatar upload failed:', e);
             const errorMessage = e?.message || e?.toString() || 'Profile photo could not be saved.';
@@ -220,18 +213,11 @@ const ProducerDashboard: React.FC = () => {
         try {
             console.log('Starting cover image upload for producer:', currentUser.id);
             
-            // uploadCoverImage uploads to storage and calls updateUser to update the database
+            // uploadCoverImage uploads to storage and calls updateUser (profiles). Then updateProfile
+            // syncs to producers table so profile page shows the cover.
             const url = await apiService.uploadCoverImage(currentUser.id, file);
-            console.log('Cover image uploaded successfully, URL:', url);
-            
-            // Refresh the current user to get the latest data from the database
-            // This will update both the currentUser state and the producers array
+            await updateProfile({ cover_image_url: url });
             await refreshCurrentUser();
-            console.log('User profile refreshed');
-            
-            // Force a small delay to ensure state propagation
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
         } catch (e: any) {
             console.error('Cover upload failed:', e);
             const errorMessage = e?.message || e?.toString() || 'Cover photo could not be saved.';

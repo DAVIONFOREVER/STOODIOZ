@@ -5,6 +5,7 @@ import { AppView, UserRole } from '../types';
 import type { Artist, Engineer, Stoodio, Producer, Booking, AriaActionResponse, AriaCantataMessage, Location, FileAttachment, Label, BookingRequest, Project, ProjectTask } from '../types';
 import * as apiService from '../services/apiService';
 import { createPdfBytes } from '../lib/pdf';
+import { ARIA_EMAIL } from '../constants';
 
 interface AriaHookDependencies {
     startConversation: (participant: Artist | Engineer | Stoodio | Producer | Label) => void;
@@ -134,6 +135,11 @@ export const useAria = (deps: AriaHookDependencies) => {
 
             case 'createBooking': 
                 if (command.value && currentUser) {
+                    if (currentUser.email === ARIA_EMAIL) {
+                        alert("Aria can't book sessions for herself. Sign in as a user to book on their behalf.");
+                        onClose();
+                        break;
+                    }
                     const { targetId, date, time } = command.value;
                     const allTargets = [...engineers, ...producers, ...stoodioz];
                     const target = allTargets.find(t => t.id === targetId || t.name.toLowerCase() === targetId.toLowerCase());
@@ -146,9 +152,25 @@ export const useAria = (deps: AriaHookDependencies) => {
                             ...( 'amenities' in target ? { room: (target as any).rooms?.[0] } : {} )
                         };
                         try {
-                           const newBooking = await apiService.createBooking(request, target as any, currentUser, userRole!);
-                           dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: newBooking } });
-                           alert(`Aria: Session booked at ${target.name}. Check your schedule.`);
+                           if ('amenities' in target) {
+                               dispatch({ type: ActionTypes.VIEW_STOODIO_DETAILS, payload: { stoodio: target as Stoodio } });
+                               await deps.confirmBooking(request);
+                               onClose();
+                               break;
+                           }
+
+                           if ('specialties' in target) {
+                               dispatch({
+                                   type: ActionTypes.SET_BOOKING_INTENT,
+                                   payload: { intent: { engineer: target, date: request.date, time: request.start_time } }
+                               });
+                               deps.navigate(AppView.STOODIO_LIST);
+                               alert(`Aria: Pick a studio to finish booking ${target.name}.`);
+                               onClose();
+                               break;
+                           }
+
+                           alert('Aria: I need a studio selection to finish this booking.');
                            onClose();
                         } catch (e) { alert("Execution failed."); }
                     }

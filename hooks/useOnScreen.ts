@@ -5,8 +5,9 @@ export function useOnScreen<T extends Element>(ref: MutableRefObject<T | null>, 
   const [isIntersecting, setIntersecting] = useState<boolean>(false);
 
   useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
     const element = ref.current;
-    if (!element) return;
+    if (!element || !(element instanceof Element)) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -18,11 +19,18 @@ export function useOnScreen<T extends Element>(ref: MutableRefObject<T | null>, 
       }
     );
 
-    observer.observe(element);
+    try {
+      observer.observe(element);
+    } catch {
+      observer.disconnect();
+      return;
+    }
 
     return () => {
-      if (element) {
+      try {
         observer.unobserve(element);
+      } catch {
+        // ignore if element is gone
       }
       observer.disconnect();
     };

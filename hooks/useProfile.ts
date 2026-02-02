@@ -98,6 +98,8 @@ export const useProfile = () => {
 
       for (const [k, v] of Object.entries(updates as any)) {
         if (PROFILE_FIELDS.has(k)) {
+          // Also sync photo/bio to role table so profile page and directory show them without needing enrich
+          if (k === 'image_url' || k === 'cover_image_url' || k === 'bio') roleUpdates[k] = v;
           if (protectedProfileFields.has(k)) {
             const raw = typeof v === 'string' ? v : '';
             const trimmed = raw.trim();
@@ -114,16 +116,20 @@ export const useProfile = () => {
       try {
         const client = getSupabase();
 
-        // 1) Update role table (if any)
+        // 1) Update role table (if any) - try profile_id first, then id (handles both id schemes)
         let roleRow: any = null;
         if (Object.keys(roleUpdates).length > 0) {
-          const { data, error } = await client
+          let { data, error } = await client
             .from(tableName)
             .update(roleUpdates)
             .eq('profile_id', currentUser.id)
             .select('*')
             .maybeSingle();
-          
+          if (!data && !error) {
+            const fallback = await client.from(tableName).update(roleUpdates).eq('id', currentUser.id).select('*').maybeSingle();
+            data = fallback.data;
+            error = fallback.error;
+          }
           if (error) {
             // If column doesn't exist (400 error), update local state only
             if (error.code === 'PGRST116' || error.message?.includes('column') || error.message?.includes('Could not find')) {
@@ -195,10 +201,11 @@ export const useProfile = () => {
 
       let resolvedRoleRow = roleRow;
       // STOODIO: explicitly load rooms so RoomManager list and post-a-job stay in sync after save
+      // rooms.stoodio_id FK references profiles.id (profile_id), not stoodioz.id
       let rooms: any[] = [];
       if (userRole === 'STOODIO') {
-        const stoodioRoleId = (resolvedRoleRow as any)?.id || (currentUser as any)?.role_id || currentUser.id;
-        const { data: r } = await client.from('rooms').select('*').eq('stoodio_id', stoodioRoleId).order('name');
+        const profileId = currentUser.id;
+        const { data: r } = await client.from('rooms').select('*').eq('stoodio_id', profileId).order('name');
         rooms = Array.isArray(r) ? r : [];
       }
       // PRODUCER: instrumentals can be keyed to profile_id, so load directly by profile id
@@ -238,7 +245,7 @@ export const useProfile = () => {
         ...(profRow || {}),
         id: currentUser.id,
         ...(userRole === 'STOODIO' && resolvedRoleRow?.id ? { role_id: resolvedRoleRow.id } : {}),
-        ...(userRole === 'STOODIO' ? { rooms: resolvedRoleRow?.id ? rooms : previousRooms } : {}),
+        ...(userRole === 'STOODIO' ? { rooms } : {}),
         ...(userRole === 'PRODUCER' ? { instrumentals } : {}),
         ...(userRole === 'ENGINEER' ? { mixing_samples: mixingSamples } : {}),
       };

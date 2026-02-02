@@ -330,6 +330,7 @@ const ChatThread: React.FC<{
                             >
                                 <VideoCameraIcon className="w-4 h-4" />
                                 Go Live
+                                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Chat-only</span>
                             </button>
                         )}
                     </div>
@@ -467,7 +468,11 @@ const ChatThread: React.FC<{
                                 <button onClick={() => triggerUpload('image/*,.heic,.heif')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PhotoIcon className="w-5 h-5 text-zinc-400" /> Send Photo</button>
                                 <button onClick={() => handleSmartReplyClick("Here is a link.")} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><LinkIcon className="w-5 h-5 text-zinc-400" /> Send Link</button>
                                 <button onClick={() => triggerUpload('audio/*')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><MusicNoteIcon className="w-5 h-5 text-zinc-400" /> Send Music</button>
-                                <button onClick={() => onStartLiveRoom?.()} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><VideoCameraIcon className="w-5 h-5 text-zinc-400" /> Go Live</button>
+                                <button onClick={() => onStartLiveRoom?.()} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700">
+                                    <VideoCameraIcon className="w-5 h-5 text-zinc-400" />
+                                    <span>Go Live</span>
+                                    <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Chat-only</span>
+                                </button>
                                 <button onClick={() => triggerUpload('*/*')} className="flex items-center gap-3 w-full text-left px-3 py-2 rounded hover:bg-zinc-700"><PaperclipIcon className="w-5 h-5 text-zinc-400" /> Send File</button>
                             </div>
                         )}

@@ -5,6 +5,7 @@ import { moderatePostContent, fetchLinkMetadata } from '../services/geminiServic
 import * as apiService from '../services/apiService';
 import type { LinkAttachment } from '../types';
 import { UserRole } from '../types';
+import { ARIA_EMAIL } from '../constants';
 
 export const useSocial = () => {
     const dispatch = useAppDispatch();
@@ -19,42 +20,52 @@ export const useSocial = () => {
         if (!currentUser) return;
         
         // 1. OPTIMISTIC UPDATE: Calculate new state immediately
-        const targetUser = allUsers.find(u => u.id === id);
-        const targetId = String(id || targetUser?.profile_id || targetUser?.id || '');
+        const targetUser = allUsers.find(u => u.id === id || u.profile_id === id);
+        const targetId = String(targetUser?.profile_id || id || targetUser?.id || '');
         if (!targetId) return;
         
-        let isFollowing = false;
-        if ('following' in currentUser) {
-             const key = `${type}s` as keyof typeof currentUser.following;
-             isFollowing = (currentUser.following[key] || []).includes(targetId);
+        const defaultFollowing = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
+        const followingState = (currentUser as any).following || defaultFollowing;
+        const key = `${type}s` as keyof typeof defaultFollowing;
+        const isFollowing = (followingState[key] || []).includes(targetId);
+        const isAria = targetUser?.email === ARIA_EMAIL;
+        if (isAria && isFollowing) {
+            alert('Aria is always followed.');
+            return;
         }
 
         // Create optimistic copy
         const optimisticUser = { ...currentUser };
-        if ('following' in optimisticUser) {
-            const key = `${type}s` as keyof typeof optimisticUser.following;
-            const currentList = optimisticUser.following[key] || [];
-            
-            if (isFollowing) {
-                // Unfollow
-                optimisticUser.following = {
-                    ...optimisticUser.following,
-                    [key]: currentList.filter((uid: string) => uid !== targetId)
-                };
-            } else {
-                // Follow
-                optimisticUser.following = {
-                    ...optimisticUser.following,
-                    [key]: [...currentList, targetId]
-                };
-            }
-            // Dispatch update immediately
-            dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: optimisticUser } });
-        }
+        const currentList = followingState[key] || [];
+        
+        optimisticUser.following = {
+            ...defaultFollowing,
+            ...followingState,
+            [key]: isFollowing
+                ? currentList.filter((uid: string) => uid !== targetId)
+                : [...currentList, targetId]
+        };
+        // Dispatch update immediately
+        dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: optimisticUser } });
 
         // 2. Perform API Call in Background
         try {
-            await apiService.toggleFollow(currentUser.id, targetId);
+            const result = await apiService.toggleFollow(currentUser.id, targetId);
+            // 3. Update the followed user (User 2) in state so their follower count/list updates immediately
+            if (targetUser && result) {
+                const prevIds = (targetUser as any).follower_ids || [];
+                const prevCount = (targetUser as any).followers ?? prevIds.length;
+                const myId = currentUser.id;
+                const updatedTarget = { ...targetUser } as any;
+                if (result.following) {
+                    updatedTarget.follower_ids = prevIds.includes(myId) ? prevIds : [...prevIds, myId];
+                    updatedTarget.followers = prevCount + (prevIds.includes(myId) ? 0 : 1);
+                } else {
+                    updatedTarget.follower_ids = prevIds.filter((id: string) => id !== myId);
+                    updatedTarget.followers = Math.max(0, prevCount - (prevIds.includes(myId) ? 1 : 0));
+                }
+                dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: [updatedTarget] } });
+            }
         } catch(error) {
             console.error("Failed to toggle follow:", error);
             // Revert on error

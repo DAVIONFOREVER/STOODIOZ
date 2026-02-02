@@ -618,14 +618,17 @@ const ArtistProfile: React.FC = () => {
     useEffect(() => {
         if (!artist?.id) return;
         let isMounted = true;
-        fetchUserPosts(artist.id)
+        const fallbackIds = (artist as any).role_id && String((artist as any).role_id) !== String(artist.id)
+            ? [(artist as any).role_id]
+            : undefined;
+        fetchUserPosts(artist.id, fallbackIds)
             .then((p) => { if (isMounted) setPosts(p); })
             .catch((err) => {
                 console.error('Failed to load artist posts', err);
                 if (isMounted) setPosts([]);
             });
         return () => { isMounted = false; };
-    }, [artist?.id]);
+    }, [artist?.id, (artist as any)?.role_id]);
 
     useEffect(() => {
         if (!isLoadingDetails) return;
@@ -633,7 +636,7 @@ const ArtistProfile: React.FC = () => {
             lastLoadedArtistIdRef.current = null;
             setIsLoadingDetails(false);
             setLoadError('Request timed out. Please try again.');
-        }, 18_000);
+        }, 45_000);
         return () => clearTimeout(t);
     }, [isLoadingDetails]);
 
@@ -705,14 +708,14 @@ const ArtistProfile: React.FC = () => {
         const isFollowing = currentUser ? (currentUser.following?.artists || []).includes(artist.id) : false;
         
         return (
-            <div className="max-w-7xl mx-auto pb-32 animate-fade-in">
-                <button onClick={goBack} className="absolute top-10 left-10 z-20 flex items-center gap-3 text-zinc-400 hover:text-orange-400 transition-all font-black uppercase tracking-[0.25em] text-[10px] mb-6">
-                    <ChevronLeftIcon className="w-4 h-4" /> System Back
+            <div className="max-w-7xl mx-auto pb-32 animate-fade-in px-3 sm:px-4">
+                <button onClick={goBack} className="absolute top-4 left-4 sm:top-10 sm:left-10 z-20 flex items-center gap-2 sm:gap-3 text-zinc-400 hover:text-orange-400 transition-all font-black uppercase tracking-[0.2em] sm:tracking-[0.25em] text-[10px]">
+                    <ChevronLeftIcon className="w-4 h-4 flex-shrink-0" /> <span className="hidden xs:inline">System </span>Back
                 </button>
                 
-                {/* Cover Section with Aria-style Profile Photo Layout */}
+                {/* Cover Section: responsive for portrait mobile */}
                 <div
-                    className="relative min-h-[50dvh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                    className="relative min-h-[40dvh] sm:min-h-[50dvh] rounded-2xl sm:rounded-[40px] overflow-hidden border border-white/5 mb-8 sm:mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                     style={{ 
                         backgroundImage: `url(${artist.cover_image_url || 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=1200&auto=format&fit=crop'})`, 
                         backgroundSize: 'cover', 
@@ -722,28 +725,25 @@ const ArtistProfile: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                     <div className="absolute inset-0 bg-black/30"></div>
                     
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-10">
-                        <div className="relative mb-8">
-                            {/* Glowing background effect like Aria */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 sm:p-6 md:p-8 z-10">
+                        <div className="relative mb-4 sm:mb-6 md:mb-8">
                             <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-[80px] animate-pulse"></div>
-                            {/* Floating profile photo with Aria-style effects */}
                             <div className="relative animate-aria-float">
                                 <img 
                                     src={getProfileImageUrl(artist)} 
                                     alt={getDisplayName(artist)} 
-                                    className="w-40 h-40 md:w-48 md:h-48 rounded-full object-cover border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
+                                    className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full object-cover border-4 sm:border-[6px] md:border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
                                 />
-                                {/* Microphone badge in bottom-right corner (like Aria's magic wand) */}
-                                <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-orange-500 to-pink-600 p-3 rounded-2xl shadow-2xl ring-4 ring-zinc-950">
-                                    <MicrophoneIcon className="w-8 h-8 text-white" />
+                                <div className="absolute -bottom-1 -right-1 sm:-bottom-3 sm:-right-3 bg-gradient-to-br from-orange-500 to-pink-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-2xl ring-2 sm:ring-4 ring-zinc-950">
+                                    <MicrophoneIcon className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
                                 </div>
                             </div>
                         </div>
-                        <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-4" style={{ textShadow: '0 0 30px rgba(249,115,22,0.5)' }}>
+                        <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-black text-white tracking-tighter mb-2 sm:mb-4 break-words max-w-full px-1" style={{ textShadow: '0 0 30px rgba(249,115,22,0.5)' }}>
                             {getDisplayName(artist, 'Artist')}
                         </h1>
-                        <div className="flex items-center gap-4">
-                            <span className="text-[11px] font-black uppercase tracking-[0.4em] text-orange-400 bg-orange-500/10 px-6 py-2 rounded-full border border-orange-500/20 backdrop-blur-md">
+                        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+                            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] text-orange-400 bg-orange-500/10 px-3 py-1.5 sm:px-6 sm:py-2 rounded-full border border-orange-500/20 backdrop-blur-md whitespace-nowrap">
                                 Artist
                             </span>
                             {(artist as any).label_verified && <VerifiedBadge labelVerified={true} />}
@@ -752,9 +752,9 @@ const ArtistProfile: React.FC = () => {
                 </div>
 
                 {/* Action Buttons Section */}
-                <div className="flex justify-center mb-12 px-4">
+                <div className="flex flex-wrap justify-center gap-3 mb-8 sm:mb-12">
                     {currentUser && currentUser.id !== artist.id && (
-                        <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex flex-wrap justify-center gap-3">
                             <button 
                                 onClick={() => startConversation(artist)}
                                 disabled={!currentUser || currentUser.id === artist.id}
@@ -777,9 +777,9 @@ const ArtistProfile: React.FC = () => {
 
                 {/* Bio Section */}
                 {artist.bio && (
-                    <div className="cardSurface p-8 mb-8">
+                    <div className="cardSurface p-4 sm:p-6 md:p-8 mb-8">
                         <h3 className="text-sm font-black uppercase text-orange-400 tracking-[0.2em] mb-4">Biography</h3>
-                        <p className="text-slate-300 leading-relaxed text-lg italic">"{artist.bio}"</p>
+                        <p className="text-slate-300 leading-relaxed text-base sm:text-lg italic break-words">"{artist.bio}"</p>
                     </div>
                 )}
 

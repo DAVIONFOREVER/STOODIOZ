@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import type { Stoodio, Producer, Artist, Engineer } from '../types';
 import { AppView } from '../types';
-import { useAppState } from '../contexts/AppContext.tsx';
+import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
+import * as apiService from '../services/apiService.ts';
 import { ChevronRightIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, HouseIcon } from './icons.tsx';
 import StoodioCard from './StoodioCard.tsx';
 import { ARIA_PROFILE_IMAGE_URL, getProfileImageUrl, getDisplayName } from '../constants';
@@ -24,7 +25,44 @@ const LandingPage: React.FC<LandingPageProps> = ({
   onSelectEngineer,
   onOpenAriaCantata,
 }) => {
+  const dispatch = useAppDispatch();
   const { artists, engineers, producers, stoodioz, labels } = useAppState();
+  const didRehydrateRef = useRef(false);
+
+  // Rehydrate directory when landing mounts with empty lists (e.g. after logout)
+  useEffect(() => {
+    const total =
+      (artists?.length ?? 0) +
+      (engineers?.length ?? 0) +
+      (producers?.length ?? 0) +
+      (stoodioz?.length ?? 0) +
+      (labels?.length ?? 0);
+    if (total > 0 || didRehydrateRef.current) return;
+    didRehydrateRef.current = true;
+    let isMounted = true;
+    (async () => {
+      try {
+        const dir = await apiService.getAllPublicUsers(true);
+        if (!isMounted) return;
+        dispatch({
+          type: ActionTypes.SET_INITIAL_DATA,
+          payload: {
+            artists: dir.artists ?? [],
+            engineers: dir.engineers ?? [],
+            producers: dir.producers ?? [],
+            stoodioz: dir.stoodioz ?? [],
+            labels: dir.labels ?? [],
+            reviews: [],
+          },
+        });
+      } catch {
+        didRehydrateRef.current = false;
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch, artists?.length, engineers?.length, producers?.length, stoodioz?.length, labels?.length]);
 
   // Guard: directory arrays can be undefined before SET_INITIAL_DATA or on malformed payload
   const a = artists ?? [];

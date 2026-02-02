@@ -257,10 +257,30 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
     const q = supabase.from(TABLES.profiles).insert({ ...payload, created_at: nowIso(), updated_at: nowIso() }).select('*').single();
     return q as any;
   });
-  // STOODIO: create stoodioz row for role data
-  if (role === 'STOODIO' && result?.id) {
-    const { error: szErr } = await supabase.from('stoodioz').insert({ profile_id: result.id }).select('id').single();
-    if (szErr) throw new Error(`stoodioz insert: ${errMsg(szErr)}`);
+  const profileId = result?.id;
+  if (!profileId) return result;
+
+  // Create role row with profile_id so posts, instrumentals, directory all work from day one
+  const tableForRole: Record<string, string> = {
+    STOODIO: 'stoodioz',
+    PRODUCER: 'producers',
+    ARTIST: 'artists',
+    ENGINEER: 'engineers',
+    LABEL: 'labels',
+  };
+  const tableName = role ? tableForRole[role] : null;
+  if (tableName) {
+    try {
+      const name = payload?.name ?? payload?.display_name ?? payload?.full_name ?? payload?.username ?? 'User';
+      const base = { profile_id: profileId, name };
+      const rolePayload: Record<string, any> = { ...base };
+      if (role === 'ARTIST' && payload?.stage_name) rolePayload.stage_name = payload.stage_name;
+      if (role === 'ENGINEER') rolePayload.specialties = payload?.specialties ?? [];
+      const { error: roleErr } = await supabase.from(tableName).insert(rolePayload).select('id').maybeSingle();
+      if (roleErr) console.warn(`[createUser] role row insert failed (${tableName}):`, roleErr);
+    } catch (e) {
+      console.warn(`[createUser] role row insert failed:`, e);
+    }
   }
   return result;
 }
@@ -381,14 +401,14 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     const profilesSelectFallback = 'id, username, full_name, role, email, image_url, bio, location_text, coordinates, show_on_map';
     const runProfilesSelect = async (select: string, label: string, timeoutMs: number) => {
       return await withTimeout(
-        supabase.from('profiles').select(select).limit(500),
+        supabase.from('profiles').select(select).limit(2000),
         timeoutMs,
         label
       ).catch((err) => ({ data: null, error: err }));
     };
     // Reduced limit for faster initial load - only load what's needed for landing page
     // Can load more on-demand when user navigates to lists
-    const MAX_ROWS_PER_TABLE = 100; // Reduced from 2000 for faster loads
+    const MAX_ROWS_PER_TABLE = 2000;
     
     // Use a longer timeout for directory queries to handle slow Supabase responses
     const QUERY_TIMEOUT_MS = 30_000;
@@ -548,6 +568,32 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       labels: Array.isArray(l.data) ? l.data.map((row: any) => normalizeDirectoryRow(row, 'LABEL')) : [],
     };
 
+    // Enrich rows missing image_url from profiles (dashboard uploads go to profiles first).
+    // Use only profile_id for lookup so we never query profiles by role table id.
+    const enrichFromProfiles = async (rows: any[]) => {
+      const needEnrich = rows.filter((r: any) => !r?.image_url && r?.profile_id);
+      if (needEnrich.length === 0) return;
+      const ids = [...new Set(needEnrich.map((r: any) => r.profile_id).filter(Boolean))];
+      if (ids.length === 0) return;
+      try {
+        const { data: profs } = await supabase.from('profiles').select('id, image_url, avatar_url, cover_image_url').in('id', ids);
+        const byId = new Map((profs || []).map((pr: any) => [pr.id, pr]));
+        rows.forEach((r: any) => {
+          if (r.image_url) return;
+          const pr = r.profile_id ? byId.get(r.profile_id) : null;
+          if (pr?.image_url || pr?.avatar_url) r.image_url = pr.image_url || pr.avatar_url;
+          if (pr?.cover_image_url && !r.cover_image_url) r.cover_image_url = pr.cover_image_url;
+        });
+      } catch (_) { /* best-effort */ }
+    };
+    await Promise.all([
+      enrichFromProfiles(result.producers),
+      enrichFromProfiles(result.artists),
+      enrichFromProfiles(result.engineers),
+      enrichFromProfiles(result.stoodioz),
+      enrichFromProfiles(result.labels),
+    ]);
+
     const dedupeById = (rows: any[]) => {
       const seen = new Set<string>();
       return rows.filter((row) => {
@@ -698,6 +744,7 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
             full_name: row.full_name ?? profile.full_name ?? null,
             username: row.username ?? profile.username ?? null,
             image_url: row.image_url || profile.image_url || profile.avatar_url || null,
+            cover_image_url: row.cover_image_url || profile.cover_image_url || null,
             email: row.email ?? profile.email ?? null,
             location_text: row.location_text ?? profile.location_text ?? null,
             coordinates: row.coordinates ?? profile.coordinates ?? null,
@@ -765,6 +812,32 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       }
     }
 
+    const hadTimeout = [a, e, p, s, l].some((res) =>
+      String(res?.error?.message || '').toLowerCase().includes('timeout')
+    );
+    const resultTotal =
+      result.artists.length +
+      result.engineers.length +
+      result.producers.length +
+      result.stoodioz.length +
+      result.labels.length;
+    const cachedTotal =
+      (cachedPublicUsers?.artists?.length || 0) +
+      (cachedPublicUsers?.engineers?.length || 0) +
+      (cachedPublicUsers?.producers?.length || 0) +
+      (cachedPublicUsers?.stoodioz?.length || 0) +
+      (cachedPublicUsers?.labels?.length || 0);
+    const hasRoleDrop = cachedPublicUsers && (['artists', 'engineers', 'producers', 'stoodioz', 'labels'] as const).some((role) => {
+      const cachedCount = cachedPublicUsers?.[role]?.length || 0;
+      const resultCount = (result as any)?.[role]?.length || 0;
+      return cachedCount > 0 && resultCount === 0;
+    });
+
+    if ((hadTimeout || hasRoleDrop) && cachedPublicUsers && cachedTotal > resultTotal) {
+      console.warn('[getAllPublicUsers] Partial directory load; using cached users.');
+      return cachedPublicUsers;
+    }
+
     // Log results for debugging
     console.log(`[getAllPublicUsers] Final counts: ${result.artists.length} artists, ${result.engineers.length} engineers, ${result.producers.length} producers, ${result.stoodioz.length} stoodioz, ${result.labels.length} labels`);
     // Only cache if we have actual data - don't cache empty results
@@ -829,6 +902,59 @@ function isUuid(s: string): boolean {
   return UUID_REGEX.test(String(s || '').trim());
 }
 
+async function computeFollowData(
+  supabase: any,
+  profileId: string
+): Promise<{ followers: number; follower_ids: string[]; following: any }> {
+  if (!profileId) {
+    return { followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } };
+  }
+
+  try {
+    // Get followers (people who follow this user)
+    const followersRes = await withTimeout(
+      supabase.from(TABLES.follows).select('follower_id').eq('following_id', profileId),
+      DB_TIMEOUT_MS,
+      'follows.followers'
+    );
+    const followerIds = (followersRes?.data || []).map((r: any) => r.follower_id);
+
+    // Get following (people this user follows) - need to determine their roles
+    const followingRes = await withTimeout(
+      supabase.from(TABLES.follows).select('following_id').eq('follower_id', profileId),
+      DB_TIMEOUT_MS,
+      'follows.following'
+    );
+    const followingIds = (followingRes?.data || []).map((r: any) => r.following_id);
+
+    // Get roles for followed users to group by type
+    const followingByType: any = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
+    if (followingIds.length > 0) {
+      const [artistsRes, engineersRes, producersRes, stoodiozRes, labelsRes] = await Promise.all([
+        supabase.from('artists').select('profile_id').in('profile_id', followingIds),
+        supabase.from('engineers').select('profile_id').in('profile_id', followingIds),
+        supabase.from('producers').select('profile_id').in('profile_id', followingIds),
+        supabase.from('stoodioz').select('profile_id').in('profile_id', followingIds),
+        supabase.from('labels').select('profile_id').in('profile_id', followingIds),
+      ]);
+      followingByType.artists = (artistsRes?.data || []).map((r: any) => r.profile_id);
+      followingByType.engineers = (engineersRes?.data || []).map((r: any) => r.profile_id);
+      followingByType.producers = (producersRes?.data || []).map((r: any) => r.profile_id);
+      followingByType.stoodioz = (stoodiozRes?.data || []).map((r: any) => r.profile_id);
+      followingByType.labels = (labelsRes?.data || []).map((r: any) => r.profile_id);
+    }
+
+    return {
+      followers: followerIds.length,
+      follower_ids: followerIds,
+      following: followingByType
+    };
+  } catch (err) {
+    console.error('[computeFollowData] Error computing follow data:', err);
+    return { followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } };
+  }
+}
+
 async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<any> {
   const supabase = getSupabase();
   // Build select based on table - role comes from profiles table, not from role tables
@@ -839,7 +965,8 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   } else if (table === 'artists') {
     selectBase = 'id, name, stage_name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids';
   } else if (table === 'producers') {
-    selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, instrumentals, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids';
+    // Use narrow select so producers table never 400s (many columns may not exist in your DB)
+    selectBase = 'id, name, image_url, cover_image_url, profile_id, genres, rating_overall, ranking_tier';
   } else if (table === 'stoodioz') {
     selectBase = 'id, name, image_url, cover_image_url, bio, email, wallet_balance, rating_overall, sessions_completed, ranking_tier, genres, amenities, photos, description, location, business_address, verification_status, availability, hourly_rate, engineer_pay_rate, in_house_engineers, profile_id, created_at, updated_at, links, isAdmin, subscription, is_on_streak, on_time_rate, completion_rate, repeat_hire_rate, strength_tags, local_rank_text, purchased_masterclass_ids';
   } else {
@@ -849,6 +976,8 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
 
   const fallbackSelectBase = 'id, name, image_url, cover_image_url, profile_id';
   const minimalSelectBase = 'id, profile_id';
+  // Producers fallback if narrow select still 400s (e.g. genres/rating_overall missing)
+  const producersFallbackSelect = 'id, name, image_url, cover_image_url, profile_id';
 
   const shouldTryFallback = (error: any): boolean => {
     if (!error) return false;
@@ -866,8 +995,9 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     if (primary?.data) return primary;
     if (primary?.error && shouldTryFallback(primary.error)) {
       try {
+        const firstFallback = table === 'producers' ? producersFallbackSelect : fallbackSelectBase;
         const fallback = await withTimeout(
-          supabase.from(table).select(fallbackSelectBase).eq(column, value).maybeSingle(),
+          supabase.from(table).select(firstFallback).eq(column, value).maybeSingle(),
           DB_TIMEOUT_MS,
           `${label}.fallback`
         );
@@ -888,55 +1018,6 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     return primary;
   };
 
-  // Helper to compute followers/following from follows table
-  const computeFollowData = async (profileId: string): Promise<{ followers: number; follower_ids: string[]; following: any }> => {
-    if (!profileId) return { followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } };
-    
-    try {
-      // Get followers (people who follow this user)
-      const followersRes = await withTimeout(
-        supabase.from(TABLES.follows).select('follower_id').eq('following_id', profileId),
-        DB_TIMEOUT_MS,
-        'follows.followers'
-      );
-      const followerIds = (followersRes?.data || []).map((r: any) => r.follower_id);
-      
-      // Get following (people this user follows) - need to determine their roles
-      const followingRes = await withTimeout(
-        supabase.from(TABLES.follows).select('following_id').eq('follower_id', profileId),
-        DB_TIMEOUT_MS,
-        'follows.following'
-      );
-      const followingIds = (followingRes?.data || []).map((r: any) => r.following_id);
-      
-      // Get roles for followed users to group by type
-      const followingByType: any = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
-      if (followingIds.length > 0) {
-        const [artistsRes, engineersRes, producersRes, stoodiozRes, labelsRes] = await Promise.all([
-          supabase.from('artists').select('profile_id').in('profile_id', followingIds),
-          supabase.from('engineers').select('profile_id').in('profile_id', followingIds),
-          supabase.from('producers').select('profile_id').in('profile_id', followingIds),
-          supabase.from('stoodioz').select('profile_id').in('profile_id', followingIds),
-          supabase.from('labels').select('profile_id').in('profile_id', followingIds),
-        ]);
-        followingByType.artists = (artistsRes?.data || []).map((r: any) => r.profile_id);
-        followingByType.engineers = (engineersRes?.data || []).map((r: any) => r.profile_id);
-        followingByType.producers = (producersRes?.data || []).map((r: any) => r.profile_id);
-        followingByType.stoodioz = (stoodiozRes?.data || []).map((r: any) => r.profile_id);
-        followingByType.labels = (labelsRes?.data || []).map((r: any) => r.profile_id);
-      }
-      
-      return {
-        followers: followerIds.length,
-        follower_ids: followerIds,
-        following: followingByType
-      };
-    } catch (err) {
-      console.error('[fetchFullRoleRow] Error computing follow data:', err);
-      return { followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } };
-    }
-  };
-
   // UUID: run byId and byProfileId in parallel to avoid 12s+12s sequential when first misses.
   if (isUuid(idOrUsername)) {
     let [r2, r3] = await Promise.all([
@@ -953,10 +1034,24 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     if (result.profiles) {
       result.role = result.profiles.role;
     }
-    // Compute follow data
+    // Fetch profile data so dashboard-uploaded photos (in profiles) show on profile page
     const profileId = result.profile_id || result.id;
-    const followData = await computeFollowData(profileId);
-    return { ...result, ...followData };
+    let profileData: any = null;
+    if (profileId) {
+      const profRes = await withTimeout(
+        supabase.from('profiles').select('id, username, full_name, display_name, email, role, image_url, avatar_url, cover_image_url, bio, location_text').eq('id', profileId).maybeSingle(),
+        DB_TIMEOUT_MS,
+        `${table}.profiles.uuid`
+      ).catch(() => ({ data: null }));
+      profileData = (profRes as any)?.data || null;
+      if (profileData?.role) result.role = profileData.role;
+    }
+    const followData = await computeFollowData(supabase, profileId);
+    const merged = { ...result, ...(profileData || {}), profiles: profileData || null, ...followData };
+    merged.image_url = profileData?.image_url || profileData?.avatar_url || result?.image_url || result?.avatar_url || merged.image_url || null;
+    merged.cover_image_url = profileData?.cover_image_url || result?.cover_image_url || merged.cover_image_url || null;
+    merged.avatar_url = merged.avatar_url || profileData?.avatar_url || result?.avatar_url || null;
+    return merged;
   }
 
   // 1) Try by username (slug-style handles)
@@ -966,15 +1061,19 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     let profileData: any = null;
     if (profileId) {
       const profRes = await withTimeout(
-    supabase.from('profiles').select('id, username, full_name, display_name, email, role, image_url, avatar_url, bio, location_text').eq('id', profileId).maybeSingle(),
+    supabase.from('profiles').select('id, username, full_name, display_name, email, role, image_url, avatar_url, cover_image_url, bio, location_text').eq('id', profileId).maybeSingle(),
         DB_TIMEOUT_MS,
         `${table}.profiles.byId`
       ).catch(() => ({ data: null }));
       profileData = (profRes as any)?.data || null;
       if (profileData?.role) r1.data.role = profileData.role;
     }
-    const followData = await computeFollowData(profileId);
-    return { ...r1.data, ...(profileData || {}), profiles: profileData || null, ...followData };
+    const followData = await computeFollowData(supabase, profileId);
+    const merged = { ...r1.data, ...(profileData || {}), profiles: profileData || null, ...followData };
+    merged.image_url = profileData?.image_url || profileData?.avatar_url || r1.data?.image_url || r1.data?.avatar_url || merged.image_url || null;
+    merged.cover_image_url = profileData?.cover_image_url || r1.data?.cover_image_url || merged.cover_image_url || null;
+    merged.avatar_url = merged.avatar_url || profileData?.avatar_url || r1.data?.avatar_url || null;
+    return merged;
   }
 
   // 2) and 3) byId and byProfileId in parallel
@@ -992,7 +1091,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   let profileData: any = null;
   if (profileId) {
     const profRes = await withTimeout(
-    supabase.from('profiles').select('id, username, full_name, display_name, email, role, image_url, avatar_url, bio, location_text').eq('id', profileId).maybeSingle(),
+    supabase.from('profiles').select('id, username, full_name, display_name, email, role, image_url, avatar_url, cover_image_url, bio, location_text').eq('id', profileId).maybeSingle(),
       DB_TIMEOUT_MS,
       `${table}.profiles.byId`
     ).catch(() => ({ data: null }));
@@ -1000,8 +1099,12 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     if (profileData?.role) result.role = profileData.role;
   }
   // Compute follow data
-  const followData = await computeFollowData(profileId);
-  return { ...result, ...(profileData || {}), profiles: profileData || null, ...followData };
+  const followData = await computeFollowData(supabase, profileId);
+  const merged = { ...result, ...(profileData || {}), profiles: profileData || null, ...followData };
+  merged.image_url = profileData?.image_url || profileData?.avatar_url || result?.image_url || result?.avatar_url || merged.image_url || null;
+  merged.cover_image_url = profileData?.cover_image_url || result?.cover_image_url || merged.cover_image_url || null;
+  merged.avatar_url = merged.avatar_url || profileData?.avatar_url || result?.avatar_url || null;
+  return merged;
 }
 
 export async function fetchFullArtist(idOrUsername: string): Promise<any> {
@@ -1066,6 +1169,23 @@ export async function fetchFullEngineer(idOrUsername: string): Promise<any> {
   out.role_id = data?.id ?? null;
   out.profile_id = profile?.id ?? data?.profile_id ?? null;
   out.id = out.profile_id ?? out.id;
+  // Load mixing samples (engineer_id = profile_id after migration)
+  const profileId = out.profile_id ?? out.id;
+  if (profileId) {
+    try {
+      const supabase = getSupabase();
+      const { data: samples } = await supabase
+        .from(TABLES.mixingSamples)
+        .select('*')
+        .eq('engineer_id', profileId)
+        .order('created_at', { ascending: false });
+      out.mixing_samples = Array.isArray(samples) ? samples : [];
+    } catch {
+      out.mixing_samples = [];
+    }
+  } else {
+    out.mixing_samples = [];
+  }
   return out;
 }
 
@@ -1097,7 +1217,11 @@ export async function fetchFullProducer(idOrUsername: string): Promise<any> {
   merged.id = merged.profile_id ?? merged.id;
   const profileId = merged.id;
   if (profileId) {
-    const inst = await fetchInstrumentalsForProducer(profileId);
+    let inst = await fetchInstrumentalsForProducer(profileId);
+    // Fallback: legacy instrumentals may have producer_id = producers.id (role_id)
+    if (Array.isArray(inst) && inst.length === 0 && merged.role_id && String(merged.role_id) !== String(profileId)) {
+      inst = await fetchInstrumentalsForProducer(String(merged.role_id));
+    }
     merged.instrumentals = Array.isArray(inst) ? inst : [];
     // Products fetch: best-effort, don't block profile load if it fails
     try {
@@ -1123,13 +1247,30 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
   out.role_id = data?.id ?? null;
   out.profile_id = profile?.id ?? data?.profile_id ?? null;
   out.id = out.profile_id ?? out.id;
-  // Load rooms so public profile (StoodioDetail) and booking flow can show and use them
-  if (out.id) {
+  // Load rooms: after unification migrations, rooms.stoodio_id = profile_id; some DBs may still have stoodioz.id. Try both so rooms never "disappear".
+  const profileId = out.profile_id ?? out.id;
+  const roleId = out.role_id ?? (out.id !== profileId ? out.id : null);
+  const idsToTry = [profileId, roleId].filter((id): id is string => !!id && typeof id === 'string');
+  const uniqueIds = Array.from(new Set(idsToTry));
+
+  if (uniqueIds.length > 0) {
     try {
       const supabase = getSupabase();
-      const roomsPromise = supabase.from('rooms').select('*').eq('stoodio_id', out.id).order('name');
-      const res = await withTimeout(roomsPromise as Promise<{ data?: any[]; error?: any }>, DB_TIMEOUT_MS, 'stoodioz.rooms');
-      out.rooms = Array.isArray(res?.data) ? res.data : [];
+      // Prefer profile_id (canonical); then try role_id if needed
+      let rooms: any[] = [];
+      for (const id of uniqueIds) {
+        const res = await withTimeout(
+          supabase.from('rooms').select('*').eq('stoodio_id', id).order('name') as Promise<{ data?: any[]; error?: any }>,
+          DB_TIMEOUT_MS,
+          'stoodioz.rooms'
+        );
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (list.length > 0) {
+          rooms = list;
+          break;
+        }
+      }
+      out.rooms = rooms;
     } catch (e) {
       console.warn('[fetchFullStoodio] rooms fetch failed or timed out:', e);
       out.rooms = [];
@@ -1197,16 +1338,22 @@ export async function fetchGlobalFeed(limit = 50, before?: string): Promise<any[
   return rows.map(normalizePostRow).filter((p) => p.authorId);
 }
 
-export async function fetchUserPosts(profileId: string): Promise<any[]> {
+export async function fetchUserPosts(profileId: string, fallbackAuthorIds?: string[]): Promise<any[]> {
   if (!profileId) return [];
   const supabase = getSupabase();
+  const ids = [profileId, ...(fallbackAuthorIds || []).filter((id) => id && id !== profileId)];
   const raw = await safeSelect('posts.byProfile', async () => {
     const query = supabase.from(TABLES.posts).select('*').order('created_at', { ascending: false });
-    const { data, error } = await (query as any).eq('author_id', profileId);
+    const { data, error } = ids.length === 1
+      ? await (query as any).eq('author_id', profileId)
+      : await (query as any).in('author_id', ids);
     return { data, error };
   }, []);
   const rows = Array.isArray(raw) ? raw : [];
-  return rows.map(normalizePostRow).filter((p) => p.authorId);
+  return rows
+    .map(normalizePostRow)
+    .filter((p) => p.authorId)
+    .sort((a, b) => new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime());
 }
 
 export async function createPost(profileId: string, content: string, attachment?: File): Promise<any> {

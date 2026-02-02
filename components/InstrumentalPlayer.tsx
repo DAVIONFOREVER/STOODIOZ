@@ -253,14 +253,14 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
     }, [playingId]);
 
     return (
-        <div className="aria-glass p-10 rounded-[40px] aria-metal-stroke shadow-2xl relative overflow-hidden group">
+        <div className="aria-glass p-4 sm:p-6 md:p-10 rounded-2xl sm:rounded-[40px] aria-metal-stroke shadow-2xl relative overflow-hidden group">
             {/* Decorative background icon */}
-            <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-all duration-500">
-                <MusicNoteIcon className="w-16 h-16 text-purple-400" />
+            <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-20 group-hover:opacity-40 transition-all duration-500">
+                <MusicNoteIcon className="w-10 h-10 sm:w-16 sm:h-16 text-purple-400" />
             </div>
 
             {/* Header */}
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse"></div>
                     <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500">Beat Store</h3>
@@ -306,13 +306,13 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
             )}
 
             {/* Always-visible Visualizer */}
-            <div className="mb-10 rounded-2xl overflow-hidden border border-white/5 bg-zinc-950/50">
-                <div className="px-6 py-3 flex items-center justify-between border-b border-white/5 bg-zinc-900/30">
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+            <div className="mb-6 sm:mb-10 rounded-xl sm:rounded-2xl overflow-hidden border border-white/5 bg-zinc-950/50">
+                <div className="px-3 sm:px-6 py-2 sm:py-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/5 bg-zinc-900/30 min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] text-zinc-500 flex-shrink-0">
                         {nowPlaying ? 'Now Playing' : 'Audio Visualizer'}
                     </p>
                     {nowPlaying && (
-                        <p className="font-black text-purple-400 text-sm tracking-tight truncate flex-1 mx-4">
+                        <p className="font-black text-purple-400 text-xs sm:text-sm tracking-tight truncate flex-1 min-w-0 mx-2 sm:mx-4">
                             {nowPlaying.title}
                         </p>
                     )}
@@ -326,10 +326,10 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
                 />
             </div>
 
-            {/* Beat Store Content - Always Show Table Structure */}
+            {/* Beat Store Content: table on md+, stacked cards on mobile so nothing bunches */}
             <div className="space-y-4">
-                {/* Table Header - Always Visible */}
-                <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                {/* Table Header - hidden on mobile to avoid overlap */}
+                <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 border-b border-white/10 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                     <div className="col-span-1">Cover</div>
                     <div className="col-span-1">Play</div>
                     <div className="col-span-3">Title & Tags</div>
@@ -340,7 +340,7 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
                 </div>
 
                 {safeFilteredInstrumentals.length === 0 ? (
-                    <div className="grid grid-cols-12 gap-4 p-8 rounded-xl border border-white/5 bg-zinc-900/20">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-6 sm:p-8 rounded-xl border border-white/5 bg-zinc-900/20">
                         <div className="col-span-1">
                             <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center border border-white/5">
                                 <MusicNoteIcon className="w-8 h-8 text-zinc-700" />
@@ -403,14 +403,14 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
                         return (
                             <div
                                 key={instrumental.id}
-                                className={`grid grid-cols-12 gap-4 p-4 rounded-xl border transition-all duration-300 hover:border-purple-500/30 ${
+                                className={`grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 p-4 rounded-xl border transition-all duration-300 hover:border-purple-500/30 ${
                                     isPlaying
                                         ? 'bg-purple-500/10 border-purple-500/40'
                                         : 'bg-zinc-900/30 border-white/5 hover:bg-zinc-900/50'
                                 }`}
                             >
                                 {/* Cover Art */}
-                                <div className="col-span-1">
+                                <div className="col-span-1 flex md:block items-center gap-3 md:gap-0">
                                     {instrumental.cover_art_url ? (
                                         <img
                                             src={instrumental.cover_art_url}
@@ -446,9 +446,9 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
                                 </div>
 
                                 {/* Title & Tags */}
-                                <div className="col-span-3 flex flex-col justify-center">
-                                    <div className="flex items-center gap-2">
-                                        <p className="font-black text-lg text-slate-100 mb-2 tracking-tight">
+                                <div className="col-span-3 flex flex-col justify-center min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="font-black text-base sm:text-lg text-slate-100 mb-1 sm:mb-2 tracking-tight break-words">
                                             {instrumental.title}
                                         </p>
                                         {isPlaying && <PlayingBars className="mb-2" />}

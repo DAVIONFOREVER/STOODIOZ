@@ -4,7 +4,7 @@ import type { Stoodio, Artist, Engineer, Post, Room, Producer } from '../types';
 import { UserRole, VerificationStatus, SmokingPolicy } from '../types';
 import Calendar from './Calendar';
 import PostFeed from './PostFeed';
-import { ChevronLeftIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon, SmokingIcon, NoSmokingIcon, PlayIcon } from './icons';
+import { ChevronLeftIcon, ChevronRightIcon, PhotoIcon, UserPlusIcon, UserCheckIcon, StarIcon, UsersIcon, MessageIcon, HouseIcon, SoundWaveIcon, MicrophoneIcon, VerifiedIcon, MusicNoteIcon, SmokingIcon, NoSmokingIcon, PlayIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
 import { useNavigation } from '../hooks/useNavigation';
 import { useBookings } from '../hooks/useBookings';
@@ -174,25 +174,61 @@ const StoodioDetail: React.FC = () => {
             lastLoadedIdRef.current = null;
             setIsLoadingDetails(false);
             setLoadError('Request timed out. Please try again.');
-        }, 18_000);
+        }, 45_000);
         return () => clearTimeout(t);
     }, [isLoadingDetails]);
 
     useEffect(() => {
-        if (stoodio?.id) {
-            fetchUserPosts(stoodio.id).then(setPosts);
-        }
-    }, [stoodio?.id]);
+        let isMounted = true;
+        const loadPosts = async () => {
+            if (!stoodio?.id) return;
+            try {
+                const primary = await fetchUserPosts(stoodio.id);
+                if (!isMounted) return;
+                const roleId = (stoodio as any)?.role_id;
+                if (primary.length === 0 && roleId && String(roleId) !== String(stoodio.id)) {
+                    const fallback = await fetchUserPosts(String(roleId));
+                    if (!isMounted) return;
+                    setPosts(Array.isArray(fallback) ? fallback : []);
+                } else {
+                    setPosts(Array.isArray(primary) ? primary : []);
+                }
+            } catch (err) {
+                console.error('Failed to load stoodio posts', err);
+                if (isMounted) setPosts([]);
+            }
+        };
+        loadPosts();
+        return () => {
+            isMounted = false;
+        };
+    }, [stoodio?.id, (stoodio as any)?.role_id]);
 
     useEffect(() => {
-        if (!stoodio?.id) return;
-        fetchReviewsForTarget(UserRole.STOODIO, stoodio.id)
-            .then((data) => setProfileReviews(Array.isArray(data) ? data : []))
-            .catch((err) => {
+        let isMounted = true;
+        const loadReviews = async () => {
+            if (!stoodio?.id) return;
+            try {
+                const primary = await fetchReviewsForTarget(UserRole.STOODIO, stoodio.id);
+                if (!isMounted) return;
+                const roleId = (stoodio as any)?.role_id;
+                if (primary.length === 0 && roleId && String(roleId) !== String(stoodio.id)) {
+                    const fallback = await fetchReviewsForTarget(UserRole.STOODIO, String(roleId));
+                    if (!isMounted) return;
+                    setProfileReviews(Array.isArray(fallback) ? fallback : []);
+                } else {
+                    setProfileReviews(Array.isArray(primary) ? primary : []);
+                }
+            } catch (err) {
                 console.error('Failed to load stoodio reviews', err);
-                setProfileReviews([]);
-            });
-    }, [stoodio?.id]);
+                if (isMounted) setProfileReviews([]);
+            }
+        };
+        loadReviews();
+        return () => {
+            isMounted = false;
+        };
+    }, [stoodio?.id, (stoodio as any)?.role_id]);
 
     const galleryImages = useMemo(() => {
         if (!stoodio) return [];
@@ -326,14 +362,14 @@ const StoodioDetail: React.FC = () => {
     };
     
     return (
-        <div className="max-w-7xl mx-auto pb-32 animate-fade-in">
-            <button onClick={goBack} className="absolute top-10 left-10 z-20 flex items-center gap-3 text-zinc-400 hover:text-orange-400 transition-all font-black uppercase tracking-[0.25em] text-[10px] mb-6">
-                <ChevronLeftIcon className="w-4 h-4" /> System Back
+        <div className="max-w-7xl mx-auto pb-32 animate-fade-in px-3 sm:px-4">
+            <button onClick={goBack} className="absolute top-4 left-4 sm:top-10 sm:left-10 z-20 flex items-center gap-2 sm:gap-3 text-zinc-400 hover:text-orange-400 transition-all font-black uppercase tracking-[0.2em] sm:tracking-[0.25em] text-[10px]">
+                <ChevronLeftIcon className="w-4 h-4 flex-shrink-0" /> <span className="hidden xs:inline">System </span>Back
             </button>
             
-            {/* Cover Section with Aria-style Profile Photo Layout */}
+            {/* Cover Section: responsive for portrait mobile */}
             <div
-                className="relative min-h-[50dvh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                className="relative min-h-[40dvh] sm:min-h-[50dvh] rounded-2xl sm:rounded-[40px] overflow-hidden border border-white/5 mb-8 sm:mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                 style={{ 
                     backgroundImage: `url(${(stoodio as any).cover_image_url || stoodio.photos?.[0] || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'})`, 
                     backgroundSize: 'cover', 
@@ -343,43 +379,40 @@ const StoodioDetail: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                 <div className="absolute inset-0 bg-black/30"></div>
                 
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-10">
-                    <div className="relative mb-8">
-                        {/* Glowing background effect like Aria */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 sm:p-6 md:p-8 z-10">
+                    <div className="relative mb-4 sm:mb-6 md:mb-8">
                         <div className="absolute inset-0 bg-orange-500/20 rounded-full blur-[80px] animate-pulse"></div>
-                        {/* Floating profile photo with Aria-style effects */}
                         <div className="relative animate-aria-float">
                             <img 
                                 src={getProfileImageUrl(stoodio)} 
                                 alt={stoodio.name} 
-                                className="w-40 h-40 md:w-48 md:h-48 rounded-full object-cover border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
+                                className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full object-cover border-4 sm:border-[6px] md:border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
                             />
-                            {/* House badge in bottom-right corner (like Aria's magic wand) */}
-                            <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-orange-500 to-amber-600 p-3 rounded-2xl shadow-2xl ring-4 ring-zinc-950">
-                                <HouseIcon className="w-8 h-8 text-white" />
+                            <div className="absolute -bottom-1 -right-1 sm:-bottom-3 sm:-right-3 bg-gradient-to-br from-orange-500 to-amber-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-2xl ring-2 sm:ring-4 ring-zinc-950">
+                                <HouseIcon className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
                             </div>
                         </div>
                     </div>
-                    <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-4" style={{ textShadow: '0 0 30px rgba(249,115,22,0.5)' }}>
+                    <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-black text-white tracking-tighter mb-2 sm:mb-4 break-words max-w-full px-1" style={{ textShadow: '0 0 30px rgba(249,115,22,0.5)' }}>
                         {stoodio.name}
                     </h1>
-                    <div className="flex items-center gap-4">
-                        <span className="text-[11px] font-black uppercase tracking-[0.4em] text-orange-400 bg-orange-500/10 px-6 py-2 rounded-full border border-orange-500/20 backdrop-blur-md">
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+                        <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] text-orange-400 bg-orange-500/10 px-3 py-1.5 sm:px-6 sm:py-2 rounded-full border border-orange-500/20 backdrop-blur-md whitespace-nowrap">
                             Stoodio
                         </span>
                         {stoodio.verification_status === VerificationStatus.VERIFIED && (
-                            <VerifiedIcon className="w-6 h-6 text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.5)]" />
+                            <VerifiedIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.5)] flex-shrink-0" />
                         )}
-                        <span className="text-xs text-zinc-300">{stoodio.location}</span>
-                        <span className="text-xs text-zinc-300">{(stoodio.followers || 0).toLocaleString()} followers</span>
+                        <span className="text-xs text-zinc-300 truncate max-w-[50%] sm:max-w-none">{stoodio.location}</span>
+                        <span className="text-xs text-zinc-300 whitespace-nowrap">{(stoodio.followers || 0).toLocaleString()} followers</span>
                     </div>
                 </div>
             </div>
 
             {/* Action Buttons Section */}
-            <div className="flex justify-center mb-12 px-4">
+            <div className="flex flex-wrap justify-center gap-3 mb-8 sm:mb-12">
                 {currentUser && currentUser.id !== stoodio.id && (
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex flex-wrap justify-center gap-3">
                         <button 
                             onClick={() => currentUser ? startConversation(stoodio) : handleGuestInteraction()}
                             disabled={!currentUser || currentUser.id === stoodio.id}
@@ -412,8 +445,8 @@ const StoodioDetail: React.FC = () => {
 
             {/* Description Section */}
             {stoodio.description && (
-                <div className="cardSurface p-8 mb-8">
-                    <p className="text-zinc-300 leading-relaxed text-center">{stoodio.description}</p>
+                <div className="cardSurface p-4 sm:p-6 md:p-8 mb-8">
+                    <p className="text-zinc-300 leading-relaxed text-center break-words">{stoodio.description}</p>
                 </div>
             )}
 

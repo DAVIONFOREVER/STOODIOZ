@@ -40,12 +40,12 @@ const ProducerFeedTabs: React.FC<{
     }, [posts]);
 
     return (
-        <div className="aria-glass rounded-[40px] aria-metal-stroke shadow-2xl p-8 mb-8">
-            {/* Tabs */}
-            <div className="flex items-center gap-6 mb-6 border-b border-white/10 pb-4">
+        <div className="aria-glass rounded-[40px] aria-metal-stroke shadow-2xl p-4 sm:p-6 md:p-8 mb-8 overflow-hidden">
+            {/* Tabs: scroll horizontally on narrow screens so text never overlaps */}
+            <div className="flex items-center gap-3 sm:gap-6 mb-6 border-b border-white/10 pb-4 overflow-x-auto scrollbar-hide -mx-1 px-1">
                 <button 
                     onClick={() => setActiveTab('posts')}
-                    className={`text-sm font-black uppercase tracking-[0.2em] transition-all pb-2 border-b-2 ${
+                    className={`flex-shrink-0 text-xs sm:text-sm font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] transition-all pb-2 border-b-2 whitespace-nowrap ${
                         activeTab === 'posts' 
                             ? 'text-purple-400 border-purple-500' 
                             : 'text-zinc-500 hover:text-zinc-400 border-transparent'
@@ -55,7 +55,7 @@ const ProducerFeedTabs: React.FC<{
                 </button>
                 <button 
                     onClick={() => setActiveTab('media')}
-                    className={`text-sm font-black uppercase tracking-[0.2em] transition-all pb-2 border-b-2 ${
+                    className={`flex-shrink-0 text-xs sm:text-sm font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] transition-all pb-2 border-b-2 whitespace-nowrap ${
                         activeTab === 'media' 
                             ? 'text-purple-400 border-purple-500' 
                             : 'text-zinc-500 hover:text-zinc-400 border-transparent'
@@ -65,7 +65,7 @@ const ProducerFeedTabs: React.FC<{
                 </button>
                 <button 
                     onClick={() => setActiveTab('updates')}
-                    className={`text-sm font-black uppercase tracking-[0.2em] transition-all pb-2 border-b-2 ${
+                    className={`flex-shrink-0 text-xs sm:text-sm font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] transition-all pb-2 border-b-2 whitespace-nowrap ${
                         activeTab === 'updates' 
                             ? 'text-purple-400 border-purple-500' 
                             : 'text-zinc-500 hover:text-zinc-400 border-transparent'
@@ -252,15 +252,18 @@ const ProducerProfile: React.FC = () => {
             lastLoadedIdRef.current = null;
             setIsLoadingDetails(false);
             setLoadError('Request timed out. Please try again.');
-        }, 18_000);
+        }, 45_000);
         return () => clearTimeout(t);
     }, [isLoadingDetails]);
 
     useEffect(() => {
         if (producer?.id) {
-            fetchUserPosts(producer.id).then(setPosts);
+            const fallbackIds = (producer as any).role_id && String((producer as any).role_id) !== String(producer.id)
+                ? [(producer as any).role_id]
+                : undefined;
+            fetchUserPosts(producer.id, fallbackIds).then(setPosts);
         }
-    }, [producer?.id]);
+    }, [producer?.id, (producer as any)?.role_id]);
 
     // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
     const mediaItems = useMemo(() => {
@@ -399,14 +402,14 @@ const ProducerProfile: React.FC = () => {
     };
 
     return (
-        <div className="max-w-7xl mx-auto pb-32 animate-fade-in">
-            <button onClick={goBack} className="absolute top-10 left-10 z-20 flex items-center gap-3 text-zinc-400 hover:text-purple-400 transition-all font-black uppercase tracking-[0.25em] text-[10px] mb-6">
-                <ChevronLeftIcon className="w-4 h-4" /> System Back
+        <div className="max-w-7xl mx-auto pb-32 animate-fade-in px-3 sm:px-4">
+            <button onClick={goBack} className="absolute top-4 left-4 sm:top-10 sm:left-10 z-20 flex items-center gap-2 sm:gap-3 text-zinc-400 hover:text-purple-400 transition-all font-black uppercase tracking-[0.2em] sm:tracking-[0.25em] text-[10px]">
+                <ChevronLeftIcon className="w-4 h-4 flex-shrink-0" /> <span className="hidden xs:inline">System </span>Back
             </button>
             
-            {/* Cover Section with Aria-style Profile Photo Layout */}
+            {/* Cover Section: responsive so portrait mobile never bunches or overlaps */}
             <div
-                className="relative min-h-[50dvh] rounded-[40px] overflow-hidden border border-white/5 mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                className="relative min-h-[40dvh] sm:min-h-[50dvh] rounded-2xl sm:rounded-[40px] overflow-hidden border border-white/5 mb-8 sm:mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                 style={{ 
                     backgroundImage: `url(${producer.cover_image_url || 'https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?q=80&w=1200&auto=format&fit=crop'})`, 
                     backgroundSize: 'cover', 
@@ -416,34 +419,31 @@ const ProducerProfile: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                 <div className="absolute inset-0 bg-black/30"></div>
                 
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 z-10">
-                    <div className="relative mb-8">
-                        {/* Glowing background effect like Aria */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 sm:p-6 md:p-8 z-10">
+                    <div className="relative mb-4 sm:mb-6 md:mb-8">
                         <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-[80px] animate-pulse"></div>
-                        {/* Floating profile photo with Aria-style effects */}
                         <div className="relative animate-aria-float">
                             <img 
                                 src={getProfileImageUrl(producer)} 
                                 alt={getDisplayName(producer)} 
-                                className="w-40 h-40 md:w-48 md:h-48 rounded-full object-cover border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
+                                className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full object-cover border-4 sm:border-[6px] md:border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
                             />
-                            {/* Music note badge in bottom-right corner (like Aria's magic wand) */}
-                            <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-purple-500 to-pink-600 p-3 rounded-2xl shadow-2xl ring-4 ring-zinc-950">
-                                <MusicNoteIcon className="w-8 h-8 text-white" />
+                            <div className="absolute -bottom-1 -right-1 sm:-bottom-3 sm:-right-3 bg-gradient-to-br from-purple-500 to-pink-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-2xl ring-2 sm:ring-4 ring-zinc-950">
+                                <MusicNoteIcon className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
                             </div>
                         </div>
                     </div>
-                    <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-4" style={{ textShadow: '0 0 30px rgba(168,85,247,0.5)' }}>
+                    <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-black text-white tracking-tighter mb-2 sm:mb-4 break-words max-w-full px-1" style={{ textShadow: '0 0 30px rgba(168,85,247,0.5)' }}>
                         {getDisplayName(producer, 'Producer')}
                     </h1>
-                    <div className="flex items-center gap-4">
-                        <span className="text-[11px] font-black uppercase tracking-[0.4em] text-purple-400 bg-purple-500/10 px-6 py-2 rounded-full border border-purple-500/20 backdrop-blur-md">
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+                        <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] text-purple-400 bg-purple-500/10 px-3 py-1.5 sm:px-6 sm:py-2 rounded-full border border-purple-500/20 backdrop-blur-md whitespace-nowrap">
                             Producer
                         </span>
                         {(producer as any).label_verified && <VerifiedBadge labelVerified={true} />}
                         <div className="flex items-center gap-1 text-yellow-400">
-                            <StarIcon className="w-5 h-5" />
-                            <span className="font-bold text-white">{(producer.rating_overall ?? 0).toFixed(1)}</span>
+                            <StarIcon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                            <span className="font-bold text-white text-sm sm:text-base">{(producer.rating_overall ?? 0).toFixed(1)}</span>
                         </div>
                     </div>
                 </div>
@@ -480,7 +480,7 @@ const ProducerProfile: React.FC = () => {
                     </div>
                 )}
                 {!isSelf && (
-                    <div className="mt-4">
+                    <div>
                         <button
                             onClick={() => openReviewPage({ id: producer.id, role: UserRole.PRODUCER, name: getDisplayName(producer, 'Producer'), image_url: getProfileImageUrl(producer) })}
                             className="px-6 py-3 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all font-bold flex items-center gap-2 shadow-xl"
@@ -511,11 +511,11 @@ const ProducerProfile: React.FC = () => {
                 </div>
 
                 {/* Right Sidebar */}
-                <div className="lg:col-span-4 space-y-6">
-                    {/* Biography Card */}
-                    <div className="aria-glass rounded-2xl p-6 border border-white/10">
+                <div className="lg:col-span-4 space-y-6 min-w-0">
+                    {/* Biography Card: text wraps on narrow screens */}
+                    <div className="aria-glass rounded-2xl p-4 sm:p-6 border border-white/10">
                         <h3 className="text-sm font-black uppercase text-purple-400 tracking-[0.2em] mb-4">Biography</h3>
-                        <p className="text-slate-300 leading-relaxed text-base italic">"{producer.bio || 'No biography available.'}"</p>
+                        <p className="text-slate-300 leading-relaxed text-base italic break-words">"{producer.bio || 'No biography available.'}"</p>
                     </div>
 
                     {/* Pull Up Price */}
@@ -562,7 +562,7 @@ const ProducerProfile: React.FC = () => {
                                 (producer.products || []).slice(0, 3).map((p) => (
                                     <div
                                         key={p.id}
-                                        className="flex items-center gap-3 p-3 rounded-lg border border-white/5 hover:border-orange-500/30 transition-all bg-zinc-900/20 hover:bg-zinc-900/40 group/item"
+                                        className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-white/5 hover:border-orange-500/30 transition-all bg-zinc-900/20 hover:bg-zinc-900/40 group/item"
                                     >
                                         {/* Artwork */}
                                         <div className="flex-shrink-0">
@@ -579,12 +579,12 @@ const ProducerProfile: React.FC = () => {
                                             )}
                                         </div>
 
-                                        {/* Title & Price */}
-                                        <div className="flex-grow min-w-0">
-                                            <p className="font-black text-sm text-slate-100 mb-1 tracking-tight truncate">
+                                        {/* Title & Price: wraps on narrow screens */}
+                                        <div className="flex-grow min-w-0 flex-1 basis-0">
+                                            <p className="font-black text-sm text-slate-100 mb-1 tracking-tight break-words">
                                                 {p.title || 'Untitled Product'}
                                             </p>
-                                            <div className="flex items-center justify-between">
+                                            <div className="flex flex-wrap items-center gap-2">
                                                 <span className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/30 font-bold uppercase tracking-[0.1em]">
                                                     {p.type ? p.type.replace(/_/g, ' ') : 'Product'}
                                                 </span>
