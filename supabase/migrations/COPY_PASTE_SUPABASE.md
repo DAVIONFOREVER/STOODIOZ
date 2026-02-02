@@ -196,4 +196,41 @@ END $$;
 
 ---
 
+## Step 3 — Rooms visible on stoodio profile (if rooms are missing)
+
+If stoodio profile pages show no rooms and you can’t test booking:
+
+1. **Ensure anyone can read rooms** (so the app can load them when viewing a stoodio). Run:
+
+```sql
+DROP POLICY IF EXISTS "allow_public_read_rooms" ON public.rooms;
+CREATE POLICY "allow_public_read_rooms" ON public.rooms FOR SELECT USING (true);
+```
+
+2. **Optional: point rooms at profile_id** (if rooms exist but still don’t show). Run only if you’ve run the “unify profile ids” migrations and rooms still have `stoodio_id` = stoodioz row id:
+
+```sql
+UPDATE public.rooms r
+SET stoodio_id = s.profile_id
+FROM public.stoodioz s
+WHERE r.stoodio_id = s.id
+  AND s.profile_id IS NOT NULL
+  AND r.stoodio_id <> s.profile_id;
+```
+
+3. **Create rooms** – Stoodio owner: open **Stoodio Dashboard** → manage rooms and add at least one room (name, rate, etc.). Rooms are stored with `stoodio_id` = that user’s profile id.
+
+---
+
+## Step 4 — Producer/Engineer availability toggle (if you see “Column may not exist” for is_available)
+
+If the Producer or Engineer dashboard availability toggle logs “Column may not exist in producers table” and only updates local state, add the column:
+
+```sql
+ALTER TABLE public.producers ADD COLUMN IF NOT EXISTS is_available boolean DEFAULT true;
+ALTER TABLE public.engineers ADD COLUMN IF NOT EXISTS is_available boolean DEFAULT true;
+```
+
+---
+
 **Where:** Supabase Dashboard → **SQL Editor** → **New query** → paste → **Run**.

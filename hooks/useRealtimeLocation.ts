@@ -84,7 +84,7 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
           // code 3 = TIMEOUT; treat as non-fatal, degrade without loud errors
           const isTimeout = (error as GeolocationPositionError)?.code === 3;
           if (isTimeout) {
-            console.warn('[useRealtimeLocation] Geolocation timeout; location feature disabled for this session.');
+            console.info('[useRealtimeLocation] Location unavailable for this session; map “near me” features may be limited.');
           } else {
             console.warn('[useRealtimeLocation] Geolocation error:', error);
           }
@@ -92,8 +92,8 @@ export const useRealtimeLocation = ({ currentUser }: UseRealtimeLocationProps) =
         },
         {
           enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0,
+          timeout: 25000,
+          maximumAge: 60000,
         }
       );
     }

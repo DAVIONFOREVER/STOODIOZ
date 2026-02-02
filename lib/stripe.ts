@@ -41,6 +41,9 @@ const getStripe = (): Promise<any> => {
 /**
  * Redirects the user to the Stripe Checkout page for a given session ID.
  * This is the primary function used to initiate a payment flow.
+ * Note: On Stripe's hosted Checkout page you may see console warnings such as
+ * "<link rel=preload> uses an unsupported as value" and "No available adapters" (hCaptcha).
+ * Those come from Stripe/hCaptcha, not our app, and can be ignored.
  * @param sessionId The ID of the Stripe Checkout session created by your backend.
  */
 export const redirectToCheckout = async (sessionId: string): Promise<void> => {

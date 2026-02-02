@@ -75,7 +75,8 @@ const LabelDashboard: React.FC = () => {
         if (!file || !currentUser) return;
         try {
             validateImageFile(file);
-            const url = await apiService.uploadAvatar(currentUser.id, file);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const url = await apiService.uploadAvatar(profileId, file);
             await updateProfile({ image_url: url });
             await refreshCurrentUser();
         } catch (e: any) {
@@ -91,7 +92,8 @@ const LabelDashboard: React.FC = () => {
         if (!file || !currentUser) return;
         try {
             validateImageFile(file);
-            const url = await apiService.uploadCoverImage(currentUser.id, file);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const url = await apiService.uploadCoverImage(profileId, file);
             await updateProfile({ cover_image_url: url });
             await refreshCurrentUser();
         } catch (e: any) {
@@ -192,7 +194,7 @@ const LabelDashboard: React.FC = () => {
             ...(f?.labels || []),
             currentUser.id,
         ]);
-        return allUsers.filter((u: any) => u && !followedIds.has(u.id) && u.email !== ARIA_EMAIL).slice(0, 4);
+        return allUsers.filter((u: any) => u && !followedIds.has(u.id) && !followedIds.has(u.profile_id) && u.email !== ARIA_EMAIL).slice(0, 4);
     }, [currentUser, artists, engineers, stoodioz, producers, labels]);
 
     const trendingPost = useMemo(() => {

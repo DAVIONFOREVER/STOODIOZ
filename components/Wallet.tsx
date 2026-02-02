@@ -79,6 +79,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {sortedTransactions.length > 0 ? sortedTransactions.map((tx) => {
                     const isCredit = tx.amount > 0;
+                    const isAddFunds = tx.category === TransactionCategory.ADD_FUNDS || tx.category === TransactionCategory.LABEL_TOP_UP;
                     return (
                         <div key={tx.id} className="cardSurface p-3 flex items-center gap-4">
                             <TransactionIcon category={tx.category} />
@@ -86,10 +87,12 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
                                 <p className="font-semibold text-slate-200">{tx.description}</p>
                                 <p className="text-xs text-slate-400">
                                     {format(new Date(tx.date), 'MMM d, yyyy, h:mm a')}
-                                    {tx.related_user_name && ` • To/From ${tx.related_user_name}`}
+                                    {isAddFunds && <span className="text-blue-400 font-medium"> • Added to wallet</span>}
+                                    {!isAddFunds && tx.related_user_name && ` • To/From ${tx.related_user_name}`}
                                 </p>
                             </div>
                             <div className="text-right flex-shrink-0">
+                                {isAddFunds && <p className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Credit</p>}
                                 <p className={`font-bold text-lg ${isCredit ? 'text-green-400' : 'text-slate-200'}`}>
                                     {isCredit ? '+' : ''}${tx.amount.toFixed(2)}
                                 </p>

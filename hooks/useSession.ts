@@ -70,7 +70,8 @@ export const useSession = (navigate: (view: any) => void) => {
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
       try {
-        const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, currentUser.id);
+        const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+        const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, profileId);
         await redirectToCheckout(sessionId);
       } catch (error) {
         console.error('Failed to create add funds session:', error);

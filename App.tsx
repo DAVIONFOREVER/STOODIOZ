@@ -366,7 +366,7 @@ const App: React.FC = () => {
     })();
   }, [navigate]);
 
-  // Stripe cancel or wallet top-up success: return to dashboard instead of landing page
+  // Stripe cancel or wallet top-up success: return to dashboard, clean URL, and refetch user so balance updates
   useEffect(() => {
     const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     if (!q) return;
@@ -383,6 +383,20 @@ const App: React.FC = () => {
     u.searchParams.delete('booking_id');
     window.history.replaceState({}, '', u.pathname + (u.search || ''));
     navigate(dashboardForRole(userRoleRef.current || userRole));
+
+    // Refetch current user so wallet_balance and wallet_transactions reflect after add funds
+    if (stripeStatus === 'success') {
+      (async () => {
+        try {
+          const supabase = getSupabase();
+          const { data } = await supabase.auth.getSession();
+          const uid = data?.session?.user?.id;
+          if (uid && hydrateUserRef.current) await hydrateUserRef.current(uid);
+        } catch (e) {
+          console.warn('[App] Refetch after Stripe success failed:', e);
+        }
+      })();
+    }
   }, [navigate, userRole]);
 
   // Auth hook (UI login/logout)

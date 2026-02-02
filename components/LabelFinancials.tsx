@@ -161,7 +161,8 @@ const LabelFinancials: React.FC = () => {
                 alert('Enter a valid amount.');
                 return;
             }
-            const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, currentUser.id, topUpNote || '');
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, profileId, topUpNote || '');
             await redirectToCheckout(sessionId);
         } catch (error) {
             console.error('Failed to start top-up checkout', error);

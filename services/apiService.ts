@@ -164,14 +164,62 @@ async function uploadToBucket(bucket: string, path: string, file: File) {
    AUTH / PROFILE (LOGIN HYDRATION)
 ============================================================ */
 
+const AUTH_FAST_MS = 10_000; // Try supabase-js first; avoid blocking on getSession after redirect (e.g. Stripe)
+
 export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any; role: UserRole }> {
   requireVal(uid, 'uid');
   const supabase = getSupabase();
 
-  // Prefer explicit-token REST call to avoid supabase-js query builder stalls
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfile', message: 'entry', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
+  // #endregion
+
+  // Try supabase-js first (no getSession) so we don't block 30s on auth.getSession after Stripe redirect
   try {
+    const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
+    const { data: profile, error } = await withTimeout(q as any, AUTH_FAST_MS, 'profiles.select');
+    if (!error && profile) {
+      const role = profile.role as UserRole;
+      if (role) {
+        let user: any = { ...profile };
+        const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
+        if (roleTable) {
+          try {
+            const { data: roleRow } = await supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle();
+            if (roleRow) {
+              if (roleRow.id) user.role_id = roleRow.id;
+              // Prefer profile then role so we never overwrite with null (profile is source of truth for dashboard uploads)
+              user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
+              user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
+            }
+          } catch (_) { /* non-fatal */ }
+        }
+        if (role === 'STOODIO' && !user.role_id) {
+          try {
+            const { data: sz } = await supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle();
+            if (sz?.id) user.role_id = sz.id;
+          } catch (_) { /* non-fatal */ }
+        }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved (supabase-js first)', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
+        // #endregion
+        return { user, role };
+      }
+    }
+  } catch (_) {
+    /* fall through to REST path */
+  }
+
+  // Prefer explicit-token REST call when supabase-js path fails or times out (e.g. auth still recovering)
+  try {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:beforeGetSession', message: 'before getSession', data: {}, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
     const { data: sess } = await withTimeout(supabase.auth.getSession() as any, DB_TIMEOUT_MS, 'auth.getSession');
     const token = sess?.session?.access_token;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:afterGetSession', message: 'after getSession', data: { hasToken: !!token }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+    // #endregion
     const url = (import.meta as any).env?.VITE_SUPABASE_URL;
     const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
 
@@ -199,16 +247,21 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
         const role = profile.role as UserRole;
         if (!role) throw new Error('User has no role');
         let user: any = { ...profile };
-        if (role === 'STOODIO') {
+        const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
+        if (roleTable) {
           try {
-            const szRes = await fetch(`${url}/rest/v1/stoodioz?profile_id=eq.${encodeURIComponent(uid)}&select=id`, {
+            const roleRes = await fetch(`${url}/rest/v1/${roleTable}?profile_id=eq.${encodeURIComponent(uid)}&select=id,image_url,cover_image_url`, {
               headers: { apikey: anon, authorization: `Bearer ${token}` },
               signal: controller.signal,
             });
-            if (szRes.ok) {
-              const szRows = await szRes.json();
-              const sz = Array.isArray(szRows) ? szRows[0] : null;
-              if (sz?.id) user.stoodioz_id = sz.id;
+            if (roleRes.ok) {
+              const roleRows = await roleRes.json();
+              const roleRow = Array.isArray(roleRows) ? roleRows[0] : null;
+              if (roleRow) {
+                if (roleRow.id) user.role_id = roleRow.id;
+                user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
+                user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
+              }
             }
           } catch (_) { /* non-fatal */ }
         }
@@ -218,10 +271,16 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
       }
     }
   } catch (e) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:RESTfailed', message: 'REST path failed', data: { err: String((e as any)?.message) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
+    // #endregion
     console.warn('[fetchCurrentUserProfile] REST path failed, trying supabase-js:', e);
   }
 
-  // Fallback to supabase-js
+  // Fallback to supabase-js again with full timeout (session may have recovered by now)
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fallbackStart', message: 'fallback supabase-js', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
+  // #endregion
   const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
   const { data: profile, error } = await withTimeout(q as any, DB_TIMEOUT_MS, 'profiles.select');
   if (error) throw new Error(errMsg(error));
@@ -229,14 +288,21 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
   const role = profile.role as UserRole;
   if (!role) throw new Error('User has no role');
 
-  // STOODIO: capture role-table id for in-house engineer ops
   let user: any = { ...profile };
-  if (role === 'STOODIO') {
+  const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
+  if (roleTable) {
     try {
-      const { data: sz } = await supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle();
-      if (sz?.id) user.role_id = sz.id;
+      const { data: roleRow } = await supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle();
+      if (roleRow) {
+        if (roleRow.id) user.role_id = roleRow.id;
+        user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
+        user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
+      }
     } catch (_) { /* non-fatal */ }
   }
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' }) }).catch(() => {});
+  // #endregion
   return { user, role };
 }
 
@@ -410,7 +476,9 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     // Can load more on-demand when user navigates to lists
     const MAX_ROWS_PER_TABLE = 2000;
     
-    // Use a longer timeout for directory queries to handle slow Supabase responses
+    // Short timeout for views so we fail fast when views don't exist or are slow (e.g. missing artists_v)
+    const VIEW_QUERY_TIMEOUT_MS = 8_000;
+    // Longer timeout for base tables and fallbacks
     const QUERY_TIMEOUT_MS = 30_000;
     
     // Narrow selects for faster public directory loads
@@ -421,10 +489,10 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     const selectLabels = 'id,name,image_url,cover_image_url,rating_overall,ranking_tier,profile_id';
 
     const fallbackSelectBase = 'id,name,image_url,profile_id';
-    const runSelect = async (table: string, select: string, label: string) => {
+    const runSelect = async (table: string, select: string, label: string, timeoutMs: number = QUERY_TIMEOUT_MS) => {
       const primary = await withTimeout(
         supabase.from(table).select(select).limit(MAX_ROWS_PER_TABLE),
-        QUERY_TIMEOUT_MS,
+        timeoutMs,
         label
       ).catch(err => ({ data: null, error: err }));
 
@@ -432,7 +500,7 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
         console.warn(`[getAllPublicUsers] ${label} retrying with fallback select`, primary.error);
         return await withTimeout(
           supabase.from(table).select(fallbackSelectBase).limit(MAX_ROWS_PER_TABLE),
-          QUERY_TIMEOUT_MS,
+          timeoutMs,
           `${label}.fallback`
         ).catch(err => ({ data: null, error: err }));
       }
@@ -440,16 +508,16 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       return primary;
     };
 
-    // Execute queries directly - Supabase returns {data, error}
+    // Try views first with short timeout (fail fast if views missing/slow)
     const [a, e, p, s, l] = await Promise.all([
-      runSelect('artists_v', selectArtists, 'artists_v'),
-      runSelect('engineers_v', selectEngineers, 'engineers_v'),
-      runSelect('producers_v', selectProducers, 'producers_v'),
-      runSelect('stoodioz_v', selectStoodioz, 'stoodioz_v'),
-      runSelect('labels_v', selectLabels, 'labels_v'),
+      runSelect('artists_v', selectArtists, 'artists_v', VIEW_QUERY_TIMEOUT_MS),
+      runSelect('engineers_v', selectEngineers, 'engineers_v', VIEW_QUERY_TIMEOUT_MS),
+      runSelect('producers_v', selectProducers, 'producers_v', VIEW_QUERY_TIMEOUT_MS),
+      runSelect('stoodioz_v', selectStoodioz, 'stoodioz_v', VIEW_QUERY_TIMEOUT_MS),
+      runSelect('labels_v', selectLabels, 'labels_v', VIEW_QUERY_TIMEOUT_MS),
     ]);
     
-    // If views are missing (or error), fall back to base tables
+    // If views failed (timeout/missing), fall back to base tables with full timeout
     if (a.error || e.error || p.error || s.error || l.error) {
       console.warn('[getAllPublicUsers] view query failed, retrying base tables');
       const [a2, e2, p2, s2, l2] = await Promise.all([
@@ -1256,14 +1324,21 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
   if (uniqueIds.length > 0) {
     try {
       const supabase = getSupabase();
-      // Prefer profile_id (canonical); then try role_id if needed
       let rooms: any[] = [];
       for (const id of uniqueIds) {
-        const res = await withTimeout(
+        // Try with order('name') first; fallback without order if column missing or query fails
+        let res: { data?: any[]; error?: any } = await withTimeout(
           supabase.from('rooms').select('*').eq('stoodio_id', id).order('name') as Promise<{ data?: any[]; error?: any }>,
           DB_TIMEOUT_MS,
           'stoodioz.rooms'
         );
+        if (res?.error && (res.error.code === '42703' || String(res.error.message || '').includes('column'))) {
+          res = await withTimeout(
+            supabase.from('rooms').select('*').eq('stoodio_id', id) as Promise<{ data?: any[]; error?: any }>,
+            DB_TIMEOUT_MS,
+            'stoodioz.rooms.noOrder'
+          );
+        }
         const list = Array.isArray(res?.data) ? res.data : [];
         if (list.length > 0) {
           rooms = list;
@@ -1375,6 +1450,32 @@ export async function createPost(profileId: string, content: string, attachment?
     }).select('*').single();
     return q as any;
   });
+}
+
+/** Create a post from dashboard postData and return { post, updatedAuthor } for useSocial. Uses canonical profile_id. */
+export async function createPostWithAuthor(
+  postData: { text: string; image_url?: string; video_url?: string; video_thumbnail_url?: string; link?: any },
+  currentUser: any,
+  _role?: UserRole
+): Promise<{ post: any; updatedAuthor: any }> {
+  const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+  if (!profileId) throw new Error('Profile ID required to create post');
+  const content = postData.text ?? '';
+  const supabase = getSupabase();
+  const insertPayload: Record<string, any> = {
+    author_id: profileId,
+    content,
+    created_at: nowIso(),
+  };
+  if (postData.image_url) insertPayload.attachment_url = postData.image_url;
+  if (postData.video_url) insertPayload.video_url = postData.video_url;
+  if (postData.video_thumbnail_url) insertPayload.video_thumbnail_url = postData.video_thumbnail_url;
+  if (postData.link != null) insertPayload.link = postData.link;
+  const { data: row, error } = await supabase.from(TABLES.posts).insert(insertPayload).select('*').single();
+  if (error) throw error;
+  const post = normalizePostRow(row || {});
+  const updatedAuthor = { ...currentUser, posts: [...(Array.isArray(currentUser?.posts) ? currentUser.posts : []), post] };
+  return { post, updatedAuthor };
 }
 
 export async function updatePostText(postId: string, text: string): Promise<any> {
@@ -1539,10 +1640,14 @@ export async function uploadDocument(profileId: string, file: File, meta: Record
 export async function fetchUserDocuments(profileId: string): Promise<any[]> {
   if (!profileId) return [];
   const supabase = getSupabase();
-  return safeSelect('documents.byProfile', async () => {
-    const q = supabase.from(TABLES.documents).select('*').eq('profile_id', profileId).order('created_at', { ascending: false });
-    return q as any;
-  }, []);
+  try {
+    const q = supabase.from(TABLES.documents).select('id,profile_id,url,storage_path,name,type,category,size,created_at,updated_at').eq('profile_id', profileId).order('created_at', { ascending: false });
+    const { data, error } = await withTimeout(q as any, DB_TIMEOUT_MS, 'documents.byProfile');
+    if (error) return [];
+    return Array.isArray(data) ? data : [];
+  } catch (_) {
+    return [];
+  }
 }
 
 export async function deleteDocument(doc: { id: string; storage_path?: string | null }): Promise<void> {
@@ -3362,7 +3467,7 @@ export async function fetchReviewsForTarget(role: string, targetId: string): Pro
       .from('reviews')
       .select('*')
       .eq(column, targetId)
-      .order('date', { ascending: false });
+      .order('created_at', { ascending: false });
     return q as any;
   }, []);
 }
@@ -3386,9 +3491,10 @@ export async function createReview(params: {
     reviewer_name: params.reviewerName,
     rating: Number(params.rating || 0),
     comment: params.comment ?? null,
-    date: nowIso(),
     [column]: params.targetId,
   };
+  // Do not send date - reviews table may only have created_at (no date column in some DBs)
+  delete (payload as any).date;
   const supabase = getSupabase();
   const review = await safeWrite('reviews.create', async () => {
     const q = supabase.from('reviews').insert(payload).select('*').single();

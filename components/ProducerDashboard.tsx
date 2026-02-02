@@ -176,7 +176,8 @@ const ProducerDashboard: React.FC = () => {
             
             // uploadAvatar uploads to storage and calls updateUser (profiles). Then updateProfile
             // syncs to producers table so landing page and profile show the photo.
-            const url = await apiService.uploadAvatar(currentUser.id, file);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const url = await apiService.uploadAvatar(profileId, file);
             await updateProfile({ image_url: url });
             await refreshCurrentUser();
         } catch (e: any) {
@@ -215,7 +216,8 @@ const ProducerDashboard: React.FC = () => {
             
             // uploadCoverImage uploads to storage and calls updateUser (profiles). Then updateProfile
             // syncs to producers table so profile page shows the cover.
-            const url = await apiService.uploadCoverImage(currentUser.id, file);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const url = await apiService.uploadCoverImage(profileId, file);
             await updateProfile({ cover_image_url: url });
             await refreshCurrentUser();
         } catch (e: any) {

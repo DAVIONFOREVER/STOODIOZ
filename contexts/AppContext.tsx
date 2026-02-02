@@ -447,33 +447,38 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
     case ActionTypes.UPDATE_USERS: {
       const newUsers = action.payload.users;
+      if (!newUsers.length) return state;
+
+      // Merge updates into existing role arrays by id/profile_id. Do not re-partition by type
+      // shape, or directory users (narrow selects, no bio/is_seeking_session etc.) get dropped
+      // and "Who to follow" / lists appear to lose everyone after a follow.
+      const sameUser = (a: any, b: any) =>
+        a?.id === b?.id || a?.profile_id === b?.profile_id || a?.id === b?.profile_id || a?.profile_id === b?.id;
+      const mergeInto = (arr: (Artist | Engineer | Stoodio | Producer | Label)[]) =>
+        arr.map((u) => {
+          const updated = newUsers.find((nu) => sameUser(u, nu));
+          return updated ? { ...u, ...updated } : u;
+        });
+
+      const artists = mergeInto(state.artists);
+      const engineers = mergeInto(state.engineers);
+      const producers = mergeInto(state.producers);
+      const stoodioz = mergeInto(state.stoodioz);
+      const labels = mergeInto(state.labels);
+
       const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
-
-      [...state.artists, ...state.engineers, ...state.producers, ...state.stoodioz, ...state.labels].forEach((u) => {
+      [...artists, ...engineers, ...producers, ...stoodioz, ...labels].forEach((u) => {
         if (u.id) allUsersMap.set(u.id, u);
       });
-
-      newUsers.forEach((u) => {
-        if (u.id) allUsersMap.set(u.id, u);
-      });
-
-      const uniqueUsers = Array.from(allUsersMap.values());
-      const findUser = (id: string | null | undefined) => (id ? uniqueUsers.find((u) => u.id === id) : null);
+      const findUser = (id: string | null | undefined) => (id ? allUsersMap.get(id) ?? null : null);
 
       return {
         ...state,
-        artists: uniqueUsers.filter((u) => 'bio' in u && 'is_seeking_session' in u) as Artist[],
-        engineers: uniqueUsers.filter((u) => 'specialties' in u) as Engineer[],
-        producers: uniqueUsers.filter((u) => 'instrumentals' in u) as Producer[],
-        stoodioz: uniqueUsers.filter((u) => 'amenities' in u) as Stoodio[],
-        labels: uniqueUsers.filter(
-          (u) =>
-            'bio' in u &&
-            !('is_seeking_session' in u) &&
-            !('specialties' in u) &&
-            !('instrumentals' in u) &&
-            !('amenities' in u)
-        ) as Label[],
+        artists,
+        engineers,
+        producers,
+        stoodioz,
+        labels,
         currentUser: (findUser(state.currentUser?.id) as any) || state.currentUser,
         selectedArtist: (findUser(state.selectedArtist?.id) as Artist) || state.selectedArtist,
         selectedEngineer: (findUser(state.selectedEngineer?.id) as Engineer) || state.selectedEngineer,

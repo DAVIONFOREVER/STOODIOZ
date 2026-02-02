@@ -87,10 +87,10 @@ const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples, 
 
     const nowPlaying = filteredSamples.find((s) => s.id === playingId) || null;
 
-    // Idle animation when nothing is playing
+    // Idle animation when nothing is playing — continuous movement + color cycling
     const drawIdle = useCallback(() => {
         const canvas = canvasRef.current;
-        if (!canvas || idleAnimationRef.current) return;
+        if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -105,16 +105,17 @@ const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples, 
         const barCount = 32;
         const barW = w / barCount;
         const gap = 2;
+        const hueBase = (time * 60) % 360;
 
         for (let i = 0; i < barCount; i++) {
             const x = i * barW + gap / 2;
-            const wave = Math.sin(time * 2 + i * 0.3) * 0.5 + 0.5;
-            const barH = Math.max(4, wave * h * 0.3);
-            
+            const wave = Math.sin(time * 3.5 + i * 0.25) * 0.5 + 0.5;
+            const barH = Math.max(6, wave * h * 0.45);
+            const hue = (hueBase + 20 + i * 8) % 360; // orange–amber range, shifting
             const gr = ctx.createLinearGradient(0, h, 0, 0);
-            gr.addColorStop(0, 'rgba(249,115,22,0.3)');
-            gr.addColorStop(0.6, 'rgba(249,115,22,0.5)');
-            gr.addColorStop(1, 'rgba(251,146,60,0.4)');
+            gr.addColorStop(0, `hsla(${hue}, 80%, 55%, 0.4)`);
+            gr.addColorStop(0.5, `hsla(${(hue + 25) % 360}, 85%, 60%, 0.7)`);
+            gr.addColorStop(1, `hsla(${(hue + 50) % 360}, 75%, 58%, 0.5)`);
             ctx.fillStyle = gr;
             ctx.fillRect(x, h - barH, barW - gap, barH);
         }
@@ -122,7 +123,7 @@ const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples, 
         idleAnimationRef.current = requestAnimationFrame(drawIdle);
     }, []);
 
-    // Active visualization when playing
+    // Active visualization when playing — bars move with audio, colors cycle over time
     const draw = useCallback(() => {
         const canvas = canvasRef.current;
         const analyser = analyserRef.current;
@@ -142,20 +143,23 @@ const MixingSamplePlayer: React.FC<MixingSamplePlayerProps> = ({ mixingSamples, 
         if (!ctx) return;
         const w = canvas.width;
         const h = canvas.height;
+        const time = Date.now() * 0.001;
         ctx.fillStyle = 'rgba(24,24,27,0.95)';
         ctx.fillRect(0, 0, w, h);
 
         const barCount = 32;
         const barW = w / barCount;
         const gap = 2;
+        const hueOffset = (time * 50) % 360;
         for (let i = 0; i < barCount; i++) {
             const v = dataArray[Math.floor((i / barCount) * (dataArray.length - 1))] ?? 0;
-            const barH = Math.max(4, (v / 255) * h * 0.7);
+            const barH = Math.max(4, (v / 255) * h * 0.75);
             const x = i * barW + gap / 2;
+            const hue = (hueOffset + 25 + i * 3) % 360; // orange–amber range, shifting
             const gr = ctx.createLinearGradient(0, h, 0, 0);
-            gr.addColorStop(0, 'rgba(249,115,22,0.8)');
-            gr.addColorStop(0.6, 'rgba(251,146,60,0.9)');
-            gr.addColorStop(1, 'rgba(234,88,12,0.7)');
+            gr.addColorStop(0, `hsla(${hue}, 85%, 55%, 0.85)`);
+            gr.addColorStop(0.5, `hsla(${(hue + 20) % 360}, 88%, 60%, 0.95)`);
+            gr.addColorStop(1, `hsla(${(hue + 40) % 360}, 80%, 52%, 0.8)`);
             ctx.fillStyle = gr;
             ctx.fillRect(x, h - barH, barW - gap, barH);
         }

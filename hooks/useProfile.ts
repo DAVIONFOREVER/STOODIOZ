@@ -77,6 +77,10 @@ export const useProfile = () => {
       const tableName = getTableNameFromRole(userRole);
       if (!tableName) return;
 
+      // Canonical profile id: always use this for profiles table and role table profile_id match
+      const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+      if (!profileId) return;
+
       // Split into profiles updates vs role-table updates
       const profileUpdates: Record<string, any> = {};
       const roleUpdates: Record<string, any> = {};
@@ -116,52 +120,55 @@ export const useProfile = () => {
       try {
         const client = getSupabase();
 
-        // 1) Update role table (if any) - try profile_id first, then id (handles both id schemes)
+        // 1) Update role table (if any) - always match by profile_id (canonical), then fallback by id
         let roleRow: any = null;
         if (Object.keys(roleUpdates).length > 0) {
           let { data, error } = await client
             .from(tableName)
             .update(roleUpdates)
-            .eq('profile_id', currentUser.id)
+            .eq('profile_id', profileId)
             .select('*')
             .maybeSingle();
           if (!data && !error) {
-            const fallback = await client.from(tableName).update(roleUpdates).eq('id', currentUser.id).select('*').maybeSingle();
+            const fallback = await client.from(tableName).update(roleUpdates).eq('id', profileId).select('*').maybeSingle();
             data = fallback.data;
             error = fallback.error;
           }
           if (error) {
-            // If column doesn't exist (400 error), update local state only
+            // If column doesn't exist (400 error), skip role table but still update profiles below so photo persists
             if (error.code === 'PGRST116' || error.message?.includes('column') || error.message?.includes('Could not find')) {
-              console.warn(`Column may not exist in ${tableName} table. Updating local state only.`, error);
-              // Update local state for better UX even if DB update fails
-              const merged = { ...currentUser, ...roleUpdates };
-              const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));
-              dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as any } });
-              dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: merged as any } });
-              setIsSaved(true);
-              return; // Exit early, don't throw error
+              console.warn(`Column may not exist in ${tableName} table. Will still update profiles so photo persists.`, error);
+              roleRow = null;
+            } else {
+              throw error;
             }
-            throw error;
+          } else {
+            roleRow = data;
           }
-          roleRow = data;
         }
 
-        // 2) Update profiles (if any)
+        // 2) Update profiles (if any) - always by profile id so image_url persists even when role table lacks column
         let profRow: any = null;
         if (Object.keys(profileUpdates).length > 0) {
           const { data, error } = await client
             .from('profiles')
             .update(profileUpdates)
-            .eq('id', currentUser.id)
+            .eq('id', profileId)
             .select('*')
             .maybeSingle();
           if (error) throw error;
           profRow = data;
         }
 
-        // Merge everything into one coherent user object
-        const merged = { ...currentUser, ...(roleRow || {}), ...(profRow || {}) };
+        // Merge: prefer DB rows; keep image_url/cover_image_url from updates if DB didn't return them (e.g. RLS)
+        const merged = {
+          ...currentUser,
+          ...(roleRow || {}),
+          ...(profRow || {}),
+          id: profileId,
+          image_url: (profRow?.image_url ?? profRow?.avatar_url ?? roleRow?.image_url ?? profileUpdates?.image_url ?? roleUpdates?.image_url ?? currentUser?.image_url ?? (currentUser as any)?.avatar_url) ?? null,
+          cover_image_url: (profRow?.cover_image_url ?? roleRow?.cover_image_url ?? profileUpdates?.cover_image_url ?? roleUpdates?.cover_image_url ?? currentUser?.cover_image_url) ?? null,
+        };
 
         // Update directory + current user
         const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));
@@ -184,6 +191,9 @@ export const useProfile = () => {
     const tableName = getTableNameFromRole(userRole);
     if (!tableName) return;
 
+    const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+    if (!profileId) return;
+
     let selectQuery = '*';
     if (userRole === 'ENGINEER') selectQuery = '*, mixing_samples(*)';
     if (userRole === 'PRODUCER') selectQuery = '*, instrumentals(*)';
@@ -194,8 +204,7 @@ export const useProfile = () => {
       const { data: roleRow, error: roleErr } = await client
         .from(tableName)
         .select(selectQuery)
-        // Role tables are keyed by profile_id (not id)
-        .eq('profile_id', currentUser.id)
+        .eq('profile_id', profileId)
         .maybeSingle();
       if (roleErr) throw roleErr;
 
@@ -204,7 +213,6 @@ export const useProfile = () => {
       // rooms.stoodio_id FK references profiles.id (profile_id), not stoodioz.id
       let rooms: any[] = [];
       if (userRole === 'STOODIO') {
-        const profileId = currentUser.id;
         const { data: r } = await client.from('rooms').select('*').eq('stoodio_id', profileId).order('name');
         rooms = Array.isArray(r) ? r : [];
       }
@@ -212,7 +220,7 @@ export const useProfile = () => {
       let instrumentals: any[] = [];
       if (userRole === 'PRODUCER') {
         try {
-          instrumentals = await apiService.fetchInstrumentalsForProducer(currentUser.id);
+          instrumentals = await apiService.fetchInstrumentalsForProducer(profileId);
         } catch {
           instrumentals = Array.isArray((resolvedRoleRow as any)?.instrumentals) ? (resolvedRoleRow as any)?.instrumentals : [];
         }
@@ -224,7 +232,7 @@ export const useProfile = () => {
           const { data: samples } = await client
             .from('mixing_samples')
             .select('*')
-            .eq('engineer_id', currentUser.id)
+            .eq('engineer_id', profileId)
             .order('created_at', { ascending: false });
           mixingSamples = Array.isArray(samples) ? samples : [];
         } catch {
@@ -235,15 +243,17 @@ export const useProfile = () => {
       const { data: profRow, error: profErr } = await client
         .from('profiles')
         .select('*')
-        .eq('id', currentUser.id)
+        .eq('id', profileId)
         .maybeSingle();
       if (profErr) throw profErr;
 
-      const previousRooms = (currentUser as any)?.rooms || [];
       const merged = {
         ...(resolvedRoleRow || {}),
         ...(profRow || {}),
-        id: currentUser.id,
+        id: profileId,
+        profile_id: profileId,
+        image_url: (profRow?.image_url ?? profRow?.avatar_url ?? resolvedRoleRow?.image_url ?? currentUser?.image_url ?? (currentUser as any)?.avatar_url) ?? null,
+        cover_image_url: (profRow?.cover_image_url ?? resolvedRoleRow?.cover_image_url ?? currentUser?.cover_image_url) ?? null,
         ...(userRole === 'STOODIO' && resolvedRoleRow?.id ? { role_id: resolvedRoleRow.id } : {}),
         ...(userRole === 'STOODIO' ? { rooms } : {}),
         ...(userRole === 'PRODUCER' ? { instrumentals } : {}),

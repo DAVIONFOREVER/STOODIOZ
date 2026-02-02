@@ -13,14 +13,33 @@ interface InstrumentalPlayerProps {
 const TAG = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
 const PlayingBars: React.FC<{ className?: string }> = ({ className = '' }) => (
-    <div className={`flex items-end gap-1 ${className}`} aria-hidden="true">
-        {[6, 10, 8, 12].map((h, idx) => (
-            <span
-                key={idx}
-                className="w-1 rounded-sm bg-purple-400 animate-bounce"
-                style={{ height: h, animationDelay: `${idx * 0.12}s`, animationDuration: '0.9s' }}
-            />
-        ))}
+    <div className={`flex items-end gap-0.5 sm:gap-1 ${className}`} aria-hidden="true">
+        <style>{`
+            @keyframes barPulse {
+                0%, 100% { transform: scaleY(0.4); opacity: 0.8; }
+                50% { transform: scaleY(1); opacity: 1; }
+            }
+            @keyframes barHue {
+                0% { filter: hue-rotate(0deg); }
+                100% { filter: hue-rotate(360deg); }
+            }
+            .now-playing-bar {
+                transform-origin: bottom;
+                animation: barPulse 0.7s ease-in-out infinite;
+            }
+            .now-playing-bar-wrap {
+                animation: barHue 8s linear infinite;
+            }
+        `}</style>
+        <div className="now-playing-bar-wrap flex items-end gap-0.5 sm:gap-1">
+            {[10, 16, 12, 18, 14].map((_, idx) => (
+                <span
+                    key={idx}
+                    className="now-playing-bar w-1 sm:w-1.5 rounded-sm bg-purple-400"
+                    style={{ height: 14, animationDelay: `${idx * 0.1}s` }}
+                />
+            ))}
+        </div>
     </div>
 );
 
@@ -66,10 +85,10 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
 
     const nowPlaying = safeFilteredInstrumentals.find((i) => i.id === playingId) || null;
 
-    // Idle animation when nothing is playing
+    // Idle animation when nothing is playing — continuous movement + color cycling
     const drawIdle = useCallback(() => {
         const canvas = canvasRef.current;
-        if (!canvas || idleAnimationRef.current) return; // Prevent multiple animations
+        if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
@@ -84,17 +103,20 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
         const barCount = 32;
         const barW = w / barCount;
         const gap = 2;
+        // Hue cycles 0–360 over ~6s; offset per bar for wave effect
+        const hueBase = (time * 60) % 360;
 
         for (let i = 0; i < barCount; i++) {
             const x = i * barW + gap / 2;
-            // Create a wave pattern for idle animation
-            const wave = Math.sin(time * 2 + i * 0.3) * 0.5 + 0.5;
-            const barH = Math.max(4, wave * h * 0.3);
-            
+            // Stronger, smoother wave so bars clearly move
+            const wave = Math.sin(time * 3.5 + i * 0.25) * 0.5 + 0.5;
+            const barH = Math.max(6, wave * h * 0.45);
+            // Per-bar hue shift for color wave
+            const hue = (hueBase + i * 8) % 360;
             const gr = ctx.createLinearGradient(0, h, 0, 0);
-            gr.addColorStop(0, 'rgba(168,85,247,0.3)');
-            gr.addColorStop(0.6, 'rgba(168,85,247,0.5)');
-            gr.addColorStop(1, 'rgba(236,72,153,0.4)');
+            gr.addColorStop(0, `hsla(${hue}, 75%, 55%, 0.4)`);
+            gr.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 80%, 60%, 0.7)`);
+            gr.addColorStop(1, `hsla(${(hue + 60) % 360}, 70%, 65%, 0.5)`);
             ctx.fillStyle = gr;
             ctx.fillRect(x, h - barH, barW - gap, barH);
         }
@@ -102,13 +124,12 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
         idleAnimationRef.current = requestAnimationFrame(drawIdle);
     }, []);
 
-    // Active visualization when playing
+    // Active visualization when playing — bars move with audio, colors cycle over time
     const draw = useCallback(() => {
         const canvas = canvasRef.current;
         const analyser = analyserRef.current;
         const dataArray = dataArrayRef.current;
         if (!canvas || !analyser || !dataArray || !playingId) {
-            // Stop animation if conditions not met
             if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = 0;
@@ -123,24 +144,27 @@ const InstrumentalPlayer: React.FC<InstrumentalPlayerProps> = ({ instrumentals, 
         if (!ctx) return;
         const w = canvas.width;
         const h = canvas.height;
+        const time = Date.now() * 0.001;
         ctx.fillStyle = 'rgba(24,24,27,0.95)';
         ctx.fillRect(0, 0, w, h);
 
         const barCount = 32;
         const barW = w / barCount;
         const gap = 2;
+        const hueOffset = (time * 50) % 360;
         for (let i = 0; i < barCount; i++) {
             const v = dataArray[Math.floor((i / barCount) * (dataArray.length - 1))] ?? 0;
-            const barH = Math.max(4, (v / 255) * h * 0.7);
+            const barH = Math.max(4, (v / 255) * h * 0.75);
             const x = i * barW + gap / 2;
+            const hue = (hueOffset + 260 + i * 3) % 360; // purple–pink–orange range, shifting
             const gr = ctx.createLinearGradient(0, h, 0, 0);
-            gr.addColorStop(0, 'rgba(168,85,247,0.8)');
-            gr.addColorStop(0.6, 'rgba(236,72,153,0.9)');
-            gr.addColorStop(1, 'rgba(249,115,22,0.7)');
+            gr.addColorStop(0, `hsla(${hue}, 78%, 58%, 0.85)`);
+            gr.addColorStop(0.5, `hsla(${(hue + 25) % 360}, 80%, 62%, 0.95)`);
+            gr.addColorStop(1, `hsla(${(hue + 50) % 360}, 75%, 55%, 0.8)`);
             ctx.fillStyle = gr;
             ctx.fillRect(x, h - barH, barW - gap, barH);
         }
-    }, []);
+    }, [playingId]);
 
     const setupAudioContext = useCallback(() => {
         const el = audioRef.current;

@@ -91,7 +91,8 @@ const LabelSettings: React.FC = () => {
 
     try {
       validateImageFile(file);
-      const url = await apiService.uploadAvatar(label.id, file);
+      const profileId = (label as any)?.profile_id ?? label?.id;
+      const url = await apiService.uploadAvatar(profileId, file);
       await updateProfile({ image_url: url } as any);
       await refreshCurrentUser();
     } catch (err: any) {
@@ -108,7 +109,8 @@ const LabelSettings: React.FC = () => {
 
     try {
       validateImageFile(file);
-      const url = await apiService.uploadCoverImage(label.id, file);
+      const profileId = (label as any)?.profile_id ?? label?.id;
+      const url = await apiService.uploadCoverImage(profileId, file);
       await updateProfile({ cover_image_url: url } as any);
       await refreshCurrentUser();
     } catch (err: any) {

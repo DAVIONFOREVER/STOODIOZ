@@ -666,7 +666,7 @@ const StoodioDetail: React.FC = () => {
                                             </div>
                                         </div>
                                         <p className="text-sm text-slate-300">"{review.comment}"</p>
-                                        <p className="text-xs text-slate-400 mt-2 text-right">{review.date}</p>
+                                        <p className="text-xs text-slate-400 mt-2 text-right">{(review.created_at || review.date) ? new Date(review.created_at || review.date).toLocaleDateString() : ''}</p>
                                     </li>
                                     );
                                 })}

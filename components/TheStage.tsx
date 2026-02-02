@@ -137,7 +137,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                 ...(f?.labels || []),
                 currentUser.id
             ]);
-            return allUsers.filter(u => u && !followedIds.has(u.id) && (u as any).email !== ARIA_EMAIL).slice(0, 4);
+            return allUsers.filter(u => u && !followedIds.has(u.id) && !followedIds.has((u as any).profile_id) && (u as any).email !== ARIA_EMAIL).slice(0, 4);
         }
         return allUsers.filter(u => u && (u as any).email !== ARIA_EMAIL && u.id !== currentUser?.id).slice(0, 4);
     }, [currentUser, artists, engineers, stoodioz, producers, labels]);

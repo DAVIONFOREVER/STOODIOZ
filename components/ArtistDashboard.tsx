@@ -132,7 +132,8 @@ const ArtistDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (!file || !currentUser) return;
         try {
-            const url = await apiService.uploadAvatar(currentUser.id, file);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const url = await apiService.uploadAvatar(profileId, file);
             await updateProfile({ image_url: url });
             await refreshCurrentUser();
         } catch (e: any) {
@@ -147,7 +148,8 @@ const ArtistDashboard: React.FC = () => {
         const file = event.target.files?.[0];
         if (!file || !currentUser) return;
         try {
-            const url = await apiService.uploadCoverImage(currentUser.id, file);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const url = await apiService.uploadCoverImage(profileId, file);
             await updateProfile({ cover_image_url: url });
             await refreshCurrentUser();
         } catch (e: any) {

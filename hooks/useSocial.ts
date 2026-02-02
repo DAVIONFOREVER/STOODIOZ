@@ -93,9 +93,10 @@ export const useSocial = () => {
                 video_thumbnail_url: postData.videoThumbnailUrl
             };
 
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
             if (postData.imageFile) {
                 try {
-                    const uploaded = await apiService.uploadPostAttachment(currentUser.id, postData.imageFile);
+                    const uploaded = await apiService.uploadPostAttachment(profileId, postData.imageFile);
                     finalPostData.image_url = uploaded.url;
                 } catch (err) {
                     console.error("Failed to upload image:", err);
@@ -108,7 +109,7 @@ export const useSocial = () => {
 
             if (postData.videoFile) {
                 try {
-                    const uploaded = await apiService.uploadPostAttachment(currentUser.id, postData.videoFile);
+                    const uploaded = await apiService.uploadPostAttachment(profileId, postData.videoFile);
                     finalPostData.video_url = uploaded.url;
                 } catch (err) {
                     console.error("Failed to upload video:", err);
@@ -126,8 +127,8 @@ export const useSocial = () => {
                 }
             }
 
-            const { updatedAuthor } = await apiService.createPost(finalPostData, currentUser, roleToUse);
-            const updatedUsers = allUsers.map(u => u.id === updatedAuthor.id ? { ...u, ...updatedAuthor } : u);
+            const { updatedAuthor } = await apiService.createPostWithAuthor(finalPostData, currentUser, roleToUse);
+            const updatedUsers = allUsers.map(u => u.id === updatedAuthor.id || u.profile_id === updatedAuthor.profile_id ? { ...u, ...updatedAuthor } : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {
             console.error("Failed to create post:", error);
@@ -137,12 +138,15 @@ export const useSocial = () => {
     
     const likePost = useCallback(async (postId: string) => {
         if (!currentUser) return;
-        const author = allUsers.find(u => (u.posts || []).some(p => p.id === postId));
+        const author = allUsers.find(u => (u.posts || []).some((p: any) => p.id === postId));
         if (!author) return;
 
         try {
-            const updatedAuthor = await apiService.likePost(postId, currentUser.id, author);
-            const updatedUsers = allUsers.map(u => u.id === author.id ? { ...u, ...updatedAuthor } : u);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            await apiService.likePost(postId, profileId);
+            // Keep author in list; like count can refresh on next feed load
+            const updatedAuthor = { ...author };
+            const updatedUsers = allUsers.map(u => u.id === author.id || u.profile_id === author.profile_id ? { ...u, ...updatedAuthor } : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {
             console.error("Failed to like post:", error);
@@ -151,12 +155,13 @@ export const useSocial = () => {
     
     const commentOnPost = useCallback(async (postId: string, text: string) => {
         if (!currentUser) return;
-        const postAuthor = allUsers.find(u => (u.posts || []).some(p => p.id === postId));
+        const postAuthor = allUsers.find(u => (u.posts || []).some((p: any) => p.id === postId));
         if (!postAuthor) return;
 
         try {
-            const updatedAuthor = await apiService.commentOnPost(postId, text, currentUser, postAuthor);
-            const updatedUsers = allUsers.map(u => u.id === postAuthor.id ? { ...u, ...updatedAuthor } : u);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            await apiService.commentOnPost(postId, profileId, text);
+            const updatedUsers = allUsers.map(u => u.id === postAuthor.id || u.profile_id === postAuthor.profile_id ? { ...u, ...postAuthor } : u);
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {
             console.error("Failed to comment on post:", error);
