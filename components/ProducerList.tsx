@@ -47,7 +47,8 @@ const ProducerList: React.FC<ProducerListProps> = ({ onSelectProducer, onToggleF
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredProducers.map(producer => {
-                    const isFollowing = currentUser ? (currentUser.following?.producers || []).includes(producer.id) : false;
+                    const list = currentUser?.following?.producers || [];
+                    const isFollowing = currentUser ? list.includes(producer.id) || list.includes((producer as any).profile_id) : false;
                     return (
                         <ProducerCard
                             key={producer.id}

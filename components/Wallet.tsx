@@ -62,6 +62,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
                     <h3 className="text-xl font-bold text-slate-100">Wallet</h3>
                     <p className="text-4xl font-bold text-green-400 mt-1">${(user.wallet_balance ?? 0).toFixed(2)}</p>
                     <p className="text-sm text-slate-400">Available Balance</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Balance may take a few seconds to update after adding funds.</p>
                 </div>
                 <div className="flex gap-2">
                     <button onClick={onAddFunds} className="flex items-center gap-2 bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors text-sm">

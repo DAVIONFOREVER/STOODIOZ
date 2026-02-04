@@ -50,12 +50,13 @@ export const useSocial = () => {
 
         // 2. Perform API Call in Background
         try {
-            const result = await apiService.toggleFollow(currentUser.id, targetId);
+            const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const result = await apiService.toggleFollow(myProfileId, targetId);
             // 3. Update the followed user (User 2) in state so their follower count/list updates immediately
             if (targetUser && result) {
                 const prevIds = (targetUser as any).follower_ids || [];
                 const prevCount = (targetUser as any).followers ?? prevIds.length;
-                const myId = currentUser.id;
+                const myId = myProfileId;
                 const updatedTarget = { ...targetUser } as any;
                 if (result.following) {
                     updatedTarget.follower_ids = prevIds.includes(myId) ? prevIds : [...prevIds, myId];

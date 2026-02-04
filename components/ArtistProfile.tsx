@@ -618,11 +618,18 @@ const ArtistProfile: React.FC = () => {
     useEffect(() => {
         if (!artist?.id) return;
         let isMounted = true;
-        const fallbackIds = (artist as any).role_id && String((artist as any).role_id) !== String(artist.id)
-            ? [(artist as any).role_id]
-            : undefined;
-        fetchUserPosts(artist.id, fallbackIds)
-            .then((p) => { if (isMounted) setPosts(p); })
+        const profileId = (artist as any)?.profile_id;
+        const roleId = (artist as any)?.role_id;
+        const fallbackIds = [profileId, roleId].filter(
+            (id): id is string => !!id && typeof id === 'string' && String(id) !== String(artist.id)
+        );
+        fetchUserPosts(artist.id, fallbackIds.length > 0 ? fallbackIds : undefined)
+            .then((p) => {
+                if (isMounted) setPosts(p);
+                if (typeof console !== 'undefined' && console.debug) {
+                    console.debug('[ArtistProfile] posts loaded', { artistIdSlice: artist.id?.slice(0, 8), roleIdSlice: (artist as any)?.role_id?.slice(0, 8), postsCount: Array.isArray(p) ? p.length : 0 });
+                }
+            })
             .catch((err) => {
                 console.error('Failed to load artist posts', err);
                 if (isMounted) setPosts([]);
@@ -705,7 +712,8 @@ const ArtistProfile: React.FC = () => {
     }
 
     if (!isAria) {
-        const isFollowing = currentUser ? (currentUser.following?.artists || []).includes(artist.id) : false;
+        const list = currentUser?.following?.artists || [];
+        const isFollowing = currentUser ? list.includes(artist.id) || list.includes((artist as any).profile_id) : false;
         
         return (
             <div className="max-w-7xl mx-auto pb-32 animate-fade-in px-3 sm:px-4">

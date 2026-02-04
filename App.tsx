@@ -384,9 +384,10 @@ const App: React.FC = () => {
     window.history.replaceState({}, '', u.pathname + (u.search || ''));
     navigate(dashboardForRole(userRoleRef.current || userRole));
 
-    // Refetch current user so wallet_balance and wallet_transactions reflect after add funds
+    // Refetch current user so wallet_balance and wallet_transactions reflect after add funds.
+    // Webhook can be delayed; refetch immediately and again after 2.5s and 5s so balance updates.
     if (stripeStatus === 'success') {
-      (async () => {
+      const doRefetch = async () => {
         try {
           const supabase = getSupabase();
           const { data } = await supabase.auth.getSession();
@@ -395,7 +396,14 @@ const App: React.FC = () => {
         } catch (e) {
           console.warn('[App] Refetch after Stripe success failed:', e);
         }
-      })();
+      };
+      doRefetch();
+      const t1 = setTimeout(doRefetch, 2500);
+      const t2 = setTimeout(doRefetch, 5000);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     }
   }, [navigate, userRole]);
 

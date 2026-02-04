@@ -222,6 +222,26 @@ WHERE r.stoodio_id = s.id
 
 ---
 
+## Stripe webhook (wallet balance after “Add Funds”)
+
+If **wallet balance does not update** after adding funds in Stripe sandbox:
+
+1. **Deploy the Stripe webhook Edge Function**  
+   - Supabase Dashboard → **Edge Functions** → ensure `stripe-webhook` is deployed.  
+   - Set secrets: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (from Stripe Dashboard → Developers → Webhooks).
+
+2. **Configure Stripe to send events to Supabase**  
+   - Stripe Dashboard → **Developers** → **Webhooks** → **Add endpoint**.  
+   - Endpoint URL: `https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/stripe-webhook`.  
+   - Events to send: **checkout.session.completed** (required for wallet top-up).  
+   - Copy the **Signing secret** (starts with `whsec_`) and set it in Supabase Edge Function secrets as `STRIPE_WEBHOOK_SECRET`.
+
+3. **Run the wallet migration** (if not already): `20260203_stripe_events_and_wallet.sql` adds `wallet_balance`, `wallet_transactions`, and `stripe_events` to your project. Without these, the webhook cannot credit the wallet.
+
+4. **Test** – Add funds, complete payment in Stripe; the app refetches your profile at 0s, 2.5s, and 5s so the balance should update once the webhook runs. If it still doesn’t, check Stripe Dashboard → Developers → Webhooks → your endpoint → **Recent deliveries** for failed requests.
+
+---
+
 ## Step 4 — Producer/Engineer availability toggle (if you see “Column may not exist” for is_available)
 
 If the Producer or Engineer dashboard availability toggle logs “Column may not exist in producers table” and only updates local state, add the column:
@@ -230,6 +250,67 @@ If the Producer or Engineer dashboard availability toggle logs “Column may not
 ALTER TABLE public.producers ADD COLUMN IF NOT EXISTS is_available boolean DEFAULT true;
 ALTER TABLE public.engineers ADD COLUMN IF NOT EXISTS is_available boolean DEFAULT true;
 ```
+
+---
+
+## Live chat / messaging (if live chat doesn’t load or messages don’t appear)
+
+1. **Fix “Could not find the 'created_at' column of 'conversations'”** – If starting a live room or messaging an artist fails with that error, add the missing columns (run in SQL Editor):
+
+```sql
+-- Conversations: required for createConversation and fetchConversations
+CREATE TABLE IF NOT EXISTS public.conversations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  participant_ids uuid[] DEFAULT '{}',
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.conversations
+  ADD COLUMN IF NOT EXISTS participant_ids uuid[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS room_id uuid,
+  ADD COLUMN IF NOT EXISTS conversation_type text,
+  ADD COLUMN IF NOT EXISTS title text,
+  ADD COLUMN IF NOT EXISTS image_url text;
+
+-- Messages: required for sendMessage
+CREATE TABLE IF NOT EXISTS public.messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id uuid NOT NULL,
+  sender_id uuid NOT NULL,
+  text text DEFAULT '',
+  type text DEFAULT 'text',
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.messages
+  ADD COLUMN IF NOT EXISTS conversation_id uuid,
+  ADD COLUMN IF NOT EXISTS sender_id uuid,
+  ADD COLUMN IF NOT EXISTS text text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS type text DEFAULT 'text',
+  ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS image_url text,
+  ADD COLUMN IF NOT EXISTS audio_url text,
+  ADD COLUMN IF NOT EXISTS video_url text,
+  ADD COLUMN IF NOT EXISTS link jsonb,
+  ADD COLUMN IF NOT EXISTS files jsonb,
+  ADD COLUMN IF NOT EXISTS audio_info jsonb;
+```
+
+2. **Tables** – After the above, `conversations` has `participant_ids` and `created_at`, and `messages` has the expected columns. If you use `20260201_live_rooms_and_messages.sql`, it only adds extra columns to existing tables; the block above ensures the base columns exist.
+
+3. **RLS** – If you use RLS, allow participants to read their conversations and messages. Example (run in SQL Editor):
+
+```sql
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "conversations_select_participant" ON public.conversations FOR SELECT USING (auth.uid() = ANY(participant_ids));
+CREATE POLICY "messages_select_conversation" ON public.messages FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.conversations c WHERE c.id = conversation_id AND auth.uid() = ANY(c.participant_ids))
+);
+CREATE POLICY "conversations_insert_authenticated" ON public.conversations FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "messages_insert_authenticated" ON public.messages FOR INSERT TO authenticated WITH CHECK (true);
+```
+
+4. **Realtime** – For live chat to update when others send messages, add `messages` to the Realtime publication: Supabase Dashboard → **Database** → **Replication** → ensure `messages` is in the publication (or run `ALTER PUBLICATION supabase_realtime ADD TABLE messages;` if you manage it manually).
 
 ---
 

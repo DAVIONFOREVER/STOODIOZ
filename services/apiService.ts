@@ -60,7 +60,11 @@ function errMsg(e: any) {
 
 function isMissingColumnError(err: any): boolean {
   const msg = String(err?.message || err?.details || err?.hint || '');
-  return /column .* does not exist/i.test(msg) || /missing column/i.test(msg);
+  const result = /column .* does not exist/i.test(msg) || /missing column/i.test(msg) || /Could not find.*column/i.test(msg);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:isMissingColumnError', message: 'check', data: { msg: msg.slice(0, 120), result }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
+  // #endregion
+  return result;
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -143,7 +147,13 @@ async function safeSelect<T = any>(label: string, fn: () => Promise<{ data: T; e
 
 async function safeWrite<T = any>(label: string, fn: () => Promise<{ data: T; error: any }>): Promise<T> {
   const { data, error } = await withTimeout(fn(), DB_TIMEOUT_MS, label);
-  if (error) throw new Error(`${label}: ${errMsg(error)}`);
+  if (error) {
+    const msg = `${label}: ${errMsg(error)}`;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:safeWrite', message: 'throwing', data: { label, msgSlice: msg.slice(0, 120) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
+    // #endregion
+    throw new Error(msg);
+  }
   return data as any;
 }
 
@@ -1321,32 +1331,56 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
   const idsToTry = [profileId, roleId].filter((id): id is string => !!id && typeof id === 'string');
   const uniqueIds = Array.from(new Set(idsToTry));
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'ids to try', data: { idOrUsername: String(idOrUsername).slice(0, 36), profileId: profileId?.slice(0, 8), roleId: roleId?.slice(0, 8), uniqueIdsLen: uniqueIds.length }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R1' }) }).catch(() => {});
+  // #endregion
+
   if (uniqueIds.length > 0) {
     try {
       const supabase = getSupabase();
       let rooms: any[] = [];
+      const runRoomsQuery = async (id: string, column: 'stoodio_id' | 'profile_id', orderByName: boolean): Promise<{ data?: any[]; error?: any }> => {
+        const q = orderByName
+          ? supabase.from('rooms').select('*').eq(column, id).order('name')
+          : supabase.from('rooms').select('*').eq(column, id);
+        return withTimeout(q as Promise<{ data?: any[]; error?: any }>, DB_TIMEOUT_MS, `rooms.${column}`);
+      };
       for (const id of uniqueIds) {
-        // Try with order('name') first; fallback without order if column missing or query fails
-        let res: { data?: any[]; error?: any } = await withTimeout(
-          supabase.from('rooms').select('*').eq('stoodio_id', id).order('name') as Promise<{ data?: any[]; error?: any }>,
-          DB_TIMEOUT_MS,
-          'stoodioz.rooms'
-        );
-        if (res?.error && (res.error.code === '42703' || String(res.error.message || '').includes('column'))) {
-          res = await withTimeout(
-            supabase.from('rooms').select('*').eq('stoodio_id', id) as Promise<{ data?: any[]; error?: any }>,
-            DB_TIMEOUT_MS,
-            'stoodioz.rooms.noOrder'
-          );
+        // Try stoodio_id first (canonical after unification)
+        let res: { data?: any[]; error?: any } = await runRoomsQuery(id, 'stoodio_id', true);
+        if (res?.error && (res.error.code === '42703' || isMissingColumnError(res.error) || String(res.error.message || '').toLowerCase().includes('column'))) {
+          res = await runRoomsQuery(id, 'stoodio_id', false);
+        }
+        // If still error (e.g. column stoodio_id missing), try profile_id for schemas that use it
+        if (res?.error && (isMissingColumnError(res.error) || String(res.error.message || '').toLowerCase().includes('stoodio_id'))) {
+          res = await runRoomsQuery(id, 'profile_id', true);
+          if (res?.error && (res.error.code === '42703' || String(res.error.message || '').includes('column'))) {
+            res = await runRoomsQuery(id, 'profile_id', false);
+          }
         }
         const list = Array.isArray(res?.data) ? res.data : [];
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'query result', data: { idSlice: id.slice(0, 8), roomsCount: list.length, error: res?.error ? String(res.error.message).slice(0, 80) : null }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R2' }) }).catch(() => {});
+        // #endregion
+        if (typeof console !== 'undefined' && console.debug) {
+          console.debug('[fetchFullStoodio] rooms query', { idSlice: id.slice(0, 8), roomsCount: list.length, error: res?.error ? String(res.error.message).slice(0, 60) : null });
+        }
         if (list.length > 0) {
           rooms = list;
           break;
         }
       }
       out.rooms = rooms;
+      if (typeof console !== 'undefined' && console.debug) {
+        console.debug('[fetchFullStoodio] rooms result', { profileId: profileId?.slice(0, 8), roleId: roleId?.slice(0, 8), roomsCount: (out.rooms || []).length });
+      }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'final', data: { outRoomsLen: (out.rooms || []).length }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R3' }) }).catch(() => {});
+      // #endregion
     } catch (e) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'rooms fetch failed', data: { err: String((e as Error)?.message).slice(0, 100) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R4' }) }).catch(() => {});
+      // #endregion
       console.warn('[fetchFullStoodio] rooms fetch failed or timed out:', e);
       out.rooms = [];
     }
@@ -1417,18 +1451,55 @@ export async function fetchUserPosts(profileId: string, fallbackAuthorIds?: stri
   if (!profileId) return [];
   const supabase = getSupabase();
   const ids = [profileId, ...(fallbackAuthorIds || []).filter((id) => id && id !== profileId)];
-  const raw = await safeSelect('posts.byProfile', async () => {
+  const runQuery = async (authorColumn: 'author_id' | 'profile_id'): Promise<{ data?: any[]; error?: any }> => {
     const query = supabase.from(TABLES.posts).select('*').order('created_at', { ascending: false });
-    const { data, error } = ids.length === 1
-      ? await (query as any).eq('author_id', profileId)
-      : await (query as any).in('author_id', ids);
-    return { data, error };
-  }, []);
+    return ids.length === 1
+      ? await (query as any).eq(authorColumn, profileId)
+      : await (query as any).in(authorColumn, ids);
+  };
+  let raw: any[] = [];
+  try {
+    let res: { data?: any[]; error?: any } = await withTimeout(runQuery('author_id'), DB_TIMEOUT_MS, 'posts.byProfile');
+    if (res?.error && (isMissingColumnError(res.error) || String(res.error?.message || '').toLowerCase().includes('author_id'))) {
+      res = await withTimeout(runQuery('profile_id'), DB_TIMEOUT_MS, 'posts.byProfileId');
+    }
+    if (res?.error) {
+      if (typeof console !== 'undefined' && console.debug) {
+        console.debug('[fetchUserPosts] query error', { profileIdSlice: profileId.slice(0, 8), idsLen: ids.length, err: String(res.error?.message).slice(0, 80) });
+      }
+    } else {
+      raw = Array.isArray(res?.data) ? res.data : [];
+    }
+    if (raw.length === 0) {
+      const byProfile = await withTimeout(runQuery('profile_id'), DB_TIMEOUT_MS, 'posts.byProfileId.fallback');
+      if (!byProfile?.error && Array.isArray(byProfile?.data) && byProfile.data.length > 0) {
+        raw = byProfile.data;
+        if (typeof console !== 'undefined' && console.debug) {
+          console.debug('[fetchUserPosts] got rows via profile_id', { profileIdSlice: profileId.slice(0, 8), count: raw.length });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[fetchUserPosts] failed', e);
+    if (typeof console !== 'undefined' && console.debug) {
+      console.debug('[fetchUserPosts] caught', { profileIdSlice: profileId.slice(0, 8), err: String((e as Error)?.message).slice(0, 80) });
+    }
+  }
   const rows = Array.isArray(raw) ? raw : [];
-  return rows
+  const out = rows
     .map(normalizePostRow)
     .filter((p) => p.authorId)
     .sort((a, b) => new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime());
+  if (typeof console !== 'undefined' && console.debug) {
+    console.debug('[fetchUserPosts] result', {
+      profileIdSlice: profileId.slice(0, 8),
+      idsLen: ids.length,
+      idsSlices: ids.slice(0, 5).map((id) => String(id).slice(0, 8)),
+      rawRows: rows.length,
+      postsCount: out.length,
+    });
+  }
+  return out;
 }
 
 export async function createPost(profileId: string, content: string, attachment?: File): Promise<any> {
@@ -2823,18 +2894,38 @@ export async function createConversation(participantIds: string[], meta: Record<
   requireVal(participantIds?.length, 'participantIds');
   const supabase = getSupabase();
   const base = { participant_ids: participantIds, ...meta, created_at: nowIso() };
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation', message: 'entry', data: { metaKeys: Object.keys(meta), baseKeys: Object.keys(base) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
+  // #endregion
   try {
     return await safeWrite('conversations.insert', async () => {
       const q = supabase.from(TABLES.conversations).insert(base).select('*').single();
       return q as any;
     });
   } catch (e: any) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.catch', message: 'first insert failed', data: { eMessage: (e?.message || '').slice(0, 150), isMissingCol: isMissingColumnError(e) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
+    // #endregion
     if (isMissingColumnError(e)) {
       const fallback = { participant_ids: participantIds, ...meta };
-      return safeWrite('conversations.insert.fallback', async () => {
-        const q = supabase.from(TABLES.conversations).insert(fallback).select('*').single();
-        return q as any;
-      });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.fallback', message: 'attempting fallback insert', data: { fallbackKeys: Object.keys(fallback), hasCreatedAt: 'created_at' in fallback }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+      // #endregion
+      try {
+        const result = await safeWrite('conversations.insert.fallback', async () => {
+          const q = supabase.from(TABLES.conversations).insert(fallback).select('*').single();
+          return q as any;
+        });
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.fallback', message: 'fallback success', data: { id: result?.id }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+        // #endregion
+        return result;
+      } catch (e2: any) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.fallback', message: 'fallback failed', data: { e2Message: (e2?.message || '').slice(0, 150) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+        // #endregion
+        throw e2;
+      }
     }
     throw e;
   }
@@ -2843,12 +2934,69 @@ export async function createConversation(participantIds: string[], meta: Record<
 export async function fetchConversations(profileId: string): Promise<any[]> {
   if (!profileId) return [];
   const supabase = getSupabase();
-  // best effort: conversations might store participant_ids array
-  return safeSelect('conversations.byParticipant', async () => {
-    // @ts-ignore
-    const q = supabase.from(TABLES.conversations).select('*').contains('participant_ids', [profileId]).order('created_at', { ascending: false });
-    return q as any;
-  }, []);
+  let rows: any[] = [];
+  try {
+    rows = await safeSelect('conversations.byParticipant', async () => {
+      // @ts-ignore
+      const q = supabase.from(TABLES.conversations).select('*').contains('participant_ids', [profileId]).order('created_at', { ascending: false });
+      return q as any;
+    }, []);
+  } catch (e: any) {
+    if (isMissingColumnError(e)) {
+      rows = await safeSelect('conversations.byParticipant.noOrder', async () => {
+        const q = supabase.from(TABLES.conversations).select('*').contains('participant_ids', [profileId]);
+        return q as any;
+      }, []);
+    } else throw e;
+  }
+  if (!Array.isArray(rows) || rows.length === 0) return [];
+
+  const convIds = rows.map((r: any) => r.id).filter(Boolean);
+  const allParticipantIds = new Set<string>();
+  rows.forEach((r: any) => {
+    (r.participant_ids || []).forEach((id: string) => allParticipantIds.add(id));
+  });
+
+  let messagesByConv: Record<string, any[]> = {};
+  let profileMap: Record<string, any> = {};
+
+  try {
+    const [messagesRes, profilesRes] = await Promise.all([
+      supabase.from(TABLES.messages).select('*').in('conversation_id', convIds).order('created_at', { ascending: true }),
+      allParticipantIds.size > 0
+        ? supabase.from(TABLES.profiles).select('id, full_name, display_name, username, image_url, avatar_url').in('id', Array.from(allParticipantIds))
+        : { data: [] },
+    ]);
+    const messagesList = Array.isArray(messagesRes?.data) ? messagesRes.data : [];
+    messagesList.forEach((m: any) => {
+      const cid = m.conversation_id;
+      if (!messagesByConv[cid]) messagesByConv[cid] = [];
+      messagesByConv[cid].push({
+        id: m.id,
+        sender_id: m.sender_id,
+        text: m.text || '',
+        timestamp: m.created_at || m.timestamp || new Date().toISOString(),
+        type: (m.type || 'text') as any,
+        image_url: m.image_url,
+        video_url: m.video_url,
+        audio_url: m.audio_url,
+        link: m.link,
+        files: m.files,
+      });
+    });
+    (profilesRes?.data || []).forEach((p: any) => {
+      if (p?.id) profileMap[p.id] = { id: p.id, name: p.display_name || p.full_name || p.username || 'User', image_url: p.image_url || p.avatar_url };
+    });
+  } catch (e) {
+    console.warn('[fetchConversations] enrich failed:', e);
+  }
+
+  return rows.map((r: any) => {
+    const participantIds = Array.isArray(r.participant_ids) ? r.participant_ids : [];
+    const participants = participantIds.map((id: string) => profileMap[id] || { id, name: 'User', image_url: undefined });
+    const messages = messagesByConv[r.id] || [];
+    return { ...r, participants, messages, unread_count: 0 };
+  });
 }
 
 export async function sendMessage(

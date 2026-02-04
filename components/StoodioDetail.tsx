@@ -130,9 +130,19 @@ const StoodioDetail: React.FC = () => {
             }
 
             try {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'StoodioDetail.tsx:resolveStoodio', message: 'before fetchFullStoodio', data: { targetId: targetId?.slice(0, 36) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R5' }) }).catch(() => {});
+                // #endregion
                 const fullData = await fetchFullStoodio(targetId);
                 if (!isMounted) return;
                 if (fullData) {
+                    const roomsLen = (fullData as any)?.rooms?.length ?? 0;
+                    if (typeof console !== 'undefined' && console.debug) {
+                        console.debug('[StoodioDetail] fetchFullStoodio result', { targetId: targetId?.slice(0, 8), roomsCount: roomsLen, fullDataId: (fullData as any)?.id?.slice(0, 8) });
+                    }
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'StoodioDetail.tsx:resolveStoodio', message: 'after fetchFullStoodio', data: { roomsLen, fullDataId: (fullData as any)?.id?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R5' }) }).catch(() => {});
+                    // #endregion
                     setStoodio(fullData as Stoodio);
                     writeCachedStoodio(fullData as Stoodio);
                 } else {
@@ -314,7 +324,8 @@ const StoodioDetail: React.FC = () => {
         );
     }
 
-    const isFollowing = currentUser && currentUser.following && currentUser.following.stoodioz ? currentUser.following.stoodioz.includes(stoodio.id) : false;
+    const stoodioFollowList = currentUser?.following?.stoodioz || [];
+    const isFollowing = currentUser ? stoodioFollowList.includes(stoodio.id) || stoodioFollowList.includes((stoodio as any).profile_id) : false;
 
     const stoodioReviews = (profileReviews ?? []).filter((r) => r.stoodio_id === stoodio.id);
 

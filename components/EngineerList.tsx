@@ -47,7 +47,8 @@ const EngineerList: React.FC<EngineerListProps> = ({ onSelectEngineer, onToggleF
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredEngineers.map(engineer => {
-                     const isFollowing = currentUser ? (currentUser.following?.engineers || []).includes(engineer.id) : false;
+                     const list = currentUser?.following?.engineers || [];
+                    const isFollowing = currentUser ? list.includes(engineer.id) || list.includes((engineer as any).profile_id) : false;
                     return (
                         <EngineerCard
                             key={engineer.id}

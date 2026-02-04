@@ -235,7 +235,7 @@ async function handleCheckoutSessionCompleted(session: any) {
   }
 
   if (type === 'wallet_topup') {
-    const payerId = metadata.payer_profile_id;
+    const payerId = metadata.payer_profile_id || metadata.payerProfileId;
     const note = metadata.note || '';
     if (payerId) {
       const tx = buildTx({
@@ -245,6 +245,8 @@ async function handleCheckoutSessionCompleted(session: any) {
         note,
       });
       await appendWalletTransaction(String(payerId), tx, amount);
+    } else {
+      console.warn('[stripe-webhook] wallet_topup: missing payer_profile_id in metadata', { metadata: Object.keys(metadata) });
     }
     return;
   }

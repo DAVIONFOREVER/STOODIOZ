@@ -71,7 +71,8 @@ const ArtistList: React.FC<ArtistListProps> = ({ onSelectArtist, onToggleFollow 
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredArtists.map(artist => {
-                    const isFollowing = currentUser ? (currentUser.following?.artists || []).includes(artist.id) : false;
+                    const list = currentUser?.following?.artists || [];
+                    const isFollowing = currentUser ? list.includes(artist.id) || list.includes((artist as any).profile_id) : false;
                     return (
                         <ArtistCard
                             key={artist.id}

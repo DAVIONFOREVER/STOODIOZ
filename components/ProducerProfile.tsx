@@ -323,7 +323,8 @@ const ProducerProfile: React.FC = () => {
         );
     }
     
-    const isFollowing = currentUser ? (currentUser.following?.producers || []).includes(producer.id) : false;
+    const list = currentUser?.following?.producers || [];
+    const isFollowing = currentUser ? list.includes(producer.id) || list.includes((producer as any).profile_id) : false;
 
     const handlePurchaseClick = (instrumental: Instrumental) => {
         if (!currentUser) {

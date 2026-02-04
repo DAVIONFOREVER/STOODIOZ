@@ -167,7 +167,8 @@ const EngineerProfile: React.FC = () => {
     const allUsers = useMemo(() => [...artists, ...engineers, ...stoodioz, ...producers], [artists, engineers, stoodioz, producers]);
     const isFollowing = useMemo(() => {
         if (!currentUser || !engineer) return false;
-        return (currentUser.following?.engineers || []).includes(engineer.id);
+        const list = currentUser.following?.engineers || [];
+        return list.includes(engineer.id) || list.includes((engineer as any).profile_id);
     }, [currentUser, engineer]);
     const engineerReviews = useMemo(() => {
         if (!engineer) return [];
