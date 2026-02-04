@@ -1338,7 +1338,7 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
   if (uniqueIds.length > 0) {
     try {
       const supabase = getSupabase();
-      let rooms: any[] = [];
+      const roomById = new Map<string, any>();
       const runRoomsQuery = async (id: string, column: 'stoodio_id' | 'profile_id', orderByName: boolean): Promise<{ data?: any[]; error?: any }> => {
         const q = orderByName
           ? supabase.from('rooms').select('*').eq(column, id).order('name')
@@ -1358,21 +1358,25 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
             res = await runRoomsQuery(id, 'profile_id', false);
           }
         }
-        const list = Array.isArray(res?.data) ? res.data : [];
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'query result', data: { idSlice: id.slice(0, 8), roomsCount: list.length, error: res?.error ? String(res.error.message).slice(0, 80) : null }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R2' }) }).catch(() => {});
-        // #endregion
-        if (typeof console !== 'undefined' && console.debug) {
-          console.debug('[fetchFullStoodio] rooms query', { idSlice: id.slice(0, 8), roomsCount: list.length, error: res?.error ? String(res.error.message).slice(0, 60) : null });
+        let list = Array.isArray(res?.data) ? res.data : [];
+        if (list.length === 0 && !res?.error) {
+          const byProfile = await runRoomsQuery(id, 'profile_id', true);
+          if (!byProfile?.error && Array.isArray(byProfile?.data) && byProfile.data.length > 0) list = byProfile.data;
         }
-        if (list.length > 0) {
-          rooms = list;
-          break;
+        for (const r of list) {
+          if (r?.id) roomById.set(r.id, r);
+        }
+        if (typeof console !== 'undefined' && console.debug) {
+          console.debug('[fetchFullStoodio] rooms query', { idSlice: id.slice(0, 8), column: 'stoodio_id/profile_id', roomsCount: list.length, totalMerged: roomById.size, error: res?.error ? String(res.error.message).slice(0, 60) : null });
         }
       }
-      out.rooms = rooms;
-      if (typeof console !== 'undefined' && console.debug) {
-        console.debug('[fetchFullStoodio] rooms result', { profileId: profileId?.slice(0, 8), roleId: roleId?.slice(0, 8), roomsCount: (out.rooms || []).length });
+      out.rooms = Array.from(roomById.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      if (typeof console !== 'undefined') {
+        const count = (out.rooms || []).length;
+        console.debug('[fetchFullStoodio] rooms result', { profileId: profileId?.slice(0, 8), roleId: roleId?.slice(0, 8), roomsCount: count });
+        if (count === 0) {
+          console.warn('[fetchFullStoodio] ROOMS EMPTY — profileId:', profileId?.slice(0, 8), 'roleId:', roleId?.slice(0, 8), '| Run ROOMS_DIAGNOSTIC_AND_FIX.sql in Supabase and create a room in Stoodio Dashboard → Manage Rooms');
+        }
       }
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'final', data: { outRoomsLen: (out.rooms || []).length }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R3' }) }).catch(() => {});

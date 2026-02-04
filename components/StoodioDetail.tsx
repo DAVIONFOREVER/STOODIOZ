@@ -136,9 +136,23 @@ const StoodioDetail: React.FC = () => {
                 const fullData = await fetchFullStoodio(targetId);
                 if (!isMounted) return;
                 if (fullData) {
-                    const roomsLen = (fullData as any)?.rooms?.length ?? 0;
-                    if (typeof console !== 'undefined' && console.debug) {
+                    let rooms = (fullData as any)?.rooms ?? [];
+                    if (rooms.length === 0) {
+                        const fromDir = selectedStoodio?.rooms ?? stoodioz.find((s) => s.id === targetId || (s as any).profile_id === targetId)?.rooms;
+                        const fromCache = cached?.rooms;
+                        const fallbackRooms = Array.isArray(fromDir) && fromDir.length > 0 ? fromDir : (Array.isArray(fromCache) ? fromCache : []);
+                        if (fallbackRooms.length > 0) {
+                            rooms = fallbackRooms;
+                            if (typeof console !== 'undefined' && console.debug) {
+                                console.debug('[StoodioDetail] using fallback rooms', { targetId: targetId?.slice(0, 8), count: rooms.length });
+                            }
+                        }
+                        (fullData as any).rooms = rooms;
+                    }
+                    const roomsLen = rooms.length;
+                    if (typeof console !== 'undefined') {
                         console.debug('[StoodioDetail] fetchFullStoodio result', { targetId: targetId?.slice(0, 8), roomsCount: roomsLen, fullDataId: (fullData as any)?.id?.slice(0, 8) });
+                        if (roomsLen === 0) console.warn('[StoodioDetail] No rooms — targetId:', targetId?.slice(0, 8), '| Add rooms in Stoodio Dashboard → Manage Rooms, then run ROOMS_DIAGNOSTIC_AND_FIX.sql in Supabase');
                     }
                     // #region agent log
                     fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'StoodioDetail.tsx:resolveStoodio', message: 'after fetchFullStoodio', data: { roomsLen, fullDataId: (fullData as any)?.id?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R5' }) }).catch(() => {});
