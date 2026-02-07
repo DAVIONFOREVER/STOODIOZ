@@ -1,6 +1,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
+import { useProfile } from './useProfile';
 import { moderatePostContent, fetchLinkMetadata } from '../services/geminiService';
 import * as apiService from '../services/apiService';
 import type { LinkAttachment } from '../types';
@@ -9,6 +10,7 @@ import { ARIA_EMAIL } from '../constants';
 
 export const useSocial = () => {
     const dispatch = useAppDispatch();
+    const { refreshCurrentUser } = useProfile();
     const { currentUser, userRole, notifications, artists, engineers, producers, stoodioz, labels } = useAppState();
 
     const allUsers = useMemo(
@@ -67,13 +69,15 @@ export const useSocial = () => {
                 }
                 dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: [updatedTarget] } });
             }
+            // 4. Refetch current user so follow state persists (following list from server)
+            if (result && refreshCurrentUser) refreshCurrentUser();
         } catch(error) {
             console.error("Failed to toggle follow:", error);
             // Revert on error
             dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: currentUser } });
             alert("Failed to update follow status.");
         }
-    }, [currentUser, allUsers, dispatch]);
+    }, [currentUser, allUsers, dispatch, refreshCurrentUser]);
 
     const createPost = useCallback(async (postData: { text: string; imageFile?: File; imageUrl?: string; videoFile?: File; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }, roleOverride?: UserRole) => {
         const roleToUse = roleOverride || userRole;

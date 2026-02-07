@@ -37,7 +37,8 @@ const ConversationList: React.FC<{
                 {conversations.map(convo => {
                     const participants = Array.isArray(convo.participants) ? convo.participants : [];
                     const messages = Array.isArray(convo.messages) ? convo.messages : [];
-                    const participant = participants.find(p => p.id !== currentUser.id) || participants[0];
+                    const myId = (currentUser as any)?.profile_id ?? currentUser?.id;
+                    const participant = participants.find(p => p.id !== myId) || participants[0];
                     const lastMessage = messages[messages.length - 1];
                     let lastMessageText = 'No messages yet';
                     if (lastMessage) {
@@ -146,7 +147,8 @@ const ChatThread: React.FC<{
     
     const participants = Array.isArray(conversation.participants) ? conversation.participants : [];
     const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
-    const participant = participants.find(p => p.id !== currentUser.id) || participants[0];
+    const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+    const participant = participants.find(p => p.id !== myProfileId) || participants[0];
 
     const documentMessages = useMemo(() => 
         messages.filter(msg => msg.type === 'files' && msg.files && msg.files.length > 0),
@@ -171,7 +173,7 @@ const ChatThread: React.FC<{
             .channel(`video_call:${conversation.id}`)
             .on('broadcast', { event: 'call_request' }, (payload) => {
                 const from = payload?.payload?.from;
-                if (from && from !== currentUser.id) {
+                if (from && from !== myProfileId) {
                     setIncomingCallFrom(from);
                 }
             })
@@ -184,7 +186,7 @@ const ChatThread: React.FC<{
                 console.warn('[ChatThread] removeChannel failed:', e);
             }
         };
-    }, [allowVideoCall, conversation.id, currentUser.id]);
+    }, [allowVideoCall, conversation.id, myProfileId]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -245,7 +247,7 @@ const ChatThread: React.FC<{
         simulateProgress();
 
         try {
-            const { url, path } = await apiService.uploadPostAttachment(currentUser.id, file);
+            const { url, path } = await apiService.uploadPostAttachment(myProfileId, file);
             
             if (file.type.startsWith('image/')) {
                 onSendMessage(conversation.id, { 
@@ -542,7 +544,8 @@ const Inbox: React.FC = () => {
     const selectedConversation = selectedConversationId ? conversations.find(c => c.id === selectedConversationId) : null;
     const associatedBooking = selectedConversation?.booking_id ? bookings.find(b => b.id === selectedConversation.booking_id) : null;
     const activeCallConversation = callConversationId ? conversations.find(c => c.id === callConversationId) : null;
-    const callPeer = activeCallConversation?.participants.find(p => p.id !== currentUser?.id);
+    const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+    const callPeer = activeCallConversation?.participants.find(p => p.id !== myProfileId);
 
     const handleStartCall = (conversationId: string, isCaller: boolean) => {
         if (isCaller && currentUser) {
@@ -550,7 +553,7 @@ const Inbox: React.FC = () => {
             supabase.channel(`video_call:${conversationId}`).send({
                 type: 'broadcast',
                 event: 'call_request',
-                payload: { from: currentUser.id, conversationId },
+                payload: { from: myProfileId, conversationId },
             });
         }
         setCallConversationId(conversationId);
@@ -573,7 +576,7 @@ const Inbox: React.FC = () => {
         const unique = new Map<string, any>();
         merged.forEach((u: any) => {
             if (!u?.id) return;
-            if (currentUser && u.id === currentUser.id) return;
+            if (currentUser && (u.id === currentUser.id || u.id === (currentUser as any).profile_id)) return;
             if (!unique.has(u.id)) unique.set(u.id, u);
         });
         return Array.from(unique.values());
@@ -599,8 +602,9 @@ const Inbox: React.FC = () => {
         if (!currentUser) return;
         setIsLiveChatLoading(true);
         try {
-            const room = await apiService.createLiveRoom(currentUser.id, `${currentUser.name} Live Room`);
-            const updated = await apiService.fetchConversations(currentUser.id);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const room = await apiService.createLiveRoom(profileId, `${currentUser.name} Live Room`);
+            const updated = await apiService.fetchConversations(profileId);
             dispatch({
                 type: ActionTypes.SET_CONVERSATIONS,
                 payload: { conversations: updated },
@@ -621,8 +625,9 @@ const Inbox: React.FC = () => {
         if (!currentUser) return;
         setIsLiveChatLoading(true);
         try {
-            const room = await apiService.joinLiveRoom(roomId, currentUser.id);
-            const updated = await apiService.fetchConversations(currentUser.id);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const room = await apiService.joinLiveRoom(roomId, profileId);
+            const updated = await apiService.fetchConversations(profileId);
             dispatch({
                 type: ActionTypes.SET_CONVERSATIONS,
                 payload: { conversations: updated },
@@ -642,7 +647,8 @@ const Inbox: React.FC = () => {
     const handleCloseLiveChat = async () => {
         if (activeLiveRoomId && currentUser) {
             try {
-                await apiService.leaveLiveRoom(activeLiveRoomId, currentUser.id);
+                const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+                await apiService.leaveLiveRoom(activeLiveRoomId, profileId);
             } catch (e) {
                 console.warn('Failed to leave live room', e);
             }
@@ -670,8 +676,8 @@ const Inbox: React.FC = () => {
     }
 
     return (
-        <div className="flex h-[calc(100dvh-10rem)] overflow-hidden cardSurface border border-zinc-800/70 bg-zinc-950/70">
-            <div className={`w-full md:w-1/3 ${selectedConversationId ? 'hidden md:block' : ''}`}>
+        <div className="flex flex-col md:flex-row h-[calc(100dvh-10rem)] min-h-0 overflow-hidden cardSurface border border-zinc-800/70 bg-zinc-950/70">
+            <div className={`w-full md:w-1/3 flex-shrink-0 min-h-0 flex flex-col ${selectedConversationId ? 'hidden md:flex' : ''}`}>
                 <div className="h-full flex flex-col border-r border-zinc-800/60">
                     <div className="p-5 border-b border-zinc-800/60 bg-gradient-to-br from-zinc-950 via-zinc-950/80 to-zinc-900/50">
                         <div className="flex items-center gap-3">
@@ -768,7 +774,7 @@ const Inbox: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <div className={`w-full md:w-2/3 ${selectedConversationId ? 'block' : 'hidden md:flex'}`}>
+            <div className={`w-full md:w-2/3 min-h-0 flex flex-col ${selectedConversationId ? 'flex' : 'hidden md:flex'}`}>
                 {selectedConversation ? (
                     <ChatThread
                         conversation={selectedConversation} 
@@ -795,7 +801,7 @@ const Inbox: React.FC = () => {
             {isCallOpen && activeCallConversation && callPeer && currentUser && (
                 <VideoCallModal
                     conversationId={activeCallConversation.id}
-                    currentUserId={currentUser.id}
+                    currentUserId={myProfileId}
                     peerId={callPeer.id}
                     isCaller={callIsCaller}
                     onClose={() => setIsCallOpen(false)}

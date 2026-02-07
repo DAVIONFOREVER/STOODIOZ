@@ -32,11 +32,12 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
                 async (payload) => {
                     const newMessage = payload.new as any;
 
-                    // Ignore messages we sent ourselves (optimistic update already handled)
-                    if (newMessage.sender_id === currentUser.id) return;
+                    const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+                    if (!myProfileId) return;
+                    if (newMessage.sender_id === myProfileId) return;
 
                     try {
-                        const updatedConversations = await apiService.fetchConversations(currentUser.id);
+                        const updatedConversations = await apiService.fetchConversations(myProfileId);
                         dispatch({
                             type: ActionTypes.SET_CONVERSATIONS,
                             payload: { conversations: updatedConversations },
@@ -92,10 +93,14 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
         ) => {
             if (!currentUser) return;
 
+            const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const participantProfileId = (participant as any)?.profile_id ?? participant?.id;
+            if (!myProfileId || !participantProfileId) return;
+
             const existingConversation = conversations.find(
                 (c) =>
-                    c.participants.some((p) => p.id === participant.id) &&
-                    c.participants.some((p) => p.id === currentUser.id)
+                    c.participants.some((p) => p.id === participantProfileId || p.id === participant.id) &&
+                    c.participants.some((p) => p.id === myProfileId || p.id === currentUser.id)
             );
 
             let conversationId = existingConversation?.id;
@@ -103,8 +108,8 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
             if (!existingConversation) {
                 try {
                     const newConversation = await apiService.createConversation([
-                        currentUser.id,
-                        participant.id,
+                        myProfileId,
+                        participantProfileId,
                     ]);
 
                     if (newConversation?.blocked_by_label_permissions) {
@@ -118,7 +123,7 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
 
                     if (newConversation) {
                         conversationId = newConversation.id;
-                        const updated = await apiService.fetchConversations(currentUser.id);
+                        const updated = await apiService.fetchConversations(myProfileId);
                         dispatch({
                             type: ActionTypes.SET_CONVERSATIONS,
                             payload: { conversations: updated },
@@ -140,11 +145,11 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
             if (initialMessageText) {
                 await apiService.sendMessage(
                     conversationId,
-                    currentUser.id,
+                    myProfileId,
                     initialMessageText
                 );
 
-                const updated = await apiService.fetchConversations(currentUser.id);
+                const updated = await apiService.fetchConversations(myProfileId);
                 dispatch({
                     type: ActionTypes.SET_CONVERSATIONS,
                     payload: { conversations: updated },
@@ -165,10 +170,13 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
         ) => {
             if (!currentUser) return;
 
+            const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            if (!myProfileId) return;
+
             // Optimistic UI update
             const optimisticMessage: Message = {
                 id: `tmp-${Date.now()}`,
-                sender_id: currentUser.id,
+                sender_id: myProfileId,
                 timestamp: new Date().toISOString(),
                 ...messageContent,
             };
@@ -197,7 +205,7 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
 
                 await apiService.sendMessage(
                     conversationId,
-                    currentUser.id,
+                    myProfileId,
                     text || '',
                     type,
                     payload

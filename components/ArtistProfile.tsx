@@ -460,14 +460,14 @@ const ArtistProfile: React.FC = () => {
 
             if (savedType === 'artist_handle' && savedId) {
                 try {
-                    const byDisplay = await fetchProfileByDisplayName(savedId);
+                    const byUser = await fetchProfileByUsername(savedId);
                     if (!isMounted) return;
-                    if (byDisplay?.id) {
-                        targetId = byDisplay.id;
+                    if (byUser?.id) {
+                        targetId = byUser.id;
                     } else {
-                        const byUser = await fetchProfileByUsername(savedId);
+                        const byDisplay = await fetchProfileByDisplayName(savedId);
                         if (!isMounted) return;
-                        if (byUser?.id) targetId = byUser.id;
+                        if (byDisplay?.id) targetId = byDisplay.id;
                     }
                 } catch {
                     // ignore resolution failures; will fall back below

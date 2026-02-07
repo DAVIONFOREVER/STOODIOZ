@@ -130,7 +130,14 @@ const MapMarker: React.FC<{
                 textColor: 'text-zinc-300',
             };
         }
-        if ('amenities' in item)
+        const explicitRole = (item as any).role || (item as any).profiles?.role;
+        const roleUpper = typeof explicitRole === 'string' ? explicitRole.toUpperCase() : '';
+        if (roleUpper === 'STOODIO' || roleUpper === 'STOODIOZ') return { roleLabel: 'Studio', icon: <HouseIcon className="w-5 h-5 text-red-400" />, bgColor: 'bg-red-900/50', borderColor: 'border-red-500', textColor: 'text-red-200' };
+        if (roleUpper === 'ENGINEER') return { roleLabel: 'Engineer', icon: <SoundWaveIcon className="w-5 h-5 text-orange-400" />, bgColor: 'bg-orange-900/50', borderColor: 'border-orange-500', textColor: 'text-orange-200' };
+        if (roleUpper === 'PRODUCER') return { roleLabel: 'Producer', icon: <MusicNoteIcon className="w-5 h-5 text-purple-400" />, bgColor: 'bg-purple-900/50', borderColor: 'border-purple-500', textColor: 'text-purple-200' };
+        if (roleUpper === 'LABEL') return { roleLabel: 'Label', icon: <MusicNoteIcon className="w-5 h-5 text-orange-400" />, bgColor: 'bg-orange-900/50', borderColor: 'border-orange-500', textColor: 'text-orange-200' };
+        if (roleUpper === 'ARTIST') return { roleLabel: 'Artist', icon: <MicrophoneIcon className="w-5 h-5 text-blue-400" />, bgColor: 'bg-blue-900/50', borderColor: 'border-blue-500', textColor: 'text-blue-200' };
+        if ('amenities' in item && (Array.isArray((item as any).amenities) || (item as any).amenities != null))
             return { roleLabel: 'Studio', icon: <HouseIcon className="w-5 h-5 text-red-400" />, bgColor: 'bg-red-900/50', borderColor: 'border-red-500', textColor: 'text-red-200' };
         if ('specialties' in item)
             return { roleLabel: 'Engineer', icon: <SoundWaveIcon className="w-5 h-5 text-orange-400" />, bgColor: 'bg-orange-900/50', borderColor: 'border-orange-500', textColor: 'text-orange-200' };

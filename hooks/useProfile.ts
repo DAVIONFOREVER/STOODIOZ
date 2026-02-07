@@ -120,7 +120,20 @@ export const useProfile = () => {
       try {
         const client = getSupabase();
 
-        // 1) Update role table (if any) - always match by profile_id (canonical), then fallback by id
+        // 1) Update profiles first so photos persist even if role table update fails (e.g. missing column, RLS)
+        let profRow: any = null;
+        if (Object.keys(profileUpdates).length > 0) {
+          const { data, error } = await client
+            .from('profiles')
+            .update(profileUpdates)
+            .eq('id', profileId)
+            .select('*')
+            .maybeSingle();
+          if (error) throw error;
+          profRow = data;
+        }
+
+        // 2) Update role table (if any) - match by profile_id so directory and profile pages show photo
         let roleRow: any = null;
         if (Object.keys(roleUpdates).length > 0) {
           let { data, error } = await client
@@ -135,9 +148,8 @@ export const useProfile = () => {
             error = fallback.error;
           }
           if (error) {
-            // If column doesn't exist (400 error), skip role table but still update profiles below so photo persists
             if (error.code === 'PGRST116' || error.message?.includes('column') || error.message?.includes('Could not find')) {
-              console.warn(`Column may not exist in ${tableName} table. Will still update profiles so photo persists.`, error);
+              console.warn(`Column may not exist in ${tableName} table. Profile photo already saved to profiles.`, error);
               roleRow = null;
             } else {
               throw error;
@@ -147,25 +159,13 @@ export const useProfile = () => {
           }
         }
 
-        // 2) Update profiles (if any) - always by profile id so image_url persists even when role table lacks column
-        let profRow: any = null;
-        if (Object.keys(profileUpdates).length > 0) {
-          const { data, error } = await client
-            .from('profiles')
-            .update(profileUpdates)
-            .eq('id', profileId)
-            .select('*')
-            .maybeSingle();
-          if (error) throw error;
-          profRow = data;
-        }
-
         // Merge: prefer DB rows; keep image_url/cover_image_url from updates if DB didn't return them (e.g. RLS)
         const merged = {
           ...currentUser,
           ...(roleRow || {}),
           ...(profRow || {}),
           id: profileId,
+          profile_id: profileId,
           image_url: (profRow?.image_url ?? profRow?.avatar_url ?? roleRow?.image_url ?? profileUpdates?.image_url ?? roleUpdates?.image_url ?? currentUser?.image_url ?? (currentUser as any)?.avatar_url) ?? null,
           cover_image_url: (profRow?.cover_image_url ?? roleRow?.cover_image_url ?? profileUpdates?.cover_image_url ?? roleUpdates?.cover_image_url ?? currentUser?.cover_image_url) ?? null,
         };

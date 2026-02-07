@@ -8,7 +8,7 @@ interface AddFundsModalProps {
 
 const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onConfirm }) => {
     const [amount, setAmount] = useState<string>('100');
-    const quickAmounts = [50, 100, 250, 500];
+    const quickAmounts = [50, 100, 250, 500, 1000, 2500, 5000, 10000];
 
     const handleConfirm = () => {
         const numericAmount = parseFloat(amount);
@@ -33,9 +33,9 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onConfirm }) => 
                 </div>
 
                 <div className="p-6 text-center space-y-5">
-                    <p className="text-slate-300">Select an amount or enter a custom amount to add to your balance.</p>
+                    <p className="text-slate-300">Select an amount or enter any custom amount (no maximum).</p>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                         {quickAmounts.map(amt => (
                             <button
                                 key={amt}
@@ -55,7 +55,9 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ onClose, onConfirm }) => 
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">$</span>
                         <input
                             type="number"
-                            placeholder="Custom Amount"
+                            min={1}
+                            step={1}
+                            placeholder="Custom amount"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             className="w-full text-center bg-zinc-700 border-zinc-600 text-slate-100 rounded-lg p-3 focus:ring-orange-500 focus:border-orange-500 font-semibold text-xl"

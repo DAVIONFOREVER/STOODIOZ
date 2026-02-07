@@ -190,8 +190,9 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
     const { data: profile, error } = await withTimeout(q as any, AUTH_FAST_MS, 'profiles.select');
     if (!error && profile) {
       const role = profile.role as UserRole;
-      if (role) {
+        if (role) {
         let user: any = { ...profile };
+        user.profile_id = profile.id;
         const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
         if (roleTable) {
           try {
@@ -257,6 +258,7 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
         const role = profile.role as UserRole;
         if (!role) throw new Error('User has no role');
         let user: any = { ...profile };
+        user.profile_id = profile.id;
         const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
         if (roleTable) {
           try {
@@ -299,6 +301,7 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
   if (!role) throw new Error('User has no role');
 
   let user: any = { ...profile };
+  user.profile_id = profile.id;
   const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
   if (roleTable) {
     try {
@@ -1194,6 +1197,15 @@ export async function fetchFullArtist(idOrUsername: string): Promise<any> {
   out.role_id = data?.id ?? null;
   out.profile_id = profile?.id ?? data?.profile_id ?? null;
   out.id = out.profile_id ?? out.id;
+  // Single source of truth: profile wins for display and bio so artist page matches profile
+  out.bio = profile?.bio ?? data?.bio ?? out.bio ?? null;
+  out.display_name = profile?.display_name ?? data?.display_name ?? out.display_name ?? null;
+  out.full_name = profile?.full_name ?? data?.full_name ?? out.full_name ?? null;
+  out.username = profile?.username ?? data?.username ?? out.username ?? null;
+  out.name = out.display_name ?? out.username ?? out.full_name ?? data?.name ?? out.name ?? null;
+  out.image_url = profile?.image_url ?? profile?.avatar_url ?? data?.image_url ?? data?.avatar_url ?? out.image_url ?? null;
+  out.cover_image_url = profile?.cover_image_url ?? data?.cover_image_url ?? out.cover_image_url ?? null;
+  out.avatar_url = profile?.avatar_url ?? data?.avatar_url ?? out.avatar_url ?? null;
   return out;
 }
 
@@ -1214,7 +1226,7 @@ export async function fetchProfileByDisplayName(displayName: string): Promise<an
   const res = await withTimeout(
     supabase
       .from('profiles')
-      .select('id, email, full_name, display_name, username, image_url, avatar_url')
+      .select('id, email, full_name, display_name, username, image_url, avatar_url, bio, cover_image_url')
       .ilike('display_name', displayName)
       .maybeSingle(),
     DB_TIMEOUT_MS,
@@ -1229,7 +1241,7 @@ export async function fetchProfileByUsername(username: string): Promise<any | nu
   const res = await withTimeout(
     supabase
       .from('profiles')
-      .select('id, email, full_name, display_name, username, image_url, avatar_url')
+      .select('id, email, full_name, display_name, username, image_url, avatar_url, bio, cover_image_url')
       .ilike('username', username)
       .maybeSingle(),
     DB_TIMEOUT_MS,

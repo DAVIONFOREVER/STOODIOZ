@@ -321,8 +321,9 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         if (!currentUser) return;
         setIsLiveChatLoading(true);
         try {
-            const room = await createLiveRoom(currentUser.id, `${currentUser.name} Live Room`);
-            const updated = await fetchConversations(currentUser.id);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const room = await createLiveRoom(profileId, `${currentUser.name} Live Room`);
+            const updated = await fetchConversations(profileId);
             dispatch({
                 type: ActionTypes.SET_CONVERSATIONS,
                 payload: { conversations: updated },
@@ -343,8 +344,9 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         if (!currentUser) return;
         setIsLiveChatLoading(true);
         try {
-            const room = await joinLiveRoom(roomId, currentUser.id);
-            const updated = await fetchConversations(currentUser.id);
+            const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            const room = await joinLiveRoom(roomId, profileId);
+            const updated = await fetchConversations(profileId);
             dispatch({
                 type: ActionTypes.SET_CONVERSATIONS,
                 payload: { conversations: updated },
