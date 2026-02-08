@@ -344,12 +344,22 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
   // Client-side can’t create auth users safely; this is a “shadow profile” creator.
   // Prefer createShadowProfile for public roster onboarding.
   const supabase = getSupabase();
+  // Don't send imageFile or password to profiles table — they're not columns; handle image after insert via uploadAvatar
+  const { imageFile, password, ...profilePayload } = payload;
   const result = await safeWrite('profiles.insert', async () => {
-    const q = supabase.from(TABLES.profiles).insert({ ...payload, created_at: nowIso(), updated_at: nowIso() }).select('*').single();
+    const q = supabase.from(TABLES.profiles).insert({ ...profilePayload, created_at: nowIso(), updated_at: nowIso() }).select('*').single();
     return q as any;
   });
   const profileId = result?.id;
   if (!profileId) return result;
+  // Upload profile photo if provided (profiles table has image_url, not imageFile)
+  if (imageFile && typeof (imageFile as File).name === 'string') {
+    try {
+      await uploadAvatar(profileId, imageFile as File);
+    } catch (e) {
+      console.warn('[createUser] avatar upload failed:', e);
+    }
+  }
 
   // Create role row with profile_id so posts, instrumentals, directory all work from day one
   const tableForRole: Record<string, string> = {
@@ -378,8 +388,9 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
 
 export async function createShadowProfile(payload: Record<string, any>): Promise<any> {
   const supabase = getSupabase();
+  const { imageFile, password, ...profilePayload } = payload;
   return safeWrite('profiles.insert(shadow)', async () => {
-    const q = supabase.from(TABLES.profiles).insert({ ...payload, is_shadow: true, created_at: nowIso(), updated_at: nowIso() }).select('*').single();
+    const q = supabase.from(TABLES.profiles).insert({ ...profilePayload, is_shadow: true, created_at: nowIso(), updated_at: nowIso() }).select('*').single();
     return q as any;
   });
 }
