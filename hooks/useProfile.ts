@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import { getSupabase } from '../lib/supabase';
 import * as apiService from '../services/apiService';
+import { logBackgroundError } from '../utils/backgroundLogger';
 import type { Artist, Engineer, Stoodio, Producer, UserRole, Label } from '../types';
 
 type AnyUser = Artist | Engineer | Stoodio | Producer | Label;
@@ -265,6 +266,8 @@ export const useProfile = () => {
       dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: merged as any } });
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
+      logBackgroundError('useProfile.refreshCurrentUser', 'refresh failed', error, { userRole: userRole ?? null });
+      alert('Couldn\'t refresh profile. Please try again.');
     }
   }, [currentUser, userRole, allUsers, dispatch]);
 
@@ -284,6 +287,8 @@ export const useProfile = () => {
         dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as any } });
       } catch (error) {
         console.error('Verification submission failed:', error);
+        logBackgroundError('useProfile.verificationSubmit', 'verification failed', error);
+        alert('Verification submit failed. Please try again.');
       }
     },
     [allUsers, dispatch]

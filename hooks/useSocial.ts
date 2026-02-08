@@ -4,6 +4,7 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { useProfile } from './useProfile';
 import { moderatePostContent, fetchLinkMetadata } from '../services/geminiService';
 import * as apiService from '../services/apiService';
+import { logBackgroundError } from '../utils/backgroundLogger';
 import type { LinkAttachment } from '../types';
 import { UserRole } from '../types';
 import { ARIA_EMAIL } from '../constants';
@@ -137,6 +138,7 @@ export const useSocial = () => {
             dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers } });
         } catch(error) {
             console.error("Failed to create post:", error);
+            logBackgroundError('useSocial.createPost', 'create post failed', error);
             alert("Failed to create post. Please try again.");
         }
     }, [currentUser, userRole, allUsers, dispatch]);

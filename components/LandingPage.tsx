@@ -118,11 +118,11 @@ const LandingPage: React.FC<LandingPageProps> = ({
           {/* Left: main pitch */}
           <div className="lg:col-span-7">
             <h1 className="text-4xl md:text-6xl font-extrabold text-zinc-100 text-glow leading-tight">
-              Discover Stoodioz.
-              <span className="block text-orange-400">Book faster. Work smarter.</span>
+              Book recording sessions with Stoodios, engineers, and producers.
+              <span className="block text-orange-400">Discover. Book. Get to work.</span>
             </h1>
             <p className="mt-4 text-slate-400 text-base md:text-lg">
-              Find studios, engineers, and producers — then lock in sessions and get to work.
+              Find the right space and talent in one place — lock in your session and start creating.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">

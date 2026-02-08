@@ -24,7 +24,7 @@ const ClaimConfirmScreen: React.FC = () => {
         // Fetch details for display
         getClaimDetails(storedToken).then(data => {
             if (data) setDetails(data);
-        });
+        }).catch(() => {});
     }, []);
 
     const handleClaim = async () => {

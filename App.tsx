@@ -377,12 +377,17 @@ const App: React.FC = () => {
     if (stripeStatus === 'success' && (beatPurchase || kitPurchase)) return;
 
     const u = new URL(window.location.href);
+    const bookingIdFromUrl = q.get('booking_id');
     u.searchParams.delete('stripe');
     u.searchParams.delete('beat_purchase');
     u.searchParams.delete('kit_purchase');
     u.searchParams.delete('booking_id');
     window.history.replaceState({}, '', u.pathname + (u.search || ''));
-    navigate(dashboardForRole(userRoleRef.current || userRole));
+    if (stripeStatus === 'success' && bookingIdFromUrl) {
+      navigate(AppView.MY_BOOKINGS);
+    } else {
+      navigate(dashboardForRole(userRoleRef.current || userRole));
+    }
 
     // Refetch current user so wallet_balance and wallet_transactions reflect after add funds.
     // Webhook can be delayed; refetch immediately and again after 2.5s and 5s so balance updates.

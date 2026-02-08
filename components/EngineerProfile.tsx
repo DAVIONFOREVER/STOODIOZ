@@ -138,7 +138,7 @@ const EngineerProfile: React.FC = () => {
             const fallbackIds = (engineer as any).role_id && String((engineer as any).role_id) !== String(engineer.id)
                 ? [(engineer as any).role_id]
                 : undefined;
-            fetchUserPosts(engineer.id, fallbackIds).then(setPosts);
+            fetchUserPosts(engineer.id, fallbackIds).then(setPosts).catch(() => setPosts([]));
         }
     }, [engineer?.id, (engineer as any)?.role_id]);
 

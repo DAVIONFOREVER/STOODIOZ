@@ -261,7 +261,7 @@ const ProducerProfile: React.FC = () => {
             const fallbackIds = (producer as any).role_id && String((producer as any).role_id) !== String(producer.id)
                 ? [(producer as any).role_id]
                 : undefined;
-            fetchUserPosts(producer.id, fallbackIds).then(setPosts);
+            fetchUserPosts(producer.id, fallbackIds).then(setPosts).catch(() => setPosts([]));
         }
     }, [producer?.id, (producer as any)?.role_id]);
 
