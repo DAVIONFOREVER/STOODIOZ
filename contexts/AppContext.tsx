@@ -469,8 +469,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       const allUsersMap = new Map<string, Artist | Engineer | Stoodio | Producer | Label>();
       [...artists, ...engineers, ...producers, ...stoodioz, ...labels].forEach((u) => {
         if (u.id) allUsersMap.set(u.id, u);
+        if ((u as any).profile_id && (u as any).profile_id !== u.id) allUsersMap.set((u as any).profile_id, u);
       });
       const findUser = (id: string | null | undefined) => (id ? allUsersMap.get(id) ?? null : null);
+      const findSelected = <T,>(sel: T | null, idKey: keyof T, profileKey: keyof T): T | null =>
+        sel ? (findUser((sel as any)?.[idKey]) as T) ?? (findUser((sel as any)?.[profileKey]) as T) ?? sel : null;
 
       return {
         ...state,
@@ -479,12 +482,12 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         producers,
         stoodioz,
         labels,
-        currentUser: (findUser(state.currentUser?.id) as any) || state.currentUser,
-        selectedArtist: (findUser(state.selectedArtist?.id) as Artist) || state.selectedArtist,
-        selectedEngineer: (findUser(state.selectedEngineer?.id) as Engineer) || state.selectedEngineer,
-        selectedProducer: (findUser(state.selectedProducer?.id) as Producer) || state.selectedProducer,
-        selectedStoodio: (findUser(state.selectedStoodio?.id) as Stoodio) || state.selectedStoodio,
-        selectedLabel: (findUser(state.selectedLabel?.id) as Label) || state.selectedLabel,
+        currentUser: (findUser(state.currentUser?.id) as any) || (findUser((state.currentUser as any)?.profile_id) as any) || state.currentUser,
+        selectedArtist: findSelected(state.selectedArtist, 'id', 'profile_id') as Artist | null,
+        selectedEngineer: findSelected(state.selectedEngineer, 'id', 'profile_id') as Engineer | null,
+        selectedProducer: findSelected(state.selectedProducer, 'id', 'profile_id') as Producer | null,
+        selectedStoodio: (findUser(state.selectedStoodio?.id) as Stoodio) || (findUser((state.selectedStoodio as any)?.profile_id) as Stoodio) || state.selectedStoodio,
+        selectedLabel: (findUser(state.selectedLabel?.id) as Label) || (findUser((state.selectedLabel as any)?.profile_id) as Label) || state.selectedLabel,
       };
     }
 

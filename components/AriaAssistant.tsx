@@ -182,7 +182,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                             default:
                                 return [
                                     { msg: "What do I have coming up?", Icon: CalendarIcon, label: "Upcoming", iconColor: "text-orange-400" },
-                                    { msg: "Find studios or engineers", Icon: UsersIcon, label: "Discover", iconColor: "text-green-400" },
+                                    { msg: "Find Stoodios or engineers", Icon: UsersIcon, label: "Discover", iconColor: "text-green-400" },
                                     { msg: "Help with my wallet", Icon: ChartBarIcon, label: "Wallet", iconColor: "text-blue-400" },
                                     { msg: "Take me to my dashboard", Icon: BriefcaseIcon, label: "My Dashboard", iconColor: "text-purple-400" },
                                 ];

@@ -248,6 +248,7 @@ export const useProfile = () => {
         .maybeSingle();
       if (profErr) throw profErr;
 
+      const defaultFollow = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
       const merged = {
         ...(resolvedRoleRow || {}),
         ...(profRow || {}),
@@ -259,6 +260,9 @@ export const useProfile = () => {
         ...(userRole === 'STOODIO' ? { rooms } : {}),
         ...(userRole === 'PRODUCER' ? { instrumentals } : {}),
         ...(userRole === 'ENGINEER' ? { mixing_samples: mixingSamples } : {}),
+        followers: (currentUser as any)?.followers ?? 0,
+        follower_ids: (currentUser as any)?.follower_ids ?? [],
+        following: (currentUser as any)?.following ?? defaultFollow,
       };
 
       const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));

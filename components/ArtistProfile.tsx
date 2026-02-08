@@ -535,7 +535,7 @@ const ArtistProfile: React.FC = () => {
 
             setIsLoadingDetails(true);
             setLoadError(null);
-            const existing = artists.find(a => a.id === targetId);
+            const existing = artists.find(a => a.id === targetId || (a as any).profile_id === targetId);
             if (existing) setArtist(existing);
 
             try {

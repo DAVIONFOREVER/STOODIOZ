@@ -1,8 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Producer, Instrumental } from '../types';
 import { MusicNoteIcon, DollarSignIcon, EditIcon, TrashIcon, PlusCircleIcon, CloseIcon, PhotoIcon, SearchIcon } from './icons';
-import { uploadBeatFile, uploadBeatWav, uploadStemsFile, upsertInstrumental, deleteInstrumental } from '../services/apiService';
+import { uploadBeatFile, uploadBeatWav, uploadStemsFile, upsertInstrumental, deleteInstrumental, fetchInstrumentalsForProducer } from '../services/apiService';
 
 interface BeatManagerProps {
     producer: Producer;
@@ -190,6 +190,22 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [genreFilter, setGenreFilter] = useState<string>('All');
     const [sortBy, setSortBy] = useState<'newest' | 'title' | 'price'>('newest');
+    // Dashboard passes currentUser which often has no instrumentals loaded; Profile uses fetchFullProducer which does.
+    // Always fetch our own list by profile_id so the dashboard shows the same beats as the public profile.
+    const [instrumentalsList, setInstrumentalsList] = useState<Instrumental[]>([]);
+    const profileId = (producer as any)?.profile_id ?? producer?.id;
+    const loadInstrumentals = useCallback(async () => {
+        if (!profileId) return;
+        try {
+            const list = await fetchInstrumentalsForProducer(profileId);
+            setInstrumentalsList(Array.isArray(list) ? list : []);
+        } catch {
+            setInstrumentalsList(Array.isArray(producer.instrumentals) ? producer.instrumentals : []);
+        }
+    }, [profileId, producer.instrumentals]);
+    useEffect(() => {
+        loadInstrumentals();
+    }, [loadInstrumentals]);
 
     const handleOpenModal = (instrumental: Partial<Instrumental> | null = null) => {
         setEditingInstrumental(instrumental);
@@ -204,7 +220,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
         stemsFile?: File | null
     ) => {
         setIsUploading(true);
-        const finalInstrumental: Record<string, unknown> = { ...instrumentalToSave, cover_art_url: coverArtUrl, producer_id: producer.id };
+        const finalInstrumental: Record<string, unknown> = { ...instrumentalToSave, cover_art_url: coverArtUrl, producer_id: profileId || producer.id };
 
         try {
             if (audioFile) {
@@ -221,6 +237,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
             }
 
             await upsertInstrumental(finalInstrumental as any);
+            await loadInstrumentals();
             onRefresh();
             setIsModalOpen(false);
             setEditingInstrumental(null);
@@ -236,6 +253,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
         if (window.confirm('Are you sure you want to delete this instrumental?')) {
             try {
                 await deleteInstrumental(instrumentalId);
+                await loadInstrumentals();
                 onRefresh();
             } catch (error) {
                 console.error("Failed to delete instrumental:", error);
@@ -244,7 +262,7 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
         }
     };
 
-    const instrumentals = producer.instrumentals || [];
+    const instrumentals = instrumentalsList.length > 0 ? instrumentalsList : (producer.instrumentals || []);
     
     // Get unique genres for filter
     const genres = useMemo(() => {

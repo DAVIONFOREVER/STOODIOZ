@@ -122,7 +122,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
               <span className="block text-orange-400">Discover. Book. Get to work.</span>
             </h1>
             <p className="mt-4 text-slate-400 text-base md:text-lg">
-              Find the right space and talent in one place — lock in your session and start creating.
+              Find Stoodios, engineers, and producers — then lock in your session and get to work.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">

@@ -13,6 +13,7 @@
 | 3 | **Edge functions not deployed** | CORS / 404 when calling fetch-recording-studios, invite-studio, stripe checkout functions. | Deploy all edge functions (see APP_DIAGNOSTIC_REPORT.md). |
 | 4 | **`unregistered_studios` table missing** | 404 if migration not run. | Run `supabase/migrations/20260129_unregistered_studios.sql`. |
 
+
 ---
 
 ## 🟡 High (silent or confusing failures)
@@ -39,6 +40,9 @@
 
 ## ✅ Already addressed in code
 
+- **After logout and login, no followers / same users suggested to follow again:** On login we only set profile + role; we never loaded follow data. So `currentUser.following` and `currentUser.followers` were undefined, the UI showed 0 followers and didn’t know who the user already follows, and “Who to follow” looked like everyone could be followed again. **Fixed:** `fetchCurrentUserProfile` now calls `computeFollowData(supabase, uid)` and merges `followers`, `follower_ids`, and `following` into the user before returning, so after login the app has the correct follow state. `refreshCurrentUser` in useProfile now preserves `followers`, `follower_ids`, and `following` when merging so a profile refresh doesn’t wipe them.
+- **Producer Dashboard Beat Store showed 0 beats while Producer Profile showed beats:** The dashboard uses `currentUser` (set at login), which does not load `instrumentals`. The public Producer Profile uses `fetchFullProducer`, which does load instrumentals. So the dashboard’s BeatManager was reading `producer.instrumentals || []` and got an empty list. **Fixed:** BeatManager now fetches its own instrumentals on mount (and after save/delete) via `fetchInstrumentalsForProducer(profile_id)`, so the dashboard list matches the profile. Saves use `profile_id` for `producer_id` so rows stay keyed correctly.
+- **Artist profile disconnect (e.g. Vijeta):** After directory refresh or `UPDATE_USERS`, the selected artist was re-resolved only by `id` and the user map was keyed only by `id`, so the selection could be lost when `id` vs `profile_id` differed. Fixed: AppContext keys the user map by both `id` and `profile_id` and resolves selected artist/engineer/producer/stoodio/label by either; ArtistProfile finds existing artist by `id` or `profile_id`.
 - Map user types/icons: fixed to use explicit role.
 - Profile photos: profiles updated first; `profile_id` set on login; role RLS fix (#1) lets role row updates succeed.
 - Settings save errors: LabelSettings, ProducerSettings, StoodioDashboard show success/error alerts.

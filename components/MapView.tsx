@@ -137,10 +137,11 @@ const MapMarker: React.FC<{
         if (roleUpper === 'PRODUCER') return { roleLabel: 'Producer', icon: <MusicNoteIcon className="w-5 h-5 text-purple-400" />, bgColor: 'bg-purple-900/50', borderColor: 'border-purple-500', textColor: 'text-purple-200' };
         if (roleUpper === 'LABEL') return { roleLabel: 'Label', icon: <MusicNoteIcon className="w-5 h-5 text-orange-400" />, bgColor: 'bg-orange-900/50', borderColor: 'border-orange-500', textColor: 'text-orange-200' };
         if (roleUpper === 'ARTIST') return { roleLabel: 'Artist', icon: <MicrophoneIcon className="w-5 h-5 text-blue-400" />, bgColor: 'bg-blue-900/50', borderColor: 'border-blue-500', textColor: 'text-blue-200' };
-        if ('amenities' in item && (Array.isArray((item as any).amenities) || (item as any).amenities != null))
-            return { roleLabel: 'Studio', icon: <HouseIcon className="w-5 h-5 text-red-400" />, bgColor: 'bg-red-900/50', borderColor: 'border-red-500', textColor: 'text-red-200' };
+        // Fallback: check specialties (Engineer) before amenities (Studio) so engineers never show as Studio
         if ('specialties' in item)
             return { roleLabel: 'Engineer', icon: <SoundWaveIcon className="w-5 h-5 text-orange-400" />, bgColor: 'bg-orange-900/50', borderColor: 'border-orange-500', textColor: 'text-orange-200' };
+        if ('amenities' in item && (Array.isArray((item as any).amenities) || (item as any).amenities != null))
+            return { roleLabel: 'Studio', icon: <HouseIcon className="w-5 h-5 text-red-400" />, bgColor: 'bg-red-900/50', borderColor: 'border-red-500', textColor: 'text-red-200' };
         if ('instrumentals' in item)
             return { roleLabel: 'Producer', icon: <MusicNoteIcon className="w-5 h-5 text-purple-400" />, bgColor: 'bg-purple-900/50', borderColor: 'border-purple-500', textColor: 'text-purple-200' };
         if ('parent_company' in item || 'roster' in item)
@@ -156,9 +157,9 @@ const MapMarker: React.FC<{
         ? (item as UnregisteredStudio).name
         : ((item as any).stage_name || (item as any).name || (item as any).full_name || 'User');
 
-    // Determine which action button to show
-    const showBookButton = !isJob && !isUnregisteredStudio && (('amenities' in item) || ('specialties' in item));
-    const showProfileButton = !isJob && !isUnregisteredStudio && ('instrumentals' in item);
+    // Book only for Studios (room booking). Engineers/Producers get View Profile or marker click.
+    const showBookButton = !isJob && !isUnregisteredStudio && roleLabel === 'Studio';
+    const showProfileButton = !isJob && !isUnregisteredStudio && (roleLabel === 'Producer' || roleLabel === 'Engineer' || roleLabel === 'Artist');
     const showInviteButton = isUnregisteredStudio;
 
     return (
@@ -263,9 +264,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     const [selectedStudioForInvite, setSelectedStudioForInvite] = useState<UnregisteredStudio | null>(null);
     const [inviteEmail, setInviteEmail] = useState('');
     const [isInviting, setIsInviting] = useState(false);
-    const [isFetchingStudios, setIsFetchingStudios] = useState(false);
-    const [fetchLocation, setFetchLocation] = useState('');
-    const [showFetchModal, setShowFetchModal] = useState(false);
 
     // FIX: Replaced google.maps.Map with any.
     const [map, setMap] = useState<any | null>(null);
@@ -469,13 +467,19 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         );
 
         // Filter visible users based on DB flag, but always show stoodios with bookings
-        let visibleUsers = items.filter(u => {
-            if (!u.coordinates) return false;
+        const withCoordinates = items.filter(u => u.coordinates);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MapView.tsx:mapItems',message:'items before visibility filter',data:{itemsCount:items.length,withCoordinatesCount:withCoordinates.length,hasCurrentUser:!!currentUser},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
+        let visibleUsers = withCoordinates.filter(u => {
             if ('amenities' in u) {
                 return Boolean(u.show_on_map) || bookedStoodioIds.has(String(u.id));
             }
             return Boolean(u.show_on_map);
         });
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MapView.tsx:mapItems',message:'after show_on_map filter',data:{visibleUsersCount:visibleUsers.length,withCoordinatesCount:withCoordinates.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
 
         // Apply realtime updates overrides
         const liveUpdatedUsers = visibleUsers.map(user => {
@@ -534,7 +538,9 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         if (activeFilter === 'ALL' || activeFilter === 'STOODIO') {
             allItems.push(...unregisteredStudios);
         }
-        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MapView.tsx:mapItems',message:'allItems final',data:{allItemsCount:allItems.length,usersWithMetaCount:usersWithMeta.length,jobsCount:jobs.length},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+        // #endregion
         return allItems;
     }, [stoodioz, artists, engineers, producers, bookings, activeFilter, realtimeLocations, currentUser, userLocation, tierOrder, unregisteredStudios]);
     
@@ -572,12 +578,16 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
     const handleViewProfile = useCallback((item: MapItem) => {
         if ('itemType' in item && (item as any).itemType === 'JOB') return;
-        
-        if ('instrumentals' in item) {
-            // It's a Producer - navigate to producer profile
+        if ('amenities' in item) {
+            onSelectStoodio(item as Stoodio);
+        } else if ('specialties' in item) {
+            onSelectEngineer(item as Engineer);
+        } else if ('instrumentals' in item) {
             onSelectProducer(item as Producer);
+        } else {
+            onSelectArtist(item as Artist);
         }
-    }, [onSelectProducer]);
+    }, [onSelectStoodio, onSelectEngineer, onSelectProducer, onSelectArtist]);
 
     const handleInvite = useCallback((item: MapItem) => {
         if ('itemType' in item && (item as any).itemType === 'UNREGISTERED_STUDIO') {
@@ -649,48 +659,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         loadUnregisteredStudios();
     }, []);
 
-    const handleFetchStudios = useCallback(async () => {
-        if (!fetchLocation.trim()) {
-            alert('Please enter a location (e.g., "Nashville, TN" or "Los Angeles, CA")');
-            return;
-        }
-
-        setIsFetchingStudios(true);
-        try {
-            const result = await apiService.fetchRecordingStudiosFromGoogle(fetchLocation.trim());
-            
-            if (result.success) {
-                const message = result.studiosFound > 0 
-                    ? `Successfully fetched ${result.studiosFound} studios from ${fetchLocation}! ${result.studiosSaved || result.studiosFound} saved to database.`
-                    : `No studios found for ${fetchLocation}. Try a different location.`;
-                alert(message);
-                setShowFetchModal(false);
-                setFetchLocation('');
-                
-                // Reload unregistered studios
-                const studios = await apiService.fetchUnregisteredStudios();
-                setUnregisteredStudios(studios
-                    .filter(s => !s.is_registered && s.coordinates)
-                    .map(s => ({
-                        ...s,
-                        itemType: 'UNREGISTERED_STUDIO' as const,
-                        coordinates: s.coordinates as Location,
-                    })));
-            } else {
-                const errorMsg = (result as any).error || 'Failed to fetch studios';
-                const details = (result as any).details || '';
-                alert(`Error: ${errorMsg}${details ? '\n\n' + details : ''}`);
-            }
-        } catch (error: any) {
-            console.error('Error fetching studios:', error);
-            const errorMsg = error?.message || error?.error || 'Failed to fetch studios';
-            const details = error?.details || 'Please check console for details.';
-            alert(`Error: ${errorMsg}\n\n${details}`);
-        } finally {
-            setIsFetchingStudios(false);
-        }
-    }, [fetchLocation]);
-    
     const onLoad = useCallback((mapInstance: any) => {
         mapRef.current = mapInstance;
         setMap(mapInstance);
@@ -782,19 +750,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                 <TabButton label="Jobs" active={activeFilter === 'JOB'} onClick={() => setActiveFilter('JOB')} icon={<DollarSignIcon className="w-4 h-4" />} />
             </div>
 
-            {/* Fetch Studios Button - Only show if no unregistered studios loaded yet */}
-            {unregisteredStudios.length === 0 && (
-                <div className="absolute top-20 left-4 z-10">
-                    <button
-                        onClick={() => setShowFetchModal(true)}
-                        className="px-4 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg shadow-lg hover:bg-orange-600 transition-colors flex items-center gap-2"
-                    >
-                        <HouseIcon className="w-4 h-4" />
-                        Fetch Recording Studios
-                    </button>
-                </div>
-            )}
-            
             {/* Job Board Panel - Shows when Jobs filter is active */}
             {activeFilter === 'JOB' && (
                 <div className="absolute bottom-4 left-4 right-4 z-10 max-h-[60dvh] overflow-y-auto">
@@ -1027,79 +982,6 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                                 {isInviting ? 'Sending...' : 'Send Invite'}
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Fetch Studios Modal */}
-            {showFetchModal && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-zinc-900 rounded-xl border border-zinc-700 shadow-2xl max-w-md w-full p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-bold text-zinc-100">Fetch Recording Studios</h2>
-                            <button
-                                onClick={() => {
-                                    setShowFetchModal(false);
-                                    setFetchLocation('');
-                                }}
-                                className="text-zinc-400 hover:text-zinc-100"
-                            >
-                                <CloseIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-                        
-                        <p className="text-zinc-400 text-sm mb-4">
-                            Enter a city and state to search for recording studios in that area. This will fetch studios from Google Places API and add them to the map.
-                        </p>
-
-                        <div className="mb-4">
-                            <label htmlFor="fetch-location" className="block text-sm font-medium text-zinc-300 mb-2">
-                                Location (City, State)
-                            </label>
-                            <input
-                                id="fetch-location"
-                                type="text"
-                                value={fetchLocation}
-                                onChange={(e) => setFetchLocation(e.target.value)}
-                                placeholder="e.g., Nashville, TN or Los Angeles, CA"
-                                className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-200 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                disabled={isFetchingStudios}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !isFetchingStudios) {
-                                        handleFetchStudios();
-                                    }
-                                }}
-                            />
-                            <p className="text-xs text-zinc-500 mt-1">
-                                Examples: "Nashville, TN", "Los Angeles, CA", "Atlanta, GA", "New York, NY"
-                            </p>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowFetchModal(false);
-                                    setFetchLocation('');
-                                }}
-                                className="flex-1 px-4 py-2 bg-zinc-700 text-zinc-200 rounded-lg hover:bg-zinc-600 transition-colors"
-                                disabled={isFetchingStudios}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleFetchStudios}
-                                disabled={isFetchingStudios || !fetchLocation.trim()}
-                                className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isFetchingStudios ? 'Fetching...' : 'Fetch Studios'}
-                            </button>
-                        </div>
-
-                        {isFetchingStudios && (
-                            <p className="text-xs text-zinc-400 mt-3 text-center">
-                                This may take 30-60 seconds. Please don't close this window.
-                            </p>
-                        )}
                     </div>
                 </div>
             )}

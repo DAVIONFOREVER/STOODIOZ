@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 // FIX: Import missing types
 import type { Producer, Artist, Stoodio, Engineer, LinkAttachment, Post, Conversation } from '../types';
 import { UserRole, AppView, SubscriptionPlan } from '../types';
@@ -91,10 +91,10 @@ const ProducerDashboard: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const coverImageInputRef = useRef<HTMLInputElement>(null);
 
-    // Fetch user specific posts - must be defined before early return
-    const refreshPosts = useCallback(async (producerId: string) => {
+    // Fetch user specific posts - use profile_id and fallback to role_id so we find posts either way
+    const refreshPosts = useCallback(async (producerId: string, fallbackAuthorIds?: string[]) => {
         if (producerId) {
-            const posts = await apiService.fetchUserPosts(producerId);
+            const posts = await apiService.fetchUserPosts(producerId, fallbackAuthorIds);
             setMyPosts(posts);
         }
     }, []);
@@ -116,10 +116,15 @@ const ProducerDashboard: React.FC = () => {
     }
 
     const producer = currentUser as Producer;
+    const profileId = (producer as any)?.profile_id ?? producer?.id;
+    const fallbackIds = useMemo(() => {
+        const rid = (producer as any)?.role_id;
+        return rid && String(rid) !== String(profileId) ? [rid] : undefined;
+    }, [(producer as any)?.role_id, profileId]);
 
     useEffect(() => {
-        refreshPosts(producer.id);
-    }, [producer.id, refreshPosts]);
+        refreshPosts(profileId, fallbackIds);
+    }, [profileId, fallbackIds, refreshPosts]);
 
     const handleNewPost = async (postData: any) => {
         // Optimistic update
@@ -139,7 +144,7 @@ const ProducerDashboard: React.FC = () => {
         setMyPosts(prev => [tempPost, ...prev]);
 
         await createPost(postData, UserRole.PRODUCER);
-        refreshPosts(producer.id);
+        refreshPosts(profileId, fallbackIds);
     };
 
     const handleImageUploadClick = () => {

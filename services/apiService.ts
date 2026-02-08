@@ -180,6 +180,15 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
   requireVal(uid, 'uid');
   const supabase = getSupabase();
 
+  const mergeFollowData = async (user: any): Promise<any> => {
+    try {
+      const followData = await computeFollowData(supabase, uid);
+      return { ...user, ...followData };
+    } catch {
+      return { ...user, followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } };
+    }
+  };
+
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfile', message: 'entry', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
   // #endregion
@@ -211,6 +220,7 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
             if (sz?.id) user.role_id = sz.id;
           } catch (_) { /* non-fatal */ }
         }
+        user = await mergeFollowData(user);
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved (supabase-js first)', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
         // #endregion
@@ -277,6 +287,7 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
             }
           } catch (_) { /* non-fatal */ }
         }
+        user = await mergeFollowData(user);
         return { user, role };
       } finally {
         clearTimeout(t);
@@ -313,6 +324,7 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
       }
     } catch (_) { /* non-fatal */ }
   }
+  user = await mergeFollowData(user);
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' }) }).catch(() => {});
   // #endregion
@@ -3485,34 +3497,6 @@ export async function inviteUnregisteredStudio(
     inviterUserId,
     inviterName,
   });
-}
-
-export async function fetchRecordingStudiosFromGoogle(
-  location: string,
-  radius?: number,
-  pageToken?: string
-): Promise<{ success: boolean; studiosFound: number; studiosSaved?: number; studiosErrors?: number; nextPageToken?: string; message: string; error?: string; details?: string }> {
-  requireVal(location, 'location');
-  
-  try {
-    return await callEdgeFunction('fetch-recording-studios', {
-      location,
-      radius: radius || 50000,
-      pageToken,
-    });
-  } catch (error: any) {
-    // If edge function returns an error response, extract it
-    if (error?.error) {
-      return {
-        success: false,
-        studiosFound: 0,
-        message: error.error,
-        error: error.error,
-        details: error.details,
-      };
-    }
-    throw error;
-  }
 }
 
 // Mixing Sample Ratings Functions

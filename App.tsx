@@ -550,9 +550,16 @@ const App: React.FC = () => {
     const loadDirectory = async () => {
       if (didLoadDirectoryRef.current) return;
       didLoadDirectoryRef.current = true;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadDirectory',message:'loadDirectory started',data:{},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       try {
         let directory = await apiService.getAllPublicUsers(false);
         if (!isMounted) return;
+        // #region agent log
+        const dirCounts = { artists: directory.artists?.length ?? 0, engineers: directory.engineers?.length ?? 0, producers: directory.producers?.length ?? 0, stoodioz: directory.stoodioz?.length ?? 0, labels: directory.labels?.length ?? 0 };
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadDirectory',message:'directory loaded',data:dirCounts,timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         let hasAnyData =
           (directory.artists?.length || 0) > 0 ||
           (directory.engineers?.length || 0) > 0 ||
@@ -599,6 +606,9 @@ const App: React.FC = () => {
             reviews: [],
           },
         });
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadDirectory',message:'SET_INITIAL_DATA dispatched',data:dirCounts,timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
       } catch (e) {
         console.error('[App] Failed to load public users:', e);
         // Don't blow away existing directory lists on transient errors

@@ -28,7 +28,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-100">Find Stoodioz</h1>
-          <p className="text-slate-400 mt-1">Browse studios near you and book instantly.</p>
+          <p className="text-slate-400 mt-1">Browse Stoodios near you and book instantly.</p>
         </div>
 
         <input
@@ -41,7 +41,7 @@ const StoodioList: React.FC<StoodioListProps> = ({ onSelectStoodio }) => {
 
       {filtered.length === 0 ? (
         <div className="cardSurface p-8 text-center">
-          <p className="text-slate-300 font-semibold">No studios found.</p>
+          <p className="text-slate-300 font-semibold">No Stoodios found.</p>
           <p className="text-slate-500 text-sm mt-1">Try a different search.</p>
         </div>
       ) : (
