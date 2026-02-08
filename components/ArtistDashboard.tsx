@@ -83,10 +83,12 @@ const ArtistDashboard: React.FC = () => {
         }
     }, [dashboardInitialTab, dispatch]);
 
-    // Fetch user specific posts for personal feed
+    // Fetch user specific posts by profile_id (single source of truth for posts)
     const refreshPosts = async () => {
-        if (artist.id) {
-            const posts = await apiService.fetchUserPosts(artist.id);
+        const profileId = (artist as any)?.profile_id ?? artist.id;
+        if (profileId) {
+            const fallbackIds = [artist.id, (artist as any)?.role_id].filter((id): id is string => !!id && String(id) !== String(profileId));
+            const posts = await apiService.fetchUserPosts(profileId, fallbackIds.length > 0 ? fallbackIds : undefined);
             setMyPosts(posts);
         }
     };

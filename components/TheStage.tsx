@@ -106,7 +106,10 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                             next.set(row.id, {
                                 id: row.id,
                                 profile_id: row.id,
-                                name: row.display_name || row.full_name || row.username || row.email || 'User',
+                                name: row.display_name || row.username || row.full_name || row.email || 'User',
+                                display_name: row.display_name || null,
+                                username: row.username || null,
+                                full_name: row.full_name || null,
                                 image_url: row.image_url || row.avatar_url || null,
                                 email: row.email || null,
                                 profiles: row,
@@ -281,9 +284,10 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         if (!currentUser) return;
         setPosts(prev => prev.map(p => {
             if (p.id === postId) {
+                 const commentAuthorId = (currentUser as any)?.profile_id ?? currentUser.id;
                  const newComment = {
                     id: `temp-${Date.now()}`,
-                    authorId: currentUser.id,
+                    authorId: commentAuthorId,
                     authorName: currentUser.name,
                     author_image_url: getProfileImageUrl(currentUser),
                     text: text,
@@ -297,9 +301,10 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     const handleNewPost = async (postData: any) => {
         if (currentUser && userRole) {
+            const authorId = (currentUser as any)?.profile_id ?? currentUser.id;
             const tempPost: Post = {
                 id: `temp-${Date.now()}`,
-                authorId: currentUser.id,
+                authorId,
                 authorType: userRole,
                 text: postData.text,
                 image_url: postData.imageUrl,
@@ -391,7 +396,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     const handleEditPost = async (postId: string, text: string) => {
         const target = posts.find(p => p.id === postId);
-        if (!currentUser || !target || target.authorId !== currentUser.id) return;
+        const myId = (currentUser as any)?.profile_id ?? currentUser?.id;
+        if (!currentUser || !target || target.authorId !== myId) return;
         try {
             await updatePostText(postId, text);
             setPosts(prev => prev.map(p => (p.id === postId ? { ...p, text } : p)));
@@ -403,7 +409,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
 
     const handleDeletePost = async (postId: string) => {
         const target = posts.find(p => p.id === postId);
-        if (!currentUser || !target || target.authorId !== currentUser.id) return;
+        const myId = (currentUser as any)?.profile_id ?? currentUser?.id;
+        if (!currentUser || !target || target.authorId !== myId) return;
         if (!confirm('Delete this post? This cannot be undone.')) return;
         try {
             await deletePost(postId);
@@ -477,7 +484,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                             )}
 
                             <PostFeed 
-                                posts={manageMode && currentUser ? posts.filter(p => p.authorId === currentUser.id) : posts} 
+                                posts={manageMode && currentUser ? posts.filter(p => p.authorId === ((currentUser as any)?.profile_id ?? currentUser.id)) : posts} 
                                 authors={authorsMap}
                                 onLikePost={handleLocalLike}
                                 onCommentOnPost={handleLocalComment}

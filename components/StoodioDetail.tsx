@@ -105,10 +105,8 @@ const StoodioDetail: React.FC = () => {
                 /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
             const savedId = localStorage.getItem('selected_entity_id');
             const savedType = localStorage.getItem('selected_entity_type');
-            let targetId = selectedStoodio?.profile_id || (savedType === 'stoodio' ? savedId : null);
-            if (!targetId && isUuid(selectedStoodio?.id)) {
-                targetId = selectedStoodio?.id as string;
-            }
+            // Use profile_id first so rooms load from same id as dashboard (single source of truth)
+            let targetId = selectedStoodio?.profile_id ?? (savedType === 'stoodio' ? savedId : null) ?? (isUuid(selectedStoodio?.id) ? selectedStoodio?.id : null);
 
             if (!targetId) {
                 if (isMounted) {

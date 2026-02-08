@@ -5,6 +5,20 @@
 
 ---
 
+## Permanent Rules (Profile / Posts / Photos) — DO NOT BREAK
+
+1. **Identity:** `profile_id` (profiles.id) is the canonical id for posts (`author_id`), follows, and display. Role tables have `profile_id`; after load, merged user objects use `id = profile_id` and `profile_id = profile_id` so one id works everywhere.
+
+2. **Display name:** Always use `getDisplayName(entity)`. Name comes from **profiles**: `display_name` then `username` then (for artists) `stage_name` then `full_name`. Directory and `fetchFullArtist` / `refreshCurrentUser` merge profile `display_name` and `username`; directory enrichment also sets `name` from profile so lists show the same name as profile/Stage.
+
+3. **Profile photos:** **Profiles table is the single source.** `updateProfile` writes image to profiles first, then role table. When loading users (directory, fetchFullArtist, fetchFullRoleRow, refreshCurrentUser), always merge profile `image_url` / `avatar_url` first. Directory `enrichFromProfiles` overwrites every row’s `image_url` from profile when profile has one so desktop and mobile show the same photo. Always display via `getProfileImageUrl(user)`.
+
+4. **Posts:** Create posts with `author_id = profile_id` (createPostWithAuthor uses `(currentUser as any).profile_id ?? currentUser.id`). Fetch posts by **profile_id first**: `fetchUserPosts(profileId, fallbackAuthorIds)` with optional fallback ids (e.g. role id) for legacy rows. Artist Profile and Artist Dashboard both call `fetchUserPosts((artist).profile_id ?? artist.id, fallbackIds)`. The Stage uses the same profile_id for temp posts, edit/delete checks, and manage-mode filter so feed, profile, and dashboard stay in sync.
+
+5. **Stoodio rooms:** **rooms.stoodio_id** stores the studio’s **profile_id** (profiles.id) after unification. Load rooms only by profile_id: `fetchFullStoodio` queries `rooms` with `stoodio_id = profileId` first, then falls back to `stoodio_id = roleId` only for legacy DBs. RoomManager saves with `stoodio_id: (stoodio).profile_id ?? stoodio.id` and loads via `fetchFullStoodio(stoodioProfileId)` so dashboard and public profile use the same id. StoodioDetail passes `profile_id` first to `fetchFullStoodio` so the forward-facing profile gets the same rooms as the dashboard.
+
+---
+
 ## Executive Summary
 
 You chose **profiles.id (profile_id)** as the canonical identifier. Migrations `20260202_unify_profile_ids.sql` and `20260205_targeted_profile_backfills.sql` converted posts, follows, rooms, and instrumentals to use profile_id. The DB layer is largely unified.

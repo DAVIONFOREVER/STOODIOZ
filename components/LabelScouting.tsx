@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { AppView, ArtistScoutingData, AandRNote } from '../types';
 import { ChevronLeftIcon, SearchIcon, StarIcon, ChartBarIcon, UsersIcon, EyeIcon, PlusCircleIcon, CloseIcon, CheckCircleIcon } from './icons';
 import * as apiService from '../services/apiService';
+import { getProfileImageUrl } from '../constants';
 
 interface LabelScoutingProps {
     onNavigate: (view: AppView) => void;
@@ -40,8 +41,8 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
                         ? artist.follower_ids.length
                         : 0;
                     return {
-                        id: artist.id,
-                        name: artist.name,
+                        id: artist.id ?? '',
+                        name: artist.name ?? artist.display_name ?? artist.username ?? artist.stage_name ?? 'Artist',
                         image_url: artist.image_url || null,
                         city: artist.city || artist.location_text || artist.location || null,
                         genre: genreList,
@@ -67,7 +68,7 @@ const LabelScouting: React.FC<LabelScoutingProps> = ({ onNavigate }) => {
 
     const filteredArtists = useMemo(() => {
         let result = artists.filter(artist => 
-            artist.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+            (artist.name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) &&
             (cityFilter === 'All' || artist.city === cityFilter) &&
             (genreFilter === 'All' || (artist.genre || []).includes(genreFilter))
         );

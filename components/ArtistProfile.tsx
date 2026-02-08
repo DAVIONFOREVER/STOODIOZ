@@ -618,12 +618,12 @@ const ArtistProfile: React.FC = () => {
     useEffect(() => {
         if (!artist?.id) return;
         let isMounted = true;
-        const profileId = (artist as any)?.profile_id;
+        const profileId = (artist as any)?.profile_id ?? artist.id;
         const roleId = (artist as any)?.role_id;
-        const fallbackIds = [profileId, roleId].filter(
-            (id): id is string => !!id && typeof id === 'string' && String(id) !== String(artist.id)
+        const fallbackIds = [artist.id, roleId].filter(
+            (id): id is string => !!id && typeof id === 'string' && String(id) !== String(profileId)
         );
-        fetchUserPosts(artist.id, fallbackIds.length > 0 ? fallbackIds : undefined)
+        fetchUserPosts(profileId, fallbackIds.length > 0 ? fallbackIds : undefined)
             .then((p) => {
                 if (isMounted) setPosts(p);
                 if (typeof console !== 'undefined' && console.debug) {
@@ -635,7 +635,7 @@ const ArtistProfile: React.FC = () => {
                 if (isMounted) setPosts([]);
             });
         return () => { isMounted = false; };
-    }, [artist?.id, (artist as any)?.role_id]);
+    }, [artist?.id, (artist as any)?.profile_id, (artist as any)?.role_id]);
 
     useEffect(() => {
         if (!isLoadingDetails) return;

@@ -622,7 +622,7 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
         profiles?.id ||
         row?.id ||
         null;
-      const rawName = row?.name ?? profiles?.display_name ?? profiles?.username ?? null;
+      const rawName = row?.name ?? row?.stage_name ?? profiles?.display_name ?? profiles?.username ?? null;
       const rawUsername = row?.username ?? profiles?.username ?? null;
       const rawEmail = row?.email ?? profiles?.email ?? null;
       const safeName =
@@ -661,31 +661,35 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       labels: Array.isArray(l.data) ? l.data.map((row: any) => normalizeDirectoryRow(row, 'LABEL')) : [],
     };
 
-    // Enrich rows missing image_url from profiles (dashboard uploads go to profiles first).
-    // Use only profile_id for lookup so we never query profiles by role table id.
-    const enrichFromProfiles = async (rows: any[]) => {
-      const needEnrich = rows.filter((r: any) => !r?.image_url && r?.profile_id);
-      if (needEnrich.length === 0) return;
-      const ids = [...new Set(needEnrich.map((r: any) => r.profile_id).filter(Boolean))];
-      if (ids.length === 0) return;
+    // Single source of truth: profiles table for image and display name. One batched fetch for all role types (faster).
+    const allProfileIds = [...new Set([
+      ...result.artists.map((r: any) => r?.profile_id).filter(Boolean),
+      ...result.engineers.map((r: any) => r?.profile_id).filter(Boolean),
+      ...result.producers.map((r: any) => r?.profile_id).filter(Boolean),
+      ...result.stoodioz.map((r: any) => r?.profile_id).filter(Boolean),
+      ...result.labels.map((r: any) => r?.profile_id).filter(Boolean),
+    ])];
+    let profileById = new Map<string, any>();
+    if (allProfileIds.length > 0) {
       try {
-        const { data: profs } = await supabase.from('profiles').select('id, image_url, avatar_url, cover_image_url').in('id', ids);
-        const byId = new Map((profs || []).map((pr: any) => [pr.id, pr]));
-        rows.forEach((r: any) => {
-          if (r.image_url) return;
-          const pr = r.profile_id ? byId.get(r.profile_id) : null;
-          if (pr?.image_url || pr?.avatar_url) r.image_url = pr.image_url || pr.avatar_url;
-          if (pr?.cover_image_url && !r.cover_image_url) r.cover_image_url = pr.cover_image_url;
-        });
+        const { data: profs } = await supabase.from('profiles').select('id, image_url, avatar_url, cover_image_url, display_name, username').in('id', allProfileIds);
+        profileById = new Map((profs || []).map((pr: any) => [pr.id, pr]));
       } catch (_) { /* best-effort */ }
+    }
+    const applyProfileToRow = (r: any) => {
+      const pr = r.profile_id ? profileById.get(r.profile_id) : null;
+      if (!pr) return;
+      if (pr.image_url || pr.avatar_url) r.image_url = pr.image_url || pr.avatar_url;
+      if (pr.cover_image_url && !r.cover_image_url) r.cover_image_url = pr.cover_image_url;
+      if (pr.display_name != null) r.display_name = pr.display_name;
+      if (pr.username != null) r.username = pr.username;
+      r.name = r.display_name ?? r.username ?? r.stage_name ?? r.name ?? null;
     };
-    await Promise.all([
-      enrichFromProfiles(result.producers),
-      enrichFromProfiles(result.artists),
-      enrichFromProfiles(result.engineers),
-      enrichFromProfiles(result.stoodioz),
-      enrichFromProfiles(result.labels),
-    ]);
+    result.artists.forEach(applyProfileToRow);
+    result.engineers.forEach(applyProfileToRow);
+    result.producers.forEach(applyProfileToRow);
+    result.stoodioz.forEach(applyProfileToRow);
+    result.labels.forEach(applyProfileToRow);
 
     const dedupeById = (rows: any[]) => {
       const seen = new Set<string>();
@@ -1214,7 +1218,8 @@ export async function fetchFullArtist(idOrUsername: string): Promise<any> {
   out.display_name = profile?.display_name ?? data?.display_name ?? out.display_name ?? null;
   out.full_name = profile?.full_name ?? data?.full_name ?? out.full_name ?? null;
   out.username = profile?.username ?? data?.username ?? out.username ?? null;
-  out.name = out.display_name ?? out.username ?? out.full_name ?? data?.name ?? out.name ?? null;
+  out.stage_name = data?.stage_name ?? out.stage_name ?? null;
+  out.name = out.display_name ?? out.username ?? out.stage_name ?? out.full_name ?? data?.name ?? out.name ?? null;
   out.image_url = profile?.image_url ?? profile?.avatar_url ?? data?.image_url ?? data?.avatar_url ?? out.image_url ?? null;
   out.cover_image_url = profile?.cover_image_url ?? data?.cover_image_url ?? out.cover_image_url ?? null;
   out.avatar_url = profile?.avatar_url ?? data?.avatar_url ?? out.avatar_url ?? null;
@@ -1349,71 +1354,36 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
   out.role_id = data?.id ?? null;
   out.profile_id = profile?.id ?? data?.profile_id ?? null;
   out.id = out.profile_id ?? out.id;
-  // Load rooms: after unification migrations, rooms.stoodio_id = profile_id; some DBs may still have stoodioz.id. Try both so rooms never "disappear".
+  // Single source of truth: rooms.stoodio_id = profiles.id (studio profile_id). Load by profile_id first; fallback to role_id only for legacy DBs.
   const profileId = out.profile_id ?? out.id;
   const roleId = out.role_id ?? (out.id !== profileId ? out.id : null);
-  const idsToTry = [profileId, roleId].filter((id): id is string => !!id && typeof id === 'string');
-  const uniqueIds = Array.from(new Set(idsToTry));
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'ids to try', data: { idOrUsername: String(idOrUsername).slice(0, 36), profileId: profileId?.slice(0, 8), roleId: roleId?.slice(0, 8), uniqueIdsLen: uniqueIds.length }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R1' }) }).catch(() => {});
-  // #endregion
-
-  if (uniqueIds.length > 0) {
+  out.rooms = [];
+  if (profileId) {
     try {
       const supabase = getSupabase();
       const roomById = new Map<string, any>();
-      const runRoomsQuery = async (id: string, column: 'stoodio_id' | 'profile_id', orderByName: boolean): Promise<{ data?: any[]; error?: any }> => {
-        const q = orderByName
-          ? supabase.from('rooms').select('*').eq(column, id).order('name')
-          : supabase.from('rooms').select('*').eq(column, id);
-        return withTimeout(q as Promise<{ data?: any[]; error?: any }>, DB_TIMEOUT_MS, `rooms.${column}`);
+      const runRooms = async (id: string, column: 'stoodio_id' | 'profile_id'): Promise<any[]> => {
+        let res: { data?: any[]; error?: any } = await withTimeout(
+          supabase.from('rooms').select('*').eq(column, id).order('name') as Promise<{ data?: any[]; error?: any }>,
+          DB_TIMEOUT_MS,
+          'rooms.byStoodioId'
+        );
+        if (res?.error && (isMissingColumnError(res.error) || String(res.error?.message || '').toLowerCase().includes('column'))) {
+          const other = column === 'stoodio_id' ? 'profile_id' : 'stoodio_id';
+          res = await withTimeout(supabase.from('rooms').select('*').eq(other, id).order('name') as Promise<{ data?: any[]; error?: any }>, DB_TIMEOUT_MS, 'rooms.byProfileId');
+        }
+        return Array.isArray(res?.data) ? res.data : [];
       };
-      for (const id of uniqueIds) {
-        // Try stoodio_id first (canonical after unification)
-        let res: { data?: any[]; error?: any } = await runRoomsQuery(id, 'stoodio_id', true);
-        if (res?.error && (res.error.code === '42703' || isMissingColumnError(res.error) || String(res.error.message || '').toLowerCase().includes('column'))) {
-          res = await runRoomsQuery(id, 'stoodio_id', false);
-        }
-        // If still error (e.g. column stoodio_id missing), try profile_id for schemas that use it
-        if (res?.error && (isMissingColumnError(res.error) || String(res.error.message || '').toLowerCase().includes('stoodio_id'))) {
-          res = await runRoomsQuery(id, 'profile_id', true);
-          if (res?.error && (res.error.code === '42703' || String(res.error.message || '').includes('column'))) {
-            res = await runRoomsQuery(id, 'profile_id', false);
-          }
-        }
-        let list = Array.isArray(res?.data) ? res.data : [];
-        if (list.length === 0 && !res?.error) {
-          const byProfile = await runRoomsQuery(id, 'profile_id', true);
-          if (!byProfile?.error && Array.isArray(byProfile?.data) && byProfile.data.length > 0) list = byProfile.data;
-        }
-        for (const r of list) {
-          if (r?.id) roomById.set(r.id, r);
-        }
-        if (typeof console !== 'undefined' && console.debug) {
-          console.debug('[fetchFullStoodio] rooms query', { idSlice: id.slice(0, 8), column: 'stoodio_id/profile_id', roomsCount: list.length, totalMerged: roomById.size, error: res?.error ? String(res.error.message).slice(0, 60) : null });
-        }
+      let list = await runRooms(profileId, 'stoodio_id');
+      if (list.length === 0 && roleId && roleId !== profileId) list = await runRooms(roleId, 'stoodio_id');
+      for (const r of list) {
+        if (r?.id) roomById.set(r.id, r);
       }
       out.rooms = Array.from(roomById.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-      if (typeof console !== 'undefined') {
-        const count = (out.rooms || []).length;
-        console.debug('[fetchFullStoodio] rooms result', { profileId: profileId?.slice(0, 8), roleId: roleId?.slice(0, 8), roomsCount: count });
-        if (count === 0) {
-          console.warn('[fetchFullStoodio] ROOMS EMPTY — profileId:', profileId?.slice(0, 8), 'roleId:', roleId?.slice(0, 8), '| Run ROOMS_DIAGNOSTIC_AND_FIX.sql in Supabase and create a room in Stoodio Dashboard → Manage Rooms');
-        }
-      }
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'final', data: { outRoomsLen: (out.rooms || []).length }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R3' }) }).catch(() => {});
-      // #endregion
     } catch (e) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchFullStoodio.rooms', message: 'rooms fetch failed', data: { err: String((e as Error)?.message).slice(0, 100) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R4' }) }).catch(() => {});
-      // #endregion
-      console.warn('[fetchFullStoodio] rooms fetch failed or timed out:', e);
-      out.rooms = [];
+      console.warn('[fetchFullStoodio] rooms fetch failed:', e);
     }
-  } else {
-    out.rooms = [];
   }
   return out;
 }
@@ -1479,33 +1449,22 @@ export async function fetchUserPosts(profileId: string, fallbackAuthorIds?: stri
   if (!profileId) return [];
   const supabase = getSupabase();
   const ids = [profileId, ...(fallbackAuthorIds || []).filter((id) => id && id !== profileId)];
-  const runQuery = async (authorColumn: 'author_id' | 'profile_id'): Promise<{ data?: any[]; error?: any }> => {
+  // Posts table uses author_id only (no profile_id column) — query by author_id to avoid 400
+  const runQuery = async (): Promise<{ data?: any[]; error?: any }> => {
     const query = supabase.from(TABLES.posts).select('*').order('created_at', { ascending: false });
     return ids.length === 1
-      ? await (query as any).eq(authorColumn, profileId)
-      : await (query as any).in(authorColumn, ids);
+      ? await (query as any).eq('author_id', profileId)
+      : await (query as any).in('author_id', ids);
   };
   let raw: any[] = [];
   try {
-    let res: { data?: any[]; error?: any } = await withTimeout(runQuery('author_id'), DB_TIMEOUT_MS, 'posts.byProfile');
-    if (res?.error && (isMissingColumnError(res.error) || String(res.error?.message || '').toLowerCase().includes('author_id'))) {
-      res = await withTimeout(runQuery('profile_id'), DB_TIMEOUT_MS, 'posts.byProfileId');
-    }
+    const res: { data?: any[]; error?: any } = await withTimeout(runQuery(), DB_TIMEOUT_MS, 'posts.byAuthorId');
     if (res?.error) {
       if (typeof console !== 'undefined' && console.debug) {
         console.debug('[fetchUserPosts] query error', { profileIdSlice: profileId.slice(0, 8), idsLen: ids.length, err: String(res.error?.message).slice(0, 80) });
       }
     } else {
       raw = Array.isArray(res?.data) ? res.data : [];
-    }
-    if (raw.length === 0) {
-      const byProfile = await withTimeout(runQuery('profile_id'), DB_TIMEOUT_MS, 'posts.byProfileId.fallback');
-      if (!byProfile?.error && Array.isArray(byProfile?.data) && byProfile.data.length > 0) {
-        raw = byProfile.data;
-        if (typeof console !== 'undefined' && console.debug) {
-          console.debug('[fetchUserPosts] got rows via profile_id', { profileIdSlice: profileId.slice(0, 8), count: raw.length });
-        }
-      }
     }
   } catch (e) {
     console.warn('[fetchUserPosts] failed', e);

@@ -167,27 +167,33 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
     const [editingRoom, setEditingRoom] = useState<Partial<Room> | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [rooms, setRooms] = useState<Room[]>(stoodio.rooms || []);
+    const lastFetchedProfileIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         setRooms(stoodio.rooms || []);
     }, [stoodio.rooms]);
 
+    // Load rooms by profile_id once per stoodio — avoid re-running when API returns empty (prevents freeze)
+    const stoodioProfileId = (stoodio as any)?.profile_id ?? stoodio?.id;
     useEffect(() => {
-        let isMounted = true;
-        if (rooms.length === 0 && stoodio.id) {
-            fetchFullStoodio(stoodio.id)
-                .then((full) => {
-                    if (!isMounted) return;
-                    if (full?.rooms) setRooms(full.rooms);
-                })
-                .catch((err) => {
-                    console.warn('Failed to refresh rooms list:', err);
-                });
+        if (!stoodioProfileId || lastFetchedProfileIdRef.current === stoodioProfileId) return;
+        if ((stoodio.rooms || []).length > 0) {
+            lastFetchedProfileIdRef.current = stoodioProfileId;
+            return;
         }
-        return () => {
-            isMounted = false;
-        };
-    }, [rooms.length, stoodio.id]);
+        lastFetchedProfileIdRef.current = stoodioProfileId;
+        let isMounted = true;
+        fetchFullStoodio(stoodioProfileId)
+            .then((full) => {
+                if (!isMounted) return;
+                setRooms(Array.isArray(full?.rooms) ? full.rooms : []);
+            })
+            .catch((err) => {
+                console.warn('Failed to refresh rooms list:', err);
+                if (isMounted) setRooms([]);
+            });
+        return () => { isMounted = false; };
+    }, [stoodioProfileId, stoodio.rooms]);
 
     const handleOpenModal = (room: Partial<Room> | null = null) => {
         setEditingRoom(room);
@@ -196,7 +202,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
 
     const handleSaveRoom = async (roomToSave: Room, newPhotoFiles: File[]) => {
         setIsUploading(true);
-        // stoodio_id references profiles.id after unification; prefer profile_id so rooms show on public profile
+        // Single source of truth: rooms.stoodio_id = profile_id so rooms show on dashboard and public profile
         const stoodioId = (stoodio as any)?.profile_id ?? stoodio?.id;
         if (!stoodioId) {
             setIsUploading(false);
@@ -294,7 +300,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
                 )}
             </div>
             
-            {isModalOpen && <RoomFormModal room={editingRoom} stoodioId={stoodio.id} onSave={handleSaveRoom} onClose={() => setIsModalOpen(false)} isUploading={isUploading} />}
+            {isModalOpen && <RoomFormModal room={editingRoom} stoodioId={stoodioProfileId} onSave={handleSaveRoom} onClose={() => setIsModalOpen(false)} isUploading={isUploading} />}
         </div>
     );
 };
