@@ -5,7 +5,7 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import * as apiService from '../services/apiService.ts';
 import { ChevronRightIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, HouseIcon } from './icons.tsx';
 import StoodioCard from './StoodioCard.tsx';
-import { ARIA_PROFILE_IMAGE_URL, getProfileImageUrl, getDisplayName } from '../constants';
+import { ARIA_PROFILE_IMAGE_URL, getProfileImageUrl, getDisplayName, LANDING_HERO_LINE, LANDING_TAGLINE } from '../constants';
 
 interface LandingPageProps {
   onNavigate: (view: AppView) => void;
@@ -118,8 +118,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
           {/* Left: main pitch */}
           <div className="lg:col-span-7">
             <h1 className="text-4xl md:text-6xl font-extrabold text-zinc-100 text-glow leading-tight">
-              Book recording sessions with Stoodios, engineers, and producers.
-              <span className="block text-orange-400">Discover. Book. Get to work.</span>
+              {LANDING_HERO_LINE}
+              <span className="block text-orange-400">{LANDING_TAGLINE}</span>
             </h1>
             <p className="mt-4 text-slate-400 text-base md:text-lg">
               Find Stoodios, engineers, and producers — then lock in your session and get to work.

@@ -24,5 +24,9 @@ export const ARIA_CANTATA_IMAGE_URL = ARIA_PROFILE_IMAGE_URL;
 export const SERVICE_FEE_PERCENTAGE = 0.15;
 export const ARIA_EMAIL = 'aria@stoodioz.ai';
 
+/** Single source of truth for main hero/tagline (Landing + Choose Profile stay in sync) */
+export const LANDING_HERO_LINE = 'Book recording sessions with Stoodios, engineers, and producers.';
+export const LANDING_TAGLINE = 'Discover. Book. Get to work.';
+
 export { getProfileImageUrl } from './utils/getProfileImageUrl';
 export { getDisplayName } from './utils/getDisplayName';

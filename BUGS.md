@@ -32,7 +32,7 @@
 
 | # | What | Where / Why | Fix |
 |---|------|-------------|-----|
-| 10 | **Google Maps referer error** | Map can show RefererNotAllowedMapError if key restrictions don’t include dev origins. | Add `http://127.0.0.1:5173` (and 5174 if used) to Google Cloud API key restrictions. |
+| 10 | **Google Maps referer error** | Map can show RefererNotAllowedMapError if key restrictions don’t include dev origins. | Add `http://127.0.0.1:5173` to Google Cloud API key restrictions. |
 | 11 | **Promises without .catch()** | Several `.then(...)` calls (e.g. TheStage, ArtistProfile, ProducerProfile, RoomManager, LabelNotifications, ClaimConfirmScreen) have no `.catch()`. Failures can be unhandled. | Add `.catch(() => {})` or proper error handling so errors don’t break the app. |
 | 12 | **video.play() / AudioContext.resume()** | StageMediaFrame, MixDoctor: `.catch(() => {})` swallows autoplay/context errors. User may see silent failure. | Optional: show “Tap to play” or small message when autoplay fails. |
 

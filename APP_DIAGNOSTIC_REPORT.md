@@ -91,7 +91,7 @@ Overall app health: **GOOD** with **CRITICAL DEPLOYMENT ISSUES** that need atten
 **Status:** ⚠️ NEEDS VERIFICATION  
 **Issue:** Map shows "RefererNotAllowedMapError"  
 **Impact:** Map might not load properly  
-**Fix:** Add `http://127.0.0.1:5173` and `http://127.0.0.1:5174` to Google Maps API key restrictions
+**Fix:** Add `http://127.0.0.1:5173` to Google Maps API key restrictions
 
 ---
 

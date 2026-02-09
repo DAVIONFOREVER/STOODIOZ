@@ -1,6 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { UserRole } from '../types';
+import { LANDING_HERO_LINE } from '../constants';
 import { MicrophoneIcon, SoundWaveIcon, HouseIcon, ChevronRightIcon, MusicNoteIcon, BriefcaseIcon } from './icons';
 
 interface ChooseProfileProps {
@@ -68,7 +69,7 @@ const ChooseProfile: React.FC<ChooseProfileProps> = ({ onSelectRole }) => {
                 <RoleCard
                     icon={<MicrophoneIcon className="w-10 h-10 text-green-400" />}
                     title="Artist"
-                    description="Book recording stoodioz, hire talented engineers, and connect with other creators to bring your musical vision to life."
+                    description={LANDING_HERO_LINE}
                     onClick={() => onSelectRole(UserRole.ARTIST)}
                 />
                 <RoleCard
