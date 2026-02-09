@@ -212,6 +212,17 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
         onClose();
     };
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                hangUp();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const requestPermissions = async () => {
         try {
             setPermissionHint(null);
@@ -241,19 +252,25 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
                             {status === 'connecting' ? 'Connecting...' : status === 'connected' ? 'Live' : status === 'error' ? 'Unavailable' : 'Ended'}
                         </p>
                     </div>
-                    <button onClick={hangUp} className="p-2 rounded-full bg-zinc-800 hover:bg-zinc-700">
+                    <button onClick={hangUp} className="p-2 rounded-full bg-zinc-800 hover:bg-zinc-700" aria-label="End call and close">
                         <CloseIcon className="w-5 h-5" />
                     </button>
                 </div>
                 {(status === 'error' || permissionHint) && (
                     <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 text-sm text-orange-200">
                         {permissionHint || errorMessage || 'Video chat is unavailable right now. Please check camera/mic permissions and HTTPS.'}
-                        <div className="mt-3">
+                        <div className="mt-3 flex flex-wrap gap-2">
                             <button
                                 onClick={requestPermissions}
                                 className="px-3 py-1.5 rounded-full bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600"
                             >
                                 Allow Camera & Mic
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="px-3 py-1.5 rounded-full bg-zinc-700 text-zinc-200 text-xs font-semibold hover:bg-zinc-600"
+                            >
+                                Leave (no camera)
                             </button>
                         </div>
                     </div>

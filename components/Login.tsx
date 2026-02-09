@@ -246,19 +246,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate, isLoading = f
             If you got kicked to Landing/Login by accident, resume instantly.
           </div>
 
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={resumeSession}
               disabled={effectiveLoading}
-              className="flex-1 bg-orange-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-orange-600 disabled:opacity-50"
+              className="shrink-0 bg-orange-500 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-orange-600 disabled:opacity-50"
             >
               Resume Session
             </button>
             <button
               type="button"
               onClick={forceUnlock}
-              className="px-4 py-3 rounded-lg bg-zinc-800 text-slate-200 font-semibold hover:bg-zinc-700"
+              className="shrink-0 px-4 py-2.5 rounded-lg bg-zinc-800 text-slate-200 font-semibold hover:bg-zinc-700"
               disabled={effectiveLoading}
             >
               Unlock
@@ -324,7 +324,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate, isLoading = f
         <button
           type="submit"
           disabled={effectiveLoading}
-          className="w-full bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 disabled:bg-zinc-600 disabled:text-zinc-400 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+          className="w-full sm:w-auto sm:min-w-[200px] bg-orange-500 text-white font-bold py-2.5 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 disabled:bg-zinc-600 disabled:text-zinc-400 disabled:cursor-not-allowed inline-flex justify-center items-center gap-2"
         >
           {effectiveLoading ? 'Logging In…' : 'Log In'}
         </button>

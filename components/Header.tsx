@@ -395,16 +395,16 @@ const Header: React.FC<HeaderProps> = (props) => {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => onNavigate(AppView.LOGIN)}
-                    className="text-slate-300 hover:text-orange-400 px-4 py-2 rounded-md text-sm font-semibold transition-colors"
+                    className="whitespace-nowrap text-slate-300 hover:text-orange-400 px-4 py-2 rounded-md text-sm font-semibold transition-colors"
                   >
                     Login
                   </button>
                   <button
                     onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
-                    className="bg-orange-500 text-white font-bold py-2 px-5 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md"
+                    className="whitespace-nowrap bg-orange-500 text-white font-bold py-2 px-5 rounded-lg hover:bg-orange-600 transition-all text-sm shadow-md"
                   >
                     Get Started
                   </button>

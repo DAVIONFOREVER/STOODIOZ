@@ -254,7 +254,11 @@ export const useAuth = (navigate: NavigateFn) => {
         const hydrated = await hydrateFromUid(uid);
         commitLogin(hydrated);
       } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
         console.warn('[useAuth] auth state hydrate skipped:', e);
+        if (msg.includes('timeout') || msg.includes('exceeded')) {
+          console.warn('[useAuth] Tip: Check .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY), network, and that your Supabase project is not paused.');
+        }
       } finally {
         loginInFlightRef.current = false;
       }

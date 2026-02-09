@@ -123,6 +123,7 @@ export enum ActionTypes {
   OPEN_CANCEL_MODAL = 'OPEN_CANCEL_MODAL',
   CLOSE_CANCEL_MODAL = 'CLOSE_CANCEL_MODAL',
   SET_NOTIFICATIONS = 'SET_NOTIFICATIONS',
+  ADD_NOTIFICATION = 'ADD_NOTIFICATION',
   SET_CONVERSATIONS = 'SET_CONVERSATIONS',
   SET_SELECTED_CONVERSATION = 'SET_SELECTED_CONVERSATION',
   SET_SMART_REPLIES = 'SET_SMART_REPLIES',
@@ -192,6 +193,7 @@ type Payload = {
   [ActionTypes.OPEN_CANCEL_MODAL]: { booking: Booking };
   [ActionTypes.CLOSE_CANCEL_MODAL]: undefined;
   [ActionTypes.SET_NOTIFICATIONS]: { notifications: AppNotification[] };
+  [ActionTypes.ADD_NOTIFICATION]: { notification: AppNotification };
   [ActionTypes.SET_CONVERSATIONS]: { conversations: Conversation[] };
   [ActionTypes.SET_SELECTED_CONVERSATION]: { conversationId: string | null };
   [ActionTypes.SET_SMART_REPLIES]: { replies: string[] };
@@ -520,6 +522,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
     case ActionTypes.SET_NOTIFICATIONS:
       return { ...state, notifications: action.payload.notifications };
+
+    case ActionTypes.ADD_NOTIFICATION:
+      return { ...state, notifications: [...(state.notifications || []), action.payload.notification] };
 
     case ActionTypes.SET_CONVERSATIONS:
       return { ...state, conversations: action.payload.conversations };

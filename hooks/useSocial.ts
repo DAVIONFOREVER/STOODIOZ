@@ -70,7 +70,7 @@ export const useSocial = () => {
                 }
                 dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: [updatedTarget] } });
             }
-            // 4. Refetch current user so follow state persists (following list from server)
+            // 4. Refetch current user so follow state persists (refreshCurrentUser now fetches follow data from server)
             if (result && refreshCurrentUser) refreshCurrentUser();
         } catch(error) {
             console.error("Failed to toggle follow:", error);

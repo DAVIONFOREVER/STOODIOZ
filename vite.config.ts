@@ -13,6 +13,10 @@ export default defineConfig(({ mode }) => {
       host: '127.0.0.1',
       port: 5173,
       strictPort: true,
+      // Force browser to never use cached JS/HTML so edits always show at 127.0.0.1:5173
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     },
     define: {
       'process.env.API_KEY': JSON.stringify(env.VITE_API_KEY || env.API_KEY),

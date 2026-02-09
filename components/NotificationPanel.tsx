@@ -25,6 +25,7 @@ const NotificationIcon: React.FC<{ type: NotificationType }> = ({ type }) => {
         case NotificationType.NEW_LIKE:
             return <HeartIcon className={`${baseClasses} text-red-400`} />;
         case NotificationType.NEW_COMMENT:
+        case NotificationType.NEW_MESSAGE:
             return <ChatBubbleIcon className={`${baseClasses} text-green-400`} />;
         case NotificationType.NEW_TIP:
             return <DollarSignIcon className={`${baseClasses} text-yellow-400`} />;

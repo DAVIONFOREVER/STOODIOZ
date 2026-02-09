@@ -12,7 +12,7 @@ import { useMessaging } from '../hooks/useMessaging';
 import LiveChatModal from './LiveChatModal';
 import { useOnScreen } from '../hooks/useOnScreen';
 import { getSupabase } from '../lib/supabase';
-import { ARIA_EMAIL, getProfileImageUrl } from '../constants';
+import { ARIA_EMAIL, getDisplayName, getProfileImageUrl } from '../constants';
 
 interface TheStageProps {
     onPost: (postData: { text: string; imageUrl?: string; videoUrl?: string; videoThumbnailUrl?: string; link?: LinkAttachment }) => Promise<void>;
@@ -106,7 +106,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                             next.set(row.id, {
                                 id: row.id,
                                 profile_id: row.id,
-                                name: row.display_name || row.username || row.full_name || row.email || 'User',
+                                name: getDisplayName(row, 'User'),
                                 display_name: row.display_name || null,
                                 username: row.username || null,
                                 full_name: row.full_name || null,
@@ -424,7 +424,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
     return (
         <div className="relative">
             <div
-                className="absolute inset-0 bg-[url('/stage-background.png')] bg-cover bg-center bg-no-repeat bg-fixed opacity-60"
+                className="absolute inset-0 bg-[url('/stage-background.png')] bg-cover bg-center bg-no-repeat md:bg-fixed opacity-60"
                 aria-hidden="true"
             />
             <div className="absolute inset-0 stage-neon-overlay" aria-hidden="true" />

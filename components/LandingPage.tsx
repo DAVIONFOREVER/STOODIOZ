@@ -5,7 +5,11 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import * as apiService from '../services/apiService.ts';
 import { ChevronRightIcon, MicrophoneIcon, SoundWaveIcon, MusicNoteIcon, HouseIcon } from './icons.tsx';
 import StoodioCard from './StoodioCard.tsx';
-import { ARIA_PROFILE_IMAGE_URL, getProfileImageUrl, getDisplayName, LANDING_HERO_LINE, LANDING_TAGLINE } from '../constants';
+import { ARIA_PROFILE_IMAGE_URL, getProfileImageUrl, getDisplayName } from '../constants';
+
+// Inlined so the browser never serves a stale cached constant — what you see here is what loads.
+const LANDING_HERO_LINE = 'Book recording sessions with Stoodios, engineers, and producers.';
+const LANDING_TAGLINE = 'Discover. Book. Get to work.';
 
 interface LandingPageProps {
   onNavigate: (view: AppView) => void;
@@ -111,42 +115,42 @@ const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className="relative space-y-16">
+    <div className="relative space-y-10 sm:space-y-16 min-w-0 max-w-full">
       {/* ===== HERO ===== */}
-      <section className="cardSurface p-8 md:p-12 rounded-3xl border border-zinc-800 bg-zinc-950/60">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+      <section className="cardSurface p-4 sm:p-6 md:p-8 lg:p-12 rounded-2xl sm:rounded-3xl border border-zinc-800 bg-zinc-950/60 max-w-full overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 items-start min-w-0">
           {/* Left: main pitch */}
-          <div className="lg:col-span-7">
-            <h1 className="text-4xl md:text-6xl font-extrabold text-zinc-100 text-glow leading-tight">
+          <div className="lg:col-span-7 min-w-0">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-extrabold text-zinc-100 text-glow leading-tight break-words">
               {LANDING_HERO_LINE}
               <span className="block text-orange-400">{LANDING_TAGLINE}</span>
             </h1>
-            <p className="mt-4 text-slate-400 text-base md:text-lg">
+            {import.meta.env.DEV && (
+              <p className="text-xs text-zinc-500 mt-1" aria-hidden="true">Dev: 127.0.0.1:5173 · sync</p>
+            )}
+            <p className="mt-4 text-slate-400 text-sm sm:text-base md:text-lg break-words">
               Find Stoodios, engineers, and producers — then lock in your session and get to work.
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => onNavigate(AppView.STOODIO_LIST)}
-                className="bg-orange-500 text-white font-extrabold px-7 py-3 rounded-xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"
+                className="shrink-0 whitespace-nowrap bg-orange-500 text-white font-extrabold px-6 py-2.5 rounded-xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 text-sm sm:text-base"
               >
                 Discover Stoodioz
               </button>
-
               <button
                 type="button"
                 onClick={() => onNavigate(AppView.CHOOSE_PROFILE)}
-                className="bg-zinc-900 border border-zinc-800 text-slate-200 font-semibold px-7 py-3 rounded-xl hover:bg-zinc-800 transition-all"
+                className="shrink-0 whitespace-nowrap bg-zinc-900 border border-zinc-800 text-slate-200 font-semibold px-6 py-2.5 rounded-xl hover:bg-zinc-800 transition-all text-sm sm:text-base"
               >
                 Get Started
               </button>
-
-              {/* ✅ Pulse button that actually works */}
               <button
                 type="button"
                 onClick={openPulse}
-                className="bg-zinc-900 border border-zinc-800 text-slate-200 font-semibold px-7 py-3 rounded-xl hover:bg-zinc-800 transition-all"
+                className="shrink-0 whitespace-nowrap bg-zinc-900 border border-zinc-800 text-slate-200 font-semibold px-6 py-2.5 rounded-xl hover:bg-zinc-800 transition-all text-sm sm:text-base"
                 title="Open the live map pulse"
               >
                 Pulse
@@ -155,8 +159,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           {/* Right: Aria spotlight */}
-          <div className="lg:col-span-5">
-            <div className="cardSurface p-6 rounded-3xl border border-zinc-800 bg-gradient-to-b from-zinc-950/70 to-zinc-900/30 relative overflow-hidden">
+          <div className="lg:col-span-5 min-w-0">
+            <div className="cardSurface p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-800 bg-gradient-to-b from-zinc-950/70 to-zinc-900/30 relative overflow-hidden">
               <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-orange-500/20 blur-3xl" />
               <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-purple-600/15 blur-3xl" />
 
@@ -178,28 +182,26 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   </div>
                 </button>
 
-                <div className="min-w-0">
-                  <div className="text-zinc-100 font-extrabold text-xl">Meet Aria Cantata</div>
-                  <div className="text-slate-400 text-sm mt-1">
+                <div className="min-w-0 flex-1">
+                  <div className="text-zinc-100 font-extrabold text-lg sm:text-xl break-words">Meet Aria Cantata</div>
+                  <div className="text-slate-400 text-xs sm:text-sm mt-1 break-words">
                     Your in-app guide. Ask anything — booking help, profile setup, pricing, strategy.
                   </div>
                 </div>
               </div>
 
-              <div className="mt-5 flex gap-3">
+              <div className="mt-5 flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={onOpenAriaCantata}
-                  className="flex-1 bg-orange-500 text-white font-extrabold px-5 py-3 rounded-xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20"
+                  className="shrink-0 whitespace-nowrap bg-orange-500 text-white font-extrabold px-5 py-2.5 rounded-xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 text-sm sm:text-base"
                 >
                   Talk to Aria
                 </button>
-
-                {/* ✅ Also routes correctly */}
                 <button
                   type="button"
                   onClick={openPulse}
-                  className="px-5 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-slate-200 font-semibold hover:bg-zinc-800 transition-all"
+                  className="shrink-0 whitespace-nowrap px-5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-slate-200 font-semibold hover:bg-zinc-800 transition-all text-sm sm:text-base"
                 >
                   See the Pulse
                 </button>
@@ -214,9 +216,9 @@ const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* ===== Featured Stoodioz Section ===== */}
-      <section>
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-4xl md:text-5xl font-extrabold text-zinc-100 text-glow">Featured Stoodioz</h2>
+      <section className="min-w-0">
+        <div className="flex flex-wrap justify-between items-center gap-2 mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-zinc-100 text-glow break-words">Featured Stoodioz</h2>
           <button
             type="button"
             onClick={() => onNavigate(AppView.STOODIO_LIST)}
@@ -237,8 +239,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
       <section className="space-y-8">
         {/* Featured Producers */}
         <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Featured Producers</h2>
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-zinc-100 break-words">Featured Producers</h2>
               <button
                 type="button"
                 onClick={() => onNavigate(AppView.PRODUCER_LIST)}
@@ -282,8 +284,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
         {/* Featured Engineers */}
         <div>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Featured Engineers</h2>
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-zinc-100 break-words">Featured Engineers</h2>
             <button
               type="button"
               onClick={() => onNavigate(AppView.ENGINEER_LIST)}
@@ -325,8 +327,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
         {/* Featured Artists */}
         <div>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-zinc-100">Featured Artists</h2>
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-zinc-100 break-words">Featured Artists</h2>
             <button
               type="button"
               onClick={() => onNavigate(AppView.ARTIST_LIST)}

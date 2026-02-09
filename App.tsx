@@ -1085,7 +1085,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col">
+    <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col min-w-0 overflow-x-hidden">
       <Header
         onNavigate={navigate}
         onGoBack={goBack}
@@ -1101,7 +1101,7 @@ const App: React.FC = () => {
         onSelectStoodio={viewStoodioDetails}
       />
 
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow min-w-0 w-full max-w-full overflow-x-hidden">
         <ErrorBoundary
           onRecover={() =>
             dispatch({

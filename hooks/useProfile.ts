@@ -249,6 +249,17 @@ export const useProfile = () => {
       if (profErr) throw profErr;
 
       const defaultFollow = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
+      // Fetch follow data from server so we don't overwrite optimistic follow state (closure had stale currentUser)
+      let followData = { followers: 0, follower_ids: [] as string[], following: defaultFollow };
+      try {
+        followData = await apiService.getFollowData(profileId);
+      } catch (_) {
+        followData = {
+          followers: (currentUser as any)?.followers ?? 0,
+          follower_ids: (currentUser as any)?.follower_ids ?? [],
+          following: (currentUser as any)?.following ?? defaultFollow,
+        };
+      }
       const merged = {
         ...(resolvedRoleRow || {}),
         ...(profRow || {}),
@@ -263,9 +274,9 @@ export const useProfile = () => {
         ...(userRole === 'STOODIO' ? { rooms } : {}),
         ...(userRole === 'PRODUCER' ? { instrumentals } : {}),
         ...(userRole === 'ENGINEER' ? { mixing_samples: mixingSamples } : {}),
-        followers: (currentUser as any)?.followers ?? 0,
-        follower_ids: (currentUser as any)?.follower_ids ?? [],
-        following: (currentUser as any)?.following ?? defaultFollow,
+        followers: followData.followers,
+        follower_ids: followData.follower_ids,
+        following: followData.following,
       };
 
       const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));

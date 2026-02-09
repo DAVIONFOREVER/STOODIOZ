@@ -57,14 +57,14 @@ const ConversationList: React.FC<{
                         <li key={convo.id} onClick={() => onSelect(convo.id)}>
                             <div className={`p-4 flex items-center gap-4 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}>
                                 <div className="relative flex-shrink-0">
-                                    <img loading="lazy" src={getProfileImageUrl(participant || { image_url: undefined })} alt={participant?.name || 'User'} className="w-14 h-14 rounded-xl object-cover"/>
+                                    <img loading="lazy" src={getProfileImageUrl(participant || { image_url: undefined })} alt={getDisplayName(participant, 'User')} className="w-14 h-14 rounded-xl object-cover"/>
                                     {participant?.is_online && (
                                         <span className="absolute -bottom-1 -right-1 block h-4 w-4 rounded-full bg-green-500 ring-2 ring-zinc-800" title="Online"></span>
                                     )}
                                 </div>
                                 <div className="flex-grow overflow-hidden">
                                     <div className="flex justify-between items-center">
-                                        <p className="font-bold text-zinc-100 truncate">{participant?.name || 'Unknown'}</p>
+                                        <p className="font-bold text-zinc-100 truncate">{getDisplayName(participant, 'Unknown')}</p>
                                         {lastMessage && <p className="text-xs text-zinc-400 flex-shrink-0">{formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true })}</p>}
                                     </div>
                                     <p className="text-sm text-zinc-400 truncate">{lastMessageText}</p>
@@ -134,7 +134,8 @@ const ChatThread: React.FC<{
     allowVideoCall?: boolean;
     onStartCall?: (conversationId: string, isCaller: boolean) => void;
     onStartLiveRoom?: () => void;
-}> = ({ conversation, booking, currentUser, onSendMessage, onBack, onNavigate, smartReplies, isSmartRepliesLoading, allowVideoCall = false, onStartCall, onStartLiveRoom }) => {
+    onUnsendMessage?: (messageId: string) => Promise<{ ok: boolean }>;
+}> = ({ conversation, booking, currentUser, onSendMessage, onBack, onNavigate, smartReplies, isSmartRepliesLoading, allowVideoCall = false, onStartCall, onStartLiveRoom, onUnsendMessage }) => {
     const [newMessage, setNewMessage] = useState('');
     const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
@@ -311,8 +312,8 @@ const ChatThread: React.FC<{
                     <button onClick={onBack} className="md:hidden p-2 rounded-full hover:bg-zinc-800">
                         <ChevronLeftIcon className="w-6 h-6" />
                     </button>
-                    <img src={getProfileImageUrl(participant || { image_url: undefined })} alt={participant?.name || 'User'} className="w-10 h-10 rounded-xl object-cover" />
-                    <h3 className="font-bold text-lg text-zinc-100">{participant?.name || 'Conversation'}</h3>
+                    <img src={getProfileImageUrl(participant || { image_url: undefined })} alt={getDisplayName(participant, 'User')} className="w-10 h-10 rounded-xl object-cover" />
+                    <h3 className="font-bold text-lg text-zinc-100">{getDisplayName(participant, 'Conversation')}</h3>
                     <div className="ml-auto flex items-center gap-2">
                         {allowVideoCall && onStartCall && (
                             <button
@@ -383,9 +384,9 @@ const ChatThread: React.FC<{
                                     </div>
                                 );
                             }
-                            const isUser = msg.sender_id === currentUser.id;
+                            const isUser = msg.sender_id === myProfileId;
                             return (
-                                <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                                <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'} group`}>
                                     {!isUser && <img loading="lazy" src={getProfileImageUrl(participant || { image_url: undefined })} className="w-6 h-6 rounded-full self-start"/>}
                                     <div className={`max-w-xs md:max-w-md lg:max-w-lg p-1 rounded-2xl ${isUser ? 'bg-orange-500 text-white rounded-br-lg' : 'bg-zinc-700 text-zinc-200 rounded-bl-lg'}`}>
                                         <div className="p-2 space-y-2">
@@ -406,6 +407,17 @@ const ChatThread: React.FC<{
                                                 <FileAttachmentDisplay key={i} file={file} />
                                             ))}
                                         </div>
+                                        {isUser && onUnsendMessage && (
+                                            <div className="px-2 pb-1 pt-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onUnsendMessage(msg.id)}
+                                                    className="text-xs opacity-80 hover:opacity-100 underline"
+                                                >
+                                                    Unsend
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )
@@ -504,7 +516,7 @@ const Inbox: React.FC = () => {
     const { conversations, bookings, selectedConversationId, currentUser, smartReplies, isSmartRepliesLoading, artists, engineers, stoodioz, producers, labels, ariaHistory, initialAriaCantataPrompt } = useAppState();
     const dispatch = useAppDispatch();
     const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewLabelProfile, navigateToStudio } = useNavigation();
-    const { sendMessage, selectConversation, fetchSmartReplies, startConversation } = useMessaging(navigate);
+    const { sendMessage, unsendMessage, selectConversation, fetchSmartReplies, startConversation } = useMessaging(navigate);
     const { logout, selectRoleToSetup } = useAuth(navigate);
     const { confirmBooking } = useBookings(navigate);
     const { updateProfile } = useProfile();
@@ -781,6 +793,7 @@ const Inbox: React.FC = () => {
                         booking={associatedBooking || null}
                         currentUser={currentUser}
                         onSendMessage={sendMessage}
+                        onUnsendMessage={unsendMessage}
                         onBack={() => selectConversation(null)}
                         onNavigate={navigate}
                         smartReplies={smartReplies}

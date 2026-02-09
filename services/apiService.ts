@@ -60,11 +60,7 @@ function errMsg(e: any) {
 
 function isMissingColumnError(err: any): boolean {
   const msg = String(err?.message || err?.details || err?.hint || '');
-  const result = /column .* does not exist/i.test(msg) || /missing column/i.test(msg) || /Could not find.*column/i.test(msg);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:isMissingColumnError', message: 'check', data: { msg: msg.slice(0, 120), result }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
-  // #endregion
-  return result;
+  return /column .* does not exist/i.test(msg) || /missing column/i.test(msg) || /Could not find.*column/i.test(msg);
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -148,11 +144,7 @@ async function safeSelect<T = any>(label: string, fn: () => Promise<{ data: T; e
 async function safeWrite<T = any>(label: string, fn: () => Promise<{ data: T; error: any }>): Promise<T> {
   const { data, error } = await withTimeout(fn(), DB_TIMEOUT_MS, label);
   if (error) {
-    const msg = `${label}: ${errMsg(error)}`;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:safeWrite', message: 'throwing', data: { label, msgSlice: msg.slice(0, 120) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H4' }) }).catch(() => {});
-    // #endregion
-    throw new Error(msg);
+    throw new Error(`${label}: ${errMsg(error)}`);
   }
   return data as any;
 }
@@ -346,8 +338,17 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
   const supabase = getSupabase();
   // Don't send imageFile or password to profiles table — they're not columns; handle image after insert via uploadAvatar
   const { imageFile, password, ...profilePayload } = payload;
+  const createdName = payload?.name ?? payload?.display_name ?? payload?.full_name ?? payload?.username ?? null;
+  const createdUsername = payload?.username ?? null;
+  const insertPayload = {
+    ...profilePayload,
+    ...(createdName != null && createdName !== '' && { display_name: profilePayload.display_name ?? createdName, full_name: profilePayload.full_name ?? createdName }),
+    ...(createdUsername != null && createdUsername !== '' && { username: profilePayload.username ?? createdUsername }),
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  };
   const result = await safeWrite('profiles.insert', async () => {
-    const q = supabase.from(TABLES.profiles).insert({ ...profilePayload, created_at: nowIso(), updated_at: nowIso() }).select('*').single();
+    const q = supabase.from(TABLES.profiles).insert(insertPayload).select('*').single();
     return q as any;
   });
   const profileId = result?.id;
@@ -1061,6 +1062,12 @@ async function computeFollowData(
     console.error('[computeFollowData] Error computing follow data:', err);
     return { followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } };
   }
+}
+
+/** Public API for follow data so refreshCurrentUser can load fresh state after toggleFollow. */
+export async function getFollowData(profileId: string): Promise<{ followers: number; follower_ids: string[]; following: any }> {
+  const supabase = getSupabase();
+  return computeFollowData(supabase, profileId);
 }
 
 async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<any> {
@@ -2891,7 +2898,18 @@ export async function scoutMarketInsights(query: string): Promise<any> {
 export async function createConversation(participantIds: string[], meta: Record<string, any> = {}): Promise<any> {
   requireVal(participantIds?.length, 'participantIds');
   const supabase = getSupabase();
-  const base = { participant_ids: participantIds, ...meta, created_at: nowIso() };
+  // Never send null id: DB may not have DEFAULT; generate client-side so insert never violates not-null.
+  const { id: _omitId, ...metaRest } = meta;
+  let id: string;
+  if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
+    id = (crypto as any).randomUUID();
+  } else if (meta?.id && typeof meta.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(meta.id)) {
+    id = meta.id;
+  } else {
+    const hex = (n: number) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    id = `${hex(8)}-${hex(4)}-4${hex(3)}-${['8','9','a','b'][Math.floor(Math.random()*4)]}${hex(3)}-${hex(12)}`;
+  }
+  const base = { id, participant_ids: participantIds, ...metaRest, updated_at: nowIso() };
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation', message: 'entry', data: { metaKeys: Object.keys(meta), baseKeys: Object.keys(base) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
   // #endregion
@@ -2905,7 +2923,7 @@ export async function createConversation(participantIds: string[], meta: Record<
     fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.catch', message: 'first insert failed', data: { eMessage: (e?.message || '').slice(0, 150), isMissingCol: isMissingColumnError(e) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
     // #endregion
     if (isMissingColumnError(e)) {
-      const fallback = { participant_ids: participantIds, ...meta };
+      const fallback = { id, participant_ids: participantIds, ...metaRest };
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.fallback', message: 'attempting fallback insert', data: { fallbackKeys: Object.keys(fallback), hasCreatedAt: 'created_at' in fallback }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
       // #endregion
@@ -2929,24 +2947,39 @@ export async function createConversation(participantIds: string[], meta: Record<
   }
 }
 
+function isSupabaseErrorBadRequest(err: any): boolean {
+  if (!err) return false;
+  const code = err?.code ?? err?.status;
+  const msg = (err?.message || String(err)).toLowerCase();
+  return code === 400 || code === '400' || code === 'PGRST301' || msg.includes('400') || msg.includes('bad request') || msg.includes('invalid');
+}
+
+/** Fetch conversations for a profile. Uses select-all then client filter to avoid 400 from .contains(participant_ids) on some Supabase/PostgREST setups. */
 export async function fetchConversations(profileId: string): Promise<any[]> {
   if (!profileId) return [];
   const supabase = getSupabase();
   let rows: any[] = [];
-  try {
-    rows = await safeSelect('conversations.byParticipant', async () => {
-      // @ts-ignore
-      const q = supabase.from(TABLES.conversations).select('*').contains('participant_ids', [profileId]).order('created_at', { ascending: false });
-      return q as any;
-    }, []);
-  } catch (e: any) {
-    if (isMissingColumnError(e)) {
-      rows = await safeSelect('conversations.byParticipant.noOrder', async () => {
-        const q = supabase.from(TABLES.conversations).select('*').contains('participant_ids', [profileId]);
-        return q as any;
-      }, []);
-    } else throw e;
+
+  const { data: rawData, error } = await supabase
+    .from(TABLES.conversations)
+    .select('*')
+    .order('updated_at', { ascending: false });
+
+  if (isSupabaseErrorBadRequest(error)) {
+    console.warn('[apiService] conversations filter returned 400, using client-side filter');
   }
+  if (error) {
+    console.warn('[apiService] conversations.byParticipant error:', error);
+    return [];
+  }
+
+  const all = Array.isArray(rawData) ? rawData : [];
+  rows = all.filter((r: any) => {
+    const ids = r.participant_ids;
+    if (Array.isArray(ids)) return ids.some((id: string) => String(id) === String(profileId));
+    return false;
+  });
+
   if (!Array.isArray(rows) || rows.length === 0) return [];
 
   const convIds = rows.map((r: any) => r.id).filter(Boolean);
@@ -2962,11 +2995,13 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
     const [messagesRes, profilesRes] = await Promise.all([
       supabase.from(TABLES.messages).select('*').in('conversation_id', convIds).order('created_at', { ascending: true }),
       allParticipantIds.size > 0
-        ? supabase.from(TABLES.profiles).select('id, full_name, display_name, username, image_url, avatar_url').in('id', Array.from(allParticipantIds))
+        ? supabase.from(TABLES.profiles).select('id, name, full_name, display_name, username, image_url, avatar_url').in('id', Array.from(allParticipantIds))
         : { data: [] },
     ]);
     const messagesList = Array.isArray(messagesRes?.data) ? messagesRes.data : [];
     messagesList.forEach((m: any) => {
+      // Unsend: hide message only from sender's view; receiver always keeps it
+      if (m.sender_id === profileId && m.unsent_by_sender_at) return;
       const cid = m.conversation_id;
       if (!messagesByConv[cid]) messagesByConv[cid] = [];
       messagesByConv[cid].push({
@@ -2983,7 +3018,7 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
       });
     });
     (profilesRes?.data || []).forEach((p: any) => {
-      if (p?.id) profileMap[p.id] = { id: p.id, name: p.display_name || p.full_name || p.username || 'User', image_url: p.image_url || p.avatar_url };
+      if (p?.id) profileMap[p.id] = { id: p.id, name: getDisplayName(p, 'User'), image_url: p.image_url || p.avatar_url };
     });
   } catch (e) {
     console.warn('[fetchConversations] enrich failed:', e);
@@ -2991,11 +3026,16 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
 
   return rows.map((r: any) => {
     const participantIds = Array.isArray(r.participant_ids) ? r.participant_ids : [];
-    const participants = participantIds.map((id: string) => profileMap[id] || { id, name: 'User', image_url: undefined });
+    const participants = participantIds.map((id: string) => profileMap[id] || { id, name: getDisplayName({ id }, 'User'), image_url: undefined });
     const messages = messagesByConv[r.id] || [];
     return { ...r, participants, messages, unread_count: 0 };
   });
 }
+
+const MESSAGES_INSERT_KEYS = [
+  'conversation_id', 'sender_id', 'text', 'type', 'created_at',
+  'image_url', 'audio_url', 'video_url', 'link', 'files', 'audio_info',
+] as const;
 
 export async function sendMessage(
   conversationId: string,
@@ -3007,12 +3047,32 @@ export async function sendMessage(
   requireVal(conversationId, 'conversationId');
   requireVal(senderId, 'senderId');
   const supabase = getSupabase();
-  const base = { conversation_id: conversationId, sender_id: senderId, text, type, created_at: nowIso() };
-  const message = payload ? { ...base, ...payload } : base;
+  const base: Record<string, any> = { conversation_id: conversationId, sender_id: senderId, text, type, created_at: nowIso() };
+  if (payload) {
+    for (const key of MESSAGES_INSERT_KEYS) {
+      if (key in base) continue;
+      if (payload[key] !== undefined) base[key] = payload[key];
+    }
+  }
   return safeWrite('messages.insert', async () => {
-    const q = supabase.from(TABLES.messages).insert(message).select('*').single();
+    const q = supabase.from(TABLES.messages).insert(base).select('*').single();
     return q as any;
   });
+}
+
+/** Unsend: hide message from sender's view only. Receiver keeps the message (already received). Only the sender can unsend. */
+export async function unsendMessage(messageId: string, senderId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!messageId || !senderId) return { ok: false, error: 'messageId and senderId required' };
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from(TABLES.messages)
+    .update({ unsent_by_sender_at: new Date().toISOString() })
+    .eq('id', messageId)
+    .eq('sender_id', senderId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  return { ok: !!data };
 }
 
 export async function fetchConversationByParticipants(participantIds: string[]): Promise<any | null> {
@@ -3024,7 +3084,7 @@ export async function fetchConversationByParticipants(participantIds: string[]):
       .from(TABLES.conversations)
       .select('*')
       .contains('participant_ids', participantIds)
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .limit(1);
     return q as any;
   }, []);

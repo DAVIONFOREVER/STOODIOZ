@@ -14,6 +14,7 @@ import { getSupabase } from '../lib/supabase.ts';
 import { RankingTier } from '../types';
 import * as apiService from '../services/apiService.ts';
 import { getActiveStoodioBookings, getStoodioRoomAvailability } from '../utils/booking.ts';
+import { getDisplayName } from '../constants';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio | Label;
@@ -155,7 +156,7 @@ const MapMarker: React.FC<{
         ? 'Open Job'
         : isUnregisteredStudio
         ? (item as UnregisteredStudio).name
-        : ((item as any).stage_name || (item as any).name || (item as any).full_name || 'User');
+        : getDisplayName(item as any, 'User');
 
     // Book only for Studios (room booking). Engineers/Producers get View Profile or marker click.
     const showBookButton = !isJob && !isUnregisteredStudio && roleLabel === 'Studio';

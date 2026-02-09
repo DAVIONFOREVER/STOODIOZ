@@ -3,7 +3,8 @@ import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext
 import { generateSmartReplies } from '../services/geminiService';
 import * as apiService from '../services/apiService';
 import type { Message, Artist, Engineer, Stoodio, Producer, Label } from '../types';
-import { AppView } from '../types';
+import { AppView, NotificationType } from '../types';
+import { getDisplayName } from '../utils/getDisplayName';
 import { getSupabase } from '../lib/supabase';
 
 export const useMessaging = (navigate: (view: AppView) => void) => {
@@ -34,13 +35,35 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
 
                     const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
                     if (!myProfileId) return;
-                    if (newMessage.sender_id === myProfileId) return;
+                    // Only refresh for messages from others (normalize IDs so we don't refetch on own send and reset the hub)
+                    if (String(newMessage?.sender_id || '').trim() === String(myProfileId).trim()) return;
 
                     try {
                         const updatedConversations = await apiService.fetchConversations(myProfileId);
+                        // Don't replace with empty list — keeps selection and prevents hub from resetting
+                        if (!Array.isArray(updatedConversations) || updatedConversations.length === 0) return;
                         dispatch({
                             type: ActionTypes.SET_CONVERSATIONS,
                             payload: { conversations: updatedConversations },
+                        });
+                        // In-app notification so recipient sees bell + toast (e.g. "Vijeta sent you a message")
+                        const conv = updatedConversations.find((c) => c.id === newMessage.conversation_id);
+                        const sender = conv?.participants?.find((p: { id: string }) => String(p.id) === String(newMessage.sender_id));
+                        const senderName = sender ? getDisplayName(sender, 'Someone') : 'Someone';
+                        dispatch({
+                            type: ActionTypes.ADD_NOTIFICATION,
+                            payload: {
+                                notification: {
+                                    id: `msg-${newMessage.id}`,
+                                    recipient_id: myProfileId,
+                                    type: NotificationType.NEW_MESSAGE,
+                                    message: `${senderName} sent you a message`,
+                                    read: false,
+                                    timestamp: new Date().toISOString(),
+                                    link: { view: AppView.INBOX, entityId: newMessage.conversation_id },
+                                    actor: sender ?? undefined,
+                                },
+                            },
                         });
                     } catch (err) {
                         console.error('Failed to refresh conversations', err);
@@ -226,6 +249,21 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
         [conversations, currentUser, dispatch, fetchSmartReplies]
     );
 
+    const unsendMessage = useCallback(
+        async (messageId: string) => {
+            if (!currentUser) return { ok: false };
+            const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            if (!myProfileId) return { ok: false };
+            const result = await apiService.unsendMessage(messageId, myProfileId);
+            if (result.ok) {
+                const updated = await apiService.fetchConversations(myProfileId);
+                dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updated } });
+            }
+            return result;
+        },
+        [currentUser, dispatch]
+    );
+
     const selectConversation = useCallback(
         (conversationId: string | null) => {
             dispatch({
@@ -238,6 +276,7 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
 
     return {
         sendMessage,
+        unsendMessage,
         selectConversation,
         fetchSmartReplies,
         startConversation,
