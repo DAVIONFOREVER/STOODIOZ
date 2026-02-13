@@ -288,7 +288,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
                  const newComment = {
                     id: `temp-${Date.now()}`,
                     authorId: commentAuthorId,
-                    authorName: currentUser.name,
+                    authorName: getDisplayName(currentUser),
                     author_image_url: getProfileImageUrl(currentUser),
                     text: text,
                     timestamp: new Date().toISOString()
@@ -327,7 +327,7 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         setIsLiveChatLoading(true);
         try {
             const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
-            const room = await createLiveRoom(profileId, `${currentUser.name} Live Room`);
+            const room = await createLiveRoom(profileId, `${getDisplayName(currentUser)} Live Room`);
             const updated = await fetchConversations(profileId);
             dispatch({
                 type: ActionTypes.SET_CONVERSATIONS,

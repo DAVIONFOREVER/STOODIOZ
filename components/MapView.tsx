@@ -14,7 +14,7 @@ import { getSupabase } from '../lib/supabase.ts';
 import { RankingTier } from '../types';
 import * as apiService from '../services/apiService.ts';
 import { getActiveStoodioBookings, getStoodioRoomAvailability } from '../utils/booking.ts';
-import { getDisplayName } from '../constants';
+import { getDisplayName, getProfileImageUrl } from '../constants';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio | Label;
@@ -152,6 +152,9 @@ const MapMarker: React.FC<{
 
     const { roleLabel, icon, bgColor, borderColor, textColor } = getRoleInfo();
 
+    const isUserItem = !isJob && !isUnregisteredStudio;
+    const avatarUrl = isUserItem ? getProfileImageUrl(item as any) : null;
+
     const displayName = isJob
         ? 'Open Job'
         : isUnregisteredStudio
@@ -175,9 +178,13 @@ const MapMarker: React.FC<{
                 title={`${displayName} • ${roleLabel}`}
             >
                 <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 marker-glow ${bgColor} ${borderColor} transition-transform duration-200 hover:scale-105`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 marker-glow overflow-hidden ${bgColor} ${borderColor} transition-transform duration-200 hover:scale-105`}
                 >
-                    {icon}
+                    {isUserItem && avatarUrl ? (
+                        <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                        icon
+                    )}
                 </div>
 
                 <div className="px-2 py-1 rounded-lg bg-zinc-950/80 border border-zinc-800 backdrop-blur text-[10px] leading-tight text-center max-w-[160px]">
@@ -611,7 +618,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
                 selectedStudioForInvite.id,
                 inviteEmail,
                 currentUser.id,
-                currentUser.name || 'A Stoodioz user'
+                getDisplayName(currentUser, 'A Stoodioz user')
             );
 
             if (result.success) {

@@ -22,7 +22,7 @@ import { useSocial } from '../hooks/useSocial.ts';
 import { useProfile } from '../hooks/useProfile.ts';
 
 import * as apiService from '../services/apiService';
-import { getProfileImageUrl } from '../constants';
+import { getProfileImageUrl, getDisplayName } from '../constants';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -368,7 +368,7 @@ const EngineerDashboard: React.FC = () => {
           {engineer.cover_image_url ? (
             <img
               src={engineer.cover_image_url}
-              alt={`${engineer.name}'s cover photo`}
+              alt={`${getDisplayName(engineer)}'s cover photo`}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -396,7 +396,7 @@ const EngineerDashboard: React.FC = () => {
               <div className="relative group/pfp flex-shrink-0">
                 <img
                   src={getProfileImageUrl(engineer)}
-                  alt={engineer.name}
+                  alt={getDisplayName(engineer)}
                   className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800"
                 />
                 <button
@@ -411,7 +411,7 @@ const EngineerDashboard: React.FC = () => {
               </div>
 
               <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{engineer.name}</h1>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{getDisplayName(engineer)}</h1>
                 <div className="flex flex-wrap items-center gap-2 mt-1"><VerifiedBadge labelVerified={!!(engineer as any).label_verified} /><p className="text-zinc-400">Engineer Dashboard</p></div>
               </div>
             </div>

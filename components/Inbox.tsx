@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Conversation, Message, Artist, Stoodio, Engineer, Booking, Producer, FileAttachment, Label } from '../types';
 import { AppView, BookingStatus } from '../types';
-import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon, PaperclipIcon, DownloadIcon, VideoCameraIcon } from './icons';
+import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, LinkIcon, CloseIcon, MusicNoteIcon, PaperclipIcon, DownloadIcon, VideoCameraIcon, TrashIcon } from './icons';
 import { formatDistanceToNow } from 'date-fns';
 import { getDisplayName, getProfileImageUrl } from '../constants';
 import BookingContextCard from './BookingContextCard';
@@ -24,10 +24,11 @@ import { useProfile } from '../hooks/useProfile';
 const ConversationList: React.FC<{
     conversations: Conversation[];
     onSelect: (id: string) => void;
+    onDelete?: (conversationId: string) => void;
     selectedConversationId: string | null;
     currentUser: Artist | Stoodio | Engineer | Producer | Label;
     title?: string;
-}> = ({ conversations, onSelect, selectedConversationId, currentUser, title = 'Conversations' }) => {
+}> = ({ conversations, onSelect, onDelete, selectedConversationId, currentUser, title = 'Conversations' }) => {
     return (
         <div className="border-r border-zinc-700/50 h-full overflow-y-auto">
             <div className="p-4 border-b border-zinc-700/50">
@@ -55,17 +56,29 @@ const ConversationList: React.FC<{
                     const isSelected = convo.id === selectedConversationId;
                     return (
                         <li key={convo.id} onClick={() => onSelect(convo.id)}>
-                            <div className={`p-4 flex items-center gap-4 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}>
+                            <div className={`p-4 flex items-center gap-3 cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-orange-500/10' : 'hover:bg-zinc-800/50'}`}>
                                 <div className="relative flex-shrink-0">
                                     <img loading="lazy" src={getProfileImageUrl(participant || { image_url: undefined })} alt={getDisplayName(participant, 'User')} className="w-14 h-14 rounded-xl object-cover"/>
                                     {participant?.is_online && (
                                         <span className="absolute -bottom-1 -right-1 block h-4 w-4 rounded-full bg-green-500 ring-2 ring-zinc-800" title="Online"></span>
                                     )}
                                 </div>
-                                <div className="flex-grow overflow-hidden">
-                                    <div className="flex justify-between items-center">
+                                <div className="flex-grow min-w-0 overflow-hidden">
+                                    <div className="flex justify-between items-center gap-2">
                                         <p className="font-bold text-zinc-100 truncate">{getDisplayName(participant, 'Unknown')}</p>
-                                        {lastMessage && <p className="text-xs text-zinc-400 flex-shrink-0">{formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true })}</p>}
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            {lastMessage && <p className="text-xs text-zinc-400">{formatDistanceToNow(new Date(lastMessage.timestamp), { addSuffix: true })}</p>}
+                                            {onDelete && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); if (window.confirm('Remove this conversation from your inbox? The other person will still have it.')) onDelete(convo.id); }}
+                                                    className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    aria-label="Delete conversation"
+                                                >
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <p className="text-sm text-zinc-400 truncate">{lastMessageText}</p>
                                 </div>
@@ -135,7 +148,10 @@ const ChatThread: React.FC<{
     onStartCall?: (conversationId: string, isCaller: boolean) => void;
     onStartLiveRoom?: () => void;
     onUnsendMessage?: (messageId: string) => Promise<{ ok: boolean }>;
-}> = ({ conversation, booking, currentUser, onSendMessage, onBack, onNavigate, smartReplies, isSmartRepliesLoading, allowVideoCall = false, onStartCall, onStartLiveRoom, onUnsendMessage }) => {
+    /** When set, show incoming-call bar for this conversation (from Inbox-level listener). */
+    incomingCallFromProp?: string | null;
+    onDismissIncomingCall?: () => void;
+}> = ({ conversation, booking, currentUser, onSendMessage, onBack, onNavigate, smartReplies, isSmartRepliesLoading, allowVideoCall = false, onStartCall, onStartLiveRoom, onUnsendMessage, incomingCallFromProp, onDismissIncomingCall }) => {
     const [newMessage, setNewMessage] = useState('');
     const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
@@ -144,8 +160,7 @@ const ChatThread: React.FC<{
     const [activeTab, setActiveTab] = useState<'messages' | 'documents'>('messages');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const progressIntervalRef = useRef<number | null>(null);
-    const [incomingCallFrom, setIncomingCallFrom] = useState<string | null>(null);
-    
+
     const participants = Array.isArray(conversation.participants) ? conversation.participants : [];
     const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
     const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
@@ -167,27 +182,7 @@ const ChatThread: React.FC<{
         }
     }, [messages, activeTab]);
 
-    useEffect(() => {
-        if (!allowVideoCall) return;
-        const supabase = getSupabase();
-        const channel = supabase
-            .channel(`video_call:${conversation.id}`)
-            .on('broadcast', { event: 'call_request' }, (payload) => {
-                const from = payload?.payload?.from;
-                if (from && from !== myProfileId) {
-                    setIncomingCallFrom(from);
-                }
-            })
-            .subscribe();
-
-        return () => {
-            try {
-                supabase.removeChannel(channel);
-            } catch (e) {
-                console.warn('[ChatThread] removeChannel failed:', e);
-            }
-        };
-    }, [allowVideoCall, conversation.id, myProfileId]);
+    const incomingCallFrom = incomingCallFromProp ?? null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -342,10 +337,10 @@ const ChatThread: React.FC<{
                     <div className="flex items-center justify-between gap-3 px-4 py-2 bg-orange-500/10 border-b border-orange-500/20">
                         <p className="text-xs text-orange-200">Incoming video call</p>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => setIncomingCallFrom(null)} className="text-xs text-zinc-300 hover:text-white">
+                            <button onClick={() => onDismissIncomingCall?.()} className="text-xs text-zinc-300 hover:text-white">
                                 Dismiss
                             </button>
-                            <button onClick={() => { setIncomingCallFrom(null); onStartCall(conversation.id, false); }} className="text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-white">
+                            <button onClick={() => { onDismissIncomingCall?.(); onStartCall(conversation.id, false); }} className="text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-white">
                                 Accept
                             </button>
                         </div>
@@ -516,7 +511,7 @@ const Inbox: React.FC = () => {
     const { conversations, bookings, selectedConversationId, currentUser, smartReplies, isSmartRepliesLoading, artists, engineers, stoodioz, producers, labels, ariaHistory, initialAriaCantataPrompt } = useAppState();
     const dispatch = useAppDispatch();
     const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewLabelProfile, navigateToStudio } = useNavigation();
-    const { sendMessage, unsendMessage, selectConversation, fetchSmartReplies, startConversation } = useMessaging(navigate);
+    const { sendMessage, unsendMessage, selectConversation, deleteConversation, fetchSmartReplies, startConversation } = useMessaging(navigate);
     const { logout, selectRoleToSetup } = useAuth(navigate);
     const { confirmBooking } = useBookings(navigate);
     const { updateProfile } = useProfile();
@@ -537,6 +532,8 @@ const Inbox: React.FC = () => {
     const [isCallOpen, setIsCallOpen] = useState(false);
     const [callConversationId, setCallConversationId] = useState<string | null>(null);
     const [callIsCaller, setCallIsCaller] = useState(false);
+    const [incomingCallConversationId, setIncomingCallConversationId] = useState<string | null>(null);
+    const [incomingCallFrom, setIncomingCallFrom] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeLiveRoomId, setActiveLiveRoomId] = useState<string | null>(null);
     const [activeLiveRoomTitle, setActiveLiveRoomTitle] = useState('');
@@ -560,6 +557,8 @@ const Inbox: React.FC = () => {
     const callPeer = activeCallConversation?.participants.find(p => p.id !== myProfileId);
 
     const handleStartCall = (conversationId: string, isCaller: boolean) => {
+        setIncomingCallConversationId(null);
+        setIncomingCallFrom(null);
         if (isCaller && currentUser) {
             const supabase = getSupabase();
             supabase.channel(`video_call:${conversationId}`).send({
@@ -572,6 +571,38 @@ const Inbox: React.FC = () => {
         setCallIsCaller(isCaller);
         setIsCallOpen(true);
     };
+
+    useEffect(() => {
+        if (!currentUser || !myProfileId || !conversations?.length) return;
+        const supabase = getSupabase();
+        const conversationIds = new Set(conversations.map((c) => c.id).filter(Boolean));
+        const channels: ReturnType<typeof supabase.channel>[] = [];
+        conversations.forEach((conv) => {
+            const convId = conv.id;
+            if (!convId || !conversationIds.has(convId)) return;
+            const ch = supabase
+                .channel(`video_call:${convId}`)
+                .on('broadcast', { event: 'call_request' }, (payload: { payload?: { from?: string; conversationId?: string } }) => {
+                    const from = payload?.payload?.from;
+                    const payloadConvId = payload?.payload?.conversationId ?? convId;
+                    if (typeof from !== 'string' || from === myProfileId) return;
+                    if (!conversationIds.has(payloadConvId)) return;
+                    setIncomingCallConversationId(payloadConvId);
+                    setIncomingCallFrom(from);
+                })
+                .subscribe();
+            channels.push(ch);
+        });
+        return () => {
+            channels.forEach((ch) => {
+                try {
+                    supabase.removeChannel(ch);
+                } catch (e) {
+                    console.warn('[Inbox] removeChannel failed:', e);
+                }
+            });
+        };
+    }, [currentUser, myProfileId, conversations]);
 
     const allUsers = useMemo(() => {
         const list = [
@@ -615,7 +646,7 @@ const Inbox: React.FC = () => {
         setIsLiveChatLoading(true);
         try {
             const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
-            const room = await apiService.createLiveRoom(profileId, `${currentUser.name} Live Room`);
+            const room = await apiService.createLiveRoom(profileId, `${getDisplayName(currentUser, 'User')} Live Room`);
             const updated = await apiService.fetchConversations(profileId);
             dispatch({
                 type: ActionTypes.SET_CONVERSATIONS,
@@ -687,8 +718,38 @@ const Inbox: React.FC = () => {
         );
     }
 
+    const incomingCallConvo = incomingCallConversationId ? conversations.find((c) => c.id === incomingCallConversationId) : null;
+    const incomingCaller = incomingCallConvo?.participants?.find((p: { id: string }) => p.id === incomingCallFrom);
+    const showGlobalIncomingBanner = Boolean(incomingCallConversationId && selectedConversationId !== incomingCallConversationId);
+
+    const clearIncomingCall = () => {
+        setIncomingCallConversationId(null);
+        setIncomingCallFrom(null);
+    };
+
     return (
         <div className="flex flex-col md:flex-row h-[calc(100dvh-10rem)] min-h-0 overflow-hidden cardSurface border border-zinc-800/70 bg-zinc-950/70">
+            {showGlobalIncomingBanner && (
+                <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between gap-3 px-4 py-3 bg-orange-500/20 border-b border-orange-500/30 shadow-lg">
+                    <p className="text-sm text-orange-100">
+                        Incoming video call from <span className="font-semibold">{getDisplayName(incomingCaller ?? { id: incomingCallFrom ?? '' }, 'Someone')}</span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <button onClick={clearIncomingCall} className="text-sm text-zinc-300 hover:text-white px-3 py-1.5 rounded-lg hover:bg-zinc-800/80">
+                            Dismiss
+                        </button>
+                        <button
+                            onClick={() => {
+                                selectConversation(incomingCallConversationId);
+                                handleStartCall(incomingCallConversationId!, false);
+                            }}
+                            className="text-sm font-semibold px-4 py-1.5 rounded-full bg-orange-500 text-white hover:bg-orange-600"
+                        >
+                            Accept
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className={`w-full md:w-1/3 flex-shrink-0 min-h-0 flex flex-col ${selectedConversationId ? 'hidden md:flex' : ''}`}>
                 <div className="h-full flex flex-col border-r border-zinc-800/60">
                     <div className="p-5 border-b border-zinc-800/60 bg-gradient-to-br from-zinc-950 via-zinc-950/80 to-zinc-900/50">
@@ -754,6 +815,7 @@ const Inbox: React.FC = () => {
                         <ConversationList
                             conversations={conversations}
                             onSelect={selectConversation}
+                            onDelete={deleteConversation}
                             selectedConversationId={selectedConversationId}
                             currentUser={currentUser}
                             title="Conversations"
@@ -789,7 +851,7 @@ const Inbox: React.FC = () => {
             <div className={`w-full md:w-2/3 min-h-0 flex flex-col ${selectedConversationId ? 'flex' : 'hidden md:flex'}`}>
                 {selectedConversation ? (
                     <ChatThread
-                        conversation={selectedConversation} 
+                        conversation={selectedConversation}
                         booking={associatedBooking || null}
                         currentUser={currentUser}
                         onSendMessage={sendMessage}
@@ -801,6 +863,8 @@ const Inbox: React.FC = () => {
                         allowVideoCall={true}
                         onStartCall={handleStartCall}
                         onStartLiveRoom={handleStartLiveRoom}
+                        incomingCallFromProp={incomingCallConversationId === selectedConversationId ? incomingCallFrom : null}
+                        onDismissIncomingCall={clearIncomingCall}
                     />
                 ) : (
                     <div className="items-center justify-center h-full w-full hidden md:flex">

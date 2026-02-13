@@ -19,7 +19,7 @@ import * as apiService from '../services/apiService';
 import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
-import { getProfileImageUrl } from '../constants';
+import { getProfileImageUrl, getDisplayName } from '../constants';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -91,7 +91,7 @@ const StoodioJobManagement: React.FC<{ stoodio: Stoodio; bookings: Booking[]; on
             case BookingStatus.PENDING:
                 return { text: "Pending", color: "bg-yellow-400/10 text-yellow-300" };
             case BookingStatus.CONFIRMED:
-                return { text: `Filled by ${job.engineer?.name}`, color: "bg-green-400/10 text-green-300" };
+                return { text: `Filled by ${job.engineer ? getDisplayName(job.engineer) : 'Engineer'}`, color: "bg-green-400/10 text-green-300" };
             case BookingStatus.COMPLETED:
                 return { text: "Completed", color: "bg-blue-400/10 text-blue-300" };
             case BookingStatus.CANCELLED:
@@ -494,7 +494,7 @@ const StoodioDashboard: React.FC = () => {
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
                             {(stoodio.photos || []).map((photo, index) => (
                                 <div key={index} className="relative group">
-                                    <img src={photo} alt={`${stoodio.name} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
+                                    <img src={photo} alt={`${getDisplayName(stoodio)} ${index + 1}`} className="w-full h-32 object-cover rounded-lg"/>
                                     <button 
                                         onClick={() => handlePhotoDelete(index)}
                                         className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" 
@@ -585,7 +585,7 @@ const StoodioDashboard: React.FC = () => {
                     {stoodio.cover_image_url ? (
                         <img 
                             src={stoodio.cover_image_url}
-                            alt={`${stoodio.name}'s cover photo`}
+                            alt={`${getDisplayName(stoodio)}'s cover photo`}
                             className="w-full h-full object-cover"
                         />
                     ) : (
@@ -612,7 +612,7 @@ const StoodioDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
-                                <img src={getProfileImageUrl(stoodio)} alt={stoodio.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <img src={getProfileImageUrl(stoodio)} alt={getDisplayName(stoodio)} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 
                                     className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
@@ -629,7 +629,7 @@ const StoodioDashboard: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{stoodio.name}</h1>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{getDisplayName(stoodio)}</h1>
                                 <p className="text-zinc-400 mt-1">Stoodio Dashboard</p>
                             </div>
                         </div>

@@ -9,7 +9,7 @@ import { getSupabase } from '../lib/supabase';
 
 export const useMessaging = (navigate: (view: AppView) => void) => {
     const dispatch = useAppDispatch();
-    const { currentUser, conversations } = useAppState();
+    const { currentUser, conversations, selectedConversationId } = useAppState();
     const [permissionError, setPermissionError] = useState<{
         status: string;
         sender: string;
@@ -274,10 +274,26 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
         [dispatch]
     );
 
+    const deleteConversation = useCallback(
+        async (conversationId: string) => {
+            if (!currentUser) return;
+            const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            if (!myProfileId) return;
+            await apiService.deleteConversationForProfile(conversationId, myProfileId);
+            const updated = await apiService.fetchConversations(myProfileId);
+            dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updated } });
+            if (selectedConversationId === conversationId) {
+                dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId: null } });
+            }
+        },
+        [currentUser, dispatch, selectedConversationId]
+    );
+
     return {
         sendMessage,
         unsendMessage,
         selectConversation,
+        deleteConversation,
         fetchSmartReplies,
         startConversation,
         permissionError,

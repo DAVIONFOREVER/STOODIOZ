@@ -5,7 +5,7 @@ import { MagicWandIcon, CalendarIcon, SoundWaveIcon, MusicNoteIcon, HouseIcon, E
 import WhoToFollow from './WhoToFollow';
 import TrendingPost from './TrendingPost';
 import LiveHub from './LiveHub';
-import { getProfileImageUrl } from '../constants';
+import { getProfileImageUrl, getDisplayName } from '../constants';
 
 interface StageCreatorHubProps {
     currentUser: Artist | Engineer | Stoodio | Producer | Label;
@@ -54,12 +54,12 @@ const StageCreatorHub: React.FC<StageCreatorHubProps> = ({
                             <div className="flex items-center gap-3">
                                 <img
                                     src={getProfileImageUrl(currentUser)}
-                                    alt={currentUser.name}
+                                    alt={getDisplayName(currentUser)}
                                     className="w-11 h-11 rounded-2xl object-cover ring-2 ring-orange-500/30 shadow-lg shadow-orange-500/20"
                                 />
                                 <div>
                                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-400">Stage Control Engine</p>
-                                    <p className="text-lg font-bold text-zinc-100">{currentUser.name}</p>
+                                    <p className="text-lg font-bold text-zinc-100">{getDisplayName(currentUser)}</p>
                                 </div>
                             </div>
                             <div className="flex items-center justify-between rounded-2xl bg-zinc-900/70 border border-zinc-800 p-4">

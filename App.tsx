@@ -857,8 +857,8 @@ const App: React.FC = () => {
       case AppView.ARTIST_SETUP:
         return (
           <ArtistSetup
-            onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) =>
-              completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ARTIST)
+            onCompleteSetup={(name, username, bio, email, password, imageUrl, imageFile) =>
+              completeSetup({ name, username, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ARTIST)
             }
             onNavigate={navigate}
             isLoading={isLoading}
@@ -868,8 +868,8 @@ const App: React.FC = () => {
       case AppView.ENGINEER_SETUP:
         return (
           <EngineerSetup
-            onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) =>
-              completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ENGINEER)
+            onCompleteSetup={(name, username, bio, email, password, imageUrl, imageFile) =>
+              completeSetup({ name, username, bio, email, password, image_url: imageUrl, imageFile }, UserRole.ENGINEER)
             }
             onNavigate={navigate}
             isLoading={isLoading}
@@ -879,8 +879,8 @@ const App: React.FC = () => {
       case AppView.PRODUCER_SETUP:
         return (
           <ProducerSetup
-            onCompleteSetup={(name, bio, email, password, imageUrl, imageFile) =>
-              completeSetup({ name, bio, email, password, image_url: imageUrl, imageFile }, UserRole.PRODUCER)
+            onCompleteSetup={(name, username, bio, email, password, imageUrl, imageFile) =>
+              completeSetup({ name, username, bio, email, password, image_url: imageUrl, imageFile }, UserRole.PRODUCER)
             }
             onNavigate={navigate}
             isLoading={isLoading}
@@ -890,9 +890,9 @@ const App: React.FC = () => {
       case AppView.STOODIO_SETUP:
         return (
           <StoodioSetup
-            onCompleteSetup={(name, description, location, businessAddress, email, password, imageUrl, imageFile) =>
+            onCompleteSetup={(name, username, description, location, businessAddress, email, password, imageUrl, imageFile) =>
               completeSetup(
-                { name, description, location, businessAddress, email, password, image_url: imageUrl, imageFile },
+                { name, username, description, location, businessAddress, email, password, image_url: imageUrl, imageFile },
                 UserRole.STOODIO
               )
             }

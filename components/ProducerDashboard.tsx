@@ -21,7 +21,7 @@ import { useNavigation } from '../hooks/useNavigation.ts';
 import { useSocial } from '../hooks/useSocial.ts';
 import { useProfile } from '../hooks/useProfile.ts';
 import * as apiService from '../services/apiService';
-import { getProfileImageUrl } from '../constants';
+import { getProfileImageUrl, getDisplayName } from '../constants';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -314,7 +314,7 @@ const ProducerDashboard: React.FC = () => {
                     {producer.cover_image_url ? (
                         <img 
                             src={producer.cover_image_url}
-                            alt={`${producer.name}'s cover photo`}
+                            alt={`${getDisplayName(producer)}'s cover photo`}
                             className="w-full h-full object-cover"
                         />
                     ) : (
@@ -342,7 +342,7 @@ const ProducerDashboard: React.FC = () => {
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
                                 {/* FIX: Corrected property name from `imageUrl` to `image_url` */}
-                                <img src={getProfileImageUrl(producer)} alt={producer.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <img src={getProfileImageUrl(producer)} alt={getDisplayName(producer)} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 
                                     className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
@@ -359,7 +359,7 @@ const ProducerDashboard: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{producer.name}</h1>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{getDisplayName(producer)}</h1>
                                 <div className="flex flex-wrap items-center gap-2 mt-1">
                                     {(producer as any).label_verified && <VerifiedBadge labelVerified={true} />}
                                     <p className="text-zinc-400">Producer Dashboard</p>

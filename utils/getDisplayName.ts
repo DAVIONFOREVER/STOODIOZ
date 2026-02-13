@@ -14,9 +14,8 @@
 function looksLikeId(value: string): boolean {
   if (!value || typeof value !== 'string') return false;
   const trimmed = value.trim().toLowerCase();
-  // Check for patterns like "artis_", "engin_", "produc_", "stood_", "label_" followed by hex/uuid-like chars
-  return /^(artis|engin|produc|stood|label|user)_[a-f0-9]{4,}/i.test(trimmed) ||
-         // Or UUID-like patterns
+  // Check for role-table IDs: artis_, artist_, engin_, produc_, stood_, label_, user_ + hex/suffix
+  return /^(artis|artist|engin|produc|stood|label|user)_[a-f0-9]+/i.test(trimmed) ||
          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
 }
 
@@ -30,6 +29,18 @@ function looksLikeEmail(value: string): boolean {
   if (!value || typeof value !== 'string') return false;
   return value.includes('@') && value.includes('.');
 }
+
+/**
+ * Your 5 accounts → exact display names shown everywhere in the app.
+ * Aria is always "Aria Cantata" and does not need to be listed here.
+ */
+const DISPLAY_NAME_OVERRIDES: Record<string, string> = {
+  'warstudiosatl@gmail.com': 'Wealth and Riches Music',
+  'vijetamusic@gmail.com': 'Vijeta',
+  'davionforever@gmail.com': 'Davion Forever',
+  'mixedbydavion@gmail.com': 'Mixed By Davion',
+  'atlanticrecords@gmail.com': 'Atlantic Records',
+};
 
 export function getDisplayName(
   entity: { 
@@ -45,31 +56,38 @@ export function getDisplayName(
   fallback = 'Someone'
 ): string {
   if (entity == null) return fallback;
+  const nested = (entity as any)?.profiles || (entity as any)?.profile || null;
   const primaryEmail =
     (entity as any)?.email ||
+    nested?.email ||
     (looksLikeEmail((entity as any)?.name) ? (entity as any)?.name : '') ||
     (looksLikeEmail((entity as any)?.username) ? (entity as any)?.username : '') ||
     '';
-  const email = primaryEmail;
-  const nameLower = String(entity.name || '').toLowerCase();
-  const usernameLower = String(entity.username || '').toLowerCase();
-  const fullNameLower = String((entity as any)?.full_name || '').toLowerCase();
+  const nameLower = String(entity.name || nested?.name || '').toLowerCase();
+  const usernameLower = String(entity.username || nested?.username || '').toLowerCase();
+  const fullNameLower = String((entity as any)?.full_name || nested?.full_name || '').toLowerCase();
+  const displayNameLower = String((entity as any)?.display_name ?? nested?.display_name ?? '').toLowerCase();
   const rawId = String((entity as any)?.id || (entity as any)?.profile_id || '').toLowerCase();
+  // Aria Cantata: no exceptions — always this exact display name (check all name-like fields)
   if (
-    email === 'aria@stoodioz.ai' ||
+    primaryEmail === 'aria@stoodioz.ai' ||
     usernameLower === 'aria' ||
     nameLower === 'aria' ||
     nameLower.includes('aria cantata') ||
     fullNameLower === 'aria' ||
     fullNameLower.includes('aria cantata') ||
+    displayNameLower === 'aria' ||
+    displayNameLower.includes('aria cantata') ||
     rawId === 'aria'
   ) {
     return 'Aria Cantata';
   }
-  const nested = (entity as any)?.profiles || (entity as any)?.profile || null;
-  
-  const displayName = (entity as any)?.display_name || nested?.display_name;
-  const username = entity?.username || nested?.username;
+
+  const emailKey = primaryEmail?.trim().toLowerCase() || '';
+  if (emailKey && DISPLAY_NAME_OVERRIDES[emailKey]) return DISPLAY_NAME_OVERRIDES[emailKey];
+
+  const displayName = (entity as any)?.display_name ?? nested?.display_name;
+  const username = entity?.username ?? nested?.username;
 
   const formatHandle = (value: string): string | null => {
     if (!value || typeof value !== 'string') return null;

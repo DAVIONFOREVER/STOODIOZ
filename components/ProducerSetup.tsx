@@ -40,11 +40,12 @@ const ProducerSetup: React.FC<ProducerSetupProps> = ({ onCompleteSetup, onNaviga
         e.preventDefault();
         if (isFormValid) {
             onCompleteSetup(
-                name.trim(), 
-                bio.trim(), 
-                email.trim(), 
-                password, 
-                imagePreview, 
+                name.trim(),
+                username.trim().replace(/\s+/g, '').toLowerCase(),
+                bio.trim(),
+                email.trim(),
+                password,
+                imagePreview,
                 imageFile
             );
         } else {

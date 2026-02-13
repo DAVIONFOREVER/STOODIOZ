@@ -16,7 +16,7 @@ import { useNavigation } from '../hooks/useNavigation';
 import { useSocial } from '../hooks/useSocial';
 import { useProfile } from '../hooks/useProfile';
 import * as apiService from '../services/apiService';
-import { getProfileImageUrl } from '../constants';
+import { getProfileImageUrl, getDisplayName } from '../constants';
 
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard.tsx'));
 const Documents = lazy(() => import('./Documents.tsx'));
@@ -266,7 +266,7 @@ const ArtistDashboard: React.FC = () => {
                     {artist.cover_image_url ? (
                         <img 
                             src={artist.cover_image_url}
-                            alt={`${artist.name}'s cover photo`}
+                            alt={`${getDisplayName(artist)}'s cover photo`}
                             className="w-full h-full object-cover"
                         />
                     ) : (
@@ -296,7 +296,7 @@ const ArtistDashboard: React.FC = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
                         <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-6">
                             <div className="relative group/pfp flex-shrink-0">
-                                <img src={getProfileImageUrl(artist)} alt={artist.name} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
+                                <img src={getProfileImageUrl(artist)} alt={getDisplayName(artist)} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-zinc-800" />
                                 <button 
                                     onClick={handleImageUploadClick} 
                                     className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover/pfp:opacity-100 transition-opacity cursor-pointer"
@@ -313,7 +313,7 @@ const ArtistDashboard: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{artist.name}</h1>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-100">{getDisplayName(artist)}</h1>
                                 <div className="flex flex-wrap items-center gap-2 mt-1"><VerifiedBadge labelVerified={!!(artist as any).label_verified} /><p className="text-zinc-400">Artist Dashboard</p></div>
                             </div>
                         </div>

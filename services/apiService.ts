@@ -54,6 +54,12 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function randomUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const hex = () => Math.floor(Math.random() * 16).toString(16);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => (c === 'y' ? (hex() + '8').slice(-1) : hex()));
+}
+
 function errMsg(e: any) {
   return e?.message || e?.error_description || e?.error || String(e);
 }
@@ -695,7 +701,9 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       if (pr.cover_image_url && !r.cover_image_url) r.cover_image_url = pr.cover_image_url;
       if (pr.display_name != null) r.display_name = pr.display_name;
       if (pr.username != null) r.username = pr.username;
-      r.name = r.display_name ?? r.username ?? r.stage_name ?? r.name ?? null;
+      // Prefer profile display_name/username; never show ID-like values (e.g. user_xxx)
+      const pick = (v: string | null | undefined) => (v && typeof v === 'string' && v.trim() && !looksLikeId(v) && !looksLikePlaceholder(v) ? v.trim() : null);
+      r.name = pick(r.display_name) ?? pick(r.username) ?? pick(r.stage_name) ?? pick(r.name) ?? 'User';
     };
     result.artists.forEach(applyProfileToRow);
     result.engineers.forEach(applyProfileToRow);
@@ -1149,8 +1157,8 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     if (result.profiles) {
       result.role = result.profiles.role;
     }
-    // Fetch profile data so dashboard-uploaded photos (in profiles) show on profile page
-    const profileId = result.profile_id || result.id;
+    // Use only profile_id for profile fetch — result.id is the role row id, not the profile id
+    const profileId = result.profile_id || null;
     let profileData: any = null;
     if (profileId) {
       const profRes = await withTimeout(
@@ -1161,7 +1169,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
       profileData = (profRes as any)?.data || null;
       if (profileData?.role) result.role = profileData.role;
     }
-    const followData = await computeFollowData(supabase, profileId);
+    const followData = await computeFollowData(supabase, profileId || result.id);
     const merged = { ...result, ...(profileData || {}), profiles: profileData || null, ...followData };
     merged.image_url = profileData?.image_url || profileData?.avatar_url || result?.image_url || result?.avatar_url || merged.image_url || null;
     merged.cover_image_url = profileData?.cover_image_url || result?.cover_image_url || merged.cover_image_url || null;
@@ -1172,7 +1180,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
   // 1) Try by username (slug-style handles)
   let r1 = await runRoleSelect('username', idOrUsername, `${table}.byUsername`);
   if (r1?.data) {
-    const profileId = r1.data.profile_id || r1.data.id;
+    const profileId = r1.data.profile_id || null;
     let profileData: any = null;
     if (profileId) {
       const profRes = await withTimeout(
@@ -1183,7 +1191,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
       profileData = (profRes as any)?.data || null;
       if (profileData?.role) r1.data.role = profileData.role;
     }
-    const followData = await computeFollowData(supabase, profileId);
+    const followData = await computeFollowData(supabase, profileId || r1.data.id);
     const merged = { ...r1.data, ...(profileData || {}), profiles: profileData || null, ...followData };
     merged.image_url = profileData?.image_url || profileData?.avatar_url || r1.data?.image_url || r1.data?.avatar_url || merged.image_url || null;
     merged.cover_image_url = profileData?.cover_image_url || r1.data?.cover_image_url || merged.cover_image_url || null;
@@ -1201,8 +1209,8 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     if (r2?.error) throw new Error(errMsg(r2.error));
     return null;
   }
-  // Attach profile data without relying on embedded relationships (avoids FK ambiguity)
-  const profileId = result.profile_id || result.id;
+  // Use only profile_id for profile fetch — result.id is the role row id
+  const profileId = result.profile_id || null;
   let profileData: any = null;
   if (profileId) {
     const profRes = await withTimeout(
@@ -1213,8 +1221,7 @@ async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<an
     profileData = (profRes as any)?.data || null;
     if (profileData?.role) result.role = profileData.role;
   }
-  // Compute follow data
-  const followData = await computeFollowData(supabase, profileId);
+  const followData = await computeFollowData(supabase, profileId || result.id);
   const merged = { ...result, ...(profileData || {}), profiles: profileData || null, ...followData };
   merged.image_url = profileData?.image_url || profileData?.avatar_url || result?.image_url || result?.avatar_url || merged.image_url || null;
   merged.cover_image_url = profileData?.cover_image_url || result?.cover_image_url || merged.cover_image_url || null;
@@ -1403,6 +1410,9 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
       console.warn('[fetchFullStoodio] rooms fetch failed:', e);
     }
   }
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:fetchFullStoodio',message:'returning',data:{roomsCount: out?.rooms?.length ?? 0, profileId: out?.profile_id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
   return out;
 }
 
@@ -2975,6 +2985,8 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
 
   const all = Array.isArray(rawData) ? rawData : [];
   rows = all.filter((r: any) => {
+    const hidden = r.hidden_for_profile_ids;
+    if (Array.isArray(hidden) && hidden.some((id: string) => String(id) === String(profileId))) return false;
     const ids = r.participant_ids;
     if (Array.isArray(ids)) return ids.some((id: string) => String(id) === String(profileId));
     return false;
@@ -2995,7 +3007,7 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
     const [messagesRes, profilesRes] = await Promise.all([
       supabase.from(TABLES.messages).select('*').in('conversation_id', convIds).order('created_at', { ascending: true }),
       allParticipantIds.size > 0
-        ? supabase.from(TABLES.profiles).select('id, name, full_name, display_name, username, image_url, avatar_url').in('id', Array.from(allParticipantIds))
+        ? supabase.from(TABLES.profiles).select('id, full_name, display_name, username, image_url, avatar_url').in('id', Array.from(allParticipantIds))
         : { data: [] },
     ]);
     const messagesList = Array.isArray(messagesRes?.data) ? messagesRes.data : [];
@@ -3018,7 +3030,17 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
       });
     });
     (profilesRes?.data || []).forEach((p: any) => {
-      if (p?.id) profileMap[p.id] = { id: p.id, name: getDisplayName(p, 'User'), image_url: p.image_url || p.avatar_url };
+      if (p?.id) {
+        const key = String(p.id);
+        profileMap[key] = {
+          id: p.id,
+          name: getDisplayName(p, 'User'),
+          display_name: p.display_name,
+          username: p.username,
+          image_url: p.image_url || p.avatar_url,
+          avatar_url: p.avatar_url || p.image_url,
+        };
+      }
     });
   } catch (e) {
     console.warn('[fetchConversations] enrich failed:', e);
@@ -3026,10 +3048,30 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
 
   return rows.map((r: any) => {
     const participantIds = Array.isArray(r.participant_ids) ? r.participant_ids : [];
-    const participants = participantIds.map((id: string) => profileMap[id] || { id, name: getDisplayName({ id }, 'User'), image_url: undefined });
+    const participants = participantIds.map((id: string) => {
+      const key = String(id);
+      return profileMap[key] || { id, name: getDisplayName({ id }, 'User'), image_url: undefined };
+    });
     const messages = messagesByConv[r.id] || [];
     return { ...r, participants, messages, unread_count: 0 };
   });
+}
+
+/** Hide a conversation from the current user's inbox. Other participants still see it. */
+export async function deleteConversationForProfile(conversationId: string, profileId: string): Promise<void> {
+  requireVal(conversationId, 'conversationId');
+  requireVal(profileId, 'profileId');
+  const supabase = getSupabase();
+  const { data: conv, error: fetchErr } = await supabase
+    .from(TABLES.conversations)
+    .select('hidden_for_profile_ids')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (fetchErr || !conv) return;
+  const hidden = Array.isArray(conv.hidden_for_profile_ids) ? conv.hidden_for_profile_ids : [];
+  if (hidden.some((id: string) => String(id) === String(profileId))) return;
+  const next = [...hidden, profileId];
+  await supabase.from(TABLES.conversations).update({ hidden_for_profile_ids: next, updated_at: nowIso() }).eq('id', conversationId);
 }
 
 const MESSAGES_INSERT_KEYS = [
@@ -3047,7 +3089,13 @@ export async function sendMessage(
   requireVal(conversationId, 'conversationId');
   requireVal(senderId, 'senderId');
   const supabase = getSupabase();
-  const base: Record<string, any> = { conversation_id: conversationId, sender_id: senderId, text, type, created_at: nowIso() };
+  const base: Record<string, any> = {
+    conversation_id: conversationId,
+    sender_id: senderId,
+    text,
+    type,
+    created_at: nowIso(),
+  };
   if (payload) {
     for (const key of MESSAGES_INSERT_KEYS) {
       if (key in base) continue;

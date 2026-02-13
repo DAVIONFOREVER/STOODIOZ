@@ -70,7 +70,21 @@ const StoodioDetail: React.FC = () => {
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(stoodio?.rooms?.[0] || null);
 
     useEffect(() => {
-        if (selectedStoodio) setStoodio(selectedStoodio);
+        if (!selectedStoodio) return;
+        const sameEntity = (a: Stoodio | null, b: Stoodio | null) =>
+            a && b && (a.id === b.id || (a as any).profile_id === (b as any).profile_id || a.id === (b as any).profile_id || (a as any).profile_id === b.id);
+        const selRooms = (selectedStoodio as any)?.rooms;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StoodioDetail.tsx:syncSelected',message:'selectedStoodio sync',data:{selectedRooms: Array.isArray(selRooms) ? selRooms.length : 0, selectedId: (selectedStoodio as any)?.id?.slice(0,8), profileId: (selectedStoodio as any)?.profile_id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
+        setStoodio((prev) => {
+            if (!prev) return selectedStoodio;
+            if (!sameEntity(prev, selectedStoodio)) return selectedStoodio;
+            const prevRooms = prev?.rooms;
+            if (Array.isArray(prevRooms) && prevRooms.length > 0 && (!Array.isArray(selRooms) || selRooms.length === 0))
+                return prev;
+            return selectedStoodio;
+        });
     }, [selectedStoodio]);
 
     const readCachedStoodio = useCallback((id: string) => {
@@ -157,6 +171,9 @@ const StoodioDetail: React.FC = () => {
                     // #endregion
                     setStoodio(fullData as Stoodio);
                     writeCachedStoodio(fullData as Stoodio);
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StoodioDetail.tsx:resolveStoodio',message:'setStoodio(fullData) with rooms',data:{roomsLen: (fullData as any)?.rooms?.length ?? 0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+                    // #endregion
                 } else {
                     setStoodio(null);
                     setLoadError('Profile not found.');
@@ -408,7 +425,7 @@ const StoodioDetail: React.FC = () => {
                         <div className="relative animate-aria-float">
                             <img 
                                 src={getProfileImageUrl(stoodio)} 
-                                alt={stoodio.name} 
+                                alt={getDisplayName(stoodio)} 
                                 className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full object-cover border-4 sm:border-[6px] md:border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
                             />
                             <div className="absolute -bottom-1 -right-1 sm:-bottom-3 sm:-right-3 bg-gradient-to-br from-orange-500 to-amber-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-2xl ring-2 sm:ring-4 ring-zinc-950">
@@ -417,7 +434,7 @@ const StoodioDetail: React.FC = () => {
                         </div>
                     </div>
                     <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-7xl xl:text-8xl font-black text-white tracking-tighter mb-2 sm:mb-4 break-words max-w-full px-1" style={{ textShadow: '0 0 30px rgba(249,115,22,0.5)' }}>
-                        {stoodio.name}
+                        {getDisplayName(stoodio)}
                     </h1>
                     <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
                         <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] text-orange-400 bg-orange-500/10 px-3 py-1.5 sm:px-6 sm:py-2 rounded-full border border-orange-500/20 backdrop-blur-md whitespace-nowrap">
@@ -457,7 +474,7 @@ const StoodioDetail: React.FC = () => {
                 {(!currentUser || currentUser.id !== stoodio.id) && (
                     <div className="mt-4">
                         <button
-                            onClick={() => openReviewPage({ id: stoodio.id, role: UserRole.STOODIO, name: stoodio.name, image_url: getProfileImageUrl(stoodio) })}
+                            onClick={() => openReviewPage({ id: stoodio.id, role: UserRole.STOODIO, name: getDisplayName(stoodio), image_url: getProfileImageUrl(stoodio) })}
                             className="px-6 py-3 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all font-bold flex items-center gap-2 shadow-xl"
                         >
                             Reviews
@@ -617,8 +634,8 @@ const StoodioDetail: React.FC = () => {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {hostedArtists.map(artist => (
                                     <button key={artist.id} onClick={() => viewArtistProfile(artist)} className="flex items-center gap-3 bg-zinc-800 p-2 rounded-lg hover:bg-zinc-700 transition-colors">
-                                        <img src={getProfileImageUrl(artist)} alt={artist.name} className="w-10 h-10 rounded-md object-cover" />
-                                        <span className="font-semibold text-sm text-slate-200">{artist.name}</span>
+                                        <img src={getProfileImageUrl(artist)} alt={getDisplayName(artist)} className="w-10 h-10 rounded-md object-cover" />
+                                        <span className="font-semibold text-sm text-slate-200">{getDisplayName(artist)}</span>
                                     </button>
                                 ))}
                             </div>

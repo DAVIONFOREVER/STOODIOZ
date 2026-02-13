@@ -69,11 +69,20 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
                 // Fallback to audio-only if camera is blocked
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             }
+            if (peerRef.current !== pc || pc.signalingState === 'closed') {
+                localStream.getTracks().forEach((t) => t.stop());
+                return undefined;
+            }
             localStreamRef.current = localStream;
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = localStream;
             }
-            localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+            if (pc.signalingState !== 'closed') {
+                localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+            } else {
+                localStream.getTracks().forEach((t) => t.stop());
+                return undefined;
+            }
 
             const sendOffer = async () => {
                 if (hasSentOfferRef.current || !peerRef.current) return;
@@ -99,7 +108,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
                 const from = payload?.payload?.from;
                 if (!from || from === currentUserId || from !== peerId) return;
                 const pc = peerRef.current;
-                if (!pc) return;
+                if (!pc || pc.signalingState === 'closed') return;
                 const data = payload.payload;
                 if (data.type === 'ready') {
                     isPeerReadyRef.current = true;
@@ -160,6 +169,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
                     }
                 } catch (e: any) {
                     const msg = e?.message || 'Video chat failed to start.';
+                    const isClosed = /signalingState.*closed|RTCPeerConnection.*closed/i.test(String(msg));
+                    if (isClosed) {
+                        return;
+                    }
                     console.error('Video call setup failed', e);
                     setErrorMessage(msg);
                     setStatus('error');

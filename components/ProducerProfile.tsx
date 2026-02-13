@@ -224,16 +224,18 @@ const ProducerProfile: React.FC = () => {
             try {
                 const fullData = await fetchFullProducer(targetId);
                 if (!isMounted) return;
-                if (fullData) setProducer(fullData as Producer);
-                else {
-                    setProducer(null);
-                    setLoadError('Profile not found.');
+                if (fullData) {
+                    setProducer(fullData as Producer);
+                    setLoadError(null);
+                } else {
+                    setProducer(selectedProducer || null);
+                    setLoadError(selectedProducer ? 'Full profile could not be loaded. Showing what we have.' : null);
                 }
             } catch (e) {
                 console.error('Failed to load producer details', e);
                 if (isMounted) {
-                    setProducer(null);
-                    setLoadError('Unable to load this profile right now.');
+                    setProducer(selectedProducer || null);
+                    setLoadError(selectedProducer ? 'Full profile could not be loaded. Showing what we have.' : 'Unable to load this profile right now.');
                 }
             } finally {
                 if (isMounted) setIsLoadingDetails(false);
@@ -407,7 +409,11 @@ const ProducerProfile: React.FC = () => {
             <button onClick={goBack} className="absolute top-4 left-4 sm:top-10 sm:left-10 z-20 flex items-center gap-2 sm:gap-3 text-zinc-400 hover:text-purple-400 transition-all font-black uppercase tracking-[0.2em] sm:tracking-[0.25em] text-[10px]">
                 <ChevronLeftIcon className="w-4 h-4 flex-shrink-0" /> <span className="hidden xs:inline">System </span>Back
             </button>
-            
+            {loadError && (
+                <div className="mb-4 py-2 px-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm">
+                    {loadError}
+                </div>
+            )}
             {/* Cover Section: responsive so portrait mobile never bunches or overlaps */}
             <div
                 className="relative min-h-[40dvh] sm:min-h-[50dvh] rounded-2xl sm:rounded-[40px] overflow-hidden border border-white/5 mb-8 sm:mb-16 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"

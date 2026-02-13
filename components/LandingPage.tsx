@@ -125,9 +125,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
               {LANDING_HERO_LINE}
               <span className="block text-orange-400">{LANDING_TAGLINE}</span>
             </h1>
-            {import.meta.env.DEV && (
-              <p className="text-xs text-zinc-500 mt-1" aria-hidden="true">Dev: 127.0.0.1:5173 · sync</p>
-            )}
             <p className="mt-4 text-slate-400 text-sm sm:text-base md:text-lg break-words">
               Find Stoodios, engineers, and producers — then lock in your session and get to work.
             </p>

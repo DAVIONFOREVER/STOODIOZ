@@ -3,7 +3,7 @@ import type { Conversation, Message, Booking, Artist, Engineer, Stoodio, Produce
 import { AppView, BookingStatus } from '../types';
 import { ChevronLeftIcon, PaperAirplaneIcon, PhotoIcon, CloseIcon, MusicNoteIcon, PaperclipIcon, DownloadIcon, VideoCameraIcon } from './icons';
 import BookingContextCard from './BookingContextCard';
-import { getProfileImageUrl } from '../constants';
+import { getProfileImageUrl, getDisplayName } from '../constants';
 import * as apiService from '../services/apiService';
 import { getSupabase } from '../lib/supabase';
 
@@ -78,7 +78,7 @@ const ChatThread: React.FC<ChatThreadProps> = ({
     const [incomingCallFrom, setIncomingCallFrom] = useState<string | null>(null);
 
     const participant = conversation.participants.find(p => p.id !== currentUser.id) || conversation.participants[0];
-    const displayName = titleOverride || participant?.name || 'Conversation';
+    const displayName = titleOverride || (participant ? getDisplayName(participant, 'User') : 'Conversation');
     const avatarSrc = avatarUrlOverride || (participant ? getProfileImageUrl(participant) : undefined);
 
     const documentMessages = useMemo(

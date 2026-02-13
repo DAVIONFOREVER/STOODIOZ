@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import LiveRoomCard from './LiveRoomCard';
 import { useLiveRooms } from '../hooks/useLiveRooms';
 import { useAppState } from '../contexts/AppContext';
+import { getDisplayName } from '../constants';
 
 interface LiveHubProps {
     onStartLive: () => void;
@@ -28,7 +29,7 @@ const LiveHub: React.FC<LiveHubProps> = ({ onStartLive, onJoinLive }) => {
 
     const resolveHostName = (hostId: string) => {
         const host = usersMap.get(hostId);
-        return host?.name || 'Live Host';
+        return host ? getDisplayName(host, 'Live Host') : 'Live Host';
     };
 
     const filteredRooms = useMemo(() => {

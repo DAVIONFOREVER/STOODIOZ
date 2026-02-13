@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { BookingRequest, Room, Instrumental } from '../types';
 import { BookingRequestType } from '../types';
-import { SERVICE_FEE_PERCENTAGE } from '../constants';
+import { SERVICE_FEE_PERCENTAGE, getDisplayName } from '../constants';
 import { CloseIcon, CalendarIcon, ClockIcon, DurationIcon, PriceIcon, UserGroupIcon, MusicNoteIcon } from './icons.tsx';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext.tsx';
 
@@ -162,7 +162,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
             <div className="w-full max-w-4xl transform animate-slide-up flex flex-col max-h-[90dvh] sm:max-h-[85dvh] cardSurface" >
                 <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center flex-shrink-0">
                     <div>
-                        <h2 className="text-2xl font-bold text-zinc-100">Book {stoodio.name}</h2>
+                        <h2 className="text-2xl font-bold text-zinc-100">Book {getDisplayName(stoodio)}</h2>
                         <p className="text-orange-400 font-semibold">{initialRoom.name}</p>
                     </div>
                     <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200 transition-colors">
@@ -205,7 +205,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                         <select id="engineer-select" value={requestedEngineerId} onChange={e => setRequestedEngineerId(e.target.value)} className="w-full bg-zinc-800/70 border-zinc-700 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500" disabled={!!bookingIntent?.mixingDetails}>
                                             <option value="" disabled>-- Select an Engineer --</option>
                                             {engineerOptions.map(engineer => (
-                                                <option key={engineer.id} value={engineer.id}>{engineer.name}</option>
+                                                <option key={engineer.id} value={engineer.id}>{getDisplayName(engineer)}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -248,7 +248,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                     <label htmlFor="producer-select" className="flex items-center text-sm font-semibold text-zinc-400 mb-2"><MusicNoteIcon className="w-4 h-4 mr-2" /> Producer (Optional)</label>
                                     <select id="producer-select" value={selectedProducerId} onChange={e => setSelectedProducerId(e.target.value)} className="w-full bg-zinc-700/80 border-zinc-600 text-zinc-200 rounded-lg p-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
                                         <option value="">-- No Producer --</option>
-                                        {producers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                        {producers.map(p => <option key={p.id} value={p.id}>{getDisplayName(p)}</option>)}
                                     </select>
                                     
                                     {selectedProducer && (
@@ -263,7 +263,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                                         className="h-4 w-4 rounded border-zinc-500 bg-zinc-800 text-orange-500 focus:ring-orange-500"
                                                     />
                                                     <div>
-                                                        <p className="font-semibold text-zinc-200">Include {selectedProducer.name} in Session (Pull Up)</p>
+                                                        <p className="font-semibold text-zinc-200">Include {getDisplayName(selectedProducer)} in Session (Pull Up)</p>
                                                         <p className="text-xs text-zinc-400">
                                                             {/* FIX: Corrected property 'pullUpPrice' to 'pull_up_price' to match the 'Producer' type definition. */}
                                                             Adds a ${selectedProducer.pull_up_price} fee for the producer's time.
@@ -303,7 +303,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                         </div>
                                          {pullUpFee > 0 && (
                                             <div className="flex justify-between text-zinc-300">
-                                                <span>{selectedProducer?.name} "Pull Up" Fee</span>
+                                                <span>{selectedProducer ? getDisplayName(selectedProducer) : 'Producer'} "Pull Up" Fee</span>
                                                 <span>${pullUpFee.toFixed(2)}</span>
                                             </div>
                                         )}
