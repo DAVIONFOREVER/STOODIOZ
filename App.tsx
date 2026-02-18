@@ -688,7 +688,6 @@ const App: React.FC = () => {
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (event === 'SIGNED_OUT') {
-          // Reset guards
           lastHydratedUserIdRef.current = null;
           hydrateInFlightRef.current = null;
           didLoadDirectoryRef.current = false;
@@ -696,7 +695,8 @@ const App: React.FC = () => {
           dispatch({ type: ActionTypes.LOGOUT });
           dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
           dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.LANDING_PAGE } });
-          loadDirectory();
+          // Don't call loadDirectory() here: landing page will load directory when it mounts with empty lists.
+          // Avoids slow getAllPublicUsers() and view timeouts right after logout.
           return;
         }
 
@@ -779,8 +779,35 @@ const App: React.FC = () => {
     async (userData: any, role: UserRole) => {
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:completeSetup',message:'signup_start',data:{hasPassword:Boolean(userData?.password),hasEmail:Boolean(userData?.email)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+
       try {
+        const email = (userData?.email ?? '').trim();
+        const password = userData?.password;
+        if (email && password) {
+          const { getSupabase } = await import('./lib/supabase');
+          const { data: signUpData, error: signUpError } = await getSupabase().auth.signUp({ email, password });
+          if (signUpError) {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            alert(signUpError.message || 'Sign up failed. Try a different email or password.');
+            return;
+          }
+          if (!signUpData?.user?.id) {
+            dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+            alert('Account could not be created. Please try again.');
+            return;
+          }
+          userData = { ...userData, _authUid: signUpData.user.id };
+        }
+
         let result = await apiService.createUser(userData, role);
+        // #region agent log
+        const { getSupabase } = await import('./lib/supabase');
+        const { data: sess } = await getSupabase().auth.getSession();
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:completeSetup',message:'signup_after_createUser',data:{hasResult:Boolean(result),profileId:result?.id,sessionExists:Boolean(sess?.session),uid:sess?.session?.user?.id},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
         if (result) {
           // Auto-follow Aria forever on signup
           try {
@@ -1085,7 +1112,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="bg-zinc-950 text-slate-200 min-h-screen font-sans flex flex-col min-w-0 overflow-x-hidden">
+    <div className="bg-zinc-950 text-slate-200 min-h-[100dvh] font-sans flex flex-col min-w-0 h-[100dvh] max-h-[100dvh] overflow-x-hidden">
       <Header
         onNavigate={navigate}
         onGoBack={goBack}
@@ -1101,7 +1128,7 @@ const App: React.FC = () => {
         onSelectStoodio={viewStoodioDetails}
       />
 
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow min-w-0 w-full max-w-full overflow-x-hidden">
+      <main className="scroll-main container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow min-h-0 min-w-0 w-full max-w-full">
         <ErrorBoundary
           onRecover={() =>
             dispatch({

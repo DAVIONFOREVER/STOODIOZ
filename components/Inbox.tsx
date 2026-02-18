@@ -299,7 +299,7 @@ const ChatThread: React.FC<{
     }
 
     return (
-        <div className="flex flex-col h-full bg-zinc-900">
+        <div className="flex flex-col flex-1 min-h-0 h-full bg-zinc-900">
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
             {/* Header */}
             <header className="flex-shrink-0 z-10">
@@ -362,7 +362,7 @@ const ChatThread: React.FC<{
                 </div>
             </header>
             
-            <div className="flex-grow overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                 {activeTab === 'messages' ? (
                     <div className="p-4 space-y-4">
                         {booking && <BookingContextCard booking={booking} onNavigate={onNavigate}/>}
@@ -541,18 +541,78 @@ const Inbox: React.FC = () => {
     const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
     const [isLiveChatLoading, setIsLiveChatLoading] = useState(false);
 
+    // Enrich conversation participants from directory so thread shows correct name/photo (e.g. "Davion Forever" not "Unknown")
+    const enrichedConversations = useMemo(() => {
+        const dir = [
+            ...(artists ?? []),
+            ...(engineers ?? []),
+            ...(stoodioz ?? []),
+            ...(producers ?? []),
+            ...(labels ?? []),
+        ];
+        const byId = new Map<string, any>();
+        dir.forEach((u: any) => {
+            if (u?.id) byId.set(String(u.id), u);
+            const pid = u?.profile_id;
+            if (pid) byId.set(String(pid), u);
+        });
+        return (conversations || []).map((convo) => {
+            const participants = (convo.participants || []).map((p: any) => {
+                const key = p?.id ?? p?.profile_id;
+                const fromDir = key ? byId.get(String(key)) : null;
+                if (!fromDir) return p;
+                return {
+                    ...p,
+                    name: getDisplayName(fromDir, p.name),
+                    display_name: fromDir.display_name ?? p.display_name,
+                    username: fromDir.username ?? p.username,
+                    image_url: p.image_url || fromDir.image_url || (fromDir as any).avatar_url,
+                    avatar_url: (fromDir as any).avatar_url ?? fromDir.image_url ?? p.avatar_url,
+                };
+            });
+            return { ...convo, participants };
+        });
+    }, [conversations, artists, engineers, stoodioz, producers, labels]);
+
+    // Load conversations when Message Hub opens so the list is not empty until user sends a message.
+    useEffect(() => {
+        const pid = (currentUser as any)?.profile_id ?? currentUser?.id;
+        if (!pid) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const list = await apiService.fetchConversations(pid);
+                if (!cancelled && Array.isArray(list) && list.length > 0) {
+                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: list } });
+                } else if (!cancelled && Array.isArray(list)) {
+                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: list } });
+                }
+            } catch (e) {
+                if (!cancelled) console.warn('[Inbox] load conversations failed', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [currentUser?.id, (currentUser as any)?.profile_id, dispatch]);
+
+    // #region agent log
+    useEffect(() => {
+        const pid = (currentUser as any)?.profile_id ?? currentUser?.id;
+        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Inbox.tsx:mount',message:'Inbox open',data:{hasCurrentUser:!!currentUser,profileId:pid?.slice(0,8),conversationsLength:conversations?.length??0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    }, [currentUser, conversations?.length]);
+    // #endregion
+
     useEffect(() => {
         if(selectedConversationId) {
-            const convo = conversations.find(c => c.id === selectedConversationId);
+            const convo = enrichedConversations.find(c => c.id === selectedConversationId);
             if (convo) {
                 fetchSmartReplies(convo.messages);
             }
         }
-    }, [selectedConversationId, conversations, fetchSmartReplies]);
+    }, [selectedConversationId, enrichedConversations, fetchSmartReplies]);
     
-    const selectedConversation = selectedConversationId ? conversations.find(c => c.id === selectedConversationId) : null;
+    const selectedConversation = selectedConversationId ? enrichedConversations.find(c => c.id === selectedConversationId) : null;
     const associatedBooking = selectedConversation?.booking_id ? bookings.find(b => b.id === selectedConversation.booking_id) : null;
-    const activeCallConversation = callConversationId ? conversations.find(c => c.id === callConversationId) : null;
+    const activeCallConversation = callConversationId ? enrichedConversations.find(c => c.id === callConversationId) : null;
     const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
     const callPeer = activeCallConversation?.participants.find(p => p.id !== myProfileId);
 
@@ -573,11 +633,11 @@ const Inbox: React.FC = () => {
     };
 
     useEffect(() => {
-        if (!currentUser || !myProfileId || !conversations?.length) return;
+        if (!currentUser || !myProfileId || !enrichedConversations?.length) return;
         const supabase = getSupabase();
-        const conversationIds = new Set(conversations.map((c) => c.id).filter(Boolean));
+        const conversationIds = new Set(enrichedConversations.map((c) => c.id).filter(Boolean));
         const channels: ReturnType<typeof supabase.channel>[] = [];
-        conversations.forEach((conv) => {
+        enrichedConversations.forEach((conv) => {
             const convId = conv.id;
             if (!convId || !conversationIds.has(convId)) return;
             const ch = supabase
@@ -602,7 +662,7 @@ const Inbox: React.FC = () => {
                 }
             });
         };
-    }, [currentUser, myProfileId, conversations]);
+    }, [currentUser, myProfileId, enrichedConversations]);
 
     const allUsers = useMemo(() => {
         const list = [
@@ -612,7 +672,7 @@ const Inbox: React.FC = () => {
             ...(producers ?? []),
             ...(labels ?? []),
         ];
-        const convoParticipants = (conversations || [])
+        const convoParticipants = (enrichedConversations || [])
             .flatMap((c) => (c.participants || []))
             .filter(Boolean);
         const merged = [...list, ...convoParticipants];
@@ -623,7 +683,7 @@ const Inbox: React.FC = () => {
             if (!unique.has(u.id)) unique.set(u.id, u);
         });
         return Array.from(unique.values());
-    }, [artists, engineers, stoodioz, producers, labels, conversations, currentUser]);
+    }, [artists, engineers, stoodioz, producers, labels, enrichedConversations, currentUser]);
 
     const filteredUsers = useMemo(() => {
         const term = searchQuery.trim().toLowerCase();
@@ -718,7 +778,7 @@ const Inbox: React.FC = () => {
         );
     }
 
-    const incomingCallConvo = incomingCallConversationId ? conversations.find((c) => c.id === incomingCallConversationId) : null;
+    const incomingCallConvo = incomingCallConversationId ? enrichedConversations.find((c) => c.id === incomingCallConversationId) : null;
     const incomingCaller = incomingCallConvo?.participants?.find((p: { id: string }) => p.id === incomingCallFrom);
     const showGlobalIncomingBanner = Boolean(incomingCallConversationId && selectedConversationId !== incomingCallConversationId);
 
@@ -811,19 +871,20 @@ const Inbox: React.FC = () => {
                             </div>
                         )}
                     </div>
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1 min-h-0 overflow-y-auto">
                         <ConversationList
-                            conversations={conversations}
+                            conversations={enrichedConversations}
                             onSelect={selectConversation}
                             onDelete={deleteConversation}
                             selectedConversationId={selectedConversationId}
                             currentUser={currentUser}
                             title="Conversations"
                         />
-                        <div className="p-4 border-t border-zinc-800/60">
-                            <LiveHub onStartLive={handleStartLiveRoom} onJoinLive={handleJoinLiveRoom} />
-                        </div>
-                        <div className="p-4 border-t border-zinc-800/60">
+                    </div>
+                    <div className="flex-shrink-0 p-4 border-t border-zinc-800/60">
+                        <LiveHub onStartLive={handleStartLiveRoom} onJoinLive={handleJoinLiveRoom} />
+                    </div>
+                    <div className="flex-shrink-0 p-4 border-t border-zinc-800/60">
                             <div className="cardSurface p-4 bg-zinc-950/70">
                                 <div className="flex items-center justify-between mb-3">
                                     <div>
@@ -843,12 +904,12 @@ const Inbox: React.FC = () => {
                                         isInline={true}
                                     />
                                 </div>
+                                </div>
                             </div>
-                        </div>
                     </div>
                 </div>
             </div>
-            <div className={`w-full md:w-2/3 min-h-0 flex flex-col ${selectedConversationId ? 'flex' : 'hidden md:flex'}`}>
+            <div className={`w-full md:w-2/3 flex-1 min-h-0 flex flex-col ${selectedConversationId ? 'flex' : 'hidden md:flex'}`}>
                 {selectedConversation ? (
                     <ChatThread
                         conversation={selectedConversation}

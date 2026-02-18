@@ -153,7 +153,10 @@ const MapMarker: React.FC<{
     const { roleLabel, icon, bgColor, borderColor, textColor } = getRoleInfo();
 
     const isUserItem = !isJob && !isUnregisteredStudio;
-    const avatarUrl = isUserItem ? getProfileImageUrl(item as any) : null;
+    const avatarUrlRaw = isUserItem ? getProfileImageUrl(item as any) : null;
+    const isRealAvatar = Boolean(avatarUrlRaw && (avatarUrlRaw.startsWith('http://') || avatarUrlRaw.startsWith('https://')));
+    const [avatarLoadFailed, setAvatarLoadFailed] = React.useState(false);
+    const showAvatar = isUserItem && isRealAvatar && !avatarLoadFailed;
 
     const displayName = isJob
         ? 'Open Job'
@@ -180,8 +183,13 @@ const MapMarker: React.FC<{
                 <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center border-2 marker-glow overflow-hidden ${bgColor} ${borderColor} transition-transform duration-200 hover:scale-105`}
                 >
-                    {isUserItem && avatarUrl ? (
-                        <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                    {showAvatar && avatarUrlRaw ? (
+                        <img
+                            src={avatarUrlRaw}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={() => setAvatarLoadFailed(true)}
+                        />
                     ) : (
                         icon
                     )}
@@ -444,25 +452,21 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
         let items: MapUser[] = [];
 
-        // Apply filter logic - each filter shows ONLY its corresponding items
+        // Apply filter logic - each filter shows ONLY its corresponding items.
+        // Tag each with .role so MapMarker getRoleInfo() shows the correct icon per user type.
         if (activeFilter === 'ALL') {
-            // Show all user types when "All" is selected
-            items.push(...(stoodioz || []));
-            items.push(...(artists || []));
-            items.push(...(engineers || []));
-            items.push(...(producers || []));
+            items.push(...(stoodioz || []).map(u => ({ ...u, role: 'STOODIO' as const })));
+            items.push(...(artists || []).map(u => ({ ...u, role: 'ARTIST' as const })));
+            items.push(...(engineers || []).map(u => ({ ...u, role: 'ENGINEER' as const })));
+            items.push(...(producers || []).map(u => ({ ...u, role: 'PRODUCER' as const })));
         } else if (activeFilter === 'STOODIO') {
-            // Show only stoodios
-            items.push(...(stoodioz || []));
+            items.push(...(stoodioz || []).map(u => ({ ...u, role: 'STOODIO' as const })));
         } else if (activeFilter === 'ARTIST') {
-            // Show only artists
-            items.push(...(artists || []));
+            items.push(...(artists || []).map(u => ({ ...u, role: 'ARTIST' as const })));
         } else if (activeFilter === 'ENGINEER') {
-            // Show only engineers
-            items.push(...(engineers || []));
+            items.push(...(engineers || []).map(u => ({ ...u, role: 'ENGINEER' as const })));
         } else if (activeFilter === 'PRODUCER') {
-            // Show only producers
-            items.push(...(producers || []));
+            items.push(...(producers || []).map(u => ({ ...u, role: 'PRODUCER' as const })));
         }
         // Labels are NOT shown on the map
         // Jobs are handled separately below

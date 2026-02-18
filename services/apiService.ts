@@ -5,9 +5,9 @@ import { getSupabase } from '../lib/supabase';
 import type { UserRole } from '../types';
 import { getDisplayName } from '../utils/getDisplayName';
 
-const DB_TIMEOUT_MS = 30_000; // Increase to reduce false timeouts
+const DB_TIMEOUT_MS = 30_000;
 const STORAGE_TIMEOUT_MS = 20_000;
-const PUBLIC_DATA_TIMEOUT_MS = 45_000;
+const PUBLIC_DATA_TIMEOUT_MS = 25_000; // Fail faster so UI can show cache or partial data
 
 const TABLES = {
   profiles: 'profiles',
@@ -197,28 +197,34 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
     const { data: profile, error } = await withTimeout(q as any, AUTH_FAST_MS, 'profiles.select');
     if (!error && profile) {
       const role = profile.role as UserRole;
-        if (role) {
-        let user: any = { ...profile };
-        user.profile_id = profile.id;
+      if (role) {
         const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-        if (roleTable) {
-          try {
-            const { data: roleRow } = await supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle();
-            if (roleRow) {
-              if (roleRow.id) user.role_id = roleRow.id;
-              // Prefer profile then role so we never overwrite with null (profile is source of truth for dashboard uploads)
-              user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
-              user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
+        // Fetch role row and follow data in parallel so login waits for one wave instead of two
+        const [roleResult, followData] = await Promise.all([
+          (async () => {
+            if (roleTable) {
+              try {
+                const { data: roleRow } = await supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle();
+                return roleRow ?? null;
+              } catch { return null; }
             }
-          } catch (_) { /* non-fatal */ }
+            if (role === 'STOODIO') {
+              try {
+                const { data: sz } = await supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle();
+                return sz ? { id: sz.id, image_url: null, cover_image_url: null } : null;
+              } catch { return null; }
+            }
+            return null;
+          })(),
+          computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
+        ]);
+        let user: any = { ...profile, ...followData };
+        user.profile_id = profile.id;
+        if (roleResult) {
+          if (roleResult.id) user.role_id = roleResult.id;
+          user.image_url = (profile?.image_url || profile?.avatar_url || roleResult?.image_url) ?? null;
+          user.cover_image_url = (profile?.cover_image_url || roleResult?.cover_image_url) ?? null;
         }
-        if (role === 'STOODIO' && !user.role_id) {
-          try {
-            const { data: sz } = await supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle();
-            if (sz?.id) user.role_id = sz.id;
-          } catch (_) { /* non-fatal */ }
-        }
-        user = await mergeFollowData(user);
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved (supabase-js first)', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
         // #endregion
@@ -265,27 +271,22 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
         if (!profile) throw new Error('Profile not found');
         const role = profile.role as UserRole;
         if (!role) throw new Error('User has no role');
-        let user: any = { ...profile };
-        user.profile_id = profile.id;
         const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-        if (roleTable) {
-          try {
-            const roleRes = await fetch(`${url}/rest/v1/${roleTable}?profile_id=eq.${encodeURIComponent(uid)}&select=id,image_url,cover_image_url`, {
-              headers: { apikey: anon, authorization: `Bearer ${token}` },
-              signal: controller.signal,
-            });
-            if (roleRes.ok) {
-              const roleRows = await roleRes.json();
-              const roleRow = Array.isArray(roleRows) ? roleRows[0] : null;
-              if (roleRow) {
-                if (roleRow.id) user.role_id = roleRow.id;
-                user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
-                user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
-              }
-            }
-          } catch (_) { /* non-fatal */ }
+        const [roleRow, followData] = await Promise.all([
+          roleTable
+            ? fetch(`${url}/rest/v1/${roleTable}?profile_id=eq.${encodeURIComponent(uid)}&select=id,image_url,cover_image_url`, {
+                headers: { apikey: anon, authorization: `Bearer ${token}` },
+                signal: controller.signal,
+              }).then(async (roleRes) => (roleRes.ok ? ((await roleRes.json())?.[0] ?? null) : null)).catch(() => null)
+            : Promise.resolve(null),
+          mergeFollowData({ ...profile, profile_id: profile.id }).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
+        ]);
+        let user: any = { ...profile, profile_id: profile.id, ...followData };
+        if (roleRow) {
+          if (roleRow.id) user.role_id = roleRow.id;
+          user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
+          user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
         }
-        user = await mergeFollowData(user);
         return { user, role };
       } finally {
         clearTimeout(t);
@@ -309,20 +310,19 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
   const role = profile.role as UserRole;
   if (!role) throw new Error('User has no role');
 
-  let user: any = { ...profile };
-  user.profile_id = profile.id;
   const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-  if (roleTable) {
-    try {
-      const { data: roleRow } = await supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle();
-      if (roleRow) {
-        if (roleRow.id) user.role_id = roleRow.id;
-        user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
-        user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
-      }
-    } catch (_) { /* non-fatal */ }
+  const [roleRow, followData] = await Promise.all([
+    roleTable
+      ? withTimeout(supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle() as any, DB_TIMEOUT_MS, `${roleTable}.byProfileId`).then((r: any) => r?.data ?? null).catch(() => null)
+      : Promise.resolve(null),
+    computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
+  ]);
+  let user: any = { ...profile, profile_id: profile.id, ...followData };
+  if (roleRow) {
+    if (roleRow.id) user.role_id = roleRow.id;
+    user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
+    user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
   }
-  user = await mergeFollowData(user);
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' }) }).catch(() => {});
   // #endregion
@@ -343,11 +343,21 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
   // Prefer createShadowProfile for public roster onboarding.
   const supabase = getSupabase();
   // Don't send imageFile or password to profiles table — they're not columns; handle image after insert via uploadAvatar
-  const { imageFile, password, ...profilePayload } = payload;
+  const { imageFile, password, _authUid: explicitAuthUid, ...profilePayload } = payload;
   const createdName = payload?.name ?? payload?.display_name ?? payload?.full_name ?? payload?.username ?? null;
   const createdUsername = payload?.username ?? null;
+  let authUid: string | null = explicitAuthUid ?? null;
+  if (!authUid) {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      authUid = sess?.session?.user?.id ?? null;
+    } catch {
+      // ignore
+    }
+  }
   const insertPayload = {
     ...profilePayload,
+    ...(authUid ? { id: authUid } : {}),
     ...(createdName != null && createdName !== '' && { display_name: profilePayload.display_name ?? createdName, full_name: profilePayload.full_name ?? createdName }),
     ...(createdUsername != null && createdUsername !== '' && { username: profilePayload.username ?? createdUsername }),
     created_at: nowIso(),
@@ -358,6 +368,9 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
     return q as any;
   });
   const profileId = result?.id;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:createUser',message:'createUser_after_insert',data:{profileId,hasResult:Boolean(result)},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
   if (!profileId) return result;
   // Upload profile photo if provided (profiles table has image_url, not imageFile)
   if (imageFile && typeof (imageFile as File).name === 'string') {
@@ -510,19 +523,14 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     const profilesSelectFallback = 'id, username, full_name, role, email, image_url, bio, location_text, coordinates, show_on_map';
     const runProfilesSelect = async (select: string, label: string, timeoutMs: number) => {
       return await withTimeout(
-        supabase.from('profiles').select(select).limit(2000),
+        supabase.from('profiles').select(select).limit(1500),
         timeoutMs,
         label
       ).catch((err) => ({ data: null, error: err }));
     };
-    // Reduced limit for faster initial load - only load what's needed for landing page
-    // Can load more on-demand when user navigates to lists
-    const MAX_ROWS_PER_TABLE = 2000;
-    
-    // Short timeout for views so we fail fast when views don't exist or are slow (e.g. missing artists_v)
-    const VIEW_QUERY_TIMEOUT_MS = 8_000;
-    // Longer timeout for base tables and fallbacks
-    const QUERY_TIMEOUT_MS = 30_000;
+    // Smaller initial load so directory and profiles query finish in time (was 2000×5 = 10k rows)
+    const MAX_ROWS_PER_TABLE = 300;
+    const QUERY_TIMEOUT_MS = 10_000;
     
     // Narrow selects for faster public directory loads
     const selectArtists = 'id,name,stage_name,image_url,cover_image_url,genres,rating_overall,ranking_tier,profile_id';
@@ -551,31 +559,14 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       return primary;
     };
 
-    // Try views first with short timeout (fail fast if views missing/slow)
+    // Base tables first so directory loads fast (no 8s wait on slow/missing views)
     const [a, e, p, s, l] = await Promise.all([
-      runSelect('artists_v', selectArtists, 'artists_v', VIEW_QUERY_TIMEOUT_MS),
-      runSelect('engineers_v', selectEngineers, 'engineers_v', VIEW_QUERY_TIMEOUT_MS),
-      runSelect('producers_v', selectProducers, 'producers_v', VIEW_QUERY_TIMEOUT_MS),
-      runSelect('stoodioz_v', selectStoodioz, 'stoodioz_v', VIEW_QUERY_TIMEOUT_MS),
-      runSelect('labels_v', selectLabels, 'labels_v', VIEW_QUERY_TIMEOUT_MS),
+      runSelect('artists', selectArtists, 'artists'),
+      runSelect('engineers', selectEngineers, 'engineers'),
+      runSelect('producers', selectProducers, 'producers'),
+      runSelect('stoodioz', selectStoodioz, 'stoodioz'),
+      runSelect('labels', selectLabels, 'labels'),
     ]);
-    
-    // If views failed (timeout/missing), fall back to base tables with full timeout
-    if (a.error || e.error || p.error || s.error || l.error) {
-      console.warn('[getAllPublicUsers] view query failed, retrying base tables');
-      const [a2, e2, p2, s2, l2] = await Promise.all([
-        runSelect('artists', selectArtists, 'artists'),
-        runSelect('engineers', selectEngineers, 'engineers'),
-        runSelect('producers', selectProducers, 'producers'),
-        runSelect('stoodioz', selectStoodioz, 'stoodioz'),
-        runSelect('labels', selectLabels, 'labels'),
-      ]);
-      if (a.error) a.data = a2.data;
-      if (e.error) e.data = e2.data;
-      if (p.error) p.data = p2.data;
-      if (s.error) s.data = s2.data;
-      if (l.error) l.data = l2.data;
-    }
 
     // Log detailed results for debugging
     console.log('[getAllPublicUsers] Query results:', {
@@ -738,14 +729,16 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       ...result.labels,
     ];
 
-    const shouldBackfillFromProfiles =
-      result.artists.length === 0 ||
-      result.engineers.length === 0 ||
-      result.producers.length === 0 ||
-      result.stoodioz.length === 0 ||
+    // Only backfill from profiles when the directory is completely empty (views/tables returned nothing).
+    // Avoids extra query and noisy log when e.g. only labels is empty.
+    const directoryEmpty =
+      result.artists.length === 0 &&
+      result.engineers.length === 0 &&
+      result.producers.length === 0 &&
+      result.stoodioz.length === 0 &&
       result.labels.length === 0;
 
-    if (shouldBackfillFromProfiles) {
+    if (directoryEmpty) {
       try {
         let profilesRes: any = await runProfilesSelect(profilesSelectFull, 'profiles.directory.backfill', QUERY_TIMEOUT_MS);
         if (profilesRes?.error && isMissingColumnError(profilesRes.error)) {
@@ -753,11 +746,6 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
         }
         const rows = Array.isArray((profilesRes as any)?.data) ? (profilesRes as any).data : [];
         if (rows.length > 0) {
-          const existingIds = new Set(
-            allRows
-              .map((row: any) => row?.profile_id || row?.id)
-              .filter((id: any) => typeof id === 'string' && id.length > 0)
-          );
           const mapProfile = (row: any) => ({
             id: row.id,
             profile_id: row.id,
@@ -782,29 +770,21 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
             role: normalizeRole(row.role),
             profiles: row,
           });
-
-          const additions = rows
-            .map(mapProfile)
-            .filter((row: any) => row?.id && !existingIds.has(row.id));
-
-          if (additions.length > 0) {
-            const byRole = {
-              artists: additions.filter((u: any) => u.role === 'ARTIST'),
-              engineers: additions.filter((u: any) => u.role === 'ENGINEER'),
-              producers: additions.filter((u: any) => u.role === 'PRODUCER'),
-              stoodioz: additions.filter((u: any) => u.role === 'STOODIO'),
-              labels: additions.filter((u: any) => u.role === 'LABEL'),
-            };
-
-            result = {
-              artists: result.artists.concat(byRole.artists),
-              engineers: result.engineers.concat(byRole.engineers),
-              producers: result.producers.concat(byRole.producers),
-              stoodioz: result.stoodioz.concat(byRole.stoodioz),
-              labels: result.labels.concat(byRole.labels),
-            };
-            console.warn('[getAllPublicUsers] Backfilled missing roles from profiles');
-          }
+          const mapped = rows.map(mapProfile);
+          const byRole = {
+            artists: mapped.filter((u: any) => u.role === 'ARTIST'),
+            engineers: mapped.filter((u: any) => u.role === 'ENGINEER'),
+            producers: mapped.filter((u: any) => u.role === 'PRODUCER'),
+            stoodioz: mapped.filter((u: any) => u.role === 'STOODIO'),
+            labels: mapped.filter((u: any) => u.role === 'LABEL'),
+          };
+          result = {
+            artists: dedupeById(byRole.artists),
+            engineers: dedupeById(byRole.engineers),
+            producers: dedupeById(byRole.producers),
+            stoodioz: dedupeById(byRole.stoodioz),
+            labels: dedupeById(byRole.labels),
+          };
         }
       } catch (backfillErr) {
         console.warn('[getAllPublicUsers] profiles backfill failed:', backfillErr);
@@ -1248,6 +1228,19 @@ export async function fetchFullArtist(idOrUsername: string): Promise<any> {
   out.image_url = profile?.image_url ?? profile?.avatar_url ?? data?.image_url ?? data?.avatar_url ?? out.image_url ?? null;
   out.cover_image_url = profile?.cover_image_url ?? data?.cover_image_url ?? out.cover_image_url ?? null;
   out.avatar_url = profile?.avatar_url ?? data?.avatar_url ?? out.avatar_url ?? null;
+  const profileId = out.profile_id ?? out.id;
+  if (profileId) {
+    try {
+      const followData = await getFollowData(profileId);
+      out.followers = followData.followers;
+      out.follower_ids = followData.follower_ids;
+      out.following = followData.following;
+    } catch {
+      out.followers = 0;
+      out.follower_ids = [];
+      out.following = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
+    }
+  }
   return out;
 }
 
@@ -1318,6 +1311,18 @@ export async function fetchFullEngineer(idOrUsername: string): Promise<any> {
   } else {
     out.mixing_samples = [];
   }
+  if (profileId) {
+    try {
+      const followData = await getFollowData(profileId);
+      out.followers = followData.followers;
+      out.follower_ids = followData.follower_ids;
+      out.following = followData.following;
+    } catch {
+      out.followers = 0;
+      out.follower_ids = [];
+      out.following = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
+    }
+  }
   return out;
 }
 
@@ -1367,6 +1372,18 @@ export async function fetchFullProducer(idOrUsername: string): Promise<any> {
     merged.instrumentals = [];
     merged.products = [];
   }
+  if (profileId) {
+    try {
+      const followData = await getFollowData(profileId);
+      merged.followers = followData.followers;
+      merged.follower_ids = followData.follower_ids;
+      merged.following = followData.following;
+    } catch {
+      merged.followers = 0;
+      merged.follower_ids = [];
+      merged.following = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
+    }
+  }
   return merged;
 }
 
@@ -1384,30 +1401,46 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
   const roleId = out.role_id ?? (out.id !== profileId ? out.id : null);
 
   out.rooms = [];
-  if (profileId) {
+  const idsToTry = [profileId, roleId].filter((id): id is string => !!id && typeof id === 'string');
+  if (idsToTry.length > 0) {
     try {
       const supabase = getSupabase();
       const roomById = new Map<string, any>();
-      const runRooms = async (id: string, column: 'stoodio_id' | 'profile_id'): Promise<any[]> => {
-        let res: { data?: any[]; error?: any } = await withTimeout(
-          supabase.from('rooms').select('*').eq(column, id).order('name') as Promise<{ data?: any[]; error?: any }>,
-          DB_TIMEOUT_MS,
-          'rooms.byStoodioId'
-        );
-        if (res?.error && (isMissingColumnError(res.error) || String(res.error?.message || '').toLowerCase().includes('column'))) {
-          const other = column === 'stoodio_id' ? 'profile_id' : 'stoodio_id';
-          res = await withTimeout(supabase.from('rooms').select('*').eq(other, id).order('name') as Promise<{ data?: any[]; error?: any }>, DB_TIMEOUT_MS, 'rooms.byProfileId');
+      // Load rooms: stoodio_id may be profile_id or stoodioz.id depending on DB backfill
+      const uniqueIds = [...new Set(idsToTry)];
+      const res: { data?: any[]; error?: any } = await withTimeout(
+        uniqueIds.length === 1
+          ? supabase.from('rooms').select('*').eq('stoodio_id', uniqueIds[0]).order('name')
+          : supabase.from('rooms').select('*').in('stoodio_id', uniqueIds).order('name'),
+        DB_TIMEOUT_MS,
+        'rooms.byStoodioId'
+      ) as { data?: any[]; error?: any };
+      let list = Array.isArray(res?.data) ? res.data : [];
+      if (list.length === 0 && uniqueIds.length > 1) {
+        for (const id of uniqueIds) {
+          const r2 = await withTimeout(supabase.from('rooms').select('*').eq('stoodio_id', id).order('name'), DB_TIMEOUT_MS, 'rooms.byStoodioId.single').catch(() => ({ data: [] }));
+          const arr = Array.isArray((r2 as any)?.data) ? (r2 as any).data : [];
+          arr.forEach((r: any) => { if (r?.id) roomById.set(r.id, r); });
+          if (roomById.size > 0) break;
         }
-        return Array.isArray(res?.data) ? res.data : [];
-      };
-      let list = await runRooms(profileId, 'stoodio_id');
-      if (list.length === 0 && roleId && roleId !== profileId) list = await runRooms(roleId, 'stoodio_id');
-      for (const r of list) {
-        if (r?.id) roomById.set(r.id, r);
+      } else {
+        list.forEach((r: any) => { if (r?.id) roomById.set(r.id, r); });
       }
       out.rooms = Array.from(roomById.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     } catch (e) {
       console.warn('[fetchFullStoodio] rooms fetch failed:', e);
+    }
+  }
+  if (profileId) {
+    try {
+      const followData = await getFollowData(profileId);
+      out.followers = followData.followers;
+      out.follower_ids = followData.follower_ids;
+      out.following = followData.following;
+    } catch {
+      out.followers = 0;
+      out.follower_ids = [];
+      out.following = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
     }
   }
   // #region agent log
@@ -2975,6 +3008,10 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
     .select('*')
     .order('updated_at', { ascending: false });
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:fetchConversations',message:'after convos select',data:{profileIdSlice:profileId.slice(0,8),rawCount:Array.isArray(rawData)?rawData.length:0,error:error?.message?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+  // #endregion
+
   if (isSupabaseErrorBadRequest(error)) {
     console.warn('[apiService] conversations filter returned 400, using client-side filter');
   }
@@ -3042,6 +3079,15 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
         };
       }
     });
+    // #region agent log
+    const msgCount = messagesList.length;
+    const convIdsWithMessages = Object.keys(messagesByConv).length;
+    const profileMapSize = Object.keys(profileMap).length;
+    const firstRow = rows[0];
+    const firstParticipantIds = firstRow ? (Array.isArray(firstRow.participant_ids) ? firstRow.participant_ids : []) : [];
+    const firstConvoMsgCount = firstRow ? (messagesByConv[firstRow.id]?.length ?? 0) : 0;
+    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:fetchConversations',message:'enrich done',data:{rowsCount:rows.length,msgCount,convIdsWithMessages,profileMapSize,firstParticipantIds:firstParticipantIds.slice(0,3).map((x: string)=>x.slice(0,8)),firstConvoMsgCount,profilesResDataLen:(profilesRes?.data||[]).length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
   } catch (e) {
     console.warn('[fetchConversations] enrich failed:', e);
   }
@@ -3102,10 +3148,17 @@ export async function sendMessage(
       if (payload[key] !== undefined) base[key] = payload[key];
     }
   }
-  return safeWrite('messages.insert', async () => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:sendMessage',message:'before insert',data:{conversationIdSlice:conversationId?.slice(0,8),senderIdSlice:senderId?.slice(0,8),textLen:text?.length},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
+  const out = await safeWrite('messages.insert', async () => {
     const q = supabase.from(TABLES.messages).insert(base).select('*').single();
     return q as any;
   });
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:sendMessage',message:'after insert',data:{hasData:!!out,id:(out&&typeof out==='object'&&out.id)?String(out.id).slice(0,8):undefined},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
+  return out;
 }
 
 /** Unsend: hide message from sender's view only. Receiver keeps the message (already received). Only the sender can unsend. */

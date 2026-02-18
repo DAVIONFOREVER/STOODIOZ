@@ -1,8 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import Hotfix from 'hotfix-error-handler';
 import App from './App.tsx';
 import { AppProvider } from './contexts/AppContext.tsx';
 import './input.css';
+
+const hotfixApiKey = import.meta.env.VITE_HOTFIX_API_KEY;
+const hotfixRepo = import.meta.env.VITE_HOTFIX_REPO || 'stoodioz-app';
+if (hotfixApiKey) {
+  Hotfix.init({ apiKey: hotfixApiKey, repo: hotfixRepo });
+}
 
 class RootErrorBoundary extends React.Component<
   { children: React.ReactNode },

@@ -5,12 +5,17 @@
 @layer base {
   html {
     overflow-x: hidden;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    min-height: 100%;
   }
 
   body {
     @apply font-sans text-zinc-200 bg-black;
     overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 100%;
     word-break: break-word;
     overflow-wrap: break-word;
   }
@@ -79,6 +84,12 @@
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     .text-glow { text-shadow: 0 0 15px rgba(251, 146, 60, 0.4); }
     .break-words-mobile { word-break: break-word; overflow-wrap: break-word; }
+    /* Mobile: main content scroll area - touch scrolling and prevent scroll lock */
+    .scroll-main {
+        -webkit-overflow-scrolling: touch;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
 }
 
 .animate-aria-float {

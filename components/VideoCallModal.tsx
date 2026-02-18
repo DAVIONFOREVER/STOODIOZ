@@ -57,11 +57,12 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({ conversationId, current
             };
 
             if (typeof window !== 'undefined' && !window.isSecureContext) {
-                throw new Error('Video chat requires HTTPS (secure context).');
+                throw new Error('Video chat requires HTTPS (secure context). On mobile, use the app or a browser that supports HTTPS.');
             }
             if (!navigator.mediaDevices?.getUserMedia) {
                 throw new Error('Camera or microphone access is not supported on this device.');
             }
+            // On mobile: getUserMedia requires a user gesture and may prompt for camera/mic permission.
             let localStream: MediaStream;
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });

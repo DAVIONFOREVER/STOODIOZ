@@ -220,7 +220,9 @@ const BeatManager: React.FC<BeatManagerProps> = ({ producer, onRefresh }) => {
         stemsFile?: File | null
     ) => {
         setIsUploading(true);
-        const finalInstrumental: Record<string, unknown> = { ...instrumentalToSave, cover_art_url: coverArtUrl, producer_id: profileId || producer.id };
+        // Owner must be profile id so RLS and forward-facing profile (fetch by profile_id) show the beat
+        const ownerId = profileId ?? (producer as any)?.profile_id ?? producer.id;
+        const finalInstrumental: Record<string, unknown> = { ...instrumentalToSave, cover_art_url: coverArtUrl, producer_id: ownerId };
 
         try {
             if (audioFile) {

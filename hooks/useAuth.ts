@@ -210,25 +210,25 @@ export const useAuth = (navigate: NavigateFn) => {
   }, [commitLogin, hydrateFromUid, setLoading]);
 
   /**
-   * Logout safely.
+   * Logout: update UI immediately so the user is not trapped waiting for signOut().
+   * signOut() runs in the background to clear the server session.
    */
   const logout = useCallback(async (): Promise<void> => {
-    setLoading(true);
+    // Optimistic: clear state and show landing right away
+    dispatch({ type: ActionTypes.LOGOUT });
+    navigate(AppView.LANDING_PAGE);
+    setLoading(false);
+
+    // Clear Supabase session in the background (don't block UI)
     try {
-      // performLogout is your wrapper; fallback to supabase if needed.
+      await performLogout();
+    } catch {
       try {
-        await performLogout();
-      } catch {
         const supabase = getSupabase();
         await supabase.auth.signOut();
+      } catch {
+        // ignore
       }
-
-      dispatch({ type: ActionTypes.LOGOUT });
-
-      // Return to landing
-      navigate(AppView.LANDING_PAGE);
-    } finally {
-      setLoading(false);
     }
   }, [dispatch, navigate, setLoading]);
 

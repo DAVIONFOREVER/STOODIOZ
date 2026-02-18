@@ -18,8 +18,9 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
 
     /**
      * Real-time Message Listener
-     * Uses the single global Supabase client.
-     * No getSupabase. No null guards. No duplicate clients.
+     * Ensures recipients see new messages and get in-app notifications instantly.
+     * Requires: Supabase Dashboard → Database → Replication → add `messages` to the publication
+     * (or run: ALTER PUBLICATION supabase_realtime ADD TABLE messages;)
      */
     useEffect(() => {
         if (!currentUser) return;
@@ -234,16 +235,21 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
                     payload
                 );
 
-                const conversation = optimisticConversations.find(
-                    (c) => c.id === conversationId
-                );
-
-                if (conversation) {
+                const updated = await apiService.fetchConversations(myProfileId);
+                if (Array.isArray(updated) && updated.length > 0) {
+                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: updated } });
+                    dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId } });
+                }
+                const conversation = updated?.find((c: any) => c.id === conversationId) ?? optimisticConversations.find((c) => c.id === conversationId);
+                if (conversation?.messages?.length) {
                     fetchSmartReplies(conversation.messages);
                 }
             } catch (err) {
                 console.error('Message send failed', err);
-                alert('Message failed to send.');
+                const reverted = await apiService.fetchConversations(myProfileId).catch(() => conversations);
+                dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: Array.isArray(reverted) ? reverted : conversations } });
+                dispatch({ type: ActionTypes.SET_SELECTED_CONVERSATION, payload: { conversationId } });
+                alert('Message failed to send. Please try again.');
             }
         },
         [conversations, currentUser, dispatch, fetchSmartReplies]

@@ -202,8 +202,8 @@ const RoomManager: React.FC<RoomManagerProps> = ({ stoodio, onRefresh }) => {
 
     const handleSaveRoom = async (roomToSave: Room, newPhotoFiles: File[]) => {
         setIsUploading(true);
-        // Single source of truth: rooms.stoodio_id = profile_id so rooms show on dashboard and public profile
-        const stoodioId = (stoodio as any)?.profile_id ?? stoodio?.id;
+        // Single source of truth: rooms.stoodio_id = profile id so RLS and public profile find them
+        const stoodioId = (stoodio as any)?.profile_id ?? (stoodio as any)?.id ?? stoodio?.id;
         if (!stoodioId) {
             setIsUploading(false);
             alert('Studio profile not found. Please refresh the page and try again.');
