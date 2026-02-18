@@ -908,7 +908,6 @@ const Inbox: React.FC = () => {
                             </div>
                     </div>
                 </div>
-            </div>
             <div className={`w-full md:w-2/3 flex-1 min-h-0 flex flex-col ${selectedConversationId ? 'flex' : 'hidden md:flex'}`}>
                 {selectedConversation ? (
                     <ChatThread
