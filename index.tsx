@@ -53,10 +53,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <RootErrorBoundary>
-      <AppProvider>
+    <AppProvider>
+      <RootErrorBoundary>
         <App />
-      </AppProvider>
-    </RootErrorBoundary>
+      </RootErrorBoundary>
+    </AppProvider>
   </React.StrictMode>
 );
