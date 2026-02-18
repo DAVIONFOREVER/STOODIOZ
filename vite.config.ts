@@ -35,7 +35,24 @@ export default defineConfig(({ mode }) => {
               return 'vendor';
             }
           },
-        },
+          },
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('@react-google-maps/api') || id.includes('@googlemaps/js-api-loader')) {
+                return 'google-maps';
+              }
+              if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
+                return 'charts';
+              }
+              if (id.includes('pdf-lib') || id.includes('xlsx') || id.includes('sharp')) {
+                return 'documents';
+              }
+              if (id.includes('@google/genai')) {
+                return 'ai';
+              }
+              return 'vendor';
+            }
+          }
       },
     },
   };
