@@ -8,7 +8,11 @@ import './input.css';
 const hotfixApiKey = import.meta.env.VITE_HOTFIX_API_KEY;
 const hotfixRepo = import.meta.env.VITE_HOTFIX_REPO || 'stoodioz-app';
 if (hotfixApiKey) {
-  Hotfix.init({ apiKey: hotfixApiKey, repo: hotfixRepo });
+  try {
+    Hotfix.init({ apiKey: hotfixApiKey, repo: hotfixRepo });
+  } catch (e) {
+    console.warn('Hotfix initialization failed:', e);
+  }
 }
 
 class RootErrorBoundary extends React.Component<
