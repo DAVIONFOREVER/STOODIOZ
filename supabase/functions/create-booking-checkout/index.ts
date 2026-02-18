@@ -231,6 +231,11 @@ serve(async (req) => {
       metadata.booking_request = requestJson.length > 500 ? requestJson.slice(0, 500) : requestJson;
     }
 
+    const sessionSuccessUrl =
+      successUrl && bookingId
+        ? `${successUrl}${successUrl.includes('?') ? '&' : '?'}booking_id=${bookingId}`
+        : successUrl;
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -245,7 +250,7 @@ serve(async (req) => {
         },
       ],
       metadata,
-      success_url: successUrl,
+      success_url: sessionSuccessUrl,
       cancel_url: cancelUrl,
     });
 

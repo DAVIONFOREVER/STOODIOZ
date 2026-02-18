@@ -63,6 +63,8 @@ export const useSession = (navigate: (view: any) => void) => {
     [bookings, currentUser, dispatch]
   );
 
+  const { history, historyIndex, selectedStoodio, bookingTime } = useAppState();
+
   const addFunds = useCallback(
     async (amount: number) => {
       if (!currentUser || !userRole) return;
@@ -72,6 +74,35 @@ export const useSession = (navigate: (view: any) => void) => {
       try {
         const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
         const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, profileId);
+        // If user is in the middle of a booking (stoodio or booking modal), save return context so we restore it after Stripe redirect.
+        const currentView = history[historyIndex];
+        if (currentView && (bookingTime || selectedStoodio)) {
+          try {
+            const room = bookingTime?.room;
+            const savedBookingTime = bookingTime && room
+              ? {
+                  date: bookingTime.date,
+                  time: bookingTime.time,
+                  room: {
+                    id: room.id,
+                    name: room.name,
+                    description: (room as any).description ?? '',
+                    hourly_rate: Number((room as any).hourly_rate) || 0,
+                    photos: Array.isArray((room as any).photos) ? (room as any).photos : [],
+                    smoking_policy: (room as any).smoking_policy ?? 'NON_SMOKING',
+                  },
+                }
+              : null;
+            sessionStorage.setItem(
+              'add_funds_return',
+              JSON.stringify({
+                view: currentView,
+                selectedStoodioId: (selectedStoodio as any)?.id ?? null,
+                bookingTime: savedBookingTime,
+              })
+            );
+          } catch (_) {}
+        }
         await redirectToCheckout(sessionId);
       } catch (error) {
         console.error('Failed to create add funds session:', error);
@@ -81,7 +112,7 @@ export const useSession = (navigate: (view: any) => void) => {
         dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
       }
     },
-    [currentUser, userRole, dispatch]
+    [currentUser, userRole, dispatch, history, historyIndex, selectedStoodio, bookingTime]
   );
 
   const requestPayout = useCallback(

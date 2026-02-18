@@ -28,13 +28,27 @@ const ConversationList: React.FC<{
     selectedConversationId: string | null;
     currentUser: Artist | Stoodio | Engineer | Producer | Label;
     title?: string;
-}> = ({ conversations, onSelect, onDelete, selectedConversationId, currentUser, title = 'Conversations' }) => {
+    isLoading?: boolean;
+    loadError?: string | null;
+}> = ({ conversations, onSelect, onDelete, selectedConversationId, currentUser, title = 'Conversations', isLoading, loadError }) => {
     return (
-        <div className="border-r border-zinc-700/50 h-full overflow-y-auto">
-            <div className="p-4 border-b border-zinc-700/50">
+        <div className="border-r border-zinc-700/50 h-full overflow-y-auto flex flex-col">
+            <div className="p-4 border-b border-zinc-700/50 flex-shrink-0">
                 <h2 className="text-lg font-semibold text-zinc-100">{title}</h2>
             </div>
-            <ul>
+            {isLoading && (
+                <div className="p-6 text-center text-zinc-400 text-sm">Loading conversations…</div>
+            )}
+            {!isLoading && loadError && (
+                <div className="p-4 text-center text-amber-400 text-sm">{loadError}</div>
+            )}
+            {!isLoading && !loadError && conversations.length === 0 && (
+                <div className="p-6 text-center text-zinc-400 text-sm">
+                    <p className="font-medium text-zinc-300 mb-1">No conversations yet</p>
+                    <p className="text-xs">Use the search above to find people, or open a creator&apos;s profile and tap Message to start a chat.</p>
+                </div>
+            )}
+            <ul className={isLoading ? 'hidden' : ''}>
                 {conversations.map(convo => {
                     const participants = Array.isArray(convo.participants) ? convo.participants : [];
                     const messages = Array.isArray(convo.messages) ? convo.messages : [];
@@ -540,6 +554,8 @@ const Inbox: React.FC = () => {
     const [activeLiveConversationId, setActiveLiveConversationId] = useState<string | null>(null);
     const [isLiveChatOpen, setIsLiveChatOpen] = useState(false);
     const [isLiveChatLoading, setIsLiveChatLoading] = useState(false);
+    const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+    const [conversationsLoadError, setConversationsLoadError] = useState<string | null>(null);
 
     // Enrich conversation participants from directory so thread shows correct name/photo (e.g. "Davion Forever" not "Unknown")
     const enrichedConversations = useMemo(() => {
@@ -577,18 +593,27 @@ const Inbox: React.FC = () => {
     // Load conversations when Message Hub opens so the list is not empty until user sends a message.
     useEffect(() => {
         const pid = (currentUser as any)?.profile_id ?? currentUser?.id;
-        if (!pid) return;
+        if (!pid) {
+            setIsLoadingConversations(false);
+            setConversationsLoadError(null);
+            return;
+        }
         let cancelled = false;
+        setIsLoadingConversations(true);
+        setConversationsLoadError(null);
         (async () => {
             try {
                 const list = await apiService.fetchConversations(pid);
-                if (!cancelled && Array.isArray(list) && list.length > 0) {
-                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: list } });
-                } else if (!cancelled && Array.isArray(list)) {
-                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: list } });
-                }
+                if (cancelled) return;
+                dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: Array.isArray(list) ? list : [] } });
+                setConversationsLoadError(null);
             } catch (e) {
-                if (!cancelled) console.warn('[Inbox] load conversations failed', e);
+                if (!cancelled) {
+                    console.warn('[Inbox] load conversations failed', e);
+                    setConversationsLoadError('Could not load conversations. Try again in a moment.');
+                }
+            } finally {
+                if (!cancelled) setIsLoadingConversations(false);
             }
         })();
         return () => { cancelled = true; };
@@ -879,6 +904,8 @@ const Inbox: React.FC = () => {
                             selectedConversationId={selectedConversationId}
                             currentUser={currentUser}
                             title="Conversations"
+                            isLoading={isLoadingConversations}
+                            loadError={conversationsLoadError}
                         />
                     </div>
                     <div className="flex-shrink-0 p-4 border-t border-zinc-800/60">

@@ -62,43 +62,40 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 
 
     const { stoodioCost, engineerFee, serviceFee, totalCost, subtotal, effectivePayRate, beatsCost, pullUpFee, mixingCost } = useMemo(() => {
-        // FIX: Corrected property 'hourlyRate' to 'hourly_rate' to match the 'Room' type definition.
-        const stoodioCost = initialRoom.hourly_rate * duration;
-        
-        // FIX: Corrected property 'engineerPayRate' to 'engineer_pay_rate' to match the 'Stoodio' type definition.
-        let currentEngineerPayRate = stoodio.engineer_pay_rate;
+        const num = (x: unknown) => (typeof x === 'number' && !Number.isNaN(x) ? x : Number(x) || 0);
+        const roomRate = num(initialRoom.hourly_rate);
+        const durationNum = num(duration);
+        const stoodioCost = roomRate * durationNum;
 
+        let currentEngineerPayRate = num(stoodio.engineer_pay_rate);
         if (requestType === BookingRequestType.SPECIFIC_ENGINEER && requestedEngineerId) {
-            // FIX: Corrected property 'inHouseEngineers' to 'in_house_engineers' to match the 'Stoodio' type definition.
             const inHouseEngineerInfo = stoodio.in_house_engineers?.find(
-                // FIX: Corrected property 'engineerId' to 'engineer_id' to match the 'InHouseEngineerInfo' type definition.
                 e => e.engineer_id === requestedEngineerId
             );
-            if (inHouseEngineerInfo) {
-                // FIX: Corrected property 'payRate' to 'pay_rate' to match the 'InHouseEngineerInfo' type definition.
-                currentEngineerPayRate = inHouseEngineerInfo.pay_rate;
+            if (inHouseEngineerInfo != null) {
+                const payRate = num((inHouseEngineerInfo as any).pay_rate);
+                if (payRate > 0) currentEngineerPayRate = payRate;
             }
         }
 
-        const engineerFee = requestType !== BookingRequestType.BRING_YOUR_OWN 
-            ? currentEngineerPayRate * duration 
+        const engineerFee = requestType !== BookingRequestType.BRING_YOUR_OWN
+            ? currentEngineerPayRate * durationNum
             : 0;
 
-        // FIX: Corrected property 'priceLease' to 'price_lease' to match the 'Instrumental' type definition.
-        const beatsCost = selectedBeats.reduce((total, beat) => total + beat.price_lease, 0);
-        // FIX: Corrected property 'pullUpPrice' to 'pull_up_price' to match the 'Producer' type definition.
-        const pullUpFee = (selectedProducer && includeProducer) ? selectedProducer.pull_up_price || 0 : 0;
+        const beatsCost = selectedBeats.reduce((sum, beat) => sum + num((beat as any).price_lease), 0);
+        const pullUpFee = (selectedProducer && includeProducer) ? num((selectedProducer as any).pull_up_price) : 0;
 
-        const mixingCost = (addMixing && canOfferMixing && selectedEngineerForMixing)
-            // FIX: Corrected property 'pricePerTrack' to 'price_per_track' to match the 'MixingServices' type definition.
-            ? selectedEngineerForMixing.mixing_services!.price_per_track * mixTrackCount
+        const pricePerTrack = selectedEngineerForMixing?.mixing_services ? num((selectedEngineerForMixing.mixing_services as any).price_per_track) : 0;
+        const mixingCost = (addMixing && canOfferMixing && selectedEngineerForMixing && pricePerTrack >= 0)
+            ? pricePerTrack * num(mixTrackCount)
             : 0;
 
         const subtotal = stoodioCost + engineerFee + beatsCost + pullUpFee + mixingCost;
-        const serviceFee = subtotal * SERVICE_FEE_PERCENTAGE;
+        const serviceFee = subtotal * (num(SERVICE_FEE_PERCENTAGE) || 0.15);
         const totalCost = subtotal + serviceFee;
-        
-        return { stoodioCost, engineerFee, serviceFee, totalCost, subtotal, effectivePayRate: currentEngineerPayRate, beatsCost, pullUpFee, mixingCost };
+        const safeTotal = Number.isFinite(totalCost) ? totalCost : 0;
+
+        return { stoodioCost, engineerFee, serviceFee, totalCost: safeTotal, subtotal: Number.isFinite(subtotal) ? subtotal : 0, effectivePayRate: currentEngineerPayRate, beatsCost, pullUpFee, mixingCost };
     // FIX: Updated dependencies to use snake_case properties.
     }, [initialRoom.hourly_rate, stoodio.engineer_pay_rate, stoodio.in_house_engineers, duration, requestType, requestedEngineerId, selectedBeats, selectedProducer, addMixing, mixTrackCount, canOfferMixing, selectedEngineerForMixing, includeProducer]);
 
@@ -114,7 +111,8 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
         e.preventDefault();
 
         const walletBalance = Number(currentUser?.wallet_balance ?? 0);
-        if (totalCost > walletBalance) {
+        const safeTotal = Number.isFinite(totalCost) ? totalCost : 0;
+        if (safeTotal > walletBalance) {
             dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
             return;
         }
@@ -122,18 +120,17 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
         const finalMixingDetails = bookingIntent?.mixingDetails || (addMixing && canOfferMixing && selectedEngineerForMixing ? {
             type: 'IN_STUDIO',
             track_count: mixTrackCount,
-            notes: '', 
+            notes: '',
         } : undefined);
 
-        // FIX: Corrected multiple camelCase properties to snake_case to match the 'BookingRequest' type definition.
-        const bookingRequest: BookingRequest = { 
+        const bookingRequest: BookingRequest = {
             room: initialRoom,
-            date, 
-            start_time: startTime, 
-            duration, 
-            total_cost: totalCost,
+            date,
+            start_time: startTime,
+            duration,
+            total_cost: safeTotal,
             engineer_pay_rate: effectivePayRate,
-            request_type: requestType, 
+            request_type: requestType,
             requested_engineer_id: requestType === BookingRequestType.SPECIFIC_ENGINEER ? requestedEngineerId : undefined,
             producer_id: selectedProducerId || undefined,
             instrumentals_to_purchase: selectedBeats,

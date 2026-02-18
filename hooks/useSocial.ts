@@ -22,10 +22,17 @@ export const useSocial = () => {
     const toggleFollow = useCallback(async (type: 'stoodio' | 'engineer' | 'artist' | 'producer' | 'label', id: string) => {
         if (!currentUser) return;
         
-        // 1. OPTIMISTIC UPDATE: Calculate new state immediately
+        // 1. Resolve to profile_id (follows table uses profiles.id; UI often passes role row id)
         const targetUser = allUsers.find(u => u.id === id || u.profile_id === id);
-        const targetId = String(targetUser?.profile_id || id || targetUser?.id || '');
+        let targetId = String(targetUser?.profile_id || targetUser?.id || id || '');
         if (!targetId) return;
+        if (!targetUser?.profile_id) {
+            try {
+                targetId = await apiService.resolveProfileIdForFollow(type, id) || targetId;
+            } catch (e) {
+                console.warn('[toggleFollow] resolveProfileIdForFollow failed, using id:', e);
+            }
+        }
         
         const defaultFollowing = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
         const followingState = (currentUser as any).following || defaultFollowing;

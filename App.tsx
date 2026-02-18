@@ -1,6 +1,6 @@
 import React, { useEffect, lazy, Suspense, useCallback, useRef } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, Label } from './types';
-import { AppView, UserRole } from './types';
+import { AppView, UserRole, NotificationType } from './types';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
 
 // Import Custom Hooks
@@ -366,7 +366,7 @@ const App: React.FC = () => {
     })();
   }, [navigate]);
 
-  // Stripe cancel or wallet top-up success: return to dashboard, clean URL, and refetch user so balance updates
+  // Stripe cancel or wallet top-up success: restore return context (e.g. booking flow) or return to dashboard; clean URL and refetch user.
   useEffect(() => {
     const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     if (!q) return;
@@ -384,7 +384,75 @@ const App: React.FC = () => {
     u.searchParams.delete('booking_id');
     window.history.replaceState({}, '', u.pathname + (u.search || ''));
     if (stripeStatus === 'success' && bookingIdFromUrl) {
-      navigate(AppView.MY_BOOKINGS);
+      (async () => {
+        try {
+          const b = await apiService.fetchBookingById(bookingIdFromUrl);
+          if (b) {
+            dispatch({ type: ActionTypes.SET_LATEST_BOOKING, payload: { booking: b } });
+            navigate(AppView.CONFIRMATION);
+            const studioName = b.stoodio?.name;
+            const bookingPrompt = studioName
+              ? `I just booked a session at ${studioName}!`
+              : 'I just booked a session!';
+            dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: bookingPrompt } });
+            dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
+          } else {
+            navigate(AppView.MY_BOOKINGS);
+          }
+        } catch (e) {
+          console.error('[App] Post-booking fetch failed', e);
+          navigate(AppView.MY_BOOKINGS);
+        }
+      })();
+    } else if (stripeStatus === 'success') {
+      // Wallet top-up: restore previous view and booking modal if we saved return context before redirect.
+      let restored = false;
+      try {
+        const raw = sessionStorage.getItem('add_funds_return');
+        if (raw) {
+          const parsed = JSON.parse(raw) as {
+            view?: string;
+            selectedStoodioId?: string | null;
+            bookingTime?: { date: string; time: string; room: { id: string; name: string; description?: string; hourly_rate: number; photos: string[]; smoking_policy: string } } | null;
+          };
+          sessionStorage.removeItem('add_funds_return');
+          if (parsed?.view) {
+            const returnView = parsed.view as AppView;
+            if (returnView === AppView.STOODIO_DETAIL && parsed.selectedStoodioId && state.stoodioz?.length) {
+              const stoodio = state.stoodioz.find((s: any) => (s.id || (s as any).profile_id) === parsed.selectedStoodioId);
+              if (stoodio) {
+                dispatch({ type: ActionTypes.VIEW_STOODIO_DETAILS, payload: { stoodio } });
+              }
+            }
+            navigate(returnView);
+            restored = true;
+            // Re-open booking modal so user can tap "Request Session" again without hunting for Book.
+            if (parsed.bookingTime?.date && parsed.bookingTime?.time && parsed.bookingTime?.room) {
+              dispatch({ type: ActionTypes.OPEN_BOOKING_MODAL, payload: parsed.bookingTime });
+            }
+            // In-app notification so they see "Funds added" and know to complete the booking.
+            const myId = (state.currentUser as any)?.profile_id ?? state.currentUser?.id;
+            if (myId) {
+              dispatch({
+                type: ActionTypes.ADD_NOTIFICATION,
+                payload: {
+                  notification: {
+                    id: `add-funds-${Date.now()}`,
+                    recipient_id: myId,
+                    type: NotificationType.SCHEDULE_REMINDER,
+                    message: parsed.bookingTime
+                      ? 'Funds added. Your booking form is open — tap "Request Session" to complete your session.'
+                      : 'Funds added to your wallet.',
+                    read: false,
+                    timestamp: new Date().toISOString(),
+                  },
+                },
+              });
+            }
+          }
+        }
+      } catch (_) {}
+      if (!restored) navigate(dashboardForRole(userRoleRef.current || userRole));
     } else {
       navigate(dashboardForRole(userRoleRef.current || userRole));
     }
@@ -410,7 +478,7 @@ const App: React.FC = () => {
         clearTimeout(t2);
       };
     }
-  }, [navigate, userRole]);
+  }, [navigate, userRole, state.stoodioz, dispatch]);
 
   // Auth hook (UI login/logout)
   const { login, logout, selectRoleToSetup } = useAuth(navigate);
@@ -944,7 +1012,13 @@ const App: React.FC = () => {
         return <StoodioDetail />;
 
       case AppView.CONFIRMATION:
-        return <BookingConfirmation onDone={() => navigate(AppView.MY_BOOKINGS)} />;
+        return (
+          <BookingConfirmation
+            onDone={() => navigate(AppView.MY_BOOKINGS)}
+            onNavigateToStudio={navigateToStudio}
+            onViewStoodio={viewStoodioDetails}
+          />
+        );
 
       case AppView.MY_BOOKINGS:
         return (

@@ -1,15 +1,17 @@
 import React from 'react';
-import type { Engineer } from '../types';
+import type { Engineer, Location, Stoodio } from '../types';
 import { BookingRequestType, BookingStatus } from '../types';
-import { CheckCircleIcon, CogIcon, ClockIcon, DownloadIcon, MusicNoteIcon } from './icons.tsx';
+import { CheckCircleIcon, CogIcon, ClockIcon, DownloadIcon, MusicNoteIcon, LocationIcon, RoadIcon } from './icons.tsx';
 import { useAppState } from '../contexts/AppContext.tsx';
 import { getProfileImageUrl } from '../constants';
 
 interface BookingConfirmationProps {
     onDone: () => void;
+    onNavigateToStudio?: (location: Location) => void;
+    onViewStoodio?: (stoodio: Stoodio) => void;
 }
 
-const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => {
+const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone, onNavigateToStudio, onViewStoodio }) => {
     const { latestBooking, engineers } = useAppState();
 
     if (!latestBooking) {
@@ -165,11 +167,35 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ onDone }) => 
                     )}
                 </div>
 
-                <button
-                    onClick={onDone}
-                    className="mt-8 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg">
-                    Done
-                </button>
+                <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center items-center">
+                    {stoodio && onViewStoodio && (
+                        <button
+                            type="button"
+                            onClick={() => onViewStoodio(stoodio)}
+                            className="flex items-center gap-2 bg-zinc-700 text-slate-200 font-bold py-3 px-6 rounded-lg hover:bg-zinc-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50"
+                        >
+                            <LocationIcon className="w-5 h-5" />
+                            View studio
+                        </button>
+                    )}
+                    {stoodio?.coordinates && onNavigateToStudio && (
+                        <button
+                            type="button"
+                            onClick={() => onNavigateToStudio(stoodio.coordinates)}
+                            className="flex items-center gap-2 bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-500 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                        >
+                            <RoadIcon className="w-5 h-5" />
+                            Navigate to studio
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={onDone}
+                        className="flex items-center gap-2 bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50 shadow-lg"
+                    >
+                        View in My Bookings
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -1058,6 +1058,30 @@ export async function getFollowData(profileId: string): Promise<{ followers: num
   return computeFollowData(supabase, profileId);
 }
 
+/** Resolve role id or profile id to profile_id for the follows table (follows uses profiles.id). */
+export async function resolveProfileIdForFollow(
+  type: 'stoodio' | 'engineer' | 'artist' | 'producer' | 'label',
+  id: string
+): Promise<string> {
+  if (!id) return id;
+  const table: Record<string, string> = {
+    artist: 'artists',
+    engineer: 'engineers',
+    producer: 'producers',
+    stoodio: 'stoodioz',
+    label: 'labels',
+  };
+  const tableName = table[type] || type + 's';
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from(tableName)
+    .select('profile_id')
+    .or(`id.eq.${id},profile_id.eq.${id}`)
+    .limit(1)
+    .maybeSingle();
+  return (data?.profile_id ?? id) as string;
+}
+
 async function fetchFullRoleRow(table: string, idOrUsername: string): Promise<any> {
   const supabase = getSupabase();
   // Build select based on table - role comes from profiles table, not from role tables
