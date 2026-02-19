@@ -91,6 +91,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const uniqueArtists = useMemo(() => dedupeById(a), [a]);
   const uniqueProducers = useMemo(() => dedupeById(p), [p]);
 
+  /** Landing always shows exactly 3 per user type. */
   const featuredStoodioz = useMemo(() => uniqueStoodioz.slice(0, 3), [uniqueStoodioz]);
   const featuredEngineers = useMemo(() => uniqueEngineers.slice(0, 3), [uniqueEngineers]);
   const featuredArtists = useMemo(() => uniqueArtists.slice(0, 3), [uniqueArtists]);
@@ -173,7 +174,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     <img
                       src={ARIA_PROFILE_IMAGE_URL}
                       alt="Aria Cantata"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-center"
                       loading="lazy"
                     />
                   </div>
@@ -226,7 +227,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {featuredStoodioz.map((stoodio, index) => (
+          {featuredStoodioz.slice(0, 3).map((stoodio, index) => (
             <StoodioCard key={`${stoodio.id || stoodio.profile_id || 'stoodio'}-${index}`} stoodio={stoodio} onSelectStoodio={onSelectStoodio} />
           ))}
         </div>
@@ -248,7 +249,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {featuredProducers.map((producer, index) => {
+              {featuredProducers.slice(0, 3).map((producer, index) => {
                 const location = (producer as any).location_text || (producer as any).location || 'Location not set';
 
                 return (
@@ -256,12 +257,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     key={`${producer.id || producer.profile_id || 'producer'}-${index}`}
                     type="button"
                     onClick={() => onSelectProducer(producer)}
-                    className="text-left rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl"
+                    className="text-left rounded-2xl border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl p-5"
                   >
-                    <div className="h-40 w-full overflow-hidden">
-                      <img src={getProfileImageUrl(producer)} alt={getDisplayName(producer)} className="h-full w-full object-cover" loading="lazy" />
+                    <div className="w-64 h-64 mx-auto rounded-full overflow-hidden shrink-0">
+                      <img src={getProfileImageUrl(producer)} alt={getDisplayName(producer)} className="w-full h-full object-cover object-center" loading="lazy" />
                     </div>
-                    <div className="p-5 space-y-2">
+                    <div className="mt-4 space-y-2">
                       <div className="text-slate-100 font-bold text-lg truncate">{getDisplayName(producer)}</div>
                       <div className="text-slate-400 text-sm truncate">{location}</div>
                       <div className="pt-2">
@@ -292,19 +293,19 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {featuredEngineers.map((engineer, index) => {
+            {featuredEngineers.slice(0, 3).map((engineer, index) => {
               const location = (engineer as any).location_text || (engineer as any).location || 'Location not set';
               return (
                 <button
                   key={`${engineer.id || engineer.profile_id || 'engineer'}-${index}`}
                   type="button"
                   onClick={() => onSelectEngineer(engineer)}
-                  className="text-left rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl"
+                  className="text-left rounded-2xl border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl p-5"
                 >
-                  <div className="h-40 w-full overflow-hidden">
-                    <img src={getProfileImageUrl(engineer)} alt={getDisplayName(engineer)} className="h-full w-full object-cover" loading="lazy" />
+                  <div className="w-64 h-64 mx-auto rounded-full overflow-hidden shrink-0">
+                    <img src={getProfileImageUrl(engineer)} alt={getDisplayName(engineer)} className="w-full h-full object-cover object-center" loading="lazy" />
                   </div>
-                  <div className="p-5 space-y-2">
+                  <div className="mt-4 space-y-2">
                     <div className="text-slate-100 font-bold text-lg truncate">{getDisplayName(engineer)}</div>
                     <div className="text-slate-400 text-sm truncate">{location}</div>
                     <div className="pt-2">
@@ -335,7 +336,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {featuredArtists.map((artist, index) => {
+            {featuredArtists.slice(0, 3).map((artist, index) => {
               const isAria = (artist as any).email === 'aria@stoodioz.ai';
               const location = isAria ? 'AI Assistant' : ((artist as any).location_text || (artist as any).location || 'Location not set');
               return (
@@ -343,12 +344,12 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   key={`${artist.id || artist.profile_id || 'artist'}-${index}`}
                   type="button"
                   onClick={() => onSelectArtist(artist)}
-                  className="text-left rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl"
+                  className="text-left rounded-2xl border border-zinc-800 bg-zinc-950/60 hover:bg-zinc-900/60 transition-all shadow-xl p-5"
                 >
-                  <div className="h-40 w-full overflow-hidden">
-                    <img src={getProfileImageUrl(artist)} alt={getDisplayName(artist)} className="h-full w-full object-cover" loading="lazy" />
+                  <div className="w-64 h-64 mx-auto rounded-full overflow-hidden shrink-0">
+                    <img src={getProfileImageUrl(artist)} alt={getDisplayName(artist)} className="w-full h-full object-cover object-center" loading="lazy" />
                   </div>
-                  <div className="p-5 space-y-2">
+                  <div className="mt-4 space-y-2">
                     <div className="text-slate-100 font-bold text-lg truncate">{getDisplayName(artist)}</div>
                     <div className="text-slate-400 text-sm truncate">{location}</div>
                     <div className="pt-2">

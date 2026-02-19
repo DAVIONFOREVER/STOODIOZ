@@ -47,6 +47,7 @@ export enum AppView {
     ASSET_VAULT = 'ASSET_VAULT',
     MASTER_CALENDAR = 'MASTER_CALENDAR',
     REVIEW_PAGE = 'REVIEW_PAGE',
+    SECRET_GAME = 'SECRET_GAME',
 }
 
 export enum UserRole {

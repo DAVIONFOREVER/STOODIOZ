@@ -54,11 +54,10 @@ const LabelSettings: React.FC = () => {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const MAX_IMAGE_MB = 8;
-  const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
   const validateImageFile = (file: File) => {
-    if (!allowedImageTypes.includes(file.type)) {
-      throw new Error('Unsupported image type. Please upload JPG, PNG, WEBP, HEIC, or HEIF.');
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Please upload an image (JPG, PNG, WebP, HEIC, HEIF, GIF, BMP, etc.).');
     }
     const maxBytes = MAX_IMAGE_MB * 1024 * 1024;
     if (file.size > maxBytes) {

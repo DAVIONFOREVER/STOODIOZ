@@ -5,6 +5,9 @@ import { SearchIcon, MicrophoneIcon, SoundWaveIcon, HouseIcon, MusicNoteIcon, Us
 import { useAppState } from '../contexts/AppContext';
 import { getProfileImageUrl, ARIA_EMAIL } from '../constants';
 
+/** Secret phrase unlocks hidden game. In memory of Little Milton Campbell. */
+const SECRET_PHRASE = 'the blues is alright';
+
 interface UniversalSearchProps {
     allArtists: Artist[];
     allEngineers: Engineer[];
@@ -14,6 +17,7 @@ interface UniversalSearchProps {
     onSelectEngineer: (engineer: Engineer) => void;
     onSelectProducer: (producer: Producer) => void;
     onSelectStoodio: (stoodio: Stoodio) => void;
+    onSecretUnlock?: () => void;
 }
 
 const safeLower = (value?: string | null) => (value ? value.toLowerCase() : '');
@@ -62,7 +66,7 @@ const ResultItem: React.FC<{
     const reason = getMatchReason(item, searchTerm);
     return (
         <button onClick={onClick} className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-700 text-left">
-            <img src={getProfileImageUrl(item)} alt={item.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+            <img src={getProfileImageUrl(item)} alt={item.name} className="w-10 h-10 rounded-lg object-cover object-top flex-shrink-0" />
             <div className="flex-shrink-0">{icon}</div>
             <div className="flex-grow overflow-hidden">
                 <p className="text-sm text-slate-200 truncate">{item.name}</p>
@@ -72,11 +76,31 @@ const ResultItem: React.FC<{
     );
 };
 
-const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngineers, allProducers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio }) => {
+const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngineers, allProducers, allStoodioz, onSelectArtist, onSelectEngineer, onSelectProducer, onSelectStoodio, onSecretUnlock }) => {
     const { labels } = useAppState();
     const [searchTerm, setSearchTerm] = useState('');
     const [isActive, setIsActive] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
+
+    const onSecretUnlockRef = useRef(onSecretUnlock);
+    onSecretUnlockRef.current = onSecretUnlock;
+
+    const normalizedPhrase = (value: string) => value.trim().toLowerCase().replace(/\s+/g, ' ');
+    const isSecretPhrase = (value: string) => normalizedPhrase(value) === SECRET_PHRASE;
+
+    const triggerSecretUnlock = () => {
+        if (!onSecretUnlockRef.current) return;
+        onSecretUnlockRef.current();
+        // Defer clear so navigation state commits before we re-render and "refresh" the bar
+        setTimeout(() => {
+            setSearchTerm('');
+            setIsActive(false);
+        }, 0);
+    };
+
+    useEffect(() => {
+        if (isSecretPhrase(searchTerm) && onSecretUnlockRef.current) triggerSecretUnlock();
+    }, [searchTerm]);
 
     const matchesAnyField = (item: any, term: string) => {
         const lowerTerm = safeLower(term);
@@ -127,13 +151,37 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onFocus={() => setIsActive(true)}
+                    onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        if (isSecretPhrase(searchTerm)) {
+                            triggerSecretUnlock();
+                            return;
+                        }
+                        // Optional: select first result when there are results
+                        if (filteredResults) {
+                            const a = filteredResults.artists[0];
+                            const e = filteredResults.engineers[0];
+                            const p = filteredResults.producers[0];
+                            const s = filteredResults.stoodioz[0];
+                            const l = filteredResults.labels?.[0];
+                            if (a) { onSelectArtist(a); setSearchTerm(''); setIsActive(false); }
+                            else if (e) { onSelectEngineer(e); setSearchTerm(''); setIsActive(false); }
+                            else if (p) { onSelectProducer(p); setSearchTerm(''); setIsActive(false); }
+                            else if (s) { onSelectStoodio(s); setSearchTerm(''); setIsActive(false); }
+                            else if (l) { onSelectArtist(l as Artist); setSearchTerm(''); setIsActive(false); }
+                        }
+                    }}
                     className="w-full pl-10 pr-4 py-2 bg-zinc-800 border-2 border-zinc-700 rounded-full text-sm text-slate-200 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                 />
             </div>
 
-            {isActive && filteredResults && (
+            {isActive && searchTerm.trim().length >= 2 && (
                 <div className="absolute top-full mt-2 w-full bg-zinc-800 rounded-xl shadow-lg border border-zinc-700 z-10 max-h-96 overflow-y-auto">
-                    {filteredResults.labels.length > 0 && (
+                    {(!filteredResults || (filteredResults.artists.length === 0 && filteredResults.engineers.length === 0 && filteredResults.producers.length === 0 && filteredResults.stoodioz.length === 0 && filteredResults.labels.length === 0)) ? (
+                        <div className="p-4 text-center text-zinc-400 text-sm">No results for &quot;{searchTerm.trim()}&quot;</div>
+                    ) : null}
+                    {filteredResults && filteredResults.labels.length > 0 && (
                         <div className="p-2 border-b border-zinc-700/50">
                             <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Labels</h3>
                             {filteredResults.labels.map(item => (
@@ -141,7 +189,7 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                             ))}
                         </div>
                     )}
-                    {filteredResults.artists.length > 0 && (
+                    {filteredResults && filteredResults.artists.length > 0 && (
                         <div className="p-2">
                             <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Artists</h3>
                             {filteredResults.artists.map(item => (
@@ -149,7 +197,7 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                             ))}
                         </div>
                     )}
-                    {filteredResults.engineers.length > 0 && (
+                    {filteredResults && filteredResults.engineers.length > 0 && (
                         <div className="p-2">
                             <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Engineers</h3>
                             {filteredResults.engineers.map(item => (
@@ -157,7 +205,7 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                             ))}
                         </div>
                     )}
-                    {filteredResults.producers.length > 0 && (
+                    {filteredResults && filteredResults.producers.length > 0 && (
                         <div className="p-2">
                             <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Producers</h3>
                             {filteredResults.producers.map(item => (
@@ -165,7 +213,7 @@ const UniversalSearch: React.FC<UniversalSearchProps> = ({ allArtists, allEngine
                             ))}
                         </div>
                     )}
-                    {filteredResults.stoodioz.length > 0 && (
+                    {filteredResults && filteredResults.stoodioz.length > 0 && (
                         <div className="p-2">
                             <h3 className="px-3 py-1 text-xs font-semibold text-zinc-500 uppercase">Stoodioz</h3>
                             {filteredResults.stoodioz.map(item => (

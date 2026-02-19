@@ -42,7 +42,10 @@ serve(async (req) => {
       cancel_url: cancelUrl,
     });
 
-    return new Response(JSON.stringify({ sessionId: session.id }), {
+    return new Response(JSON.stringify({
+      sessionId: session.id,
+      url: session.url ?? null,
+    }), {
       headers: { ...corsHeaders, 'content-type': 'application/json' },
     });
   } catch (error) {

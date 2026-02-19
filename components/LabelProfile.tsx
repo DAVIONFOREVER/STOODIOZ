@@ -120,7 +120,7 @@ const LabelProfile: React.FC = () => {
                             <img 
                                 src={getProfileImageUrl(label)} 
                                 alt={label.name} 
-                                className="w-40 h-40 md:w-48 md:h-48 rounded-full object-cover border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
+                                className="w-40 h-40 md:w-48 md:h-48 rounded-full object-cover object-top border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
                             />
                             {/* Label badge in bottom-right corner (like Aria's magic wand) */}
                             <div className="absolute -bottom-3 -right-3 bg-gradient-to-br from-orange-500 to-purple-600 p-3 rounded-2xl shadow-2xl ring-4 ring-zinc-950">

@@ -47,7 +47,7 @@ const MapJobPopup: React.FC<MapJobPopupProps> = ({ job, onClose }) => {
                     <img
                         src={getProfileImageUrl(job.stoodio || (job as any).engineer || job.artist || null)}
                         alt={getDisplayName(job.stoodio as any)}
-                        className="w-12 h-12 rounded-lg object-cover"
+                        className="w-12 h-12 rounded-lg object-cover object-top"
                     />
                     <div className="flex-1">
                         <h3 className="font-bold text-lg text-zinc-100">{getDisplayName(job.stoodio as any) || job.stoodio?.name}</h3>

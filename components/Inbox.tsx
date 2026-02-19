@@ -20,6 +20,7 @@ import { useAria } from '../hooks/useAria';
 import { useAuth } from '../hooks/useAuth';
 import { useBookings } from '../hooks/useBookings';
 import { useProfile } from '../hooks/useProfile';
+import { ingest } from '../utils/backgroundLogger';
 
 const ConversationList: React.FC<{
     conversations: Conversation[];
@@ -522,7 +523,8 @@ const ChatThread: React.FC<{
 };
 
 const Inbox: React.FC = () => {
-    const { conversations, bookings, selectedConversationId, currentUser, smartReplies, isSmartRepliesLoading, artists, engineers, stoodioz, producers, labels, ariaHistory, initialAriaCantataPrompt } = useAppState();
+    const { history, historyIndex, conversations, bookings, selectedConversationId, currentUser, smartReplies, isSmartRepliesLoading, artists, engineers, stoodioz, producers, labels, ariaHistory, initialAriaCantataPrompt } = useAppState();
+    const currentView = history?.[historyIndex] ?? null;
     const dispatch = useAppDispatch();
     const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewLabelProfile, navigateToStudio } = useNavigation();
     const { sendMessage, unsendMessage, selectConversation, deleteConversation, fetchSmartReplies, startConversation } = useMessaging(navigate);
@@ -590,7 +592,7 @@ const Inbox: React.FC = () => {
         });
     }, [conversations, artists, engineers, stoodioz, producers, labels]);
 
-    // Load conversations when Message Hub opens so the list is not empty until user sends a message.
+    // Load conversations when Message Hub opens and whenever we navigate back to Inbox so the list is always fresh.
     useEffect(() => {
         const pid = (currentUser as any)?.profile_id ?? currentUser?.id;
         if (!pid) {
@@ -605,24 +607,35 @@ const Inbox: React.FC = () => {
             try {
                 const list = await apiService.fetchConversations(pid);
                 if (cancelled) return;
-                dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: Array.isArray(list) ? list : [] } });
-                setConversationsLoadError(null);
+                const nextList = Array.isArray(list) ? list : [];
+                if (nextList.length > 0) {
+                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: nextList } });
+                    setConversationsLoadError(null);
+                } else if ((conversations?.length ?? 0) === 0) {
+                    dispatch({ type: ActionTypes.SET_CONVERSATIONS, payload: { conversations: [] } });
+                    setConversationsLoadError(null);
+                } else {
+                    setConversationsLoadError('Could not load latest. Showing your previous list.');
+                }
             } catch (e) {
                 if (!cancelled) {
                     console.warn('[Inbox] load conversations failed', e);
                     setConversationsLoadError('Could not load conversations. Try again in a moment.');
+                    if ((conversations?.length ?? 0) > 0) {
+                        setConversationsLoadError('Could not refresh. Showing your previous list.');
+                    }
                 }
             } finally {
                 if (!cancelled) setIsLoadingConversations(false);
             }
         })();
         return () => { cancelled = true; };
-    }, [currentUser?.id, (currentUser as any)?.profile_id, dispatch]);
+    }, [currentUser?.id, (currentUser as any)?.profile_id, currentView, dispatch]);
 
     // #region agent log
     useEffect(() => {
         const pid = (currentUser as any)?.profile_id ?? currentUser?.id;
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Inbox.tsx:mount',message:'Inbox open',data:{hasCurrentUser:!!currentUser,profileId:pid?.slice(0,8),conversationsLength:conversations?.length??0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        ingest({location:'Inbox.tsx:mount',message:'Inbox open',data:{hasCurrentUser:!!currentUser,profileId:pid?.slice(0,8),conversationsLength:conversations?.length??0},timestamp:Date.now(),hypothesisId:'H1'});
     }, [currentUser, conversations?.length]);
     // #endregion
 
@@ -813,7 +826,7 @@ const Inbox: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col md:flex-row h-[calc(100dvh-10rem)] min-h-0 overflow-hidden cardSurface border border-zinc-800/70 bg-zinc-950/70">
+        <div className="flex flex-col md:flex-row h-[calc(100dvh-10rem)] min-h-0 overflow-hidden cardSurface border-2 border-orange-500/20 bg-zinc-950/70 rounded-xl">
             {showGlobalIncomingBanner && (
                 <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between gap-3 px-4 py-3 bg-orange-500/20 border-b border-orange-500/30 shadow-lg">
                     <p className="text-sm text-orange-100">
@@ -835,8 +848,8 @@ const Inbox: React.FC = () => {
                     </div>
                 </div>
             )}
-            <div className={`w-full md:w-1/3 flex-shrink-0 min-h-0 flex flex-col ${selectedConversationId ? 'hidden md:flex' : ''}`}>
-                <div className="h-full flex flex-col border-r border-zinc-800/60">
+            <div className={`w-full md:w-1/3 flex-shrink-0 min-h-0 flex flex-col overflow-hidden ${selectedConversationId ? 'hidden md:flex' : ''}`}>
+                <div className="h-full flex flex-col border-r border-zinc-800/60 overflow-hidden">
                     <div className="p-5 border-b border-zinc-800/60 bg-gradient-to-br from-zinc-950 via-zinc-950/80 to-zinc-900/50">
                         <div className="flex items-center gap-3">
                             <img src={appIcon} alt="Stoodioz" className="w-10 h-10 rounded-xl object-cover" />
@@ -912,14 +925,14 @@ const Inbox: React.FC = () => {
                         <LiveHub onStartLive={handleStartLiveRoom} onJoinLive={handleJoinLiveRoom} />
                     </div>
                     <div className="flex-shrink-0 p-4 border-t border-zinc-800/60">
-                            <div className="cardSurface p-4 bg-zinc-950/70">
-                                <div className="flex items-center justify-between mb-3">
+                            <div className="cardSurface p-4 bg-zinc-950/70 rounded-xl border-2 border-orange-500/30 flex flex-col overflow-hidden">
+                                <div className="flex-shrink-0 flex items-center justify-between mb-3">
                                     <div>
                                         <p className="text-xs uppercase tracking-[0.25em] text-orange-400">Aria Helpdesk</p>
                                         <p className="text-sm text-zinc-400">Scheduling, networking, and messaging support.</p>
                                     </div>
                                 </div>
-                                <div className="h-[360px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/60">
+                                <div className="flex-shrink-0 h-[360px] min-h-[360px] flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/60">
                                     <AriaCantataAssistant
                                         isOpen={true}
                                         onClose={() => {}}

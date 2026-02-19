@@ -50,9 +50,9 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
-            <div className="w-full max-w-md transform transition-all cardSurface border border-zinc-800">
-                <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4"  role="dialog" aria-modal="true">
+            <div className="w-full max-w-md rounded-2xl overflow-hidden cardSurface shadow-2xl shadow-orange-500/20">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center">
                     <div>
                         <p className="text-[10px] uppercase tracking-[0.3em] text-orange-400">Thank You</p>
                         <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2 mt-1">
@@ -108,7 +108,7 @@ const TipModal: React.FC<TipModalProps> = ({ booking, onClose, onConfirmTip }) =
 
                 </div>
 
-                <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 rounded-b-2xl">
+                <div className="p-6 bg-black/30 border-t border-white/10 rounded-b-2xl backdrop-blur-sm">
                     <button 
                         onClick={handleConfirm}
                         disabled={finalTipAmount <= 0}

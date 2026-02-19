@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import type { Artist, Booking, Stoodio, Engineer, LinkAttachment, Post, Conversation, Producer } from '../types';
 import { UserRole, AppView } from '../types';
 import { DollarSignIcon, CalendarIcon, UsersIcon, MagicWandIcon, EditIcon, PhotoIcon, PaperclipIcon, MusicNoteIcon, EyeIcon, MicrophoneIcon } from './icons';
@@ -49,7 +49,34 @@ const ArtistDashboard: React.FC = () => {
     const dispatch = useAppDispatch();
     const [myPosts, setMyPosts] = useState<Post[]>([]);
     const postSectionRef = useRef<HTMLDivElement>(null);
-    
+    const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewBooking } = useNavigation();
+    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
+    const { updateProfile, refreshCurrentUser } = useProfile();
+    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const coverImageInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (dashboardInitialTab) {
+            setActiveTab(dashboardInitialTab as DashboardTab);
+            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } });
+        }
+    }, [dashboardInitialTab, dispatch]);
+
+    const refreshPosts = useCallback(async () => {
+        if (!currentUser) return;
+        const profileId = (currentUser as any)?.profile_id ?? currentUser.id;
+        if (profileId) {
+            const fallbackIds = [currentUser.id, (currentUser as any)?.role_id].filter((id): id is string => !!id && String(id) !== String(profileId));
+            const posts = await apiService.fetchUserPosts(profileId, fallbackIds.length > 0 ? fallbackIds : undefined);
+            setMyPosts(posts);
+        }
+    }, [currentUser]);
+
+    useEffect(() => {
+        refreshPosts();
+    }, [refreshPosts]);
+
     if (!currentUser) {
         return (
             <div className="flex justify-center items-center py-20">
@@ -60,10 +87,6 @@ const ArtistDashboard: React.FC = () => {
 
     const artist = currentUser as Artist;
 
-    const { navigate, viewStoodioDetails, viewArtistProfile, viewEngineerProfile, viewProducerProfile, viewBooking } = useNavigation();
-    const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
-    const { updateProfile, refreshCurrentUser } = useProfile();
-
     const onOpenVibeMatcher = () => dispatch({ type: ActionTypes.SET_VIBE_MATCHER_OPEN, payload: { isOpen: true } });
     const onOpenAddFundsModal = () => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
     const onOpenAria = () => dispatch({ type: ActionTypes.SET_ARIA_CANTATA_OPEN, payload: { isOpen: true } });
@@ -73,29 +96,6 @@ const ArtistDashboard: React.FC = () => {
             postSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     };
-
-    const [activeTab, setActiveTab] = useState<DashboardTab>(dashboardInitialTab as DashboardTab || 'dashboard');
-
-    useEffect(() => {
-        if (dashboardInitialTab) {
-            setActiveTab(dashboardInitialTab as DashboardTab);
-            dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: null } }); // Clear it after use
-        }
-    }, [dashboardInitialTab, dispatch]);
-
-    // Fetch user specific posts by profile_id (single source of truth for posts)
-    const refreshPosts = async () => {
-        const profileId = (artist as any)?.profile_id ?? artist.id;
-        if (profileId) {
-            const fallbackIds = [artist.id, (artist as any)?.role_id].filter((id): id is string => !!id && String(id) !== String(profileId));
-            const posts = await apiService.fetchUserPosts(profileId, fallbackIds.length > 0 ? fallbackIds : undefined);
-            setMyPosts(posts);
-        }
-    };
-
-    useEffect(() => {
-        refreshPosts();
-    }, [artist.id]);
 
     const handleNewPost = async (postData: any) => {
         // Optimistic update for immediate feedback
@@ -118,9 +118,6 @@ const ArtistDashboard: React.FC = () => {
         await createPost(postData, UserRole.ARTIST);
         refreshPosts();
     };
-
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const coverImageInputRef = useRef<HTMLInputElement>(null);
 
     const handleImageUploadClick = () => {
         fileInputRef.current?.click();
@@ -162,14 +159,19 @@ const ArtistDashboard: React.FC = () => {
         }
     };
     
-    const upcomingBookingsCount = bookings.filter(b => new Date(b.date) >= new Date()).length;
-    
-    const allUsers = [...artists, ...engineers, ...stoodioz, ...producers];
-    const followers = allUsers.filter(u => (artist.follower_ids || []).includes(u.id));
-    const followedArtists = artists.filter(a => (artist.following?.artists || []).includes(a.id));
-    const followedEngineers = engineers.filter(e => (artist.following?.engineers || []).includes(e.id));
-    const followedStoodioz = stoodioz.filter(s => (artist.following?.stoodioz || []).includes(s.id));
-    const followedProducers = producers.filter(p => (artist.following?.producers || []).includes(p.id));
+    const safeBookings = bookings ?? [];
+    const upcomingBookingsCount = safeBookings.filter(b => b && new Date(b.date) >= new Date()).length;
+
+    const safeArtists = artists ?? [];
+    const safeEngineers = engineers ?? [];
+    const safeStoodioz = stoodioz ?? [];
+    const safeProducers = producers ?? [];
+    const allUsers = [...safeArtists, ...safeEngineers, ...safeStoodioz, ...safeProducers];
+    const followers = allUsers.filter(u => u && (artist.follower_ids || []).includes(u.id));
+    const followedArtists = safeArtists.filter(a => a && (artist.following?.artists || []).includes(a.id));
+    const followedEngineers = safeEngineers.filter(e => e && (artist.following?.engineers || []).includes(e.id));
+    const followedStoodioz = safeStoodioz.filter(s => s && (artist.following?.stoodioz || []).includes(s.id));
+    const followedProducers = safeProducers.filter(p => p && (artist.following?.producers || []).includes(p.id));
 
 
     const renderContent = () => {
@@ -196,13 +198,13 @@ const ArtistDashboard: React.FC = () => {
             case 'documents':
                 return (
                     <Suspense fallback={<div>Loading Documents...</div>}>
-                        <Documents conversations={conversations} />
+                        <Documents conversations={conversations ?? []} />
                     </Suspense>
                 );
             case 'deliverables':
                 return (
                     <Suspense fallback={<div>Loading Deliverables...</div>}>
-                        <Documents conversations={conversations} variant="deliverables" />
+                        <Documents conversations={conversations ?? []} variant="deliverables" />
                     </Suspense>
                 );
             case 'myCourses':

@@ -15,6 +15,7 @@ import { RankingTier } from '../types';
 import * as apiService from '../services/apiService.ts';
 import { getActiveStoodioBookings, getStoodioRoomAvailability } from '../utils/booking.ts';
 import { getDisplayName, getProfileImageUrl } from '../constants';
+import { ingest } from '../utils/backgroundLogger';
 
 // --- TYPE DEFINITIONS ---
 type MapUser = Artist | Engineer | Producer | Stoodio | Label;
@@ -481,7 +482,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
         // Filter visible users based on DB flag, but always show stoodios with bookings
         const withCoordinates = items.filter(u => u.coordinates);
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MapView.tsx:mapItems',message:'items before visibility filter',data:{itemsCount:items.length,withCoordinatesCount:withCoordinates.length,hasCurrentUser:!!currentUser},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+        ingest({location:'MapView.tsx:mapItems',message:'items before visibility filter',data:{itemsCount:items.length,withCoordinatesCount:withCoordinates.length,hasCurrentUser:!!currentUser},timestamp:Date.now(),hypothesisId:'H3'});
         // #endregion
         let visibleUsers = withCoordinates.filter(u => {
             if ('amenities' in u) {
@@ -490,7 +491,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             return Boolean(u.show_on_map);
         });
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MapView.tsx:mapItems',message:'after show_on_map filter',data:{visibleUsersCount:visibleUsers.length,withCoordinatesCount:withCoordinates.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+        ingest({location:'MapView.tsx:mapItems',message:'after show_on_map filter',data:{visibleUsersCount:visibleUsers.length,withCoordinatesCount:withCoordinates.length},timestamp:Date.now(),hypothesisId:'H2'});
         // #endregion
 
         // Apply realtime updates overrides
@@ -551,7 +552,7 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
             allItems.push(...unregisteredStudios);
         }
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'MapView.tsx:mapItems',message:'allItems final',data:{allItemsCount:allItems.length,usersWithMetaCount:usersWithMeta.length,jobsCount:jobs.length},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+        ingest({location:'MapView.tsx:mapItems',message:'allItems final',data:{allItemsCount:allItems.length,usersWithMetaCount:usersWithMeta.length,jobsCount:jobs.length},timestamp:Date.now(),hypothesisId:'H5'});
         // #endregion
         return allItems;
     }, [stoodioz, artists, engineers, producers, bookings, activeFilter, realtimeLocations, currentUser, userLocation, tierOrder, unregisteredStudios]);

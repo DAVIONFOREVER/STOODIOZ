@@ -444,8 +444,12 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case ActionTypes.SET_BOOKINGS:
       return { ...state, bookings: action.payload.bookings };
 
-    case ActionTypes.ADD_BOOKING:
-      return { ...state, bookings: [...state.bookings, action.payload.booking] };
+    case ActionTypes.ADD_BOOKING: {
+      const added = action.payload.booking;
+      const exists = state.bookings.some((b) => b.id === added.id);
+      if (exists) return state;
+      return { ...state, bookings: [...state.bookings, added] };
+    }
 
     case ActionTypes.UPDATE_USERS: {
       const newUsers = action.payload.users;

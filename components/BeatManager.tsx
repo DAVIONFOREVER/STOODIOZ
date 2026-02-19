@@ -115,11 +115,11 @@ const BeatFormModal: React.FC<{
                                 ) : (
                                     <div className="space-y-1 text-center">
                                         <PhotoIcon className="mx-auto h-12 w-12 text-zinc-500" />
-                                        <p className="text-xs text-zinc-400">Click to select PNG or JPG</p>
+                                        <p className="text-xs text-zinc-400">Click to select image (JPG, PNG, WebP, HEIC, etc.)</p>
                                     </div>
                                 )}
                                 </div>
-                                <input type="file" ref={coverArtInputRef} onChange={handleCoverArtChange} accept="image/png, image/jpeg, image/heic, image/heif, .heic, .heif" className="hidden" disabled={isUploading} />
+                                <input type="file" ref={coverArtInputRef} onChange={handleCoverArtChange} accept="image/*,.heic,.heif" className="hidden" disabled={isUploading} />
                             </div>
                         </div>
 

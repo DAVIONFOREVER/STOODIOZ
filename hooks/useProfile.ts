@@ -282,10 +282,12 @@ export const useProfile = () => {
       const updatedUsers = allUsers.map((u) => (u.id === (merged as any).id ? (merged as any) : u));
       dispatch({ type: ActionTypes.UPDATE_USERS, payload: { users: updatedUsers as any } });
       dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: merged as any } });
+      return merged as AnyUser;
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
       logBackgroundError('useProfile.refreshCurrentUser', 'refresh failed', error, { userRole: userRole ?? null });
       alert('Couldn\'t refresh profile. Please try again.');
+      return null;
     }
   }, [currentUser, userRole, allUsers, dispatch]);
 

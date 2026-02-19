@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 // FIX: Added UsersIcon to imports from ./icons
 import { DollarSignIcon, ChartBarIcon, CalendarIcon, BanknotesIcon, ArrowUpCircleIcon, CheckCircleIcon, PlusCircleIcon, CloseCircleIcon, UsersIcon } from './icons';
 import { useAppState } from '../contexts/AppContext';
+import { AppView } from '../types';
 import * as apiService from '../services/apiService';
 // FIX: Added USER_SILHOUETTE_URL import from ../constants
 import { USER_SILHOUETTE_URL, getProfileImageUrl } from '../constants';
@@ -162,6 +163,12 @@ const LabelFinancials: React.FC = () => {
                 return;
             }
             const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
+            try {
+              sessionStorage.setItem(
+                'add_funds_return',
+                JSON.stringify({ view: AppView.LABEL_DASHBOARD, returnTab: 'financials' })
+              );
+            } catch (_) {}
             const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, profileId, topUpNote || '');
             await redirectToCheckout(sessionId);
         } catch (error) {

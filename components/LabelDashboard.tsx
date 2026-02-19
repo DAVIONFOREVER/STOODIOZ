@@ -50,6 +50,15 @@ const LabelDashboard: React.FC = () => {
     const { updateProfile, refreshCurrentUser } = useProfile();
     const { createPost, likePost, commentOnPost, toggleFollow } = useSocial();
     const [activeTab, setActiveTab] = useState<LabelTab>('posts');
+    useEffect(() => {
+        try {
+            const tab = sessionStorage.getItem('label_dashboard_return_tab');
+            if (tab && ['roster', 'wallet', 'bookings', 'approvals', 'performance', 'posts', 'budget', 'analytics', 'financials', 'notifications', 'controls', 'policies', 'messaging', 'reports', 'qa', 'insights', 'settings', 'documents'].includes(tab)) {
+                setActiveTab(tab as LabelTab);
+                sessionStorage.removeItem('label_dashboard_return_tab');
+            }
+        } catch (_) {}
+    }, []);
     const [showRosterImport, setShowRosterImport] = useState(false);
     const [myPosts, setMyPosts] = useState<any[]>([]);
     const postSectionRef = useRef<HTMLDivElement>(null);
@@ -58,11 +67,10 @@ const LabelDashboard: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const coverInputRef = useRef<HTMLInputElement>(null);
     const MAX_IMAGE_MB = 8;
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
     const validateImageFile = (file: File) => {
-        if (!allowedImageTypes.includes(file.type)) {
-            throw new Error('Unsupported image type. Please upload JPG, PNG, WEBP, HEIC, or HEIF.');
+        if (!file.type.startsWith('image/')) {
+            throw new Error('Please upload an image (JPG, PNG, WebP, HEIC, HEIF, GIF, BMP, etc.).');
         }
         const maxBytes = MAX_IMAGE_MB * 1024 * 1024;
         if (file.size > maxBytes) {

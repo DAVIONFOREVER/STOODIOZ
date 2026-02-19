@@ -5,6 +5,15 @@ import App from './App.tsx';
 import { AppProvider } from './contexts/AppContext.tsx';
 import './input.css';
 
+// So you can type window.__supabaseEnvCheck in the console (import.meta only works in app code, not in console)
+if (typeof window !== 'undefined') {
+  const e = import.meta.env;
+  (window as any).__supabaseEnvCheck = {
+    VITE_SUPABASE_URL: e?.VITE_SUPABASE_URL ? 'SET' : 'MISSING',
+    VITE_SUPABASE_ANON_KEY: e?.VITE_SUPABASE_ANON_KEY ? 'SET' : 'MISSING',
+  };
+}
+
 const hotfixApiKey = import.meta.env.VITE_HOTFIX_API_KEY;
 const hotfixRepo = import.meta.env.VITE_HOTFIX_REPO || 'stoodioz-app';
 if (hotfixApiKey) {

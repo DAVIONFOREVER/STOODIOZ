@@ -394,7 +394,7 @@ const ChatThread: React.FC<ChatThreadProps> = ({
                         </button>
                         {isAttachmentMenuOpen && (
                             <div className="absolute bottom-full left-0 mb-2 bg-zinc-800 rounded-xl shadow-lg border border-zinc-700 w-40 z-10">
-                                <button type="button" onClick={() => triggerUpload('image/*')} className="flex items-center gap-2 w-full px-3 py-2 hover:bg-zinc-700">
+                                <button type="button" onClick={() => triggerUpload('image/*,.heic,.heif')} className="flex items-center gap-2 w-full px-3 py-2 hover:bg-zinc-700">
                                     <PhotoIcon className="w-4 h-4 text-zinc-300" />
                                     <span className="text-sm text-zinc-200">Photo</span>
                                 </button>

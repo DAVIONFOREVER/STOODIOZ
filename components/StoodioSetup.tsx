@@ -68,7 +68,7 @@ const StoodioSetup: React.FC<StoodioSetupProps> = ({ onCompleteSetup, onNavigate
                     <div className="mt-2 flex items-center gap-4">
                         <div className="w-24 h-24 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden">
                             {imagePreview ? (
-                                <img src={imagePreview} alt="Stoodio preview" className="w-full h-full object-cover" />
+                                <img src={imagePreview} alt="Stoodio preview" className="w-full h-full object-cover object-top" />
                             ) : (
                                 <PhotoIcon className="w-10 h-10 text-zinc-500" />
                             )}

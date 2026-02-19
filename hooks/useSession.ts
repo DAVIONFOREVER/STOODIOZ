@@ -73,46 +73,79 @@ export const useSession = (navigate: (view: any) => void) => {
 
       try {
         const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
-        const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, profileId);
-        // If user is in the middle of a booking (stoodio or booking modal), save return context so we restore it after Stripe redirect.
-        const currentView = history[historyIndex];
-        if (currentView && (bookingTime || selectedStoodio)) {
-          try {
-            const room = bookingTime?.room;
-            const savedBookingTime = bookingTime && room
-              ? {
-                  date: bookingTime.date,
-                  time: bookingTime.time,
-                  room: {
-                    id: room.id,
-                    name: room.name,
-                    description: (room as any).description ?? '',
-                    hourly_rate: Number((room as any).hourly_rate) || 0,
-                    photos: Array.isArray((room as any).photos) ? (room as any).photos : [],
-                    smoking_policy: (room as any).smoking_policy ?? 'NON_SMOKING',
-                  },
-                }
-              : null;
-            sessionStorage.setItem(
-              'add_funds_return',
-              JSON.stringify({
-                view: currentView,
-                selectedStoodioId: (selectedStoodio as any)?.id ?? null,
-                bookingTime: savedBookingTime,
-              })
-            );
-          } catch (_) {}
+        const res = await apiService.createCheckoutSessionForWallet(amount, profileId, undefined, { popup: true });
+        const { sessionId, url } = res;
+
+        if (url && typeof window !== 'undefined') {
+          const balanceBefore = Number((currentUser as any)?.wallet_balance ?? 0);
+          const popup = window.open(url, 'stripe_wallet', 'width=500,height=700,scrollbars=yes');
+          dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+          dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
+
+          const showNotification = (message: string) => {
+            dispatch({
+              type: ActionTypes.ADD_NOTIFICATION,
+              payload: {
+                notification: {
+                  id: `add-funds-${Date.now()}`,
+                  recipient_id: profileId,
+                  type: 'SCHEDULE_REMINDER' as any,
+                  message,
+                  read: false,
+                  timestamp: new Date().toISOString(),
+                },
+              },
+            });
+          };
+
+          const checkBalanceAndNotify = async () => {
+            const updated = await refreshCurrentUser();
+            const newBalance = Number((updated as any)?.wallet_balance ?? 0);
+            if (newBalance > balanceBefore) {
+              const added = newBalance - balanceBefore;
+              showNotification(`You just added $${added.toFixed(2)} to your wallet.`);
+              return true;
+            }
+            return false;
+          };
+
+          const onDone = async () => {
+            const showed = await checkBalanceAndNotify();
+            if (showed) return;
+            showNotification('Payment received. Your balance will update in a few seconds—refresh the wallet tab if needed.');
+            setTimeout(() => checkBalanceAndNotify(), 2000);
+            setTimeout(() => checkBalanceAndNotify(), 5000);
+          };
+
+          const handleMessage = (e: MessageEvent) => {
+            if (e.data?.type === 'STRIPE_POPUP_SUCCESS') {
+              window.removeEventListener('message', handleMessage);
+              onDone();
+            }
+          };
+          window.addEventListener('message', handleMessage);
+
+          const poll = setInterval(() => {
+            if (popup?.closed) {
+              clearInterval(poll);
+              window.removeEventListener('message', handleMessage);
+              onDone();
+            }
+          }, 500);
+          return;
         }
+
         await redirectToCheckout(sessionId);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to create add funds session:', error);
+        const msg = error?.message || 'Could not start checkout. Check your connection and try again.';
+        alert(msg);
       } finally {
-        // ✅ Critical: ALWAYS clear loading and close modal
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
       }
     },
-    [currentUser, userRole, dispatch, history, historyIndex, selectedStoodio, bookingTime]
+    [currentUser, userRole, dispatch, history, historyIndex, selectedStoodio, bookingTime, refreshCurrentUser]
   );
 
   const requestPayout = useCallback(

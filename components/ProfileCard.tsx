@@ -35,7 +35,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile, type, onClick }) => 
       <img 
         src={getProfileImageUrl(profile)} 
         alt={profile.name} 
-        className="w-12 h-12 rounded-full object-cover border-2 border-zinc-700" 
+        className="w-12 h-12 rounded-full object-cover object-top border-2 border-zinc-700" 
       />
       <div className="flex-grow overflow-hidden min-w-0">
         <p className="font-semibold text-sm text-slate-200 truncate">{profile.name}</p>

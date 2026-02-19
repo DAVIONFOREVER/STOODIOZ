@@ -55,10 +55,10 @@ const PurchaseBeatModal: React.FC<PurchaseBeatModalProps> = ({ instrumental, pro
             onClick={handleBackdropClick}
         >
             <div 
-                className="w-full max-w-lg transform animate-slide-up flex flex-col cardSurface"
+                className="w-full max-w-lg rounded-2xl overflow-hidden transform animate-slide-up flex flex-col cardSurface shadow-2xl shadow-orange-500/20"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-zinc-100">Purchase Beat</h2>
                     <button 
                         onClick={onClose} 

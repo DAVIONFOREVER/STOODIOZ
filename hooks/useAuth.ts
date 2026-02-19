@@ -11,8 +11,8 @@ type ProfileHydrationResult = {
   role: UserRole;
 };
 
-const LOGIN_TIMEOUT_MS = 30_000; // Increased from 12s to 30s for slow networks
-const HYDRATE_TIMEOUT_MS = 30_000; // Increased from 12s to 30s for slow networks
+const LOGIN_TIMEOUT_MS = 18_000; // Fail fast when Supabase unreachable (paused project / wrong .env)
+const HYDRATE_TIMEOUT_MS = 70_000; // Allow apiService.fetchCurrentUserProfile 30s + 2s retry + second 30s attempt so hydrate can complete when Supabase is slow
 
 /**
  * Guarantee: a promise that either resolves within `ms` or rejects with a timeout error.
@@ -133,6 +133,7 @@ export const useAuth = (navigate: NavigateFn) => {
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
       const cleanEmail = (email || '').trim();
+      const cleanPassword = (password || '').trim();
 
       if (loginInFlightRef.current) return;
       loginInFlightRef.current = true;
@@ -145,7 +146,7 @@ export const useAuth = (navigate: NavigateFn) => {
         // 1) Auth (password)
         const signInPromise = supabase.auth.signInWithPassword({
           email: cleanEmail,
-          password,
+          password: cleanPassword,
         });
 
         const { data, error } = await withTimeout(signInPromise as any, LOGIN_TIMEOUT_MS, 'signInWithPassword');
@@ -174,6 +175,19 @@ export const useAuth = (navigate: NavigateFn) => {
 
         // 3) Commit into app state + navigate
         commitLogin(hydrated);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('timeout') || msg.includes('exceeded')) {
+          if (typeof window !== 'undefined' && !(window as any).__stoodioz_timeout_alert_shown) {
+            (window as any).__stoodioz_timeout_alert_shown = true;
+            alert(
+              'Connection timed out. Your Supabase project may be PAUSED.\n\n' +
+              '→ supabase.com/dashboard → your project → Settings → Restore project.\n\n' +
+              'Then refresh and try again.'
+            );
+          }
+        }
+        throw e;
       } finally {
         // GUARANTEE unlock
         setLoading(false);
@@ -258,6 +272,16 @@ export const useAuth = (navigate: NavigateFn) => {
         console.warn('[useAuth] auth state hydrate skipped:', e);
         if (msg.includes('timeout') || msg.includes('exceeded')) {
           console.warn('[useAuth] Tip: Check .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY), network, and that your Supabase project is not paused.');
+          if (typeof window !== 'undefined' && !(window as any).__stoodioz_timeout_alert_shown) {
+            (window as any).__stoodioz_timeout_alert_shown = true;
+            alert(
+              'Connection to the server timed out. This usually means:\n\n' +
+              '• Your Supabase project is PAUSED (free tier pauses after inactivity).\n' +
+              '  → Go to supabase.com/dashboard → your project → Settings → General → Restore project.\n\n' +
+              '• Or check your internet and .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).\n\n' +
+              'After restoring the project, refresh the page and try again.'
+            );
+          }
         }
       } finally {
         loginInFlightRef.current = false;

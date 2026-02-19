@@ -487,7 +487,7 @@ const SessionConcierge: React.FC = () => {
                     <img
                       src={getProfileImageUrl(analysis.recommendations.topChoice.provider)}
                       alt={analysis.recommendations.topChoice.provider.name}
-                      className="w-20 h-20 rounded-full object-cover border-2 border-blue-400"
+                      className="w-20 h-20 rounded-full object-cover object-top border-2 border-blue-400"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -543,7 +543,7 @@ const SessionConcierge: React.FC = () => {
                       <img
                         src={getProfileImageUrl(match.provider)}
                         alt={match.provider.name}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-zinc-700"
+                        className="w-16 h-16 rounded-full object-cover object-top border-2 border-zinc-700"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">

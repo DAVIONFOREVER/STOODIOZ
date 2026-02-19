@@ -288,6 +288,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                 onSelectEngineer={onSelectEngineer}
                 onSelectProducer={onSelectProducer}
                 onSelectStoodio={onSelectStoodio}
+                onSecretUnlock={() => onNavigate(AppView.SECRET_GAME)}
               />
               {userRole ? (
                 <div className="flex items-center space-x-1">
@@ -430,6 +431,7 @@ const Header: React.FC<HeaderProps> = (props) => {
                 onSelectEngineer={onSelectEngineer}
                 onSelectProducer={onSelectProducer}
                 onSelectStoodio={onSelectStoodio}
+                onSecretUnlock={() => onNavigate(AppView.SECRET_GAME)}
               />
               <button
                 onClick={() => setIsMobileMenuOpen(true)}

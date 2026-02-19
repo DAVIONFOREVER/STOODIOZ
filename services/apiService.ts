@@ -4,8 +4,10 @@
 import { getSupabase } from '../lib/supabase';
 import type { UserRole } from '../types';
 import { getDisplayName } from '../utils/getDisplayName';
+import { ingest } from '../utils/backgroundLogger';
 
-const DB_TIMEOUT_MS = 30_000;
+const DB_TIMEOUT_MS = 18_000; // Fail fast when Supabase is unreachable (paused project / wrong URL); 18s avoids 45s hang
+const HYDRATE_TIMEOUT_MS = 30_000; // Longer for hydrate path (post-Stripe redirect) so balance can load; used with one retry
 const STORAGE_TIMEOUT_MS = 20_000;
 const PUBLIC_DATA_TIMEOUT_MS = 25_000; // Fail faster so UI can show cache or partial data
 
@@ -187,146 +189,146 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
     }
   };
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfile', message: 'entry', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
-  // #endregion
-
-  // Try supabase-js first (no getSession) so we don't block 30s on auth.getSession after Stripe redirect
-  try {
-    const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
-    const { data: profile, error } = await withTimeout(q as any, AUTH_FAST_MS, 'profiles.select');
-    if (!error && profile) {
-      const role = profile.role as UserRole;
-      if (role) {
-        const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-        // Fetch role row and follow data in parallel so login waits for one wave instead of two
-        const [roleResult, followData] = await Promise.all([
-          (async () => {
-            if (roleTable) {
-              try {
-                const { data: roleRow } = await supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle();
-                return roleRow ?? null;
-              } catch { return null; }
-            }
-            if (role === 'STOODIO') {
-              try {
-                const { data: sz } = await supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle();
-                return sz ? { id: sz.id, image_url: null, cover_image_url: null } : null;
-              } catch { return null; }
-            }
-            return null;
-          })(),
-          computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
-        ]);
-        let user: any = { ...profile, ...followData };
-        user.profile_id = profile.id;
-        if (roleResult) {
-          if (roleResult.id) user.role_id = roleResult.id;
-          user.image_url = (profile?.image_url || profile?.avatar_url || roleResult?.image_url) ?? null;
-          user.cover_image_url = (profile?.cover_image_url || roleResult?.cover_image_url) ?? null;
-        }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved (supabase-js first)', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
-        // #endregion
-        return { user, role };
-      }
-    }
-  } catch (_) {
-    /* fall through to REST path */
-  }
-
-  // Prefer explicit-token REST call when supabase-js path fails or times out (e.g. auth still recovering)
-  try {
+  const doOneAttempt = async (): Promise<{ user: any; role: UserRole }> => {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:beforeGetSession', message: 'before getSession', data: {}, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+    ingest({ location: 'apiService.ts:fetchCurrentUserProfile', message: 'entry', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
     // #endregion
-    const { data: sess } = await withTimeout(supabase.auth.getSession() as any, DB_TIMEOUT_MS, 'auth.getSession');
-    const token = sess?.session?.access_token;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:afterGetSession', message: 'after getSession', data: { hasToken: !!token }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
-    // #endregion
-    const url = (import.meta as any).env?.VITE_SUPABASE_URL;
-    const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
 
-    if (token && url && anon) {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), DB_TIMEOUT_MS);
-      try {
-        const res = await fetch(`${url}/rest/v1/${TABLES.profiles}?id=eq.${encodeURIComponent(uid)}&select=*`, {
-          method: 'GET',
-          headers: {
-            apikey: anon,
-            authorization: `Bearer ${token}`,
-            'content-type': 'application/json',
-          },
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          const txt = await res.text().catch(() => '');
-          throw new Error(`profiles REST ${res.status}: ${txt.slice(0, 200)}`);
-        }
-        const rows = await res.json();
-        const profile = Array.isArray(rows) ? rows[0] : null;
-        if (!profile) throw new Error('Profile not found');
+    // Try supabase-js first (no getSession) so we don't block on auth.getSession after Stripe redirect
+    try {
+      const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
+      const { data: profile, error } = await withTimeout(q as any, AUTH_FAST_MS, 'profiles.select');
+      if (!error && profile) {
         const role = profile.role as UserRole;
-        if (!role) throw new Error('User has no role');
-        const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-        const [roleRow, followData] = await Promise.all([
-          roleTable
-            ? fetch(`${url}/rest/v1/${roleTable}?profile_id=eq.${encodeURIComponent(uid)}&select=id,image_url,cover_image_url`, {
-                headers: { apikey: anon, authorization: `Bearer ${token}` },
-                signal: controller.signal,
-              }).then(async (roleRes) => (roleRes.ok ? ((await roleRes.json())?.[0] ?? null) : null)).catch(() => null)
-            : Promise.resolve(null),
-          mergeFollowData({ ...profile, profile_id: profile.id }).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
-        ]);
-        let user: any = { ...profile, profile_id: profile.id, ...followData };
-        if (roleRow) {
-          if (roleRow.id) user.role_id = roleRow.id;
-          user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
-          user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
+        if (role) {
+          const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
+          const [roleResult, followData] = await Promise.all([
+            (async () => {
+              if (roleTable) {
+                try {
+                  const { data: roleRow } = await supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle();
+                  return roleRow ?? null;
+                } catch { return null; }
+              }
+              if (role === 'STOODIO') {
+                try {
+                  const { data: sz } = await supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle();
+                  return sz ? { id: sz.id, image_url: null, cover_image_url: null } : null;
+                } catch { return null; }
+              }
+              return null;
+            })(),
+            computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
+          ]);
+          let user: any = { ...profile, ...followData };
+          user.profile_id = profile.id;
+          if (roleResult) {
+            if (roleResult.id) user.role_id = roleResult.id;
+            user.image_url = (profile?.image_url || profile?.avatar_url || roleResult?.image_url) ?? null;
+            user.cover_image_url = (profile?.cover_image_url || roleResult?.cover_image_url) ?? null;
+          }
+          ingest({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved (supabase-js first)', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
+          return { user, role };
         }
-        return { user, role };
-      } finally {
-        clearTimeout(t);
       }
+    } catch (_) {
+      /* fall through to REST path */
     }
+
+    // Explicit-token REST when supabase-js fails or times out (e.g. auth still recovering)
+    try {
+      ingest({ location: 'apiService.ts:beforeGetSession', message: 'before getSession', data: {}, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
+      const { data: sess } = await withTimeout(supabase.auth.getSession() as any, HYDRATE_TIMEOUT_MS, 'auth.getSession');
+      const token = sess?.session?.access_token;
+      ingest({ location: 'apiService.ts:afterGetSession', message: 'after getSession', data: { hasToken: !!token }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
+      const url = (import.meta as any).env?.VITE_SUPABASE_URL;
+      const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+
+      if (token && url && anon) {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), HYDRATE_TIMEOUT_MS);
+        try {
+          const res = await fetch(`${url}/rest/v1/${TABLES.profiles}?id=eq.${encodeURIComponent(uid)}&select=*`, {
+            method: 'GET',
+            headers: {
+              apikey: anon,
+              authorization: `Bearer ${token}`,
+              'content-type': 'application/json',
+            },
+            signal: controller.signal,
+          });
+
+          if (!res.ok) {
+            const txt = await res.text().catch(() => '');
+            throw new Error(`profiles REST ${res.status}: ${txt.slice(0, 200)}`);
+          }
+          const rows = await res.json();
+          const profile = Array.isArray(rows) ? rows[0] : null;
+          if (!profile) throw new Error('Profile not found');
+          const role = profile.role as UserRole;
+          if (!role) throw new Error('User has no role');
+          const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
+          const [roleRow, followData] = await Promise.all([
+            roleTable
+              ? fetch(`${url}/rest/v1/${roleTable}?profile_id=eq.${encodeURIComponent(uid)}&select=id,image_url,cover_image_url`, {
+                  headers: { apikey: anon, authorization: `Bearer ${token}` },
+                  signal: controller.signal,
+                }).then(async (roleRes) => (roleRes.ok ? ((await roleRes.json())?.[0] ?? null) : null)).catch(() => null)
+              : Promise.resolve(null),
+            mergeFollowData({ ...profile, profile_id: profile.id }).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
+          ]);
+          let user: any = { ...profile, profile_id: profile.id, ...followData };
+          if (roleRow) {
+            if (roleRow.id) user.role_id = roleRow.id;
+            user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
+            user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
+          }
+          return { user, role };
+        } finally {
+          clearTimeout(t);
+        }
+      }
+    } catch (e) {
+      ingest({ location: 'apiService.ts:RESTfailed', message: 'REST path failed', data: { err: String((e as any)?.message) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
+      console.warn('[fetchCurrentUserProfile] REST path failed, trying supabase-js:', e);
+    }
+
+    // Fallback supabase-js with longer timeout (session may have recovered)
+    ingest({ location: 'apiService.ts:fallbackStart', message: 'fallback supabase-js', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
+    const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
+    const { data: profile, error } = await withTimeout(q as any, HYDRATE_TIMEOUT_MS, 'profiles.select');
+    if (error) throw new Error(errMsg(error));
+    if (!profile) throw new Error('Profile not found');
+    const role = profile.role as UserRole;
+    if (!role) throw new Error('User has no role');
+
+    const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
+    const [roleRow, followData] = await Promise.all([
+      roleTable
+        ? withTimeout(supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle() as any, HYDRATE_TIMEOUT_MS, `${roleTable}.byProfileId`).then((r: any) => r?.data ?? null).catch(() => null)
+        : Promise.resolve(null),
+      computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
+    ]);
+    let user: any = { ...profile, profile_id: profile.id, ...followData };
+    if (roleRow) {
+      if (roleRow.id) user.role_id = roleRow.id;
+      user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
+      user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
+    }
+    ingest({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' });
+    return { user, role };
+  };
+
+  try {
+    return await doOneAttempt();
   } catch (e) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:RESTfailed', message: 'REST path failed', data: { err: String((e as any)?.message) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
-    // #endregion
-    console.warn('[fetchCurrentUserProfile] REST path failed, trying supabase-js:', e);
+    const msg = String((e as any)?.message || '');
+    if (msg.includes('[timeout]')) {
+      await new Promise((r) => setTimeout(r, 2000));
+      return await doOneAttempt();
+    }
+    throw e;
   }
-
-  // Fallback to supabase-js again with full timeout (session may have recovered by now)
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fallbackStart', message: 'fallback supabase-js', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
-  // #endregion
-  const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
-  const { data: profile, error } = await withTimeout(q as any, DB_TIMEOUT_MS, 'profiles.select');
-  if (error) throw new Error(errMsg(error));
-  if (!profile) throw new Error('Profile not found');
-  const role = profile.role as UserRole;
-  if (!role) throw new Error('User has no role');
-
-  const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-  const [roleRow, followData] = await Promise.all([
-    roleTable
-      ? withTimeout(supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle() as any, DB_TIMEOUT_MS, `${roleTable}.byProfileId`).then((r: any) => r?.data ?? null).catch(() => null)
-      : Promise.resolve(null),
-    computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
-  ]);
-  let user: any = { ...profile, profile_id: profile.id, ...followData };
-  if (roleRow) {
-    if (roleRow.id) user.role_id = roleRow.id;
-    user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
-    user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
-  }
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' }) }).catch(() => {});
-  // #endregion
-  return { user, role };
 }
 
 export async function updateUser(profileId: string, patch: Record<string, any>): Promise<any> {
@@ -369,7 +371,7 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
   });
   const profileId = result?.id;
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:createUser',message:'createUser_after_insert',data:{profileId,hasResult:Boolean(result)},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  ingest({location:'apiService.ts:createUser',message:'createUser_after_insert',data:{profileId,hasResult:Boolean(result)},timestamp:Date.now(),hypothesisId:'H3'});
   // #endregion
   if (!profileId) return result;
   // Upload profile photo if provided (profiles table has image_url, not imageFile)
@@ -530,7 +532,7 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     };
     // Smaller initial load so directory and profiles query finish in time (was 2000×5 = 10k rows)
     const MAX_ROWS_PER_TABLE = 300;
-    const QUERY_TIMEOUT_MS = 10_000;
+    const QUERY_TIMEOUT_MS = 20_000; // 20s — artists (and others) can be slow on large DBs or cold RLS
     
     // Narrow selects for faster public directory loads
     const selectArtists = 'id,name,stage_name,image_url,cover_image_url,genres,rating_overall,ranking_tier,profile_id';
@@ -1467,9 +1469,6 @@ export async function fetchFullStoodio(idOrUsername: string): Promise<any> {
       out.following = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
     }
   }
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:fetchFullStoodio',message:'returning',data:{roomsCount: out?.rooms?.length ?? 0, profileId: out?.profile_id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
   return out;
 }
 
@@ -2978,7 +2977,7 @@ export async function createConversation(participantIds: string[], meta: Record<
   }
   const base = { id, participant_ids: participantIds, ...metaRest, updated_at: nowIso() };
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation', message: 'entry', data: { metaKeys: Object.keys(meta), baseKeys: Object.keys(base) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' }) }).catch(() => {});
+  ingest({ location: 'apiService.ts:createConversation', message: 'entry', data: { metaKeys: Object.keys(meta), baseKeys: Object.keys(base) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
   // #endregion
   try {
     return await safeWrite('conversations.insert', async () => {
@@ -2987,12 +2986,12 @@ export async function createConversation(participantIds: string[], meta: Record<
     });
   } catch (e: any) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.catch', message: 'first insert failed', data: { eMessage: (e?.message || '').slice(0, 150), isMissingCol: isMissingColumnError(e) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' }) }).catch(() => {});
+    ingest({ location: 'apiService.ts:createConversation.catch', message: 'first insert failed', data: { eMessage: (e?.message || '').slice(0, 150), isMissingCol: isMissingColumnError(e) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
     // #endregion
     if (isMissingColumnError(e)) {
       const fallback = { id, participant_ids: participantIds, ...metaRest };
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.fallback', message: 'attempting fallback insert', data: { fallbackKeys: Object.keys(fallback), hasCreatedAt: 'created_at' in fallback }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+      ingest({ location: 'apiService.ts:createConversation.fallback', message: 'attempting fallback insert', data: { fallbackKeys: Object.keys(fallback), hasCreatedAt: 'created_at' in fallback }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
       // #endregion
       try {
         const result = await safeWrite('conversations.insert.fallback', async () => {
@@ -3000,12 +2999,12 @@ export async function createConversation(participantIds: string[], meta: Record<
           return q as any;
         });
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.fallback', message: 'fallback success', data: { id: result?.id }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+        ingest({ location: 'apiService.ts:createConversation.fallback', message: 'fallback success', data: { id: result?.id }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
         // #endregion
         return result;
       } catch (e2: any) {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'apiService.ts:createConversation.fallback', message: 'fallback failed', data: { e2Message: (e2?.message || '').slice(0, 150) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' }) }).catch(() => {});
+        ingest({ location: 'apiService.ts:createConversation.fallback', message: 'fallback failed', data: { e2Message: (e2?.message || '').slice(0, 150) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
         // #endregion
         throw e2;
       }
@@ -3033,7 +3032,7 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
     .order('updated_at', { ascending: false });
 
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:fetchConversations',message:'after convos select',data:{profileIdSlice:profileId.slice(0,8),rawCount:Array.isArray(rawData)?rawData.length:0,error:error?.message?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+  ingest({location:'apiService.ts:fetchConversations',message:'after convos select',data:{profileIdSlice:profileId.slice(0,8),rawCount:Array.isArray(rawData)?rawData.length:0,error:error?.message?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H5'});
   // #endregion
 
   if (isSupabaseErrorBadRequest(error)) {
@@ -3110,7 +3109,7 @@ export async function fetchConversations(profileId: string): Promise<any[]> {
     const firstRow = rows[0];
     const firstParticipantIds = firstRow ? (Array.isArray(firstRow.participant_ids) ? firstRow.participant_ids : []) : [];
     const firstConvoMsgCount = firstRow ? (messagesByConv[firstRow.id]?.length ?? 0) : 0;
-    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:fetchConversations',message:'enrich done',data:{rowsCount:rows.length,msgCount,convIdsWithMessages,profileMapSize,firstParticipantIds:firstParticipantIds.slice(0,3).map((x: string)=>x.slice(0,8)),firstConvoMsgCount,profilesResDataLen:(profilesRes?.data||[]).length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    ingest({location:'apiService.ts:fetchConversations',message:'enrich done',data:{rowsCount:rows.length,msgCount,convIdsWithMessages,profileMapSize,firstParticipantIds:firstParticipantIds.slice(0,3).map((x: string)=>x.slice(0,8)),firstConvoMsgCount,profilesResDataLen:(profilesRes?.data||[]).length},timestamp:Date.now(),hypothesisId:'H2'});
     // #endregion
   } catch (e) {
     console.warn('[fetchConversations] enrich failed:', e);
@@ -3173,14 +3172,14 @@ export async function sendMessage(
     }
   }
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:sendMessage',message:'before insert',data:{conversationIdSlice:conversationId?.slice(0,8),senderIdSlice:senderId?.slice(0,8),textLen:text?.length},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  ingest({location:'apiService.ts:sendMessage',message:'before insert',data:{conversationIdSlice:conversationId?.slice(0,8),senderIdSlice:senderId?.slice(0,8),textLen:text?.length},timestamp:Date.now(),hypothesisId:'H3'});
   // #endregion
   const out = await safeWrite('messages.insert', async () => {
     const q = supabase.from(TABLES.messages).insert(base).select('*').single();
     return q as any;
   });
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'apiService.ts:sendMessage',message:'after insert',data:{hasData:!!out,id:(out&&typeof out==='object'&&out.id)?String(out.id).slice(0,8):undefined},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  ingest({location:'apiService.ts:sendMessage',message:'after insert',data:{hasData:!!out,id:(out&&typeof out==='object'&&out.id)?String(out.id).slice(0,8):undefined},timestamp:Date.now(),hypothesisId:'H3'});
   // #endregion
   return out;
 }
@@ -3525,12 +3524,22 @@ export async function createCheckoutSessionForBooking(
   });
 }
 
-export async function createCheckoutSessionForWallet(amount: number, profileId: string, note?: string): Promise<{ sessionId: string }> {
+export async function createCheckoutSessionForWallet(
+  amount: number,
+  profileId: string,
+  note?: string,
+  options?: { popup?: boolean }
+): Promise<{ sessionId: string; url?: string | null }> {
   const origin = getAppOrigin();
-  const successUrl = origin ? `${origin}/?stripe=success` : '';
+  const amountNum = Number(amount || 0);
+  const successUrl = origin
+    ? options?.popup
+      ? `${origin}/?stripe=success&popup=1&amount=${encodeURIComponent(amountNum)}`
+      : `${origin}/?stripe=success`
+    : '';
   const cancelUrl = origin ? `${origin}/?stripe=cancel` : '';
 
-  const amountCents = Math.round(Number(amount || 0) * 100);
+  const amountCents = Math.round(amountNum * 100);
   if (!amountCents) throw new Error('Amount must be greater than 0.');
 
   return callEdgeFunction('create-wallet-checkout', {

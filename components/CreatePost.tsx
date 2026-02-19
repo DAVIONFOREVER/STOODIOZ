@@ -177,7 +177,7 @@ const CreatePost: React.FC<CreatePostProps> = ({ currentUser, onPost }) => {
                 <img
                     src={getProfileImageUrl(currentUser)}
                     alt={currentUser.name}
-                    className="w-11 h-11 rounded-2xl object-cover ring-2 ring-orange-500/30 shadow-lg shadow-orange-500/20"
+                    className="w-11 h-11 rounded-2xl object-cover object-top ring-2 ring-orange-500/30 shadow-lg shadow-orange-500/20"
                 />
                 <div className="w-full">
                     <form onSubmit={handleSubmit}>

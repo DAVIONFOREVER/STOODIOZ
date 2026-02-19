@@ -62,9 +62,9 @@ const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClo
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true">
-            <div className="w-full max-w-lg transform animate-slide-up flex flex-col cardSurface">
-                <div className="p-6 border-b border-zinc-700/50 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in" role="dialog" aria-modal="true">
+            <div className="w-full max-w-lg rounded-2xl overflow-hidden transform animate-slide-up flex flex-col cardSurface shadow-2xl shadow-orange-500/20">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center">
                     <div>
                         <h2 className="text-2xl font-bold text-zinc-100">Request Mix from {engineer.name}</h2>
                         <p className="text-orange-400 font-semibold">{services.description}</p>
@@ -110,7 +110,7 @@ const MixingRequestModal: React.FC<MixingRequestModalProps> = ({ engineer, onClo
                         </div>
                     </div>
 
-                    <div className="p-6 bg-zinc-900/50 border-t border-zinc-700/50 flex justify-between items-center">
+                    <div className="p-6 bg-black/30 border-t border-white/10 backdrop-blur-sm flex justify-between items-center rounded-b-2xl">
                         <div>
                             <p className="text-zinc-400 text-sm">Total Cost</p>
                             <p className="text-orange-400 font-bold text-2xl">${totalCost.toFixed(2)}</p>

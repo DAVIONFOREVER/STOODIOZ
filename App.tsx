@@ -19,6 +19,7 @@ import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 
 import { getSupabase } from './lib/supabase.ts';
+import { ingest } from './utils/backgroundLogger.ts';
 import * as apiService from './services/apiService.ts';
 import { getAriaNudge } from './services/geminiService.ts';
 import { ARIA_EMAIL } from './constants.ts';
@@ -82,6 +83,7 @@ const Leaderboard = lazy(() => import('./components/Leaderboard.tsx'));
 const AssetVault = lazy(() => import('./components/AssetVault.tsx'));
 const MasterCalendar = lazy(() => import('./components/MasterCalendar.tsx'));
 const ReviewPage = lazy(() => import('./components/ReviewPage.tsx'));
+const SecretGame = lazy(() => import('./components/SecretGame.tsx'));
 
 const LoadingSpinner: React.FC<{ currentUser: any }> = ({ currentUser }) => {
   if (currentUser && (currentUser as any).animated_logo_url) {
@@ -218,6 +220,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isLoadingRef.current) return;
     if (currentUser || userRole) return;
+    if (stripeReturnInProgressRef.current) return;
     const isPublic =
       currentView === AppView.LOGIN ||
       currentView === AppView.LANDING_PAGE ||
@@ -241,7 +244,8 @@ const App: React.FC = () => {
       currentView === AppView.LABEL_PROFILE ||
       currentView === AppView.REVIEW_PAGE ||
       currentView === AppView.CLAIM_ENTRY ||
-      currentView === AppView.INBOX;
+      currentView === AppView.INBOX ||
+      currentView === AppView.SECRET_GAME;
     if (!isPublic) {
       dispatch({ type: ActionTypes.NAVIGATE, payload: { view: AppView.LANDING_PAGE } });
     }
@@ -265,6 +269,7 @@ const App: React.FC = () => {
   const currentViewRef = useRef(currentView);
   const isLoadingRef = useRef(isLoading);
   const hydrateUserRef = useRef<((uid: string) => Promise<UserRole | null>) | null>(null);
+  const stripeReturnInProgressRef = useRef(false);
   currentUserRef.current = currentUser;
   userRoleRef.current = userRole;
   currentViewRef.current = currentView;
@@ -372,9 +377,21 @@ const App: React.FC = () => {
     if (!q) return;
     const stripeStatus = q.get('stripe');
     if (!stripeStatus) return;
+
+    // Add funds popup: we are the popup; tell opener and close so main window stays on dashboard and can refetch.
+    if (typeof window !== 'undefined' && window.opener && stripeStatus === 'success' && q.get('popup') === '1') {
+      const amount = parseFloat(q.get('amount') || '0') || 0;
+      try {
+        window.opener.postMessage({ type: 'STRIPE_POPUP_SUCCESS', amount: amount || undefined }, window.location.origin);
+      } catch (_) {}
+      window.close();
+      return;
+    }
+
     const beatPurchase = q.get('beat_purchase') === '1';
     const kitPurchase = q.get('kit_purchase') === '1';
     if (stripeStatus === 'success' && (beatPurchase || kitPurchase)) return;
+    stripeReturnInProgressRef.current = true;
 
     const u = new URL(window.location.href);
     const bookingIdFromUrl = q.get('booking_id');
@@ -389,6 +406,7 @@ const App: React.FC = () => {
           const b = await apiService.fetchBookingById(bookingIdFromUrl);
           if (b) {
             dispatch({ type: ActionTypes.SET_LATEST_BOOKING, payload: { booking: b } });
+            dispatch({ type: ActionTypes.ADD_BOOKING, payload: { booking: b } });
             navigate(AppView.CONFIRMATION);
             const studioName = b.stoodio?.name;
             const bookingPrompt = studioName
@@ -414,6 +432,64 @@ const App: React.FC = () => {
             view?: string;
             selectedStoodioId?: string | null;
             bookingTime?: { date: string; time: string; room: { id: string; name: string; description?: string; hourly_rate: number; photos: string[]; smoking_policy: string } } | null;
+            returnTab?: string | null;
+          };
+          sessionStorage.removeItem('add_funds_return');
+          if (parsed?.view) {
+            const returnView = parsed.view as AppView;
+            if (returnView === AppView.LABEL_DASHBOARD && parsed.returnTab) {
+              try {
+                sessionStorage.setItem('label_dashboard_return_tab', parsed.returnTab);
+              } catch (_) {}
+            }
+            if (returnView === AppView.STOODIO_DETAIL && parsed.selectedStoodioId && state.stoodioz?.length) {
+              const stoodio = state.stoodioz.find((s: any) => (s.id || (s as any).profile_id) === parsed.selectedStoodioId);
+              if (stoodio) {
+                dispatch({ type: ActionTypes.VIEW_STOODIO_DETAILS, payload: { stoodio } });
+              }
+            }
+            navigate(returnView);
+            restored = true;
+            if (parsed.bookingTime?.date && parsed.bookingTime?.time && parsed.bookingTime?.room) {
+              dispatch({ type: ActionTypes.OPEN_BOOKING_MODAL, payload: parsed.bookingTime });
+            }
+            const myId = (state.currentUser as any)?.profile_id ?? state.currentUser?.id;
+            if (myId) {
+              dispatch({
+                type: ActionTypes.ADD_NOTIFICATION,
+                payload: {
+                  notification: {
+                    id: `add-funds-${Date.now()}`,
+                    recipient_id: myId,
+                    type: NotificationType.SCHEDULE_REMINDER,
+                    message: parsed.bookingTime
+                      ? 'Payment successful. Your booking form is open — tap "Request Session" to complete your session.'
+                      : 'Payment successful. Your balance will update shortly—refresh the page if it doesn’t.',
+                    read: false,
+                    timestamp: new Date().toISOString(),
+                  },
+                },
+              });
+            } else {
+              try {
+                sessionStorage.setItem('add_funds_notification_pending', JSON.stringify({
+                  hasBooking: Boolean(parsed?.bookingTime?.date && parsed?.bookingTime?.room),
+                }));
+              } catch (_) {}
+            }
+          }
+        }
+      } catch (_) {}
+      if (!restored) navigate(dashboardForRole(userRoleRef.current || userRole));
+    } else if (stripeStatus === 'cancel') {
+      // Payment cancelled or failed (e.g. card declined): restore stoodio + booking modal so user can try again.
+      try {
+        const raw = sessionStorage.getItem('add_funds_return');
+        if (raw) {
+          const parsed = JSON.parse(raw) as {
+            view?: string;
+            selectedStoodioId?: string | null;
+            bookingTime?: { date: string; time: string; room: { id: string; name: string; description?: string; hourly_rate: number; photos: string[]; smoking_policy: string } } | null;
           };
           sessionStorage.removeItem('add_funds_return');
           if (parsed?.view) {
@@ -425,24 +501,19 @@ const App: React.FC = () => {
               }
             }
             navigate(returnView);
-            restored = true;
-            // Re-open booking modal so user can tap "Request Session" again without hunting for Book.
             if (parsed.bookingTime?.date && parsed.bookingTime?.time && parsed.bookingTime?.room) {
               dispatch({ type: ActionTypes.OPEN_BOOKING_MODAL, payload: parsed.bookingTime });
             }
-            // In-app notification so they see "Funds added" and know to complete the booking.
             const myId = (state.currentUser as any)?.profile_id ?? state.currentUser?.id;
             if (myId) {
               dispatch({
                 type: ActionTypes.ADD_NOTIFICATION,
                 payload: {
                   notification: {
-                    id: `add-funds-${Date.now()}`,
+                    id: `add-funds-cancel-${Date.now()}`,
                     recipient_id: myId,
                     type: NotificationType.SCHEDULE_REMINDER,
-                    message: parsed.bookingTime
-                      ? 'Funds added. Your booking form is open — tap "Request Session" to complete your session.'
-                      : 'Funds added to your wallet.',
+                    message: 'Payment was cancelled or failed. Add funds and try again to complete your booking.',
                     read: false,
                     timestamp: new Date().toISOString(),
                   },
@@ -450,22 +521,34 @@ const App: React.FC = () => {
               });
             }
           }
+        } else {
+          navigate(dashboardForRole(userRoleRef.current || userRole));
         }
-      } catch (_) {}
-      if (!restored) navigate(dashboardForRole(userRoleRef.current || userRole));
+      } catch (_) {
+        navigate(dashboardForRole(userRoleRef.current || userRole));
+      }
     } else {
       navigate(dashboardForRole(userRoleRef.current || userRole));
     }
 
     // Refetch current user so wallet_balance and wallet_transactions reflect after add funds.
-    // Webhook can be delayed; refetch immediately and again after 2.5s and 5s so balance updates.
+    // Webhook can be delayed; refetch immediately and again so balance updates.
+    // Keep stripeReturnInProgressRef true until hydrate succeeds or give-up (30s) so timeouts don't send user to landing.
+    const STRIPE_RETURN_GUARD_MS = 30000;
+    const clearRefTimer = setTimeout(() => {
+      stripeReturnInProgressRef.current = false;
+    }, STRIPE_RETURN_GUARD_MS);
+
     if (stripeStatus === 'success') {
       const doRefetch = async () => {
         try {
           const supabase = getSupabase();
           const { data } = await supabase.auth.getSession();
           const uid = data?.session?.user?.id;
-          if (uid && hydrateUserRef.current) await hydrateUserRef.current(uid);
+          if (uid && hydrateUserRef.current) {
+            const role = await hydrateUserRef.current(uid);
+            if (role) stripeReturnInProgressRef.current = false;
+          }
         } catch (e) {
           console.warn('[App] Refetch after Stripe success failed:', e);
         }
@@ -473,12 +556,47 @@ const App: React.FC = () => {
       doRefetch();
       const t1 = setTimeout(doRefetch, 2500);
       const t2 = setTimeout(doRefetch, 5000);
+      const t3 = setTimeout(doRefetch, 10000);
+      const t4 = setTimeout(doRefetch, 15000);
+      const t5 = setTimeout(doRefetch, 20000);
       return () => {
+        clearTimeout(clearRefTimer);
         clearTimeout(t1);
         clearTimeout(t2);
+        clearTimeout(t3);
+        clearTimeout(t4);
+        clearTimeout(t5);
       };
     }
+    return () => clearTimeout(clearRefTimer);
   }, [navigate, userRole, state.stoodioz, dispatch]);
+
+  // When user loads after returning from Stripe add-funds, show "Funds added" notification if we couldn't earlier.
+  useEffect(() => {
+    const myId = (state.currentUser as any)?.profile_id ?? state.currentUser?.id;
+    if (!myId) return;
+    try {
+      const raw = sessionStorage.getItem('add_funds_notification_pending');
+      if (!raw) return;
+      sessionStorage.removeItem('add_funds_notification_pending');
+      const { hasBooking } = JSON.parse(raw) as { hasBooking?: boolean };
+      dispatch({
+        type: ActionTypes.ADD_NOTIFICATION,
+        payload: {
+          notification: {
+            id: `add-funds-late-${Date.now()}`,
+            recipient_id: myId,
+            type: NotificationType.SCHEDULE_REMINDER,
+            message: hasBooking
+              ? 'You completed a payment. Your booking form is open — tap "Request Session" to complete your session.'
+              : 'You completed a wallet top-up. If your balance doesn’t show the update, refresh the page or contact support.',
+            read: false,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+    } catch (_) {}
+  }, [state.currentUser, dispatch]);
 
   // Auth hook (UI login/logout)
   const { login, logout, selectRoleToSetup } = useAuth(navigate);
@@ -619,14 +737,14 @@ const App: React.FC = () => {
       if (didLoadDirectoryRef.current) return;
       didLoadDirectoryRef.current = true;
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadDirectory',message:'loadDirectory started',data:{},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      ingest({location:'App.tsx:loadDirectory',message:'loadDirectory started',data:{},timestamp:Date.now(),hypothesisId:'H1'});
       // #endregion
       try {
         let directory = await apiService.getAllPublicUsers(false);
         if (!isMounted) return;
         // #region agent log
         const dirCounts = { artists: directory.artists?.length ?? 0, engineers: directory.engineers?.length ?? 0, producers: directory.producers?.length ?? 0, stoodioz: directory.stoodioz?.length ?? 0, labels: directory.labels?.length ?? 0 };
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadDirectory',message:'directory loaded',data:dirCounts,timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        ingest({location:'App.tsx:loadDirectory',message:'directory loaded',data:dirCounts,timestamp:Date.now(),hypothesisId:'H1'});
         // #endregion
         let hasAnyData =
           (directory.artists?.length || 0) > 0 ||
@@ -675,7 +793,7 @@ const App: React.FC = () => {
           },
         });
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:loadDirectory',message:'SET_INITIAL_DATA dispatched',data:dirCounts,timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        ingest({location:'App.tsx:loadDirectory',message:'SET_INITIAL_DATA dispatched',data:dirCounts,timestamp:Date.now(),hypothesisId:'H4'});
         // #endregion
       } catch (e) {
         console.error('[App] Failed to load public users:', e);
@@ -848,7 +966,7 @@ const App: React.FC = () => {
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:completeSetup',message:'signup_start',data:{hasPassword:Boolean(userData?.password),hasEmail:Boolean(userData?.email)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      ingest({location:'App.tsx:completeSetup',message:'signup_start',data:{hasPassword:Boolean(userData?.password),hasEmail:Boolean(userData?.email)},timestamp:Date.now(),hypothesisId:'H1'});
       // #endregion
 
       try {
@@ -874,7 +992,7 @@ const App: React.FC = () => {
         // #region agent log
         const { getSupabase } = await import('./lib/supabase');
         const { data: sess } = await getSupabase().auth.getSession();
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:completeSetup',message:'signup_after_createUser',data:{hasResult:Boolean(result),profileId:result?.id,sessionExists:Boolean(sess?.session),uid:sess?.session?.user?.id},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+        ingest({location:'App.tsx:completeSetup',message:'signup_after_createUser',data:{hasResult:Boolean(result),profileId:result?.id,sessionExists:Boolean(sess?.session),uid:sess?.session?.user?.id},timestamp:Date.now(),hypothesisId:'H2'});
         // #endregion
         if (result) {
           // Auto-follow Aria forever on signup
@@ -1117,6 +1235,13 @@ const App: React.FC = () => {
 
       case AppView.REVIEW_PAGE:
         return <ReviewPage />;
+
+      case AppView.SECRET_GAME:
+        return (
+          <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-black"><img src={appIcon} alt="Loading" className="h-10 w-10 animate-spin" /></div>}>
+            <SecretGame onExit={() => { if (canGoBack) goBack(); else navigate(AppView.THE_STAGE); }} />
+          </Suspense>
+        );
 
       case AppView.CLAIM_PROFILE:
         return <ClaimProfile />;

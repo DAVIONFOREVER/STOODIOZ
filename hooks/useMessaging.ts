@@ -36,8 +36,12 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
 
                     const myProfileId = (currentUser as any)?.profile_id ?? currentUser?.id;
                     if (!myProfileId) return;
-                    // Only refresh for messages from others (normalize IDs so we don't refetch on own send and reset the hub)
-                    if (String(newMessage?.sender_id || '').trim() === String(myProfileId).trim()) return;
+                    const senderId = String(newMessage?.sender_id ?? '').trim();
+                    const isFromMe =
+                        senderId === String(myProfileId).trim() ||
+                        (currentUser?.id && senderId === String((currentUser as any).id).trim()) ||
+                        ((currentUser as any)?.profile_id && senderId === String((currentUser as any).profile_id).trim());
+                    if (isFromMe) return;
 
                     try {
                         const updatedConversations = await apiService.fetchConversations(myProfileId);

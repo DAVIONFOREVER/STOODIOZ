@@ -168,7 +168,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, author, onLikePost, onComment
                 {/* Post Header */}
                 <div className={`flex items-start justify-between gap-4 ${isReel ? 'mb-5' : 'mb-4'}`}>
                     <button onClick={onSelectAuthor} className="flex items-center gap-4 group text-left">
-                        <img src={getProfileImageUrl(author)} alt={getDisplayName(author)} className="w-12 h-12 rounded-xl object-cover" />
+                        <img src={getProfileImageUrl(author)} alt={getDisplayName(author)} className="w-12 h-12 rounded-xl object-cover object-top" />
                         <div>
                             <p className="font-bold text-slate-100 group-hover:text-orange-400 transition-colors">{getDisplayName(author)}</p>
                             <p className="text-sm text-slate-400">{formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}</p>

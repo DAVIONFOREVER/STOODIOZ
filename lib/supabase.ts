@@ -5,10 +5,12 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 let supabase: SupabaseClient | null = null;
 
 /**
- * Fetch wrapper that NEVER hangs.
- * Any request >12s is aborted so your UI cannot stall forever.
+ * Fetch wrapper so requests don't hang forever.
+ * Must be longer than apiService DB_TIMEOUT_MS (45s) or the client aborts before the app timeout.
  */
-function fetchWithTimeout(timeoutMs = 12000) {
+const SUPABASE_FETCH_TIMEOUT_MS = 50_000;
+
+function fetchWithTimeout(timeoutMs = SUPABASE_FETCH_TIMEOUT_MS) {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -37,12 +39,13 @@ export function getSupabase(): SupabaseClient {
 
   supabase = createClient(url, anonKey, {
     global: {
-      fetch: fetchWithTimeout(12000),
+      fetch: fetchWithTimeout(SUPABASE_FETCH_TIMEOUT_MS),
     },
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
+      flowType: 'pkce', // recommended for SPAs; avoids refresh-token issues with third-party cookies
     },
   });
 

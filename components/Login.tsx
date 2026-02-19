@@ -191,7 +191,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate, isLoading = f
 
       try {
         // 1) Perform auth via existing handler
-        await Promise.resolve(onLogin(email.trim(), password));
+        await Promise.resolve(onLogin(email.trim(), password.trim()));
 
         // 2) Confirm session exists right now
         const uid = await getSessionUid();
@@ -209,7 +209,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate, isLoading = f
       } catch (e: any) {
         console.error('[handleSubmit] failed:', e);
         setGlobalLoadingSafe(false);
-        setLocalError(e?.message || 'Login failed.');
+        const msg = e?.message || 'Login failed.';
+        const isInvalidCreds = /invalid login credentials/i.test(msg) || (e?.name === 'AuthApiError' && e?.status === 400);
+        setLocalError(isInvalidCreds
+          ? 'Invalid email or password. If you just signed up, check your inbox to confirm your email first.'
+          : msg);
       } finally {
         setLocalLoading(false);
         inFlightRef.current = false;

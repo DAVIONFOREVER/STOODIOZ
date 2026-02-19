@@ -320,8 +320,6 @@ const TheStage: React.FC<TheStageProps> = (props) => {
         await onPost(postData);
     }
 
-    if (!currentUser) return null;
-
     const handleStartLive = async () => {
         if (!currentUser) return;
         setIsLiveChatLoading(true);
@@ -420,6 +418,8 @@ const TheStage: React.FC<TheStageProps> = (props) => {
             alert('Sorry, we could not delete that post.');
         }
     };
+
+    if (!currentUser) return null;
 
     return (
         <div className="relative">

@@ -74,9 +74,6 @@ const StoodioDetail: React.FC = () => {
         const sameEntity = (a: Stoodio | null, b: Stoodio | null) =>
             a && b && (a.id === b.id || (a as any).profile_id === (b as any).profile_id || a.id === (b as any).profile_id || (a as any).profile_id === b.id);
         const selRooms = (selectedStoodio as any)?.rooms;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StoodioDetail.tsx:syncSelected',message:'selectedStoodio sync',data:{selectedRooms: Array.isArray(selRooms) ? selRooms.length : 0, selectedId: (selectedStoodio as any)?.id?.slice(0,8), profileId: (selectedStoodio as any)?.profile_id?.slice(0,8)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
         setStoodio((prev) => {
             if (!prev) return selectedStoodio;
             if (!sameEntity(prev, selectedStoodio)) return selectedStoodio;
@@ -133,18 +130,17 @@ const StoodioDetail: React.FC = () => {
             if (lastLoadedIdRef.current === targetId) return;
             lastLoadedIdRef.current = targetId;
 
-            setIsLoadingDetails(true);
-            setLoadError(null);
-
             const cached = readCachedStoodio(targetId);
+            const fromStoodio = stoodio && (stoodio.id === targetId || (stoodio as any).profile_id === targetId);
+            const fromCached = cached && (cached.id === targetId || (cached as any).profile_id === targetId);
+            const hasDisplayData = Boolean(fromStoodio || fromCached);
+            if (!hasDisplayData) setIsLoadingDetails(true);
+            setLoadError(null);
             if (cached && !stoodio) {
                 setStoodio(cached);
             }
 
             try {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'StoodioDetail.tsx:resolveStoodio', message: 'before fetchFullStoodio', data: { targetId: targetId?.slice(0, 36) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R5' }) }).catch(() => {});
-                // #endregion
                 const fullData = await fetchFullStoodio(targetId);
                 if (!isMounted) return;
                 if (fullData) {
@@ -162,18 +158,11 @@ const StoodioDetail: React.FC = () => {
                         (fullData as any).rooms = rooms;
                     }
                     const roomsLen = rooms.length;
-                    if (typeof console !== 'undefined') {
-                        console.debug('[StoodioDetail] fetchFullStoodio result', { targetId: targetId?.slice(0, 8), roomsCount: roomsLen, fullDataId: (fullData as any)?.id?.slice(0, 8) });
-                        if (roomsLen === 0) console.warn('[StoodioDetail] No rooms — targetId:', targetId?.slice(0, 8), '| Add rooms in Stoodio Dashboard → Manage Rooms, then run ROOMS_DIAGNOSTIC_AND_FIX.sql in Supabase');
+                    if (typeof console !== 'undefined' && roomsLen === 0) {
+                        console.warn('[StoodioDetail] No rooms — targetId:', targetId?.slice(0, 8), '| Add rooms in Stoodio Dashboard → Manage Rooms, then run ROOMS_DIAGNOSTIC_AND_FIX.sql in Supabase');
                     }
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'StoodioDetail.tsx:resolveStoodio', message: 'after fetchFullStoodio', data: { roomsLen, fullDataId: (fullData as any)?.id?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'R5' }) }).catch(() => {});
-                    // #endregion
                     setStoodio(fullData as Stoodio);
                     writeCachedStoodio(fullData as Stoodio);
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StoodioDetail.tsx:resolveStoodio',message:'setStoodio(fullData) with rooms',data:{roomsLen: (fullData as any)?.rooms?.length ?? 0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-                    // #endregion
                 } else {
                     setStoodio(null);
                     setLoadError('Profile not found.');
@@ -204,6 +193,7 @@ const StoodioDetail: React.FC = () => {
         resolveStoodio();
         return () => {
             isMounted = false;
+            lastLoadedIdRef.current = null; // so Strict Mode re-run (or id change) actually fetches; otherwise we skip fetch and never get rooms
         };
     }, [selectedStoodio?.id, selectedStoodio?.profile_id]);
 
@@ -213,7 +203,7 @@ const StoodioDetail: React.FC = () => {
             lastLoadedIdRef.current = null;
             setIsLoadingDetails(false);
             setLoadError('Request timed out. Please try again.');
-        }, 45_000);
+        }, 15_000);
         return () => clearTimeout(t);
     }, [isLoadingDetails]);
 
@@ -334,8 +324,9 @@ const StoodioDetail: React.FC = () => {
         [allUsers, stoodio?.follower_ids, stoodio]
     );
     
-    if (isLoadingDetails) {
-         return (
+    // Only show full-screen spinner when we have no profile data at all (e.g. deep link). If we have stoodio (directory/cache), show it and refresh in background.
+    if (isLoadingDetails && !stoodio) {
+        return (
             <div className="flex flex-col items-center justify-center py-32 space-y-4">
                 <img src={appIcon} alt="Loading" className="h-10 w-10 animate-spin" />
                 <p className="text-zinc-500 font-medium">Loading profile...</p>
@@ -403,6 +394,12 @@ const StoodioDetail: React.FC = () => {
     
     return (
         <div className="max-w-7xl mx-auto pb-32 animate-fade-in px-3 sm:px-4">
+            {isLoadingDetails && (
+                <div className="mb-2 py-1.5 px-3 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium flex items-center gap-2">
+                    <img src={appIcon} alt="" className="h-3 w-3 animate-spin" />
+                    Updating profile…
+                </div>
+            )}
             <button onClick={goBack} className="absolute top-4 left-4 sm:top-10 sm:left-10 z-20 flex items-center gap-2 sm:gap-3 text-zinc-400 hover:text-orange-400 transition-all font-black uppercase tracking-[0.2em] sm:tracking-[0.25em] text-[10px]">
                 <ChevronLeftIcon className="w-4 h-4 flex-shrink-0" /> <span className="hidden xs:inline">System </span>Back
             </button>
@@ -426,7 +423,7 @@ const StoodioDetail: React.FC = () => {
                             <img 
                                 src={getProfileImageUrl(stoodio)} 
                                 alt={getDisplayName(stoodio)} 
-                                className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full object-cover border-4 sm:border-[6px] md:border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
+                                className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full object-cover object-top border-4 sm:border-[6px] md:border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
                             />
                             <div className="absolute -bottom-1 -right-1 sm:-bottom-3 sm:-right-3 bg-gradient-to-br from-orange-500 to-amber-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-2xl ring-2 sm:ring-4 ring-zinc-950">
                                 <HouseIcon className="w-5 h-5 sm:w-8 sm:h-8 text-white" />

@@ -11,8 +11,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: '127.0.0.1',
-      port: 5173,
-      strictPort: true,
+      port: 5174,
+      strictPort: false,
       // Force browser to never use cached JS/HTML so edits always show at 127.0.0.1:5173
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',

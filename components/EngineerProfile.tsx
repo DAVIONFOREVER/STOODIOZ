@@ -239,7 +239,7 @@ const EngineerProfile: React.FC = () => {
                             <img 
                                 src={getProfileImageUrl(engineer)} 
                                 alt={getDisplayName(engineer)} 
-                                className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full object-cover border-4 sm:border-[6px] md:border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
+                                className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 rounded-full object-cover object-top border-4 sm:border-[6px] md:border-[8px] border-zinc-950 shadow-[0_0_60px_rgba(0,0,0,0.8)]" 
                             />
                             <div className="absolute -bottom-1 -right-1 sm:-bottom-3 sm:-right-3 bg-gradient-to-br from-orange-500 to-red-600 p-2 sm:p-3 rounded-xl sm:rounded-2xl shadow-2xl ring-2 sm:ring-4 ring-zinc-950">
                                 <SoundWaveIcon className="w-5 h-5 sm:w-8 sm:h-8 text-white" />

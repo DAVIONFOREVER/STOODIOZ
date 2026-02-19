@@ -28,7 +28,7 @@ const ProducerCard: React.FC<ProducerCardProps> = ({ producer, onSelectProducer,
         >
             <div className="relative">
                 <button onClick={() => onSelectProducer(producer)} className="w-full text-center">
-                    <img loading="lazy" src={getProfileImageUrl(producer)} alt={getDisplayName(producer)} className="w-24 h-24 rounded-full object-cover mx-auto ring-2 ring-zinc-700/80 shadow-lg shadow-orange-500/20" />
+                    <img loading="lazy" src={getProfileImageUrl(producer)} alt={getDisplayName(producer)} className="w-24 h-24 rounded-full object-cover object-top mx-auto ring-2 ring-zinc-700/80 shadow-lg shadow-orange-500/20" />
                     <h3 className="text-xl font-bold text-slate-100 mt-4 group-hover:text-orange-400 text-glow">{getDisplayName(producer)}</h3>
                      <div className="flex items-center justify-center gap-1 text-yellow-400 mt-1">
                         <StarIcon className="w-4 h-4" />

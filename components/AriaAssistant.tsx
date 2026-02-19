@@ -139,7 +139,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
                 </div>
             )}
 
-            <div className="flex-grow overflow-y-auto p-6 space-y-6">
+            <div className="flex-grow min-h-0 overflow-y-auto overflow-x-hidden p-6 space-y-6">
                 {history.length === 0 && (() => {
                     type QuickReply = { msg: string; Icon: React.FC<{ className?: string }>; label: string; iconColor?: string };
                     const quickReplies: QuickReply[] = (() => {

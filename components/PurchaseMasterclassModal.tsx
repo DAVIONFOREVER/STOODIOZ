@@ -13,9 +13,9 @@ const PurchaseMasterclassModal: React.FC<PurchaseMasterclassModalProps> = ({ mas
     const { masterclass, owner } = masterclassInfo;
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
-            <div className="w-full max-w-lg cardSurface animate-slide-up">
-                <div className="p-6 border-b border-zinc-700 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
+            <div className="w-full max-w-lg rounded-2xl overflow-hidden cardSurface shadow-2xl shadow-orange-500/20 animate-slide-up">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-zinc-100">Confirm Purchase</h2>
                     <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
                         <CloseIcon className="w-6 h-6" />
@@ -41,7 +41,7 @@ const PurchaseMasterclassModal: React.FC<PurchaseMasterclassModalProps> = ({ mas
                     </div>
                 </div>
 
-                <div className="p-4 bg-zinc-900/50 border-t border-zinc-700 rounded-b-lg flex justify-end">
+                <div className="p-4 bg-black/30 border-t border-white/10 rounded-b-2xl backdrop-blur-sm flex justify-end">
                     <button
                         onClick={onConfirm}
                         className="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 transition-all shadow-md shadow-orange-500/20 flex items-center gap-2"
