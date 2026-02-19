@@ -797,28 +797,8 @@ const App: React.FC = () => {
         // #endregion
       } catch (e) {
         console.error('[App] Failed to load public users:', e);
-        // Don't blow away existing directory lists on transient errors
-        if (!isMounted) return;
-        const stateHasAny =
-          (state.artists?.length || 0) > 0 ||
-          (state.engineers?.length || 0) > 0 ||
-          (state.producers?.length || 0) > 0 ||
-          (state.stoodioz?.length || 0) > 0 ||
-          (state.labels?.length || 0) > 0;
-        if (stateHasAny) return;
-        if (isMounted) {
-          dispatch({
-            type: ActionTypes.SET_INITIAL_DATA,
-            payload: {
-              artists: [],
-              engineers: [],
-              producers: [],
-              stoodioz: [],
-              labels: [],
-              reviews: [],
-            },
-          });
-        }
+        // Never overwrite directory with empty on error — leave state as-is so landing can retry or keep existing data
+        didLoadDirectoryRef.current = false;
       }
     };
     loadDirectory();
