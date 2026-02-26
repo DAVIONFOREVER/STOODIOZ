@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
               if (id.includes('firebase')) return 'firebase';
               if (id.includes('stripe')) return 'stripe';
               if (id.includes('three')) return 'three';
-              return 'vendor';
+              return null;
             }
           },
         },
