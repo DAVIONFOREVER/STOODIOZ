@@ -7,7 +7,12 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, (process as any).cwd(), '');
+  const env = loadEnv(mode, (process as any).cwd(), '');
   return {
+    plugins: [react()],
+    build: {
+      chunkSizeWarningLimit: 1000,
+    },
     plugins: [react()],
     server: {
       host: '127.0.0.1',
