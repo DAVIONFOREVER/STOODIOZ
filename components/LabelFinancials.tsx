@@ -168,6 +168,8 @@ const LabelFinancials: React.FC = () => {
                 'add_funds_return',
                 JSON.stringify({ view: AppView.LABEL_DASHBOARD, returnTab: 'financials' })
               );
+              sessionStorage.setItem('stripe_return_in_progress', '1');
+              sessionStorage.setItem('stripe_return_profile_id', String(profileId));
             } catch (_) {}
             const { sessionId } = await apiService.createCheckoutSessionForWallet(amount, profileId, topUpNote || '');
             await redirectToCheckout(sessionId);

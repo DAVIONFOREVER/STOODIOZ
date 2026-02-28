@@ -54,6 +54,17 @@ async function fetchProfile(profileId: string): Promise<ProfileRow | null> {
   return Array.isArray(rows) ? rows[0] : null;
 }
 
+/** Minimal fetch for wallet credit only. Uses only columns that exist on all profiles (wallet_balance, wallet_transactions) so we never 400. */
+async function fetchProfileForWallet(profileId: string): Promise<{ id: string; wallet_balance?: number | null; wallet_transactions?: unknown[] | null } | null> {
+  const res = await supabaseFetch(
+    `profiles?id=eq.${encodeURIComponent(profileId)}&select=id,wallet_balance,wallet_transactions`,
+    { method: 'GET' }
+  );
+  if (!res.ok) return null;
+  const rows = await res.json().catch(() => []);
+  return Array.isArray(rows) ? rows[0] : null;
+}
+
 async function fetchProfileByStripeCustomer(customerId: string): Promise<ProfileRow | null> {
   const res = await supabaseFetch(
     `profiles?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=id,wallet_balance,wallet_transactions,stripe_customer_id,purchased_masterclass_ids,subscription_status,current_period_end`,
@@ -85,11 +96,28 @@ async function fetchBooking(bookingId: string): Promise<{ id: string; status?: s
 }
 
 async function updateProfile(profileId: string, patch: Record<string, unknown>) {
-  await supabaseFetch(`profiles?id=eq.${encodeURIComponent(profileId)}`, {
+  const res = await supabaseFetch(`profiles?id=eq.${encodeURIComponent(profileId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ ...patch, updated_at: nowIso() }),
     headers: { Prefer: 'return=representation' },
   });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`profiles PATCH failed ${res.status}: ${txt.slice(0, 200)}`);
+  }
+}
+
+/** Wallet-only update: only send wallet_balance and wallet_transactions so we never fail on missing updated_at. */
+async function updateProfileWallet(profileId: string, wallet_balance: number, wallet_transactions: unknown[]) {
+  const res = await supabaseFetch(`profiles?id=eq.${encodeURIComponent(profileId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ wallet_balance, wallet_transactions }),
+    headers: { Prefer: 'return=representation' },
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`profiles wallet PATCH failed ${res.status}: ${txt.slice(0, 200)}`);
+  }
 }
 
 async function updateBookingStatus(bookingId: string, status: string) {
@@ -131,18 +159,15 @@ async function appendWalletTransaction(
   tx: Record<string, unknown>,
   balanceDelta: number
 ) {
-  const profile = await fetchProfile(profileId);
-  if (!profile?.id) return;
+  const profile = await fetchProfileForWallet(profileId);
+  if (!profile?.id) throw new Error(`Profile not found for wallet credit: ${profileId}`);
   const currentBalance = Number(profile.wallet_balance || 0);
   const nextBalance = currentBalance + Number(balanceDelta || 0);
   const currentTx = Array.isArray(profile.wallet_transactions)
     ? profile.wallet_transactions
     : [];
   const nextTx = [...currentTx, tx].slice(-200);
-  await updateProfile(profileId, {
-    wallet_balance: nextBalance,
-    wallet_transactions: nextTx,
-  });
+  await updateProfileWallet(profileId, nextBalance, nextTx);
 }
 
 function buildTx(params: {
@@ -442,8 +467,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'content-type': 'application/json' },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
-      status: 400,
+    const msg = (error as Error).message ?? '';
+    const status = msg.includes('Missing stripe') || msg.includes('stripe-signature') ? 400 : 500;
+    return new Response(JSON.stringify({ error: msg }), {
+      status,
       headers: { ...corsHeaders, 'content-type': 'application/json' },
     });
   }

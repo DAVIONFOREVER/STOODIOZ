@@ -28,5 +28,17 @@ export const ARIA_EMAIL = 'aria@stoodioz.ai';
 export const LANDING_HERO_LINE = 'Book recording sessions with Stoodios, engineers, and producers.';
 export const LANDING_TAGLINE = 'Discover. Book. Get to work.';
 
+/** Single source of truth for API/auth timeouts (no 18000 anywhere — if you see "18000ms" in errors, do a hard refresh) */
+export const DB_TIMEOUT_MS = 38_000;
+export const HYDRATE_TIMEOUT_MS = 48_000;
+export const LOGIN_TIMEOUT_MS = 35_000;
+/** useAuth wrapper around fetchCurrentUserProfile; allows retries inside so total can be ~24s for 3 attempts */
+export const AUTH_HYDRATE_WRAPPER_MS = 50_000;
+/** Shorter timeout for hydrate recovery path (getSession / profiles.select) so we fail in ~12s when Supabase is paused instead of 32s. */
+export const HYDRATE_RECOVERY_MS = 12_000;
+/** Per-attempt timeout for auth hydrate (getSession + profiles.select). Supabase: use 5–8s with retry instead of long timeouts. */
+export const CLIENT_HYDRATE_ATTEMPT_MS = 8_000;
+export const CLIENT_HYDRATE_MAX_RETRIES = 3;
+
 export { getProfileImageUrl } from './utils/getProfileImageUrl';
 export { getDisplayName } from './utils/getDisplayName';

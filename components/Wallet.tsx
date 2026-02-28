@@ -2,6 +2,7 @@
 import React from 'react';
 import type { Artist, Engineer, Stoodio, Transaction, Producer, Label } from '../types';
 import { TransactionCategory, TransactionStatus, UserRole } from '../types';
+import { useAppState } from '../contexts/AppContext';
 import { BanknotesIcon, ArrowUpCircleIcon, ArrowDownCircleIcon, CalendarIcon, DollarSignIcon, HeartIcon, PlusCircleIcon, BriefcaseIcon } from './icons';
 import { format } from 'date-fns';
 
@@ -51,6 +52,8 @@ const StatusBadge: React.FC<{ status: TransactionStatus }> = ({ status }) => {
 };
 
 const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onViewBooking, userRole }) => {
+    const { walletBalanceFromPoll } = useAppState();
+    const displayBalance = walletBalanceFromPoll ?? user.wallet_balance ?? 0;
 
     // FIX: Corrected property 'wallet_transactions' to be accessed correctly for sorting.
     const sortedTransactions = [...(user.wallet_transactions || [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -60,7 +63,7 @@ const Wallet: React.FC<WalletProps> = ({ user, onAddFunds, onRequestPayout, onVi
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 pb-6 border-b border-zinc-700">
                 <div>
                     <h3 className="text-xl font-bold text-slate-100">Wallet</h3>
-                    <p className="text-4xl font-bold text-green-400 mt-1">${(user.wallet_balance ?? 0).toFixed(2)}</p>
+                    <p className="text-4xl font-bold text-green-400 mt-1">${Number(displayBalance).toFixed(2)}</p>
                     <p className="text-sm text-slate-400">Available Balance</p>
                     <p className="text-xs text-slate-500 mt-0.5">Balance may take a few seconds to update after adding funds.</p>
                 </div>

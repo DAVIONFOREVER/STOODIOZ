@@ -1,15 +1,17 @@
 // services/apiService.ts
 // Contract-complete API layer for Stoodioz (Supabase-first, safe fallbacks, never-hang patterns)
 
+import { DB_TIMEOUT_MS, HYDRATE_TIMEOUT_MS } from '../constants';
 import { getSupabase } from '../lib/supabase';
 import type { UserRole } from '../types';
 import { getDisplayName } from '../utils/getDisplayName';
 import { ingest } from '../utils/backgroundLogger';
 
-const DB_TIMEOUT_MS = 18_000; // Fail fast when Supabase is unreachable (paused project / wrong URL); 18s avoids 45s hang
-const HYDRATE_TIMEOUT_MS = 30_000; // Longer for hydrate path (post-Stripe redirect) so balance can load; used with one retry
+if (typeof window !== 'undefined') {
+  console.info('[STOODIOZ] Timeouts: DB=', DB_TIMEOUT_MS, 'ms, Hydrate=', HYDRATE_TIMEOUT_MS, 'ms');
+}
 const STORAGE_TIMEOUT_MS = 20_000;
-const PUBLIC_DATA_TIMEOUT_MS = 25_000; // Fail faster so UI can show cache or partial data
+const PUBLIC_DATA_TIMEOUT_MS = 60_000; // Directory load when Supabase is slow; fallback to cache on timeout
 
 const TABLES = {
   profiles: 'profiles',
@@ -93,32 +95,88 @@ const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
 
 const getAppOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '');
 
-async function callEdgeFunction(name: string, payload: Record<string, any>) {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+function getEdgeFunctionBaseUrl(useProxy?: boolean): string {
+  if (useProxy && typeof window !== 'undefined') {
+    const origin = getAppOrigin();
+    if (origin && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))) {
+      return `${origin}/supabase-functions`;
+    }
+  }
+  return SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : '';
+}
+
+const CHECKOUT_CALL_TIMEOUT_MS = 25_000;
+
+async function callEdgeFunction(name: string, payload: Record<string, any>, opts?: { useProxy?: boolean }) {
+  // Wallet checkout on localhost: use relative URL so request always hits Vite proxy (avoids CORS)
+  const isWalletCheckoutOnLocalhost =
+    name === 'create-wallet-checkout' &&
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const baseUrl = isWalletCheckoutOnLocalhost ? '' : getEdgeFunctionBaseUrl(opts?.useProxy);
+  const url = isWalletCheckoutOnLocalhost ? `/supabase-functions/${name}` : `${baseUrl}/${name}`;
+  if (!SUPABASE_ANON_KEY) {
+    throw new Error('Supabase URL or anon key is missing');
+  }
+  if (!isWalletCheckoutOnLocalhost && !baseUrl) {
     throw new Error('Supabase URL or anon key is missing');
   }
 
   const supabase = getSupabase();
-  const { data: sess } = await withTimeout(supabase.auth.getSession() as any, DB_TIMEOUT_MS, 'auth.getSession');
+  const { data: sess } = await supabase.auth.getSession();
   const token = sess?.session?.access_token;
 
+  const isWalletCheckout = name === 'create-wallet-checkout';
+  if (isWalletCheckout && !token) {
+    throw new Error('Please log in to add funds.');
+  }
+
+  // Build body: deployed function requires amount_dollars (number). Use minimal shape Supabase expects.
+  let bodyStr: string;
+  if (isWalletCheckout && payload) {
+    const dollars =
+      typeof (payload as any).amount_dollars === 'number'
+        ? (payload as any).amount_dollars
+        : typeof (payload as any).amountCents === 'number'
+          ? (payload as any).amountCents / 100
+          : 0;
+    const amountDollars = Number.isFinite(Number(dollars)) ? Number(dollars) : 0;
+    const minimal = {
+      amount_dollars: amountDollars,
+      currency: 'usd',
+      success_url: (payload as any).success_url ?? (payload as any).successUrl ?? '',
+      cancel_url: (payload as any).cancel_url ?? (payload as any).cancelUrl ?? '',
+      payer_profile_id: (payload as any).payer_profile_id ?? (payload as any).payerProfileId ?? '',
+      note: (payload as any).note ?? '',
+    };
+    bodyStr = JSON.stringify(minimal);
+  } else {
+    bodyStr = JSON.stringify(payload);
+  }
+
+  const timeoutMs = isWalletCheckout ? CHECKOUT_CALL_TIMEOUT_MS : DB_TIMEOUT_MS;
   const res = await withTimeout(
-    fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
+    fetch(url.startsWith('http') ? url : `${window.location.origin}${url}`, {
       method: 'POST',
       headers: {
         apikey: SUPABASE_ANON_KEY,
-        authorization: `Bearer ${token || SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${token ?? SUPABASE_ANON_KEY}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: bodyStr,
     }),
-    DB_TIMEOUT_MS,
+    timeoutMs,
     `functions.${name}`
   );
 
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
-    throw new Error(`functions/${name} ${res.status}: ${txt.slice(0, 200)}`);
+    let msg = txt.slice(0, 300);
+    try {
+      const j = JSON.parse(txt);
+      if (j && typeof j.error === 'string') msg = j.error;
+    } catch (_) {}
+    throw new Error(msg ? `functions/${name} ${res.status}: ${msg}` : `functions/${name} ${res.status}`);
   }
 
   return res.json().catch(() => ({}));
@@ -174,8 +232,6 @@ async function uploadToBucket(bucket: string, path: string, file: File) {
    AUTH / PROFILE (LOGIN HYDRATION)
 ============================================================ */
 
-const AUTH_FAST_MS = 10_000; // Try supabase-js first; avoid blocking on getSession after redirect (e.g. Stripe)
-
 export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any; role: UserRole }> {
   requireVal(uid, 'uid');
   const supabase = getSupabase();
@@ -189,145 +245,101 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
     }
   };
 
-  const doOneAttempt = async (): Promise<{ user: any; role: UserRole }> => {
-    // #region agent log
-    ingest({ location: 'apiService.ts:fetchCurrentUserProfile', message: 'entry', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
-    // #endregion
-
-    // Try supabase-js first (no getSession) so we don't block on auth.getSession after Stripe redirect
-    try {
-      const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
-      const { data: profile, error } = await withTimeout(q as any, AUTH_FAST_MS, 'profiles.select');
-      if (!error && profile) {
-        const role = profile.role as UserRole;
-        if (role) {
-          const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-          const [roleResult, followData] = await Promise.all([
-            (async () => {
-              if (roleTable) {
-                try {
-                  const { data: roleRow } = await supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle();
-                  return roleRow ?? null;
-                } catch { return null; }
-              }
-              if (role === 'STOODIO') {
-                try {
-                  const { data: sz } = await supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle();
-                  return sz ? { id: sz.id, image_url: null, cover_image_url: null } : null;
-                } catch { return null; }
-              }
-              return null;
-            })(),
-            computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
-          ]);
-          let user: any = { ...profile, ...followData };
-          user.profile_id = profile.id;
-          if (roleResult) {
-            if (roleResult.id) user.role_id = roleResult.id;
-            user.image_url = (profile?.image_url || profile?.avatar_url || roleResult?.image_url) ?? null;
-            user.cover_image_url = (profile?.cover_image_url || roleResult?.cover_image_url) ?? null;
-          }
-          ingest({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved (supabase-js first)', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
-          return { user, role };
-        }
-      }
-    } catch (_) {
-      /* fall through to REST path */
-    }
-
-    // Explicit-token REST when supabase-js fails or times out (e.g. auth still recovering)
-    try {
-      ingest({ location: 'apiService.ts:beforeGetSession', message: 'before getSession', data: {}, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
-      const { data: sess } = await withTimeout(supabase.auth.getSession() as any, HYDRATE_TIMEOUT_MS, 'auth.getSession');
-      const token = sess?.session?.access_token;
-      ingest({ location: 'apiService.ts:afterGetSession', message: 'after getSession', data: { hasToken: !!token }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H2' });
-      const url = (import.meta as any).env?.VITE_SUPABASE_URL;
-      const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-
-      if (token && url && anon) {
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), HYDRATE_TIMEOUT_MS);
-        try {
-          const res = await fetch(`${url}/rest/v1/${TABLES.profiles}?id=eq.${encodeURIComponent(uid)}&select=*`, {
-            method: 'GET',
-            headers: {
-              apikey: anon,
-              authorization: `Bearer ${token}`,
-              'content-type': 'application/json',
-            },
-            signal: controller.signal,
-          });
-
-          if (!res.ok) {
-            const txt = await res.text().catch(() => '');
-            throw new Error(`profiles REST ${res.status}: ${txt.slice(0, 200)}`);
-          }
-          const rows = await res.json();
-          const profile = Array.isArray(rows) ? rows[0] : null;
-          if (!profile) throw new Error('Profile not found');
-          const role = profile.role as UserRole;
-          if (!role) throw new Error('User has no role');
-          const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-          const [roleRow, followData] = await Promise.all([
-            roleTable
-              ? fetch(`${url}/rest/v1/${roleTable}?profile_id=eq.${encodeURIComponent(uid)}&select=id,image_url,cover_image_url`, {
-                  headers: { apikey: anon, authorization: `Bearer ${token}` },
-                  signal: controller.signal,
-                }).then(async (roleRes) => (roleRes.ok ? ((await roleRes.json())?.[0] ?? null) : null)).catch(() => null)
-              : Promise.resolve(null),
-            mergeFollowData({ ...profile, profile_id: profile.id }).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
-          ]);
-          let user: any = { ...profile, profile_id: profile.id, ...followData };
-          if (roleRow) {
-            if (roleRow.id) user.role_id = roleRow.id;
-            user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
-            user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
-          }
-          return { user, role };
-        } finally {
-          clearTimeout(t);
-        }
-      }
-    } catch (e) {
-      ingest({ location: 'apiService.ts:RESTfailed', message: 'REST path failed', data: { err: String((e as any)?.message) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1' });
-      console.warn('[fetchCurrentUserProfile] REST path failed, trying supabase-js:', e);
-    }
-
-    // Fallback supabase-js with longer timeout (session may have recovered)
-    ingest({ location: 'apiService.ts:fallbackStart', message: 'fallback supabase-js', data: { uid: uid?.slice(0, 8) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
+  // Use select('*') so we never request columns that don't exist (e.g. stage_name, name on profiles). What worked before.
+  const runProfileQuery = () => {
     const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
-    const { data: profile, error } = await withTimeout(q as any, HYDRATE_TIMEOUT_MS, 'profiles.select');
-    if (error) throw new Error(errMsg(error));
-    if (!profile) throw new Error('Profile not found');
-    const role = profile.role as UserRole;
-    if (!role) throw new Error('User has no role');
-
-    const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
-    const [roleRow, followData] = await Promise.all([
-      roleTable
-        ? withTimeout(supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle() as any, HYDRATE_TIMEOUT_MS, `${roleTable}.byProfileId`).then((r: any) => r?.data ?? null).catch(() => null)
-        : Promise.resolve(null),
-      computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
-    ]);
-    let user: any = { ...profile, profile_id: profile.id, ...followData };
-    if (roleRow) {
-      if (roleRow.id) user.role_id = roleRow.id;
-      user.image_url = (profile?.image_url || profile?.avatar_url || roleRow?.image_url) ?? null;
-      user.cover_image_url = (profile?.cover_image_url || roleRow?.cover_image_url) ?? null;
-    }
-    ingest({ location: 'apiService.ts:fetchCurrentUserProfileDone', message: 'profile resolved', data: { role }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H5' });
-    return { user, role };
+    return withTimeout(q as any, HYDRATE_TIMEOUT_MS, 'profiles.select');
   };
+  let result: { data: any; error: any } = await runProfileQuery();
+  if (result.error && String(result.error?.message || '').includes('timeout')) {
+    await new Promise((r) => setTimeout(r, 1500));
+    result = await runProfileQuery();
+  }
+  const { data: rawProfile, error } = result;
+  if (error) throw new Error(errMsg(error));
+  if (!rawProfile) throw new Error('Profile not found');
+  const profile = { ...rawProfile, name: rawProfile.display_name ?? rawProfile.full_name ?? rawProfile.username ?? (rawProfile as any).name };
+  const role = profile.role as UserRole;
+  if (!role) throw new Error('User has no role');
 
+  const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
+  const [roleResult, followData] = await Promise.all([
+    roleTable
+      ? supabase.from(roleTable).select('id, image_url, cover_image_url').eq('profile_id', uid).maybeSingle().then((r) => r.data ?? null).catch(() => null)
+      : role === 'STOODIO'
+        ? supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle().then((r) => (r.data ? { id: r.data.id, image_url: null, cover_image_url: null } : null)).catch(() => null)
+        : Promise.resolve(null),
+    computeFollowData(supabase, uid).catch(() => ({ followers: 0, follower_ids: [], following: { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] } })),
+  ]);
+  let user: any = { ...profile, profile_id: profile.id || uid, ...followData };
+  if (roleResult) {
+    if (roleResult.id) user.role_id = roleResult.id;
+    user.image_url = (profile?.image_url || profile?.avatar_url || roleResult?.image_url) ?? null;
+    user.cover_image_url = (profile?.cover_image_url || roleResult?.cover_image_url) ?? null;
+  }
+  return { user, role };
+}
+
+/** Wallet fetch after Add Funds: use same as DB timeout so balance can load when Supabase is slow (e.g. after pause). */
+const WALLET_FETCH_TIMEOUT_MS = DB_TIMEOUT_MS;
+
+/** Lightweight balance-only fetch for Stripe return poll: one column, 60s timeout so cold DB can respond. */
+const WALLET_POLL_TIMEOUT_MS = 60_000;
+
+export async function fetchWalletBalance(
+  profileId: string,
+  options?: { timeoutMs?: number }
+): Promise<{ wallet_balance: number; wallet_transactions: any[] } | null> {
+  if (!profileId) return null;
+  const supabase = getSupabase();
+  const timeoutMs = options?.timeoutMs ?? WALLET_FETCH_TIMEOUT_MS;
   try {
-    return await doOneAttempt();
-  } catch (e) {
-    const msg = String((e as any)?.message || '');
-    if (msg.includes('[timeout]')) {
-      await new Promise((r) => setTimeout(r, 2000));
-      return await doOneAttempt();
-    }
-    throw e;
+    const q = supabase.from(TABLES.profiles).select('wallet_balance, wallet_transactions').eq('id', profileId).single();
+    const { data, error } = await withTimeout(q as any, timeoutMs, 'profiles.wallet');
+    if (error || !data) return null;
+    return {
+      wallet_balance: Number(data.wallet_balance ?? 0),
+      wallet_transactions: Array.isArray(data.wallet_transactions) ? data.wallet_transactions : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** For Stripe return: fetch only wallet_balance (no JSONB). Use when DB is slow so balance can show before full hydrate. */
+export async function fetchWalletBalanceOnly(profileId: string, options?: { timeoutMs?: number }): Promise<number | null> {
+  if (!profileId) return null;
+  const supabase = getSupabase();
+  const timeoutMs = options?.timeoutMs ?? WALLET_POLL_TIMEOUT_MS;
+  try {
+    const q = supabase.from(TABLES.profiles).select('wallet_balance').eq('id', profileId).single();
+    const { data, error } = await withTimeout(q as any, timeoutMs, 'profiles.wallet_balance');
+    if (error || data == null) return null;
+    return Number(data.wallet_balance ?? 0);
+  } catch {
+    return null;
+  }
+}
+
+/** Minimal profile for Stripe return when full hydrate times out. Use select(*) so we never 400 on missing columns; map to expected shape. */
+export async function fetchMinimalProfileForStripeReturn(profileId: string): Promise<{ user: any; role: string } | null> {
+  if (!profileId) return null;
+  const supabase = getSupabase();
+  try {
+    const q = supabase.from(TABLES.profiles).select('*').eq('id', profileId).single();
+    const { data, error } = await withTimeout(q as any, 25_000, 'profiles.minimal');
+    if (error || !data) return null;
+    const role = (data.role as string) || 'ARTIST';
+    const user = {
+      id: data.id,
+      profile_id: data.id,
+      name: data.display_name ?? data.full_name ?? data.username ?? (data as any).name ?? 'User',
+      display_name: data.display_name,
+      wallet_balance: Number((data as any).wallet_balance ?? 0),
+    };
+    return { user, role };
+  } catch {
+    return null;
   }
 }
 
@@ -532,7 +544,7 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     };
     // Smaller initial load so directory and profiles query finish in time (was 2000×5 = 10k rows)
     const MAX_ROWS_PER_TABLE = 300;
-    const QUERY_TIMEOUT_MS = 20_000; // 20s — artists (and others) can be slow on large DBs or cold RLS
+    const QUERY_TIMEOUT_MS = 35_000; // When Supabase is slow, 20s caused constant directory timeouts
     
     // Narrow selects for faster public directory loads
     const selectArtists = 'id,name,stage_name,image_url,cover_image_url,genres,rating_overall,ranking_tier,profile_id';
@@ -579,12 +591,12 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
       labels: { count: l.data?.length || 0, error: l.error?.message || null },
     });
     
-    // Only log errors, don't throw - return empty arrays on failure
-    if (a.error) console.error('[getAllPublicUsers] artists error:', a.error);
-    if (e.error) console.error('[getAllPublicUsers] engineers error:', e.error);
-    if (p.error) console.error('[getAllPublicUsers] producers error:', p.error);
-    if (s.error) console.error('[getAllPublicUsers] stoodioz error:', s.error);
-    if (l.error) console.error('[getAllPublicUsers] labels error:', l.error);
+    // Only log as warn so console isn't flooded when Supabase is slow; we still return empty for failed tables
+    if (a.error) console.warn('[getAllPublicUsers] artists:', a.error?.message || a.error);
+    if (e.error) console.warn('[getAllPublicUsers] engineers:', e.error?.message || e.error);
+    if (p.error) console.warn('[getAllPublicUsers] producers:', p.error?.message || p.error);
+    if (s.error) console.warn('[getAllPublicUsers] stoodioz:', s.error?.message || s.error);
+    if (l.error) console.warn('[getAllPublicUsers] labels:', l.error?.message || l.error);
     
     const looksLikeId = (value: string): boolean => {
       if (!value || typeof value !== 'string') return false;
@@ -971,7 +983,7 @@ export async function getAllPublicUsers(forceRefresh = false): Promise<{
     return result;
   } catch (err) {
     // If the entire operation times out, return cached data if available, otherwise empty arrays
-    console.error('[getAllPublicUsers] Overall timeout:', err);
+    console.warn('[getAllPublicUsers] Overall timeout, using cache or empty:', (err as Error)?.message);
     if (cachedPublicUsers) {
       console.log('[getAllPublicUsers] Returning stale cache due to timeout');
       return cachedPublicUsers;
@@ -2734,10 +2746,10 @@ export async function getClaimDetails(tokenOrCode: string): Promise<{ labelName:
     let labelName = 'The Label';
     if (labelId) {
       const p = await safeSelect('profiles.byLabel', async () => {
-        const q = supabase.from(TABLES.profiles).select('name').eq('id', labelId).maybeSingle();
+        const q = supabase.from(TABLES.profiles).select('id, display_name, full_name, username').eq('id', labelId).maybeSingle();
         return q as any;
       }, null);
-      if (p?.name) labelName = p.name;
+      if (p) labelName = (p.display_name ?? p.full_name ?? p.username) || labelName;
     }
     return { labelName, role: roster.role || 'Artist', email: roster.email };
   }
@@ -3530,25 +3542,53 @@ export async function createCheckoutSessionForWallet(
   note?: string,
   options?: { popup?: boolean }
 ): Promise<{ sessionId: string; url?: string | null }> {
-  const origin = getAppOrigin();
+  // Dev-only: confirms latest bundle is loaded (remove after Add Funds works)
+  if (typeof window !== 'undefined' && import.meta.env?.DEV) {
+    console.warn('[STOODIOZ] Add Funds using amount_dollars payload — if you see this, latest code is running');
+  }
+  const origin = getAppOrigin() || (import.meta as any).env?.VITE_APP_ORIGIN || (typeof window !== 'undefined' ? window?.location?.origin : '') || '';
   const amountNum = Number(amount || 0);
+  const pid = profileId != null && profileId !== '' ? String(profileId) : '';
   const successUrl = origin
     ? options?.popup
-      ? `${origin}/?stripe=success&popup=1&amount=${encodeURIComponent(amountNum)}`
-      : `${origin}/?stripe=success`
+      ? `${origin}/?stripe=success&popup=1&amount=${encodeURIComponent(amountNum)}${pid ? `&profile_id=${encodeURIComponent(pid)}` : ''}`
+      : `${origin}/?stripe=success${pid ? `&profile_id=${encodeURIComponent(pid)}` : ''}`
     : '';
   const cancelUrl = origin ? `${origin}/?stripe=cancel` : '';
 
-  const amountCents = Math.round(amountNum * 100);
-  if (!amountCents) throw new Error('Amount must be greater than 0.');
+  if (!amountNum || amountNum <= 0) throw new Error('Amount must be greater than 0.');
 
-  return callEdgeFunction('create-wallet-checkout', {
-    amountCents,
+  // Deployed Supabase function requires amount_dollars (number)
+  const payload = {
+    amount_dollars: Number(amountNum),
+    currency: 'usd',
+    payer_profile_id: profileId,
     payerProfileId: profileId,
     note: note || '',
+    success_url: successUrl,
+    cancel_url: cancelUrl,
     successUrl,
     cancelUrl,
-  });
+  };
+
+  const isNetworkError = (e: unknown) => {
+    const msg = String((e as Error)?.message ?? '');
+    return msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed');
+  };
+
+  try {
+    return await callEdgeFunction('create-wallet-checkout', payload, { useProxy: true });
+  } catch (e) {
+    if (isNetworkError(e)) {
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        return await callEdgeFunction('create-wallet-checkout', payload, { useProxy: true });
+      } catch (e2) {
+        throw new Error('Could not reach the payment server. Check your connection and that your Supabase project is not paused, then try again.');
+      }
+    }
+    throw e;
+  }
 }
 
 export type BeatPurchaseType = 'lease_mp3' | 'lease_wav' | 'exclusive';

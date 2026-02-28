@@ -66,7 +66,7 @@ const UpgradeProCard: React.FC<{ onNavigate: (view: AppView) => void }> = ({ onN
 
 
 const ProducerDashboard: React.FC = () => {
-    const { currentUser, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations } = useAppState();
+    const { currentUser, walletBalanceFromPoll, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations } = useAppState();
     const dispatch = useAppDispatch();
     const [myPosts, setMyPosts] = useState<Post[]>([]);
     const postSectionRef = useRef<HTMLDivElement>(null);
@@ -421,7 +421,7 @@ const ProducerDashboard: React.FC = () => {
             
              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {/* FIX: Corrected property name from `walletBalance` to `wallet_balance` */}
-                <StatCard label="Wallet Balance" value={`$${(producer.wallet_balance ?? 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <StatCard label="Wallet Balance" value={`$${(walletBalanceFromPoll ?? producer.wallet_balance ?? 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Followers" value={producer.followers ?? 0} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
                 <StatCard label="Overall Rating" value={(producer.rating_overall || 0).toFixed(1)} icon={<StarIcon className="w-6 h-6 text-yellow-400" />} />
             </div>

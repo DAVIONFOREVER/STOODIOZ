@@ -45,7 +45,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 
 
 const ArtistDashboard: React.FC = () => {
-    const { currentUser, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
+    const { currentUser, walletBalanceFromPoll, bookings, conversations, stoodioz, engineers, artists, producers, dashboardInitialTab } = useAppState();
     const dispatch = useAppDispatch();
     const [myPosts, setMyPosts] = useState<Post[]>([]);
     const postSectionRef = useRef<HTMLDivElement>(null);
@@ -360,7 +360,7 @@ const ArtistDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <StatCard label="Wallet Balance" value={`$${(artist.wallet_balance ?? 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                <StatCard label="Wallet Balance" value={`$${(walletBalanceFromPoll ?? artist.wallet_balance ?? 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                 <StatCard label="Followers" value={artist.followers ?? 0} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
             </div>

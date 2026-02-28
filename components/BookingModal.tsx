@@ -12,7 +12,7 @@ interface BookingModalProps {
 
 const BookingModal: React.FC<BookingModalProps> = (props) => {
     const { onClose, onConfirm } = props;
-    const { stoodioz, engineers, producers, currentUser, isLoading, bookingTime, bookingIntent, selectedStoodio } = useAppState();
+    const { stoodioz, engineers, producers, currentUser, walletBalanceFromPoll, isLoading, bookingTime, bookingIntent, selectedStoodio } = useAppState();
     const dispatch = useAppDispatch();
 
     const stoodio = selectedStoodio;
@@ -110,7 +110,7 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     const handleConfirmBooking = (e: React.FormEvent) => {
         e.preventDefault();
 
-        const walletBalance = Number(currentUser?.wallet_balance ?? 0);
+        const walletBalance = Number(walletBalanceFromPoll ?? currentUser?.wallet_balance ?? 0);
         const safeTotal = Number.isFinite(totalCost) ? totalCost : 0;
         if (safeTotal > walletBalance) {
             dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });

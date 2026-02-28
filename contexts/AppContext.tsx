@@ -83,6 +83,8 @@ export interface AppState {
   masterclassToWatch: { masterclass: Masterclass; owner: Engineer | Producer } | null;
   masterclassToReview: { masterclass: Masterclass; owner: Engineer | Producer } | null;
   directionsIntent: { bookingId?: string | null; destination?: { lat: number; lon: number } } | null;
+  /** Set by Stripe-return wallet poll when full hydrate times out; UI uses this ?? currentUser.wallet_balance */
+  walletBalanceFromPoll: number | null;
 }
 
 type ActionMap<M extends { [index: string]: any }> = {
@@ -152,6 +154,7 @@ export enum ActionTypes {
   SET_REVIEWS = 'SET_REVIEWS',
   SET_REVIEW_TARGET = 'SET_REVIEW_TARGET',
   SET_DIRECTIONS_INTENT = 'SET_DIRECTIONS_INTENT',
+  SET_WALLET_BALANCE_FROM_POLL = 'SET_WALLET_BALANCE_FROM_POLL',
 }
 
 type Payload = {
@@ -222,6 +225,7 @@ type Payload = {
   [ActionTypes.SET_REVIEWS]: { reviews: Review[] };
   [ActionTypes.SET_REVIEW_TARGET]: { target: ReviewTarget | null };
   [ActionTypes.SET_DIRECTIONS_INTENT]: { bookingId: string | null };
+  [ActionTypes.SET_WALLET_BALANCE_FROM_POLL]: { balance: number | null };
 };
 
 export type AppAction = ActionMap<Payload>[keyof ActionMap<Payload>];
@@ -304,6 +308,7 @@ const initialState: AppState = {
   masterclassToWatch: null,
   masterclassToReview: null,
   directionsIntent: null,
+  walletBalanceFromPoll: null,
 };
 
 // --- REDUCER ---
@@ -367,6 +372,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         userRole: role,
         loginError: null,
         isLoading: false,
+        walletBalanceFromPoll: null,
       };
     }
 
@@ -497,8 +503,13 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       };
     }
 
-    case ActionTypes.SET_CURRENT_USER:
-      return { ...state, currentUser: action.payload.user };
+    case ActionTypes.SET_CURRENT_USER: {
+      const user = action.payload.user as any;
+      const walletFromPayload = user?.wallet_balance != null ? Number(user.wallet_balance) : null;
+      return { ...state, currentUser: action.payload.user, walletBalanceFromPoll: walletFromPayload };
+    }
+    case ActionTypes.SET_WALLET_BALANCE_FROM_POLL:
+      return { ...state, walletBalanceFromPoll: action.payload.balance };
 
     case ActionTypes.UPDATE_FOLLOWING: {
       if (!state.currentUser) return state;

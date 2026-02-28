@@ -187,7 +187,7 @@ export const useProfile = () => {
     [currentUser, userRole, allUsers, dispatch]
   );
 
-  const refreshCurrentUser = useCallback(async () => {
+  const refreshCurrentUser = useCallback(async (options?: { silent?: boolean }) => {
     if (!currentUser || !userRole) return;
     const tableName = getTableNameFromRole(userRole);
     if (!tableName) return;
@@ -286,7 +286,7 @@ export const useProfile = () => {
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
       logBackgroundError('useProfile.refreshCurrentUser', 'refresh failed', error, { userRole: userRole ?? null });
-      alert('Couldn\'t refresh profile. Please try again.');
+      if (!options?.silent) alert('Couldn\'t refresh profile. Please try again.');
       return null;
     }
   }, [currentUser, userRole, allUsers, dispatch]);

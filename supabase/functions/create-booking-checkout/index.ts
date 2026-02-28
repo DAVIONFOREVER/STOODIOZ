@@ -34,13 +34,13 @@ async function fetchRosterEntry(profileId: string) {
 
 async function fetchProfileName(profileId: string) {
   const res = await supabaseFetch(
-    `profiles?id=eq.${encodeURIComponent(profileId)}&select=id,name,full_name,display_name,username`,
+    `profiles?id=eq.${encodeURIComponent(profileId)}&select=id,display_name,full_name,username`,
     { method: 'GET' }
   );
   if (!res.ok) return null;
   const rows = await res.json().catch(() => []);
   const profile = Array.isArray(rows) ? rows[0] : null;
-  return profile?.display_name || profile?.name || profile?.full_name || profile?.username || null;
+  return profile?.display_name || profile?.full_name || profile?.username || null;
 }
 
 async function insertLabelNotification(payload: Record<string, unknown>) {

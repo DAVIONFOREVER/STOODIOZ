@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useAppState, useAppDispatch, ActionTypes } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
 import type { Booking } from '../types';
 import { UserRole, AppView } from '../types';
 import { redirectToCheckout } from '../lib/stripe';
 import { useProfile } from '../hooks/useProfile';
+import { getSupabase } from '../lib/supabase';
 
 export const useSession = (navigate: (view: any) => void) => {
   const dispatch = useAppDispatch();
@@ -65,82 +66,70 @@ export const useSession = (navigate: (view: any) => void) => {
 
   const { history, historyIndex, selectedStoodio, bookingTime } = useAppState();
 
+  const addFundsInFlightRef = useRef(false);
   const addFunds = useCallback(
     async (amount: number) => {
       if (!currentUser || !userRole) return;
-
+      if (addFundsInFlightRef.current) return;
+      addFundsInFlightRef.current = true;
       dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
       try {
-        const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
-        const res = await apiService.createCheckoutSessionForWallet(amount, profileId, undefined, { popup: true });
-        const { sessionId, url } = res;
-
-        if (url && typeof window !== 'undefined') {
-          const balanceBefore = Number((currentUser as any)?.wallet_balance ?? 0);
-          const popup = window.open(url, 'stripe_wallet', 'width=500,height=700,scrollbars=yes');
+        const supabase = getSupabase();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
           dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-          dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
-
-          const showNotification = (message: string) => {
-            dispatch({
-              type: ActionTypes.ADD_NOTIFICATION,
-              payload: {
-                notification: {
-                  id: `add-funds-${Date.now()}`,
-                  recipient_id: profileId,
-                  type: 'SCHEDULE_REMINDER' as any,
-                  message,
-                  read: false,
-                  timestamp: new Date().toISOString(),
-                },
-              },
-            });
-          };
-
-          const checkBalanceAndNotify = async () => {
-            const updated = await refreshCurrentUser();
-            const newBalance = Number((updated as any)?.wallet_balance ?? 0);
-            if (newBalance > balanceBefore) {
-              const added = newBalance - balanceBefore;
-              showNotification(`You just added $${added.toFixed(2)} to your wallet.`);
-              return true;
-            }
-            return false;
-          };
-
-          const onDone = async () => {
-            const showed = await checkBalanceAndNotify();
-            if (showed) return;
-            showNotification('Payment received. Your balance will update in a few seconds—refresh the wallet tab if needed.');
-            setTimeout(() => checkBalanceAndNotify(), 2000);
-            setTimeout(() => checkBalanceAndNotify(), 5000);
-          };
-
-          const handleMessage = (e: MessageEvent) => {
-            if (e.data?.type === 'STRIPE_POPUP_SUCCESS') {
-              window.removeEventListener('message', handleMessage);
-              onDone();
-            }
-          };
-          window.addEventListener('message', handleMessage);
-
-          const poll = setInterval(() => {
-            if (popup?.closed) {
-              clearInterval(poll);
-              window.removeEventListener('message', handleMessage);
-              onDone();
-            }
-          }, 500);
+          addFundsInFlightRef.current = false;
+          if (typeof window !== 'undefined') alert('Please log in to add funds.');
           return;
         }
 
+        const profileId = (currentUser as any)?.profile_id ?? currentUser?.id ?? session?.user?.id;
+        const res = await apiService.createCheckoutSessionForWallet(amount, profileId, undefined, { popup: true });
+        const sessionId = res?.sessionId;
+        const url = res?.url;
+
+        if (!sessionId) {
+          throw new Error('No checkout session returned. Try again.');
+        }
+
+        // Save return context so we land back on dashboard/wallet after Stripe
+        try {
+          const currentView = history[historyIndex] ?? (userRole === UserRole.LABEL ? AppView.LABEL_DASHBOARD : AppView.THE_STAGE);
+          sessionStorage.setItem(
+            'add_funds_return',
+            JSON.stringify({
+              view: currentView,
+              returnTab: currentView === AppView.LABEL_DASHBOARD ? 'financials' : undefined,
+            })
+          );
+          sessionStorage.setItem('stripe_return_in_progress', '1');
+          sessionStorage.setItem('stripe_return_profile_id', String(profileId));
+        } catch (_) {}
+
+        dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+        dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
+        addFundsInFlightRef.current = false;
+
+        // Always redirect current tab to Stripe (most reliable: direct URL, no popup)
+        if (url && typeof url === 'string' && url.startsWith('http')) {
+          window.location.href = url;
+          return;
+        }
         await redirectToCheckout(sessionId);
       } catch (error: any) {
         console.error('Failed to create add funds session:', error);
         const msg = error?.message || 'Could not start checkout. Check your connection and try again.';
-        alert(msg);
+        let friendly = msg;
+        if (msg.includes('Please log in')) friendly = msg;
+        else if (msg.includes('Failed to fetch') || msg.includes('reach the payment server')) {
+          friendly = 'Could not reach the payment server. Check your internet connection and that your Supabase project is not paused (Dashboard → Project Settings). Then try Add Funds again.';
+        } else if (msg.includes('500')) {
+          friendly = msg + ' — If the message above is empty, set STRIPE_SECRET_KEY in Supabase → Edge Functions → Secrets and run: npx supabase functions deploy create-wallet-checkout --no-verify-jwt';
+        }
+        alert(friendly);
       } finally {
+        addFundsInFlightRef.current = false;
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: false } });
       }

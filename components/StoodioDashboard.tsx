@@ -234,7 +234,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 );
 
 const StoodioDashboard: React.FC = () => {
-    const { currentUser, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations, userRole } = useAppState();
+    const { currentUser, walletBalanceFromPoll, bookings, artists, engineers, stoodioz, producers, dashboardInitialTab, conversations, userRole } = useAppState();
     const dispatch = useAppDispatch();
     const [myPosts, setMyPosts] = useState<Post[]>([]);
     const postSectionRef = useRef<HTMLDivElement>(null);
@@ -660,7 +660,7 @@ const StoodioDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                 <StatCard label="Wallet Balance" value={`$${(stoodio.wallet_balance ?? 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
+                 <StatCard label="Wallet Balance" value={`$${Number(walletBalanceFromPoll ?? stoodio.wallet_balance ?? 0).toFixed(2)}`} icon={<DollarSignIcon className="w-6 h-6 text-green-400" />} />
                 <StatCard label="Upcoming Bookings" value={upcomingBookingsCount} icon={<CalendarIcon className="w-6 h-6 text-orange-400" />} />
                 <StatCard label="Followers" value={stoodio.followers ?? 0} icon={<UsersIcon className="w-6 h-6 text-blue-400" />} />
             </div>

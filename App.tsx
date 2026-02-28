@@ -1,4 +1,4 @@
-import React, { useEffect, lazy, Suspense, useCallback, useRef } from 'react';
+import React, { useEffect, lazy, Suspense, useCallback, useRef, useState } from 'react';
 import type { Artist, Engineer, Stoodio, Producer, Booking, Label } from './types';
 import { AppView, UserRole, NotificationType } from './types';
 import { useAppState, useAppDispatch, ActionTypes } from './contexts/AppContext.tsx';
@@ -18,7 +18,7 @@ import { useSubscription } from './hooks/useSubscription.ts';
 import { useMasterclass } from './hooks/useMasterclass.ts';
 import { useRealtimeLocation } from './hooks/useRealtimeLocation.ts';
 
-import { getSupabase } from './lib/supabase.ts';
+import { getSupabase, getSupabaseReachable, getSupabaseReachableForStripe, setRealtimeAuth } from './lib/supabase.ts';
 import { ingest } from './utils/backgroundLogger.ts';
 import * as apiService from './services/apiService.ts';
 import { getAriaNudge } from './services/geminiService.ts';
@@ -181,6 +181,7 @@ const App: React.FC = () => {
     bookingIntent,
     bookings,
     engineers,
+    walletBalanceFromPoll,
   } = state;
 
   const currentView = history[historyIndex];
@@ -221,6 +222,7 @@ const App: React.FC = () => {
     if (isLoadingRef.current) return;
     if (currentUser || userRole) return;
     if (stripeReturnInProgressRef.current) return;
+    if (typeof window !== 'undefined' && sessionStorage.getItem('stripe_return_in_progress')) return;
     const isPublic =
       currentView === AppView.LOGIN ||
       currentView === AppView.LANDING_PAGE ||
@@ -259,6 +261,50 @@ const App: React.FC = () => {
     }
   }, [dispatch]);
 
+  // Clean Add Funds return params when they appear without stripe=success (e.g. main window at ?popup=1&amount=500).
+  // Prevents black/stuck landing when Stripe redirects to success URL that drops stripe=success.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    const hasPopup = q.get('popup') === '1';
+    const hasAmount = q.has('amount');
+    if (!hasPopup && !hasAmount) return;
+    // If we're the popup, the stripe effect handles postMessage and close; don't clean here.
+    if (window.opener) return;
+    const u = new URL(window.location.href);
+    u.searchParams.delete('popup');
+    u.searchParams.delete('amount');
+    if (u.search !== window.location.search) {
+      window.history.replaceState({}, '', u.pathname + (u.search || ''));
+    }
+  }, []);
+
+  // User pressed Back from Stripe (or returned without completing): no stripe=success/cancel in URL but we have add_funds_return. Restore dashboard immediately so they don't see landing, timeout, or wrong view.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('stripe')) return; // Stripe success/cancel effect handles that
+    const raw = sessionStorage.getItem('add_funds_return');
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as { view?: string; returnTab?: string | null };
+      if (!parsed?.view) return;
+      const returnView = parsed.view as AppView;
+      sessionStorage.removeItem('add_funds_return');
+      sessionStorage.removeItem('stripe_return_view');
+      sessionStorage.removeItem('stripe_return_pending');
+      sessionStorage.removeItem('stripe_return_profile_id');
+      if (returnView === AppView.LABEL_DASHBOARD && parsed.returnTab) {
+        sessionStorage.setItem('label_dashboard_return_tab', parsed.returnTab);
+      }
+      if (returnView === AppView.ARTIST_DASHBOARD || returnView === AppView.ENGINEER_DASHBOARD || returnView === AppView.PRODUCER_DASHBOARD || returnView === AppView.STOODIO_DASHBOARD) {
+        dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'wallet' } });
+      }
+      dispatch({ type: ActionTypes.NAVIGATE, payload: { view: returnView } });
+      // Leave stripe_return_in_progress so "redirect to landing if not authenticated" keeps skipping until hydrate completes
+    } catch (_) {}
+  }, [dispatch]);
+
   // --- Guards to prevent loops / double work ---
   const hydrateInFlightRef = useRef<Promise<UserRole | null> | null>(null);
   const lastHydratedUserIdRef = useRef<string | null>(null);
@@ -269,7 +315,10 @@ const App: React.FC = () => {
   const currentViewRef = useRef(currentView);
   const isLoadingRef = useRef(isLoading);
   const hydrateUserRef = useRef<((uid: string) => Promise<UserRole | null>) | null>(null);
+  const lastHydrateAttemptUserIdRef = useRef<string | null>(null);
   const stripeReturnInProgressRef = useRef(false);
+  const stripeWalletPollRef = useRef<{ cancelled: boolean; interval?: ReturnType<typeof setInterval>; timer?: ReturnType<typeof setTimeout> }>({ cancelled: false });
+  const [showSupabaseUnreachableBanner, setShowSupabaseUnreachableBanner] = useState(false);
   currentUserRef.current = currentUser;
   userRoleRef.current = userRole;
   currentViewRef.current = currentView;
@@ -363,6 +412,8 @@ const App: React.FC = () => {
         u.searchParams.delete('beat_purchase');
         u.searchParams.delete('kit_purchase');
         u.searchParams.delete('booking_id');
+        u.searchParams.delete('popup');
+        u.searchParams.delete('amount');
         window.history.replaceState({}, '', u.pathname + (u.search || ''));
         navigate(AppView.MY_BOOKINGS);
       } catch (e) {
@@ -392,6 +443,9 @@ const App: React.FC = () => {
     const kitPurchase = q.get('kit_purchase') === '1';
     if (stripeStatus === 'success' && (beatPurchase || kitPurchase)) return;
     stripeReturnInProgressRef.current = true;
+    try {
+      sessionStorage.setItem('stripe_return_in_progress', '1');
+    } catch (_) {}
 
     const u = new URL(window.location.href);
     const bookingIdFromUrl = q.get('booking_id');
@@ -399,6 +453,8 @@ const App: React.FC = () => {
     u.searchParams.delete('beat_purchase');
     u.searchParams.delete('kit_purchase');
     u.searchParams.delete('booking_id');
+    u.searchParams.delete('popup');
+    u.searchParams.delete('amount');
     window.history.replaceState({}, '', u.pathname + (u.search || ''));
     if (stripeStatus === 'success' && bookingIdFromUrl) {
       (async () => {
@@ -437,6 +493,18 @@ const App: React.FC = () => {
           sessionStorage.removeItem('add_funds_return');
           if (parsed?.view) {
             const returnView = parsed.view as AppView;
+            // Fresh load (no user yet): reload so hydrate runs with clean URL; we'll navigate after hydrate.
+            if (!state.currentUser) {
+              try {
+                sessionStorage.setItem('stripe_return_view', returnView);
+                sessionStorage.setItem('stripe_return_pending', '1');
+                if (returnView === AppView.LABEL_DASHBOARD && parsed.returnTab) {
+                  sessionStorage.setItem('label_dashboard_return_tab', parsed.returnTab);
+                }
+              } catch (_) {}
+              window.location.reload();
+              return;
+            }
             if (returnView === AppView.LABEL_DASHBOARD && parsed.returnTab) {
               try {
                 sessionStorage.setItem('label_dashboard_return_tab', parsed.returnTab);
@@ -447,6 +515,15 @@ const App: React.FC = () => {
               if (stoodio) {
                 dispatch({ type: ActionTypes.VIEW_STOODIO_DETAILS, payload: { stoodio } });
               }
+            }
+            // Land on wallet/financials tab so user sees balance immediately
+            if (
+              returnView === AppView.ARTIST_DASHBOARD ||
+              returnView === AppView.ENGINEER_DASHBOARD ||
+              returnView === AppView.PRODUCER_DASHBOARD ||
+              returnView === AppView.STOODIO_DASHBOARD
+            ) {
+              dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'wallet' } });
             }
             navigate(returnView);
             restored = true;
@@ -537,17 +614,25 @@ const App: React.FC = () => {
     const STRIPE_RETURN_GUARD_MS = 30000;
     const clearRefTimer = setTimeout(() => {
       stripeReturnInProgressRef.current = false;
+      try {
+        sessionStorage.removeItem('stripe_return_in_progress');
+      } catch (_) {}
     }, STRIPE_RETURN_GUARD_MS);
 
     if (stripeStatus === 'success') {
+      const supabase = getSupabase();
       const doRefetch = async () => {
         try {
-          const supabase = getSupabase();
           const { data } = await supabase.auth.getSession();
           const uid = data?.session?.user?.id;
           if (uid && hydrateUserRef.current) {
             const role = await hydrateUserRef.current(uid);
-            if (role) stripeReturnInProgressRef.current = false;
+            if (role) {
+              stripeReturnInProgressRef.current = false;
+              try {
+                sessionStorage.removeItem('stripe_return_in_progress');
+              } catch (_) {}
+            }
           }
         } catch (e) {
           console.warn('[App] Refetch after Stripe success failed:', e);
@@ -559,6 +644,57 @@ const App: React.FC = () => {
       const t3 = setTimeout(doRefetch, 10000);
       const t4 = setTimeout(doRefetch, 15000);
       const t5 = setTimeout(doRefetch, 20000);
+
+      // Wallet poll: lightweight balance-only fetch (60s timeout), poll 2min so cold DB can respond. Show balance via walletBalanceFromPoll when hydrate times out.
+      const pollRef = stripeWalletPollRef;
+      pollRef.current = { cancelled: false };
+      const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const storedProfileId =
+        (typeof window !== 'undefined' ? sessionStorage.getItem('stripe_return_profile_id') : null) ?? q?.get('profile_id') ?? null;
+      const WALLET_POLL_INTERVAL_MS = 5000;
+      const WALLET_POLL_DURATION_MS = 120000;
+      const startWalletPoll = (uid: string | null) => {
+        if (pollRef.current.cancelled || !uid) return;
+        let firstAttempt = true;
+        const tryWallet = async () => {
+          if (pollRef.current.cancelled) return;
+          const timeoutMs = firstAttempt ? 90_000 : undefined;
+          if (firstAttempt) firstAttempt = false;
+          const balance = await apiService.fetchWalletBalanceOnly(uid, timeoutMs ? { timeoutMs } : undefined);
+          if (pollRef.current.cancelled) return;
+          if (balance != null) {
+            dispatch({ type: ActionTypes.SET_WALLET_BALANCE_FROM_POLL, payload: { balance } });
+            const cur = (state.currentUser as any) || {};
+            if (cur.id || cur.profile_id) {
+              dispatch({
+                type: ActionTypes.SET_CURRENT_USER,
+                payload: { user: { ...cur, wallet_balance: balance } },
+              });
+            }
+          }
+        };
+        tryWallet();
+        pollRef.current.interval = setInterval(tryWallet, WALLET_POLL_INTERVAL_MS);
+        pollRef.current.timer = setTimeout(() => {
+          if (pollRef.current.interval) clearInterval(pollRef.current.interval);
+        }, WALLET_POLL_DURATION_MS);
+      };
+      // Start immediately if we have profile id from redirect; otherwise wait for session (max 8s).
+      const uidFromStored = storedProfileId ?? (state.currentUser as any)?.profile_id ?? state.currentUser?.id ?? null;
+      if (uidFromStored) {
+        startWalletPoll(uidFromStored);
+      } else {
+        const SESSION_WAIT_MS = 8000;
+        Promise.race([
+          supabase.auth.getSession().then((d) => d?.data?.session?.user?.id ?? null),
+          new Promise<null>((r) => setTimeout(() => r(null), SESSION_WAIT_MS)),
+        ]).then((sessionUid) => {
+          if (pollRef.current.cancelled) return;
+          const uid = sessionUid ?? storedProfileId ?? null;
+          startWalletPoll(uid);
+        });
+      }
+
       return () => {
         clearTimeout(clearRefTimer);
         clearTimeout(t1);
@@ -566,10 +702,96 @@ const App: React.FC = () => {
         clearTimeout(t3);
         clearTimeout(t4);
         clearTimeout(t5);
+        pollRef.current.cancelled = true;
+        if (pollRef.current.interval) clearInterval(pollRef.current.interval);
+        if (pollRef.current.timer) clearTimeout(pollRef.current.timer);
       };
     }
     return () => clearTimeout(clearRefTimer);
   }, [navigate, userRole, state.stoodioz, dispatch]);
+
+  // Stripe return after RELOAD: URL no longer has stripe=success, so the effect above never runs. Start wallet poll from sessionStorage (or URL profile_id) so balance can show even when full hydrate times out.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('stripe')) return; // URL effect handles this
+    const storedProfileId =
+      sessionStorage.getItem('stripe_return_profile_id') || new URLSearchParams(window.location.search).get('profile_id');
+    if (!storedProfileId) return;
+
+    const pollRef = stripeWalletPollRef;
+    if (pollRef.current.interval || pollRef.current.timer) return; // already running from URL stripe=success effect
+
+    const WALLET_POLL_INTERVAL_MS = 5000;
+    const WALLET_POLL_DURATION_MS = 120000;
+
+    const startWalletPoll = (uid: string) => {
+      if (pollRef.current.cancelled || !uid) return;
+      let firstAttempt = true;
+      const tryWallet = async () => {
+        if (pollRef.current.cancelled) return;
+        const timeoutMs = firstAttempt ? 90_000 : undefined;
+        if (firstAttempt) firstAttempt = false;
+        const balance = await apiService.fetchWalletBalanceOnly(uid, timeoutMs ? { timeoutMs } : undefined);
+        if (pollRef.current.cancelled) return;
+        if (balance != null) {
+          dispatch({ type: ActionTypes.SET_WALLET_BALANCE_FROM_POLL, payload: { balance } });
+          const cur = currentUserRef.current as any;
+          if (cur?.id || cur?.profile_id) {
+            dispatch({ type: ActionTypes.SET_CURRENT_USER, payload: { user: { ...cur, wallet_balance: balance } } });
+          } else {
+            const minimal = await apiService.fetchMinimalProfileForStripeReturn(uid);
+            if (minimal && !currentUserRef.current) {
+              dispatch({
+                type: ActionTypes.LOGIN_SUCCESS,
+                payload: { user: { ...minimal.user, wallet_balance: balance }, role: minimal.role as UserRole },
+              });
+              const targetView = minimal.role === 'LABEL' ? AppView.LABEL_DASHBOARD : AppView.THE_STAGE;
+              const saved = sessionStorage.getItem('stripe_return_view');
+              const viewToShow = saved || targetView;
+              if (viewToShow === AppView.ARTIST_DASHBOARD || viewToShow === AppView.ENGINEER_DASHBOARD || viewToShow === AppView.PRODUCER_DASHBOARD || viewToShow === AppView.STOODIO_DASHBOARD) {
+                dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'wallet' } });
+              }
+              if (saved) {
+                try {
+                  sessionStorage.removeItem('stripe_return_view');
+                  sessionStorage.removeItem('stripe_return_pending');
+                  sessionStorage.removeItem('stripe_return_in_progress');
+                  sessionStorage.removeItem('stripe_return_profile_id');
+                } catch (_) {}
+                dispatch({ type: ActionTypes.NAVIGATE, payload: { view: saved as AppView } });
+              } else {
+                dispatch({ type: ActionTypes.NAVIGATE, payload: { view: targetView } });
+              }
+            }
+          }
+        }
+      };
+      tryWallet();
+      pollRef.current.interval = setInterval(tryWallet, WALLET_POLL_INTERVAL_MS);
+      pollRef.current.timer = setTimeout(() => {
+        if (pollRef.current.interval) clearInterval(pollRef.current.interval);
+        try {
+          sessionStorage.removeItem('stripe_return_in_progress');
+          sessionStorage.removeItem('stripe_return_profile_id');
+        } catch (_) {}
+      }, WALLET_POLL_DURATION_MS);
+    };
+
+    pollRef.current = { cancelled: false };
+    getSupabase()
+      .auth.getSession()
+      .then(({ data }) => {
+        setRealtimeAuth(data?.session?.access_token ?? null);
+        startWalletPoll(storedProfileId);
+      })
+      .catch(() => startWalletPoll(storedProfileId));
+
+    return () => {
+      pollRef.current.cancelled = true;
+      if (pollRef.current.interval) clearInterval(pollRef.current.interval);
+      if (pollRef.current.timer) clearTimeout(pollRef.current.timer);
+    };
+  }, [dispatch]);
 
   // When user loads after returning from Stripe add-funds, show "Funds added" notification if we couldn't earlier.
   useEffect(() => {
@@ -653,7 +875,19 @@ const App: React.FC = () => {
       if (hydrateInFlightRef.current) return hydrateInFlightRef.current;
 
       hydrateInFlightRef.current = (async () => {
+        lastHydrateAttemptUserIdRef.current = userId;
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
+
+        const stripeReturn = typeof window !== 'undefined' && (sessionStorage.getItem('stripe_return_in_progress') || sessionStorage.getItem('stripe_return_pending'));
+        const reachable = stripeReturn
+          ? await getSupabaseReachableForStripe().catch(() => true)
+          : await getSupabaseReachable().catch(() => true);
+        if (!reachable) {
+          dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
+          setShowSupabaseUnreachableBanner(true);
+          console.warn('[App hydrateUser] Supabase unreachable (health check failed); skipping profile fetch.');
+          return null;
+        }
 
         try {
           const res = await apiService.fetchCurrentUserProfile(userId);
@@ -680,8 +914,19 @@ const App: React.FC = () => {
             viewNow === AppView.CHOOSE_PROFILE;
 
           if (isPublic) {
-            const landing = role === UserRole.LABEL ? AppView.LABEL_DASHBOARD : AppView.THE_STAGE;
-            dispatch({ type: ActionTypes.NAVIGATE, payload: { view: landing } });
+            let targetView: AppView = role === UserRole.LABEL ? AppView.LABEL_DASHBOARD : AppView.THE_STAGE;
+            try {
+              const saved = typeof window !== 'undefined' && sessionStorage.getItem('stripe_return_view');
+              if (saved) {
+                sessionStorage.removeItem('stripe_return_view');
+                sessionStorage.removeItem('stripe_return_pending');
+                targetView = saved as AppView;
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/cc967317-43d1-4243-8dbd-a2cbfedc53fb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:hydrateUser-stripe-return',message:'Navigate to saved Stripe return view',data:{targetView},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+                // #endregion
+              }
+            } catch (_) {}
+            dispatch({ type: ActionTypes.NAVIGATE, payload: { view: targetView } });
           }
 
           dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
@@ -815,22 +1060,26 @@ const App: React.FC = () => {
       }
     }, 2000);
 
-    // 2) Bootstrap session ONCE (but do not block login page)
+    // 2) Bootstrap session ONCE: getSession → set Realtime auth → then hydrate (Supabase recommendation)
     const bootstrap = async () => {
       if (didBootstrapRef.current) return;
       didBootstrapRef.current = true;
 
       try {
         const supabase = getSupabase();
+        const { data, error } = await supabase.auth.getSession();
+        setRealtimeAuth(data?.session?.access_token ?? null);
 
-        const { data } = await supabase.auth.getSession();
-        const sessionUserId = data.session?.user?.id;
-
-        if (sessionUserId) {
-          // Only show loading if there is actually a session to hydrate
-          if (hydrateUserRef.current) await hydrateUserRef.current(sessionUserId);
+        const sessionUserId = data?.session?.user?.id;
+        if (sessionUserId && hydrateUserRef.current) {
+          await hydrateUserRef.current(sessionUserId);
+          // User backed from Stripe: we restored view from add_funds_return; clear flag so app is no longer in "stripe return" mode
+          if (typeof window !== 'undefined' && !new URLSearchParams(window.location.search).get('stripe')) {
+            try {
+              sessionStorage.removeItem('stripe_return_in_progress');
+            } catch (_) {}
+          }
         } else {
-          // No session -> make sure login isn't locked
           dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
         }
       } catch (e) {
@@ -879,6 +1128,12 @@ const App: React.FC = () => {
         if (lastHydratedUserIdRef.current === uid) return;
 
         if (hydrateUserRef.current) await hydrateUserRef.current(uid);
+        // User backed from Stripe: clear flag after hydrate so app is no longer in "stripe return" mode
+        if (typeof window !== 'undefined' && !new URLSearchParams(window.location.search).get('stripe')) {
+          try {
+            sessionStorage.removeItem('stripe_return_in_progress');
+          } catch (_) {}
+        }
       } catch (e) {
         console.error('[onAuthStateChange]', e);
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
@@ -1027,6 +1282,16 @@ const App: React.FC = () => {
               onOpenAria={toggleAriaCantata}
               onNavigate={navigate}
             />
+          );
+        }
+        if (isLoading) {
+          return (
+            <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+              <div className="text-center">
+                <div className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-orange-500 border-t-transparent mb-4" />
+                <p className="text-zinc-400">Loading your account…</p>
+              </div>
+            </div>
           );
         }
         return (
@@ -1292,6 +1557,34 @@ const App: React.FC = () => {
 
   return (
     <div className="bg-zinc-950 text-slate-200 min-h-[100dvh] font-sans flex flex-col min-w-0 h-[100dvh] max-h-[100dvh] overflow-x-hidden">
+      {showSupabaseUnreachableBanner && (
+        <div className="bg-amber-900/90 text-amber-100 border-b border-amber-700 px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">
+            We can’t reach the database. If you use Supabase free tier, your project may be <strong>paused</strong>. Restore it at{' '}
+            <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline font-medium">supabase.com/dashboard</a> → your project → <strong>Restore</strong>.
+          </span>
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowSupabaseUnreachableBanner(false);
+                const uid = lastHydrateAttemptUserIdRef.current;
+                if (uid && hydrateUserRef.current) hydrateUserRef.current(uid);
+              }}
+              className="px-3 py-1 rounded bg-amber-600 hover:bg-amber-500 text-amber-100 text-sm font-medium"
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSupabaseUnreachableBanner(false)}
+              className="px-3 py-1 rounded bg-amber-700 hover:bg-amber-600 text-amber-100 text-sm font-medium"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       <Header
         onNavigate={navigate}
         onGoBack={goBack}
@@ -1330,7 +1623,7 @@ const App: React.FC = () => {
           onClose={closePayoutModal}
           onConfirm={requestPayout}
           onConnect={startStripeConnect}
-          currentBalance={(currentUser as any).wallet_balance ?? 0}
+          currentBalance={Number(walletBalanceFromPoll ?? (currentUser as any).wallet_balance ?? 0)}
           hasConnect={Boolean((currentUser as any).stripe_connect_account_id || (currentUser as any).stripe_connect_id)}
           payoutsEnabled={(currentUser as any).payouts_enabled !== false}
         />

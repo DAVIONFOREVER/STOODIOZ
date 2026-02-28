@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAppDispatch, useAppState, ActionTypes } from '../contexts/AppContext';
+import { AUTH_HYDRATE_WRAPPER_MS, LOGIN_TIMEOUT_MS } from '../constants';
 import * as apiService from '../services/apiService';
 import { AppView, UserRole } from '../types';
-import { getSupabase, performLogout } from '../lib/supabase';
+import { getSupabase, getSupabaseReachable, getSupabaseReachableForStripe, performLogout } from '../lib/supabase';
 
 type NavigateFn = (view: any) => void;
 
@@ -10,9 +11,6 @@ type ProfileHydrationResult = {
   user: any;
   role: UserRole;
 };
-
-const LOGIN_TIMEOUT_MS = 18_000; // Fail fast when Supabase unreachable (paused project / wrong .env)
-const HYDRATE_TIMEOUT_MS = 70_000; // Allow apiService.fetchCurrentUserProfile 30s + 2s retry + second 30s attempt so hydrate can complete when Supabase is slow
 
 /**
  * Guarantee: a promise that either resolves within `ms` or rejects with a timeout error.
@@ -74,7 +72,7 @@ export const useAuth = (navigate: NavigateFn) => {
       // must load profile + role so we can dispatch LOGIN_SUCCESS and navigate.
       const res = await withTimeout(
         apiService.fetchCurrentUserProfile(uid),
-        HYDRATE_TIMEOUT_MS,
+        AUTH_HYDRATE_WRAPPER_MS,
         'fetchCurrentUserProfile'
       );
 
@@ -262,25 +260,79 @@ export const useAuth = (navigate: NavigateFn) => {
       // Don’t spam hydration if user is actively logging in
       if (loginInFlightRef.current) return;
 
+      const stripeReturn = typeof window !== 'undefined' && (sessionStorage.getItem('stripe_return_in_progress') || sessionStorage.getItem('stripe_return_pending'));
+      const reachable = stripeReturn
+        ? await getSupabaseReachableForStripe().catch(() => true)
+        : await getSupabaseReachable().catch(() => true);
+      if (!reachable) {
+        setLoading(false);
+        console.warn('[useAuth] Supabase unreachable (health check); skipping hydrate.');
+        if (typeof window !== 'undefined' && !(window as any).__stoodioz_timeout_alert_shown) {
+          (window as any).__stoodioz_timeout_alert_shown = true;
+          alert(
+            "Can't reach Supabase (health check failed).\n\n" +
+              '• Check .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) and network.\n\n' +
+              '• If using free tier: supabase.com/dashboard → your project → Restore if paused.\n\n' +
+              'Then refresh the page.'
+          );
+        }
+        return;
+      }
+
       // Light-touch: attempt hydration; if it fails, do nothing (avoid loops)
       try {
         loginInFlightRef.current = true;
         const hydrated = await hydrateFromUid(uid);
         commitLogin(hydrated);
+        // Return from Stripe: go to the dashboard we saved before reload
+        try {
+          const savedView = typeof window !== 'undefined' && sessionStorage.getItem('stripe_return_view');
+          if (savedView) {
+            sessionStorage.removeItem('stripe_return_view');
+            sessionStorage.removeItem('stripe_return_pending');
+            navigate(savedView as AppView);
+          }
+        } catch (_) {}
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.warn('[useAuth] auth state hydrate skipped:', e);
+        const fromStripeReturn =
+          typeof window !== 'undefined' &&
+          (sessionStorage.getItem('stripe_return_pending') || sessionStorage.getItem('stripe_return_in_progress'));
+        // Do NOT clear stripe_return_view / stripe_return_pending when hydrate fails on Stripe return.
+        // The post-reload wallet-poll effect in App needs them to restore dashboard + wallet/financials tab.
+        if (typeof window !== 'undefined' && sessionStorage.getItem('stripe_return_pending') && !fromStripeReturn) {
+          try {
+            sessionStorage.removeItem('stripe_return_pending');
+            sessionStorage.removeItem('stripe_return_view');
+          } catch (_) {}
+        }
         if (msg.includes('timeout') || msg.includes('exceeded')) {
-          console.warn('[useAuth] Tip: Check .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY), network, and that your Supabase project is not paused.');
-          if (typeof window !== 'undefined' && !(window as any).__stoodioz_timeout_alert_shown) {
+          if (fromStripeReturn) {
+            console.warn('[useAuth] Hydrate timed out after Stripe return; skipping alert. Refresh the page to see your balance.');
+          } else {
+            console.warn('[useAuth] Tip: Check .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY), network, and that your Supabase project is not paused.');
+          }
+          if (!fromStripeReturn && typeof window !== 'undefined' && !(window as any).__stoodioz_timeout_alert_shown) {
             (window as any).__stoodioz_timeout_alert_shown = true;
-            alert(
-              'Connection to the server timed out. This usually means:\n\n' +
-              '• Your Supabase project is PAUSED (free tier pauses after inactivity).\n' +
-              '  → Go to supabase.com/dashboard → your project → Settings → General → Restore project.\n\n' +
-              '• Or check your internet and .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).\n\n' +
-              'After restoring the project, refresh the page and try again.'
-            );
+            // If error says "18000ms", the browser is running an old cached bundle — tell user exactly what to do
+            if (msg.includes('18000')) {
+              alert(
+                "You're running an OLD CACHED version of the app (timeouts are still 18s).\n\n" +
+                '1) HARD REFRESH: Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac).\n\n' +
+                '2) If you use npm run dev: STOP the dev server, run "npm run dev" again, then hard refresh.\n\n' +
+                '3) Or clear this site\'s data (Site settings → Clear data), then reload.\n\n' +
+                '4) If this is a deployed site: redeploy so the server serves the new build.'
+              );
+            } else {
+              alert(
+                'Connection to the server timed out. This usually means:\n\n' +
+                '• Your Supabase project is PAUSED (free tier pauses after inactivity).\n' +
+                '  → Go to supabase.com/dashboard → your project → Settings → General → Restore project.\n\n' +
+                '• Or check your internet and .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).\n\n' +
+                'After restoring the project, refresh the page and try again.'
+              );
+            }
           }
         }
       } finally {
@@ -291,7 +343,7 @@ export const useAuth = (navigate: NavigateFn) => {
     return () => {
       sub?.subscription?.unsubscribe?.();
     };
-  }, [commitLogin, hydrateFromUid]);
+  }, [commitLogin, hydrateFromUid, navigate]);
 
   /**
    * Navigate to the appropriate setup view based on selected role.

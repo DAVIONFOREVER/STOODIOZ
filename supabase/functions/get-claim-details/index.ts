@@ -25,11 +25,11 @@ async function getLabelName(labelId: string | null): Promise<string> {
     const name = Array.isArray(rows) ? rows[0]?.name : rows?.name;
     if (name) return name;
   }
-  const profRes = await restFetch(`/rest/v1/profiles?select=name&id=eq.${encodeURIComponent(labelId)}`);
+  const profRes = await restFetch(`/rest/v1/profiles?select=id,display_name,full_name,username&id=eq.${encodeURIComponent(labelId)}`);
   if (profRes.ok) {
     const rows = await profRes.json().catch(() => []);
-    const name = Array.isArray(rows) ? rows[0]?.name : rows?.name;
-    if (name) return name;
+    const p = Array.isArray(rows) ? rows[0] : rows;
+    if (p) return p.display_name ?? p.full_name ?? p.username ?? '';
   }
   return '';
 }

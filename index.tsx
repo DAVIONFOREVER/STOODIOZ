@@ -4,14 +4,24 @@ import Hotfix from 'hotfix-error-handler';
 import App from './App.tsx';
 import { AppProvider } from './contexts/AppContext.tsx';
 import './input.css';
+import { DB_TIMEOUT_MS, HYDRATE_TIMEOUT_MS, AUTH_HYDRATE_WRAPPER_MS } from './constants';
 
-// So you can type window.__supabaseEnvCheck in the console (import.meta only works in app code, not in console)
+// Verify env at runtime (Supabase: if either undefined, fix .env.local and restart dev server)
 if (typeof window !== 'undefined') {
   const e = import.meta.env;
+  console.log('[ENV]', e?.VITE_SUPABASE_URL, e?.VITE_SUPABASE_ANON_KEY?.slice(0, 6));
   (window as any).__supabaseEnvCheck = {
     VITE_SUPABASE_URL: e?.VITE_SUPABASE_URL ? 'SET' : 'MISSING',
     VITE_SUPABASE_ANON_KEY: e?.VITE_SUPABASE_ANON_KEY ? 'SET' : 'MISSING',
   };
+  // Single place to confirm which timeout bundle is running. If errors still say "18000ms", the browser is using an old cached bundle.
+  const ok = DB_TIMEOUT_MS >= 35000 && HYDRATE_TIMEOUT_MS >= 30000;
+  (window as any).__stoodiozTimeouts = { DB_TIMEOUT_MS, HYDRATE_TIMEOUT_MS, AUTH_HYDRATE_WRAPPER_MS };
+  if (!ok) {
+    console.error('[STOODIOZ] OLD TIMEOUTS LOADED:', { DB_TIMEOUT_MS, HYDRATE_TIMEOUT_MS, AUTH_HYDRATE_WRAPPER_MS }, '— do a hard refresh (Ctrl+Shift+R / Cmd+Shift+R) and restart dev server.');
+  } else {
+    console.warn('[STOODIOZ] Runtime timeouts: DB=', DB_TIMEOUT_MS, 'Hydrate=', HYDRATE_TIMEOUT_MS, 'AuthWrapper=', AUTH_HYDRATE_WRAPPER_MS, '— if you still see "18000ms" in errors, hard refresh + restart dev server.');
+  }
 }
 
 const hotfixApiKey = import.meta.env.VITE_HOTFIX_API_KEY;
