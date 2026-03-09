@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase';
+import { buildSafeProfilePayload } from './apiService';
 import { RosterImportRow, RosterMember, UserRole } from '../types';
 import { USER_SILHOUETTE_URL } from '../constants';
 
@@ -14,14 +15,13 @@ export const importRoster = async (labelId: string, rows: RosterImportRow[]): Pr
             const shadowId = crypto.randomUUID();
             const claimToken = crypto.randomUUID(); // Token for the invite link
 
-            // 2. Create Shadow Profile
-            const { error: profileError } = await supabase.from('profiles').insert({
-                id: shadowId,
-                email: row.email,
-                role: 'UNCLAIMED',
-                full_name: row.name,
-                created_at: new Date().toISOString()
-            });
+            // 2. Create Shadow Profile (same safe-column logic as createUser / createShadowProfile)
+            const now = new Date().toISOString();
+            const profileRow = buildSafeProfilePayload(
+                { id: shadowId, email: row.email, full_name: row.name, role: 'UNCLAIMED' },
+                { display_name: row.name, created_at: now, updated_at: now }
+            );
+            const { error: profileError } = await supabase.from('profiles').upsert(profileRow, { onConflict: 'id', ignoreDuplicates: false });
 
             if (profileError) {
                 console.error(`Failed to create shadow profile for ${row.name}:`, profileError);

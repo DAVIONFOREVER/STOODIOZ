@@ -383,9 +383,14 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case ActionTypes.RESET_APP:
       return { ...initialState };
 
-    // ✅ FIXED: make LOGOUT a hard reset too (prevents cross-user bleed)
+    // ✅ FIXED: make LOGOUT a hard reset too (prevents cross-user bleed).
+    // Force history to LANDING_PAGE so user never stays on a dashboard view after logout.
     case ActionTypes.LOGOUT:
-      return { ...initialState };
+      return {
+        ...initialState,
+        history: [AppView.LANDING_PAGE],
+        historyIndex: 0,
+      };
 
     case ActionTypes.COMPLETE_SETUP: {
       const { newUser, role } = action.payload;

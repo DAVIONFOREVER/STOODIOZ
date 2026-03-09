@@ -226,6 +226,15 @@ export const useAuth = (navigate: NavigateFn) => {
    * signOut() runs in the background to clear the server session.
    */
   const logout = useCallback(async (): Promise<void> => {
+    // Clear Stripe-return flags so "redirect when not authenticated" doesn't keep user on a dashboard view
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('stripe_return_in_progress');
+        sessionStorage.removeItem('stripe_return_pending');
+        sessionStorage.removeItem('stripe_return_view');
+      }
+    } catch (_) {}
+
     // Optimistic: clear state and show landing right away
     dispatch({ type: ActionTypes.LOGOUT });
     navigate(AppView.LANDING_PAGE);

@@ -148,8 +148,9 @@ async function recordStripeEvent(eventId: string, eventType: string, created: nu
   });
 
   if (!res.ok) {
-    // Conflict or unexpected error: treat as already processed to prevent double-apply.
-    return false;
+    // Table missing or insert failed: still process so wallet gets credited (e.g. stripe_events not created yet).
+    // Risk: Stripe retry may double-credit until table exists. Prefer processing over silent no-balance.
+    return true;
   }
   return true;
 }

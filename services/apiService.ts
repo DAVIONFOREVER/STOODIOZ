@@ -346,10 +346,29 @@ export async function fetchMinimalProfileForStripeReturn(profileId: string): Pro
 export async function updateUser(profileId: string, patch: Record<string, any>): Promise<any> {
   requireVal(profileId, 'profileId');
   const supabase = getSupabase();
+  const safePatch = buildSafeProfilePayload(patch, { updated_at: nowIso() });
   return safeWrite('profiles.update', async () => {
-    const q = supabase.from(TABLES.profiles).update({ ...patch, updated_at: nowIso() }).eq('id', profileId).select('*').single();
+    const q = supabase.from(TABLES.profiles).update(safePatch).eq('id', profileId).select('*').single();
     return q as any;
   });
+}
+
+// Known profiles table columns (avoid sending role-specific or unknown fields that may not exist on profiles)
+const PROFILES_SAFE_KEYS = new Set([
+  'id', 'display_name', 'full_name', 'username', 'email', 'bio', 'image_url', 'cover_image_url', 'avatar_url',
+  'created_at', 'updated_at', 'links', 'is_shadow', 'role',
+]);
+
+/** Build a profile payload with only known columns. Use for all profile inserts/updates/upserts. */
+export function buildSafeProfilePayload(
+  payload: Record<string, any>,
+  extra?: Record<string, any>
+): Record<string, any> {
+  const out: Record<string, any> = { ...extra };
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined && v !== null && PROFILES_SAFE_KEYS.has(k)) out[k] = v;
+  }
+  return out;
 }
 
 export async function createUser(payload: Record<string, any>, role?: UserRole): Promise<any> {
@@ -369,16 +388,17 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
       // ignore
     }
   }
-  const insertPayload = {
-    ...profilePayload,
+  const now = nowIso();
+  const insertPayload: Record<string, any> = {
     ...(authUid ? { id: authUid } : {}),
     ...(createdName != null && createdName !== '' && { display_name: profilePayload.display_name ?? createdName, full_name: profilePayload.full_name ?? createdName }),
     ...(createdUsername != null && createdUsername !== '' && { username: profilePayload.username ?? createdUsername }),
-    created_at: nowIso(),
-    updated_at: nowIso(),
+    created_at: now,
+    updated_at: now,
   };
+  Object.assign(insertPayload, buildSafeProfilePayload(profilePayload));
   const result = await safeWrite('profiles.insert', async () => {
-    const q = supabase.from(TABLES.profiles).insert(insertPayload).select('*').single();
+    const q = supabase.from(TABLES.profiles).upsert(insertPayload, { onConflict: 'id', ignoreDuplicates: false }).select('*').single();
     return q as any;
   });
   const profileId = result?.id;
@@ -423,8 +443,10 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
 export async function createShadowProfile(payload: Record<string, any>): Promise<any> {
   const supabase = getSupabase();
   const { imageFile, password, ...profilePayload } = payload;
+  const now = nowIso();
+  const safePayload = buildSafeProfilePayload(profilePayload, { is_shadow: true, created_at: now, updated_at: now });
   return safeWrite('profiles.insert(shadow)', async () => {
-    const q = supabase.from(TABLES.profiles).insert({ ...profilePayload, is_shadow: true, created_at: nowIso(), updated_at: nowIso() }).select('*').single();
+    const q = supabase.from(TABLES.profiles).upsert(safePayload, { onConflict: 'id', ignoreDuplicates: false }).select('*').single();
     return q as any;
   });
 }

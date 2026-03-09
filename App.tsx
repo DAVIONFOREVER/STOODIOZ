@@ -1106,6 +1106,14 @@ const App: React.FC = () => {
           lastHydratedUserIdRef.current = null;
           hydrateInFlightRef.current = null;
           didLoadDirectoryRef.current = false;
+          stripeReturnInProgressRef.current = false;
+          try {
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('stripe_return_in_progress');
+              sessionStorage.removeItem('stripe_return_pending');
+              sessionStorage.removeItem('stripe_return_view');
+            }
+          } catch (_) {}
 
           dispatch({ type: ActionTypes.LOGOUT });
           dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
