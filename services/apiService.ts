@@ -397,6 +397,7 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
     updated_at: now,
   };
   Object.assign(insertPayload, buildSafeProfilePayload(profilePayload));
+  if (role) insertPayload.role = role;
   const result = await safeWrite('profiles.insert', async () => {
     const q = supabase.from(TABLES.profiles).upsert(insertPayload, { onConflict: 'id', ignoreDuplicates: false }).select('*').single();
     return q as any;

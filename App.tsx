@@ -1238,31 +1238,47 @@ const App: React.FC = () => {
         ingest({location:'App.tsx:completeSetup',message:'signup_after_createUser',data:{hasResult:Boolean(result),profileId:result?.id,sessionExists:Boolean(sess?.session),uid:sess?.session?.user?.id},timestamp:Date.now(),hypothesisId:'H2'});
         // #endregion
         if (result) {
-          // Auto-follow Aria forever on signup
+          let userForState = result as any;
+          try {
+            const hydrated = await apiService.fetchCurrentUserProfile(result.id);
+            if (hydrated?.user) userForState = { ...hydrated.user, role: hydrated.role };
+          } catch (_) {
+            const defaults = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
+            userForState = {
+              ...result,
+              name: (result as any).display_name ?? (result as any).full_name ?? (result as any).username ?? (result as any).name ?? 'User',
+              profile_id: result.id,
+              following: defaults,
+              followers: 0,
+              follower_ids: [],
+            };
+          }
           try {
             const ariaProfile = await apiService.fetchProfileByEmail(ARIA_EMAIL);
             if (ariaProfile?.id && result?.id && String(ariaProfile.id) !== String(result.id)) {
               await apiService.toggleFollow(result.id, ariaProfile.id);
               const defaults = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
-              const existing = (result as any).following || defaults;
+              const existing = userForState.following || defaults;
               const artists = Array.isArray(existing.artists) ? existing.artists : [];
-              const nextFollowing = {
-                ...defaults,
-                ...existing,
-                artists: artists.includes(ariaProfile.id) ? artists : [...artists, ariaProfile.id],
+              userForState = {
+                ...userForState,
+                following: { ...defaults, ...existing, artists: artists.includes(ariaProfile.id) ? artists : [...artists, ariaProfile.id] },
               };
-              result = { ...result, following: nextFollowing };
             }
           } catch (e) {
             console.warn('[completeSetup] auto-follow Aria failed:', e);
           }
 
-          dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: result as any, role } });
+          dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: userForState, role } });
           const hasClaim = typeof window !== 'undefined' && (sessionStorage.getItem('pending_claim_token') || localStorage.getItem('pending_claim_token'));
           if (hasClaim) navigate(AppView.CLAIM_CONFIRM);
         }
       } catch (error: any) {
-        alert(`Setup failed: ${error?.message || 'Unknown error'}`);
+        const msg = error?.message || 'Unknown error';
+        const hint = /row-level security|RLS|policy|violates/i.test(msg)
+          ? '\n\nTip: If you have "Confirm email" enabled in Supabase Auth, turn it off so signup logs you in immediately. Otherwise the new account cannot write to the database until the email is confirmed.'
+          : '';
+        alert(`Setup failed: ${msg}${hint}`);
       } finally {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
       }
