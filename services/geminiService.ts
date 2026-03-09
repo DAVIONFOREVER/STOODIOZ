@@ -438,6 +438,11 @@ export const askAriaCantata = async (
         let responseText = response.text.trim();
         return JSON.parse(responseText) as AriaActionResponse;
     } catch (error: any) {
+        const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED') || error?.message?.includes('quota');
+        if (is429) {
+            console.warn("Aria: rate limit (429). Try again in a few seconds.");
+            return { type: 'speak', target: null, value: null, text: "I'm a bit overloaded right now—try again in a few seconds." };
+        }
         console.error("Aria logic error:", error);
         return { type: 'speak', target: null, value: null, text: "I'm processing a lot of energy right now. Tell me again what you need from me." };
     }
