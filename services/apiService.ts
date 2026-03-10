@@ -398,6 +398,10 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
   };
   Object.assign(insertPayload, buildSafeProfilePayload(profilePayload));
   if (role) insertPayload.role = role;
+  // Profiles table has display_name NOT NULL — ensure we never send null/empty so insert never fails on "missing data"
+  const safeName = (insertPayload.display_name ?? insertPayload.full_name ?? createdName ?? '').toString().trim() || 'New user';
+  insertPayload.display_name = insertPayload.display_name ?? safeName;
+  insertPayload.full_name = insertPayload.full_name ?? safeName;
   const result = await safeWrite('profiles.insert', async () => {
     const q = supabase.from(TABLES.profiles).upsert(insertPayload, { onConflict: 'id', ignoreDuplicates: false }).select('*').single();
     return q as any;
