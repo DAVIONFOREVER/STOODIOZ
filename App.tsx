@@ -177,6 +177,8 @@ const App: React.FC = () => {
     isNudgeVisible,
     notifications,
     ariaHistory,
+    ariaThreads,
+    activeAriaThreadId,
     initialAriaCantataPrompt,
     bookingIntent,
     bookings,
@@ -187,6 +189,34 @@ const App: React.FC = () => {
   const currentView = history[historyIndex];
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < history.length - 1;
+
+  const ariaThreadsLoadedForRef = useRef<string | null>(null);
+  const storageKey = `aria_threads_${(currentUser as any)?.id ?? 'guest'}`;
+
+  // Load Aria conversation threads from localStorage when user (or guest) is determined
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const key = storageKey;
+    if (ariaThreadsLoadedForRef.current === key) return;
+    ariaThreadsLoadedForRef.current = key;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const data = JSON.parse(raw) as { threads?: { id: string; title: string; messages: unknown[]; createdAt: number; updatedAt: number }[]; activeId?: string | null };
+      if (Array.isArray(data.threads)) {
+        dispatch({ type: ActionTypes.SET_ARIA_THREADS, payload: { threads: data.threads } });
+        if (data.activeId !== undefined) {
+          dispatch({ type: ActionTypes.SET_ACTIVE_ARIA_THREAD, payload: { threadId: data.activeId || null } });
+        }
+      }
+    } catch (_) {}
+  }, [storageKey, dispatch]);
+
+  // Persist Aria threads whenever they change
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(storageKey, JSON.stringify({ threads: ariaThreads, activeId: activeAriaThreadId }));
+  }, [storageKey, ariaThreads, activeAriaThreadId]);
 
   // never strand authenticated users on public views (LOGIN, LANDING, CHOOSE)
   // never redirect away from profile/detail views – same fix as landing flicker
@@ -1696,6 +1726,22 @@ const App: React.FC = () => {
             onExecuteCommand={executeCommand}
             history={ariaHistory}
             setHistory={(newHistory) => dispatch({ type: ActionTypes.SET_ARIA_HISTORY, payload: { history: newHistory } })}
+            ariaThreads={ariaThreads}
+            activeAriaThreadId={activeAriaThreadId}
+            onNewChat={() => {
+              const id = crypto.randomUUID();
+              const thread = { id, title: 'New chat', messages: [], createdAt: Date.now(), updatedAt: Date.now() };
+              dispatch({ type: ActionTypes.ADD_ARIA_THREAD, payload: { thread } });
+            }}
+            onSelectThread={(threadId) => dispatch({ type: ActionTypes.SET_ACTIVE_ARIA_THREAD, payload: { threadId } })}
+            onDeleteThread={(threadId) => dispatch({ type: ActionTypes.DELETE_ARIA_THREAD, payload: { threadId } })}
+            onEnsureThread={(firstMessageText) => {
+              if (activeAriaThreadId) return;
+              const id = crypto.randomUUID();
+              const title = (firstMessageText || 'New chat').slice(0, 40) + (firstMessageText && firstMessageText.length > 40 ? '…' : '');
+              const thread = { id, title, messages: [], createdAt: Date.now(), updatedAt: Date.now() };
+              dispatch({ type: ActionTypes.ADD_ARIA_THREAD, payload: { thread } });
+            }}
             initialPrompt={initialAriaCantataPrompt}
             clearInitialPrompt={() => dispatch({ type: ActionTypes.SET_INITIAL_ARIA_PROMPT, payload: { prompt: null } })}
           />

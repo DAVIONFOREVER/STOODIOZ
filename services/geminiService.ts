@@ -426,12 +426,23 @@ export const askAriaCantata = async (
     - Available Data: ${context.artists.length} artists, ${context.engineers.length} engineers, ${context.producers?.length ?? 0} producers, ${context.stoodioz?.length ?? 0} stoodioz, ${context.bookings?.length ?? 0} bookings${context.roster?.length ? `, ${context.roster.length} roster` : ''}${context.projects?.length ? `, ${context.projects.length} label projects` : ''}.
 
     If you cannot perform an action, just reply with text. Be fast and decisive.
+
+    **CONVERSATION CONTEXT:** Use the conversation history below to stay context-aware. Reference what the user said earlier, remember topics you discussed, and keep a continuous thread. Do not ignore or repeat past context.
     `;
+
+    // Build full conversation context so Aria can reference earlier messages in the chat
+    const conversationBlob =
+        history.length === 0
+            ? `User: ${question}`
+            : [
+                  ...history.map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${(m.parts[0]?.text || '').trim()}`),
+                  `User: ${question}`,
+              ].join('\n\n');
 
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `${systemInstruction}\n\nUser: ${question}`,
+            contents: `${systemInstruction}\n\n--- Conversation so far ---\n\n${conversationBlob}`,
             config: { responseMimeType: "application/json" }
         });
 

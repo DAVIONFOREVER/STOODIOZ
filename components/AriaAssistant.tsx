@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, Label, RosterMember, LabelBudgetOverview, MediaAsset } from '../types';
+import type { Artist, Engineer, Stoodio, Producer, Booking, AriaCantataMessage, AriaActionResponse, AriaConversationThread, Label, RosterMember, LabelBudgetOverview, MediaAsset } from '../types';
 import { askAriaCantata } from '../services/geminiService';
-import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, BriefcaseIcon, ChartBarIcon, CalendarIcon, UsersIcon, HouseIcon, MusicNoteIcon, SoundWaveIcon } from './icons';
+import { CloseIcon, PaperAirplaneIcon, MagicWandIcon, BriefcaseIcon, ChartBarIcon, CalendarIcon, UsersIcon, HouseIcon, MusicNoteIcon, SoundWaveIcon, PlusCircleIcon, TrashIcon } from './icons';
 import { ARIA_PROFILE_IMAGE_URL } from '../constants';
 import { useAppState } from '../contexts/AppContext';
 import * as apiService from '../services/apiService';
@@ -12,6 +12,12 @@ interface AriaCantataAssistantProps {
     onExecuteCommand: (command: AriaActionResponse, onClose: () => void) => Promise<void>;
     history: AriaCantataMessage[];
     setHistory: (history: AriaCantataMessage[]) => void;
+    ariaThreads?: AriaConversationThread[];
+    activeAriaThreadId?: string | null;
+    onNewChat?: () => void;
+    onSelectThread?: (threadId: string) => void;
+    onDeleteThread?: (threadId: string) => void;
+    onEnsureThread?: (firstMessageText: string) => void;
     initialPrompt: string | null;
     clearInitialPrompt: () => void;
     isInline?: boolean;
@@ -26,7 +32,9 @@ const TypingIndicator: React.FC = () => (
 );
 
 const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({ 
-    isOpen, onClose, onExecuteCommand, history, setHistory, initialPrompt, clearInitialPrompt, isInline = false
+    isOpen, onClose, onExecuteCommand, history, setHistory,
+    ariaThreads = [], activeAriaThreadId = null, onNewChat, onSelectThread, onDeleteThread, onEnsureThread,
+    initialPrompt, clearInitialPrompt, isInline = false
 }) => {
     const { currentUser, artists, engineers, stoodioz, producers, bookings, userRole } = useAppState();
     const [inputValue, setInputValue] = useState('');
@@ -35,6 +43,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [threadListOpen, setThreadListOpen] = useState(false);
 
     const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 
@@ -63,6 +72,7 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
 
     const handleSendMessage = async (text: string) => {
         if (!text.trim()) return;
+        if (history.length === 0) onEnsureThread?.(text);
         const userMessage: AriaCantataMessage = { role: 'user', parts: [{ text }] };
         const newHistory = [...history, userMessage];
         setHistory(newHistory);
@@ -126,17 +136,37 @@ const AriaCantataAssistant: React.FC<AriaCantataAssistantProps> = ({
     if (!isOpen) return null;
 
     const content = (
-        <div className={`flex flex-col h-full ${isInline ? '' : 'bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl overflow-hidden'}`}>
+        <div className={`flex flex-col h-full ${isInline ? '' : 'bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl overflow-hidden'} flex`}>
             {!isInline && (
-                <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 p-0.5">
-                            <img src={ARIA_PROFILE_IMAGE_URL} alt="Aria Cantata" className="w-full h-full rounded-full object-cover" />
+                <>
+                    <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur shrink-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 p-0.5 shrink-0">
+                                <img src={ARIA_PROFILE_IMAGE_URL} alt="Aria Cantata" className="w-full h-full rounded-full object-cover" />
+                            </div>
+                            <div className="min-w-0"><h2 className="font-bold text-zinc-100 truncate">Aria Cantata</h2><p className="text-xs text-zinc-500">A&R Lead & Strategic Operations</p></div>
                         </div>
-                        <div><h2 className="font-bold text-zinc-100">Aria Cantata</h2><p className="text-xs text-zinc-500">A&R Lead & Strategic Operations</p></div>
+                        <div className="flex items-center gap-1">
+                            {onNewChat && <button onClick={onNewChat} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors" title="New chat"><PlusCircleIcon className="w-5 h-5" /></button>}
+                            {ariaThreads.length > 0 && <button onClick={() => setThreadListOpen((o) => !o)} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors" title="Past conversations"><span className="text-xs font-medium text-zinc-400">({ariaThreads.length})</span></button>}
+                            <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors"><CloseIcon className="w-6 h-6" /></button>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-100 transition-colors"><CloseIcon className="w-6 h-6" /></button>
-                </div>
+                    {threadListOpen && ariaThreads.length > 0 && onSelectThread && onDeleteThread && (
+                        <div className="shrink-0 border-b border-zinc-800 bg-zinc-900/95 max-h-48 overflow-y-auto">
+                            <div className="p-2 space-y-0.5">
+                                {ariaThreads.map((t) => (
+                                    <div key={t.id} className="flex items-center gap-1 group rounded-lg hover:bg-zinc-800/80">
+                                        <button onClick={() => { onSelectThread(t.id); setThreadListOpen(false); }} className="flex-1 min-w-0 text-left py-2 px-3 text-sm text-zinc-200 truncate">
+                                            {t.title || 'Chat'}
+                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); onDeleteThread(t.id); }} className="p-1.5 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete conversation"><TrashIcon className="w-4 h-4" /></button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             <div className="flex-grow min-h-0 overflow-y-auto overflow-x-hidden p-6 space-y-6">

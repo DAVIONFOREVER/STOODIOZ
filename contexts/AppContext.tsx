@@ -14,6 +14,7 @@ import type {
   Conversation,
   Producer,
   AriaCantataMessage,
+  AriaConversationThread,
   VibeMatchResult,
   Room,
   Following,
@@ -74,6 +75,10 @@ export interface AppState {
   isMixingModalOpen: boolean;
   isAriaCantataOpen: boolean;
   ariaHistory: AriaCantataMessage[];
+  /** Saved Aria chat threads (persisted per user). */
+  ariaThreads: AriaConversationThread[];
+  /** ID of the thread currently shown in the chat; null = ephemeral "current" chat only. */
+  activeAriaThreadId: string | null;
   initialAriaCantataPrompt: string | null;
   ariaNudge: AriaNudgeData | null;
   isNudgeVisible: boolean;
@@ -140,6 +145,11 @@ export enum ActionTypes {
   SET_ARIA_CANTATA_OPEN = 'SET_ARIA_CANTATA_OPEN',
   SET_ARIA_HISTORY = 'SET_ARIA_HISTORY',
   ADD_ARIA_MESSAGE = 'ADD_ARIA_MESSAGE',
+  SET_ARIA_THREADS = 'SET_ARIA_THREADS',
+  SET_ACTIVE_ARIA_THREAD = 'SET_ACTIVE_ARIA_THREAD',
+  ADD_ARIA_THREAD = 'ADD_ARIA_THREAD',
+  UPDATE_ARIA_THREAD_MESSAGES = 'UPDATE_ARIA_THREAD_MESSAGES',
+  DELETE_ARIA_THREAD = 'DELETE_ARIA_THREAD',
   SET_INITIAL_ARIA_PROMPT = 'SET_INITIAL_ARIA_PROMPT',
   SET_ARIA_NUDGE = 'SET_ARIA_NUDGE',
   SET_IS_NUDGE_VISIBLE = 'SET_IS_NUDGE_VISIBLE',
@@ -211,6 +221,11 @@ type Payload = {
   [ActionTypes.SET_ARIA_CANTATA_OPEN]: { isOpen: boolean };
   [ActionTypes.SET_ARIA_HISTORY]: { history: AriaCantataMessage[] };
   [ActionTypes.ADD_ARIA_MESSAGE]: { message: AriaCantataMessage };
+  [ActionTypes.SET_ARIA_THREADS]: { threads: AriaConversationThread[] };
+  [ActionTypes.SET_ACTIVE_ARIA_THREAD]: { threadId: string | null };
+  [ActionTypes.ADD_ARIA_THREAD]: { thread: AriaConversationThread };
+  [ActionTypes.UPDATE_ARIA_THREAD_MESSAGES]: { threadId: string; messages: AriaCantataMessage[] };
+  [ActionTypes.DELETE_ARIA_THREAD]: { threadId: string };
   [ActionTypes.SET_INITIAL_ARIA_PROMPT]: { prompt: string | null };
   [ActionTypes.SET_ARIA_NUDGE]: { nudge: AriaNudgeData | null };
   [ActionTypes.SET_IS_NUDGE_VISIBLE]: { isVisible: boolean };
@@ -299,6 +314,8 @@ const initialState: AppState = {
   isMixingModalOpen: false,
   isAriaCantataOpen: false,
   ariaHistory: [],
+  ariaThreads: [],
+  activeAriaThreadId: null,
   initialAriaCantataPrompt: null,
   ariaNudge: null,
   isNudgeVisible: false,
@@ -582,11 +599,69 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case ActionTypes.SET_ARIA_CANTATA_OPEN:
       return { ...state, isAriaCantataOpen: action.payload.isOpen };
 
-    case ActionTypes.SET_ARIA_HISTORY:
-      return { ...state, ariaHistory: action.payload.history };
+    case ActionTypes.SET_ARIA_HISTORY: {
+      const history = action.payload.history;
+      const next = { ...state, ariaHistory: history };
+      if (state.activeAriaThreadId) {
+        const now = Date.now();
+        next.ariaThreads = state.ariaThreads.map((t) =>
+          t.id === state.activeAriaThreadId
+            ? { ...t, messages: history, updatedAt: now }
+            : t
+        );
+      }
+      return next;
+    }
 
     case ActionTypes.ADD_ARIA_MESSAGE:
       return { ...state, ariaHistory: [...state.ariaHistory, action.payload.message] };
+
+    case ActionTypes.SET_ARIA_THREADS:
+      return { ...state, ariaThreads: action.payload.threads };
+
+    case ActionTypes.SET_ACTIVE_ARIA_THREAD: {
+      const threadId = action.payload.threadId;
+      const thread = threadId ? state.ariaThreads.find((t) => t.id === threadId) : null;
+      return {
+        ...state,
+        activeAriaThreadId: threadId,
+        ariaHistory: thread ? thread.messages : [],
+      };
+    }
+
+    case ActionTypes.ADD_ARIA_THREAD:
+      return {
+        ...state,
+        ariaThreads: [action.payload.thread, ...state.ariaThreads],
+        activeAriaThreadId: action.payload.thread.id,
+        ariaHistory: action.payload.thread.messages,
+      };
+
+    case ActionTypes.UPDATE_ARIA_THREAD_MESSAGES: {
+      const { threadId, messages } = action.payload;
+      const now = Date.now();
+      const next = state.ariaThreads.map((t) =>
+        t.id === threadId ? { ...t, messages, updatedAt: now } : t
+      );
+      const activeUpdated =
+        state.activeAriaThreadId === threadId ? { ...state, ariaHistory: messages } : state;
+      return { ...activeUpdated, ariaThreads: next };
+    }
+
+    case ActionTypes.DELETE_ARIA_THREAD: {
+      const threadId = action.payload.threadId;
+      const nextThreads = state.ariaThreads.filter((t) => t.id !== threadId);
+      const wasActive = state.activeAriaThreadId === threadId;
+      const nextActive = wasActive ? (nextThreads[0]?.id ?? null) : state.activeAriaThreadId;
+      const nextHistory =
+        wasActive && nextActive ? nextThreads.find((t) => t.id === nextActive)!.messages : wasActive ? [] : state.ariaHistory;
+      return {
+        ...state,
+        ariaThreads: nextThreads,
+        activeAriaThreadId: nextActive,
+        ariaHistory: nextHistory,
+      };
+    }
 
     case ActionTypes.SET_INITIAL_ARIA_PROMPT:
       return { ...state, initialAriaCantataPrompt: action.payload.prompt };

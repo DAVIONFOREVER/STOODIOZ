@@ -651,6 +651,15 @@ export interface AriaCantataMessage {
     files?: FileAttachment[];
 }
 
+/** A saved Aria chat thread the user can return to or delete. */
+export interface AriaConversationThread {
+    id: string;
+    title: string;
+    messages: AriaCantataMessage[];
+    createdAt: number;
+    updatedAt: number;
+}
+
 export interface VibeMatchResult {
     vibeDescription: string;
     tags: string[];
