@@ -54,6 +54,8 @@ export const useAuth = (navigate: NavigateFn) => {
 
   // Prevent double-fire login (double click / lag / enter key repeat)
   const loginInFlightRef = useRef(false);
+  // When true, auth listener must not re-hydrate (user clicked Logout; signOut is in progress)
+  const logoutInProgressRef = useRef(false);
 
   const setLoading = useCallback(
     (isLoading: boolean) => {
@@ -222,34 +224,40 @@ export const useAuth = (navigate: NavigateFn) => {
   }, [commitLogin, hydrateFromUid, setLoading]);
 
   /**
-   * Logout: update UI immediately so the user is not trapped waiting for signOut().
-   * signOut() runs in the background to clear the server session.
+   * Logout: set guard so auth listener cannot re-hydrate, update UI immediately, then clear session.
+   * Previously we did LOGOUT + navigate then signOut() in background; the listener could see
+   * the session still present and re-hydrate, making it look like logout didn't work.
    */
   const logout = useCallback(async (): Promise<void> => {
-    // Clear Stripe-return flags so "redirect when not authenticated" doesn't keep user on a dashboard view
+    logoutInProgressRef.current = true;
     try {
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('stripe_return_in_progress');
-        sessionStorage.removeItem('stripe_return_pending');
-        sessionStorage.removeItem('stripe_return_view');
-      }
-    } catch (_) {}
-
-    // Optimistic: clear state and show landing right away
-    dispatch({ type: ActionTypes.LOGOUT });
-    navigate(AppView.LANDING_PAGE);
-    setLoading(false);
-
-    // Clear Supabase session in the background (don't block UI)
-    try {
-      await performLogout();
-    } catch {
+      // Clear Stripe-return flags
       try {
-        const supabase = getSupabase();
-        await supabase.auth.signOut();
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('stripe_return_in_progress');
+          sessionStorage.removeItem('stripe_return_pending');
+          sessionStorage.removeItem('stripe_return_view');
+        }
+      } catch (_) {}
+
+      // Clear app state and show landing immediately so one click is enough
+      dispatch({ type: ActionTypes.LOGOUT });
+      navigate(AppView.LANDING_PAGE);
+      setLoading(false);
+
+      // Clear Supabase session (listener won't re-hydrate because logoutInProgressRef is true)
+      try {
+        await performLogout();
       } catch {
-        // ignore
+        try {
+          const supabase = getSupabase();
+          await supabase.auth.signOut();
+        } catch {
+          // ignore
+        }
       }
+    } finally {
+      logoutInProgressRef.current = false;
     }
   }, [dispatch, navigate, setLoading]);
 
@@ -267,6 +275,7 @@ export const useAuth = (navigate: NavigateFn) => {
       if (!uid) return;
 
       // Don’t spam hydration if user is actively logging in
+      if (logoutInProgressRef.current) return;
       if (loginInFlightRef.current) return;
 
       // Hydrate first; health check was blocking 7s on every auth change — only run it after failure for the alert.
