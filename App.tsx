@@ -878,18 +878,8 @@ const App: React.FC = () => {
         lastHydrateAttemptUserIdRef.current = userId;
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: true } });
 
-        const stripeReturn = typeof window !== 'undefined' && (sessionStorage.getItem('stripe_return_in_progress') || sessionStorage.getItem('stripe_return_pending'));
-        const reachable = stripeReturn
-          ? await getSupabaseReachableForStripe().catch(() => true)
-          : await getSupabaseReachable().catch(() => true);
-        if (!reachable) {
-          dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-          setShowSupabaseUnreachableBanner(true);
-          console.warn('[App hydrateUser] Supabase unreachable (health check failed); skipping profile fetch.');
-          return null;
-        }
-
         try {
+          // Fetch profile first; health check was blocking 7s on every load — only run it after failure.
           const res = await apiService.fetchCurrentUserProfile(userId);
 
           if (!res) {
@@ -932,7 +922,14 @@ const App: React.FC = () => {
           dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
           return role;
         } catch (e) {
-          console.error('[hydrateUser]', e);
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg !== 'Profile not found') console.error('[hydrateUser]', e);
+          // Only run health check after failure, to decide whether to show unreachable banner (avoids 7s delay on every load).
+          const stripeReturn = typeof window !== 'undefined' && (sessionStorage.getItem('stripe_return_in_progress') || sessionStorage.getItem('stripe_return_pending'));
+          const reachable = stripeReturn
+            ? await getSupabaseReachableForStripe().catch(() => true)
+            : await getSupabaseReachable().catch(() => true);
+          if (!reachable) setShowSupabaseUnreachableBanner(true);
           dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
           lastHydratedUserIdRef.current = null;
           return null;
@@ -1220,7 +1217,22 @@ const App: React.FC = () => {
           const { data: signUpData, error: signUpError } = await getSupabase().auth.signUp({ email, password });
           if (signUpError) {
             dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });
-            alert(signUpError.message || 'Sign up failed. Try a different email or password.');
+            const msg = (signUpError.message || '').toLowerCase();
+            // Only treat as "already registered" when the message clearly says so (don't treat 422 as duplicate - 422 can be password/email validation, rate limit, etc.)
+            const alreadyRegistered =
+              msg.includes('already registered') ||
+              msg.includes('already exists') ||
+              msg.includes('user already exists') ||
+              msg.includes('email already in use');
+            if (alreadyRegistered) {
+              try {
+                sessionStorage.setItem('stoodioz_login_message', 'This email is already registered. Sign in below.');
+              } catch (_) {}
+              alert('This email is already registered. Sign in instead.');
+              navigate(AppView.LOGIN);
+            } else {
+              alert(signUpError.message || 'Sign up failed. Try a different email or password.');
+            }
             return;
           }
           if (!signUpData?.user?.id) {
@@ -1239,20 +1251,24 @@ const App: React.FC = () => {
         // #endregion
         if (result) {
           let userForState = result as any;
+          // Use the role we just created first, so Label signup never shows as Artist even if hydrate is stale.
+          const intendedRole = (result as any)?.role ?? role;
           try {
             const hydrated = await apiService.fetchCurrentUserProfile(result.id);
-            if (hydrated?.user) userForState = { ...hydrated.user, role: hydrated.role };
+            if (hydrated?.user) userForState = { ...hydrated.user, role: hydrated.role ?? intendedRole };
           } catch (_) {
             const defaults = { artists: [], engineers: [], producers: [], stoodioz: [], labels: [] };
             userForState = {
               ...result,
               name: (result as any).display_name ?? (result as any).full_name ?? (result as any).username ?? (result as any).name ?? 'User',
               profile_id: result.id,
+              role: intendedRole,
               following: defaults,
               followers: 0,
               follower_ids: [],
             };
           }
+          if (userForState && !userForState.role) userForState.role = intendedRole;
           try {
             const ariaProfile = await apiService.fetchProfileByEmail(ARIA_EMAIL);
             if (ariaProfile?.id && result?.id && String(ariaProfile.id) !== String(result.id)) {
@@ -1271,13 +1287,20 @@ const App: React.FC = () => {
 
           dispatch({ type: ActionTypes.COMPLETE_SETUP, payload: { newUser: userForState, role } });
           const hasClaim = typeof window !== 'undefined' && (sessionStorage.getItem('pending_claim_token') || localStorage.getItem('pending_claim_token'));
-          if (hasClaim) navigate(AppView.CLAIM_CONFIRM);
+          if (hasClaim) {
+            navigate(AppView.CLAIM_CONFIRM);
+          } else {
+            const landingView = role === UserRole.LABEL ? AppView.LABEL_DASHBOARD : role === UserRole.ARTIST ? AppView.ARTIST_DASHBOARD : role === UserRole.ENGINEER ? AppView.ENGINEER_DASHBOARD : role === UserRole.PRODUCER ? AppView.PRODUCER_DASHBOARD : role === UserRole.STOODIO ? AppView.STOODIO_DASHBOARD : AppView.THE_STAGE;
+            navigate(landingView);
+          }
         }
       } catch (error: any) {
         const msg = error?.message || 'Unknown error';
-        const hint = /row-level security|RLS|policy|violates/i.test(msg)
-          ? '\n\nTip: If you have "Confirm email" enabled in Supabase Auth, turn it off so signup logs you in immediately. Otherwise the new account cannot write to the database until the email is confirmed.'
-          : '';
+        const isRlsError = /row-level security|RLS|policy|permission|denied/i.test(msg) && !/check constraint/i.test(msg);
+        const isEmailConfirm = /email.*confirm|confirm.*email|not confirmed/i.test(msg);
+        let hint = '';
+        if (isRlsError) hint = '\n\nTip: In Supabase Dashboard → Authentication → Providers → Email: turn OFF "Confirm email" so new signups can write to the database immediately. Then try signing up again.';
+        else if (isEmailConfirm) hint = '\n\nCheck your inbox (and spam) for the confirmation link, then log in from the Login page.';
         alert(`Setup failed: ${msg}${hint}`);
       } finally {
         dispatch({ type: ActionTypes.SET_LOADING, payload: { isLoading: false } });

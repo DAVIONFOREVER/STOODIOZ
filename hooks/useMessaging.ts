@@ -45,7 +45,7 @@ export const useMessaging = (navigate: (view: AppView) => void) => {
 
                     try {
                         const updatedConversations = await apiService.fetchConversations(myProfileId);
-                        // Don't replace with empty list — keeps selection and prevents hub from resetting
+                        // Don't replace with empty list on refetch — keeps selection and prevents hub from resetting
                         if (!Array.isArray(updatedConversations) || updatedConversations.length === 0) return;
                         dispatch({
                             type: ActionTypes.SET_CONVERSATIONS,

@@ -32,6 +32,31 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const dispatch = useAppDispatch();
   const { artists, engineers, producers, stoodioz, labels } = useAppState();
   const didRehydrateRef = useRef(false);
+  const [directoryLoading, setDirectoryLoading] = React.useState(false);
+
+  const loadDirectory = React.useCallback(async () => {
+    setDirectoryLoading(true);
+    didRehydrateRef.current = true;
+    try {
+      const dir = await apiService.getAllPublicUsers(true);
+      dispatch({
+        type: ActionTypes.SET_INITIAL_DATA,
+        payload: {
+          artists: dir.artists ?? [],
+          engineers: dir.engineers ?? [],
+          producers: dir.producers ?? [],
+          stoodioz: dir.stoodioz ?? [],
+          labels: dir.labels ?? [],
+          reviews: [],
+        },
+      });
+    } catch (e) {
+      console.error('[LandingPage] Directory load failed:', e);
+      didRehydrateRef.current = false;
+    } finally {
+      setDirectoryLoading(false);
+    }
+  }, [dispatch]);
 
   // Rehydrate directory when landing mounts with empty lists (e.g. after logout)
   useEffect(() => {
@@ -45,6 +70,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
     didRehydrateRef.current = true;
     let isMounted = true;
     (async () => {
+      setDirectoryLoading(true);
       try {
         const dir = await apiService.getAllPublicUsers(true);
         if (!isMounted) return;
@@ -59,8 +85,11 @@ const LandingPage: React.FC<LandingPageProps> = ({
             reviews: [],
           },
         });
-      } catch {
+      } catch (e) {
+        console.error('[LandingPage] Directory load failed:', e);
         didRehydrateRef.current = false;
+      } finally {
+        if (isMounted) setDirectoryLoading(false);
       }
     })();
     return () => {
@@ -375,6 +404,24 @@ const LandingPage: React.FC<LandingPageProps> = ({
           <p className="text-slate-400 mt-2">
             Total users: <span className="text-orange-400 font-bold">{counts.total}</span>
           </p>
+          {counts.total === 0 && (
+            <div className="mt-3 p-3 rounded-lg bg-zinc-900/80 border border-zinc-700 text-slate-300 text-sm">
+              <p>Counts are loading or the directory is empty. If you expect users to appear:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Open the browser console (F12) and look for <code className="bg-zinc-800 px-1 rounded">[getAllPublicUsers]</code> — it logs errors per table.</li>
+                <li>In Supabase, run the SQL in <code className="bg-zinc-800 px-1 rounded">supabase/DIRECTORY_PUBLIC_READ_POLICIES.sql</code> so the landing page can read artists, engineers, producers, stoodioz, labels.</li>
+                <li>If your Supabase project was paused, restore it in the dashboard then refresh.</li>
+              </ul>
+              <button
+                type="button"
+                onClick={() => { didRehydrateRef.current = false; loadDirectory(); }}
+                disabled={directoryLoading}
+                className="mt-3 px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 disabled:opacity-50"
+              >
+                {directoryLoading ? 'Loading…' : 'Retry load'}
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 text-sm">
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-3 flex flex-col items-center justify-center">
               <MicrophoneIcon className="w-8 h-8 text-blue-400 mb-2" />

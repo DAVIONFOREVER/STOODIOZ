@@ -245,22 +245,55 @@ export async function fetchCurrentUserProfile(uid: string): Promise<{ user: any;
     }
   };
 
-  // Use select('*') so we never request columns that don't exist (e.g. stage_name, name on profiles). What worked before.
-  const runProfileQuery = () => {
-    const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).single();
+  // Use select + limit(1) so 0 rows returns [] and we never get 406 "Cannot coerce to single JSON object".
+  const runProfileQuery = async () => {
+    const q = supabase.from(TABLES.profiles).select('*').eq('id', uid).limit(1);
     return withTimeout(q as any, HYDRATE_TIMEOUT_MS, 'profiles.select');
   };
-  let result: { data: any; error: any } = await runProfileQuery();
+  let result: { data: any[] | null; error: any } = await runProfileQuery();
   if (result.error && String(result.error?.message || '').includes('timeout')) {
     await new Promise((r) => setTimeout(r, 1500));
     result = await runProfileQuery();
   }
-  const { data: rawProfile, error } = result;
+  let rawProfile: any = Array.isArray(result.data) ? result.data[0] ?? null : null;
+  let error: any = result.error;
   if (error) throw new Error(errMsg(error));
-  if (!rawProfile) throw new Error('Profile not found');
+  // Auth user exists but no profile row (e.g. createUser failed, or RLS hid it): ensure one row so sign-in works.
+  // Infer role from role tables if possible (e.g. labels row exists but profile insert had failed), so we don't default to ARTIST for a Label signup.
+  if (!rawProfile) {
+    const now = nowIso();
+    let fallbackRole: UserRole = 'ARTIST';
+    try {
+      const [labelsRow, artistsRow, engineersRow, producersRow, stoodiozRow] = await Promise.all([
+        supabase.from('labels').select('id').eq('profile_id', uid).maybeSingle().then((r) => r.data),
+        supabase.from('artists').select('id').eq('profile_id', uid).maybeSingle().then((r) => r.data),
+        supabase.from('engineers').select('id').eq('profile_id', uid).maybeSingle().then((r) => r.data),
+        supabase.from('producers').select('id').eq('profile_id', uid).maybeSingle().then((r) => r.data),
+        supabase.from('stoodioz').select('id').eq('profile_id', uid).maybeSingle().then((r) => r.data),
+      ]);
+      if (labelsRow?.id) fallbackRole = 'LABEL';
+      else if (stoodiozRow?.id) fallbackRole = 'STOODIO';
+      else if (engineersRow?.id) fallbackRole = 'ENGINEER';
+      else if (producersRow?.id) fallbackRole = 'PRODUCER';
+      else if (artistsRow?.id) fallbackRole = 'ARTIST';
+    } catch (_) {
+      // keep ARTIST default
+    }
+    const { error: insertErr } = await supabase
+      .from(TABLES.profiles)
+      .upsert(
+        { id: uid, display_name: 'New user', full_name: 'New user', role: fallbackRole, created_at: now, updated_at: now },
+        { onConflict: 'id' }
+      );
+    if (!insertErr) {
+      const retry = await runProfileQuery();
+      rawProfile = Array.isArray(retry.data) ? retry.data[0] ?? null : null;
+      error = retry.error;
+    }
+    if (error || !rawProfile) throw new Error('Profile not found');
+  }
   const profile = { ...rawProfile, name: rawProfile.display_name ?? rawProfile.full_name ?? rawProfile.username ?? (rawProfile as any).name };
-  const role = profile.role as UserRole;
-  if (!role) throw new Error('User has no role');
+  const role = (profile.role as UserRole) || 'ARTIST';
 
   const roleTable = role === 'STOODIO' ? 'stoodioz' : role === 'PRODUCER' ? 'producers' : role === 'ARTIST' ? 'artists' : role === 'ENGINEER' ? 'engineers' : role === 'LABEL' ? 'labels' : null;
   const [roleResult, followData] = await Promise.all([
@@ -353,7 +386,8 @@ export async function updateUser(profileId: string, patch: Record<string, any>):
   });
 }
 
-// Known profiles table columns (avoid sending role-specific or unknown fields that may not exist on profiles)
+// Sign-up form → profile row: see SIGNUP_PROFILE_MAPPING.md for full map.
+// Only these keys are written to profiles; add new columns here when you add them to the table.
 const PROFILES_SAFE_KEYS = new Set([
   'id', 'display_name', 'full_name', 'username', 'email', 'bio', 'image_url', 'cover_image_url', 'avatar_url',
   'created_at', 'updated_at', 'links', 'is_shadow', 'role',
@@ -371,11 +405,11 @@ export function buildSafeProfilePayload(
   return out;
 }
 
+/** Sign-up: form payload → one profiles row + one role row. Field map: SIGNUP_PROFILE_MAPPING.md */
 export async function createUser(payload: Record<string, any>, role?: UserRole): Promise<any> {
   // Client-side can’t create auth users safely; this is a “shadow profile” creator.
-  // Prefer createShadowProfile for public roster onboarding.
   const supabase = getSupabase();
-  // Don't send imageFile or password to profiles table — they're not columns; handle image after insert via uploadAvatar
+  // imageFile/password not in profiles; image uploaded after insert
   const { imageFile, password, _authUid: explicitAuthUid, ...profilePayload } = payload;
   const createdName = payload?.name ?? payload?.display_name ?? payload?.full_name ?? payload?.username ?? null;
   const createdUsername = payload?.username ?? null;
@@ -388,23 +422,51 @@ export async function createUser(payload: Record<string, any>, role?: UserRole):
       // ignore
     }
   }
+  // Profile insert/upsert requires the account id (from sign-up or session). Without it, RLS will block.
+  if (!authUid) {
+    throw new Error(
+      'Cannot create profile: no account id. Use the sign-up form with email and password so your account is created first.'
+    );
+  }
   const now = nowIso();
+  const rawUsername = (profilePayload.username ?? createdUsername ?? '').toString().trim();
+  const usernameVal = rawUsername === '' ? null : rawUsername;
+
   const insertPayload: Record<string, any> = {
-    ...(authUid ? { id: authUid } : {}),
+    id: authUid,
     ...(createdName != null && createdName !== '' && { display_name: profilePayload.display_name ?? createdName, full_name: profilePayload.full_name ?? createdName }),
-    ...(createdUsername != null && createdUsername !== '' && { username: profilePayload.username ?? createdUsername }),
+    ...(usernameVal != null && { username: usernameVal }),
     created_at: now,
     updated_at: now,
   };
   Object.assign(insertPayload, buildSafeProfilePayload(profilePayload));
   if (role) insertPayload.role = role;
+  if (usernameVal != null) insertPayload.username = usernameVal;
+  else delete insertPayload.username;
   // Profiles table has display_name NOT NULL — ensure we never send null/empty so insert never fails on "missing data"
   const safeName = (insertPayload.display_name ?? insertPayload.full_name ?? createdName ?? '').toString().trim() || 'New user';
   insertPayload.display_name = insertPayload.display_name ?? safeName;
   insertPayload.full_name = insertPayload.full_name ?? safeName;
+  // Only send columns that exist on profiles (strip companyName, contactPhone, website, etc. from form)
+  const profileRow: Record<string, any> = {};
+  for (const k of PROFILES_SAFE_KEYS) {
+    if (insertPayload[k] !== undefined) profileRow[k] = insertPayload[k];
+  }
+  // Ensure role is never dropped: when signup is for Label (or any role), the profile row must have that role.
+  if (role) profileRow.role = role;
+
   const result = await safeWrite('profiles.insert', async () => {
-    const q = supabase.from(TABLES.profiles).upsert(insertPayload, { onConflict: 'id', ignoreDuplicates: false }).select('*').single();
+    const q = supabase.from(TABLES.profiles).upsert(profileRow, { onConflict: 'id', ignoreDuplicates: false }).select('*').single();
     return q as any;
+  }).catch((e: any) => {
+    const raw = e?.message || String(e);
+    const isRlsError = /row-level security|RLS|policy|permission|denied/i.test(raw) && !/check constraint/i.test(raw);
+    const hint = isRlsError
+      ? ' Run the migration that allows profile insert: in Supabase SQL Editor, run the contents of supabase/migrations/20260220_profiles_insert_policy.sql'
+      : '';
+    const full = raw + hint;
+    if (typeof console !== 'undefined') console.error('[createUser] Profile save failed:', full);
+    throw new Error(full || 'Database error saving new user.');
   });
   const profileId = result?.id;
   // #region agent log

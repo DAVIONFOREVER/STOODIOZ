@@ -305,18 +305,25 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
 
     if (!googleMapsApiKey) {
         return (
-            <div className="flex flex-col items-center justify-center py-24 text-zinc-400 space-y-2">
-                <h2 className="text-lg font-semibold text-zinc-200">Google Maps API key missing</h2>
-                <p className="text-sm">Set `VITE_GOOGLE_MAPS_API_KEY` in your `.env` file and restart the dev server.</p>
+            <div className="flex flex-col items-center justify-center py-24 text-zinc-400 space-y-3 max-w-md px-4">
+                <h2 className="text-lg font-semibold text-zinc-200">Map unavailable</h2>
+                <p className="text-sm">Add <code className="bg-zinc-800 px-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> to your <code className="bg-zinc-800 px-1 rounded">.env</code> file and restart the dev server.</p>
             </div>
         );
     }
 
     if (loadError) {
         return (
-            <div className="flex flex-col items-center justify-center py-24 text-zinc-400 space-y-2">
-                <h2 className="text-lg font-semibold text-zinc-200">Failed to load Google Maps</h2>
-                <p className="text-sm">Check your API key referrer restrictions and reload.</p>
+            <div className="flex flex-col items-center justify-center py-24 text-zinc-400 space-y-3 max-w-md px-4">
+                <h2 className="text-lg font-semibold text-zinc-200">Map couldn’t load</h2>
+                <p className="text-sm">If you see &quot;Oops! Something went wrong&quot; from Google, it’s usually one of these:</p>
+                <ul className="text-sm text-left list-disc list-inside space-y-1 text-zinc-400">
+                    <li><strong className="text-zinc-300">API key</strong> — Use a valid key from Google Cloud Console (Credentials).</li>
+                    <li><strong className="text-zinc-300">Billing</strong> — Enable billing for the project (Maps has a free tier).</li>
+                    <li><strong className="text-zinc-300">Restrictions</strong> — Add your site (e.g. <code className="bg-zinc-800 px-1 rounded">localhost*</code> or your domain) under API key &quot;Application restrictions&quot; → HTTP referrers.</li>
+                    <li><strong className="text-zinc-300">APIs enabled</strong> — Turn on &quot;Maps JavaScript API&quot; for the project.</li>
+                </ul>
+                <p className="text-xs text-zinc-500">Check the browser console (F12) for the exact error from Google.</p>
             </div>
         );
     }
@@ -686,9 +693,10 @@ const MapView: React.FC<MapViewProps> = ({ onSelectStoodio, onSelectArtist, onSe
     }
 
     if (!isLoaded) return <div className="flex items-center justify-center" style={{ height: mapContainerStyle.height }}>Loading Map...</div>;
-    
+
     return (
         <div className="relative rounded-2xl overflow-hidden border border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.3)]" style={{ height: mapContainerStyle.height }}>
+            {/* If the map shows "Oops! Something went wrong", the key may be invalid, billing disabled, or referrer restricted. See loadError state for full message. */}
             <GoogleMap
                 mapContainerStyle={{ width: '100%', height: '100%' }}
                 center={userLocation ? { lat: userLocation.lat, lng: userLocation.lon } : defaultCenter}

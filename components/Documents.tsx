@@ -31,10 +31,11 @@ const Documents: React.FC<DocumentsProps> = ({ conversations, userRole, variant 
     const [search, setSearch] = useState('');
     const isDeliverables = variant === 'deliverables';
 
+    const profileId = (currentUser as any)?.profile_id ?? currentUser?.id;
     useEffect(() => {
-        if (!currentUser?.id) return;
+        if (!profileId) return;
         let isActive = true;
-        apiService.fetchUserDocuments(currentUser.id)
+        apiService.fetchUserDocuments(profileId)
             .then((rows) => {
                 if (isActive) setDbDocuments(rows || []);
             })
@@ -42,7 +43,7 @@ const Documents: React.FC<DocumentsProps> = ({ conversations, userRole, variant 
         return () => {
             isActive = false;
         };
-    }, [currentUser?.id]);
+    }, [profileId]);
 
     const EXPIRY_DAYS = 7;
     const isExpired = (ts?: string) => {

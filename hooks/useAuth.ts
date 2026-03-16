@@ -269,26 +269,7 @@ export const useAuth = (navigate: NavigateFn) => {
       // Don’t spam hydration if user is actively logging in
       if (loginInFlightRef.current) return;
 
-      const stripeReturn = typeof window !== 'undefined' && (sessionStorage.getItem('stripe_return_in_progress') || sessionStorage.getItem('stripe_return_pending'));
-      const reachable = stripeReturn
-        ? await getSupabaseReachableForStripe().catch(() => true)
-        : await getSupabaseReachable().catch(() => true);
-      if (!reachable) {
-        setLoading(false);
-        console.warn('[useAuth] Supabase unreachable (health check); skipping hydrate.');
-        if (typeof window !== 'undefined' && !(window as any).__stoodioz_timeout_alert_shown) {
-          (window as any).__stoodioz_timeout_alert_shown = true;
-          alert(
-            "Can't reach Supabase (health check failed).\n\n" +
-              '• Check .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) and network.\n\n' +
-              '• If using free tier: supabase.com/dashboard → your project → Restore if paused.\n\n' +
-              'Then refresh the page.'
-          );
-        }
-        return;
-      }
-
-      // Light-touch: attempt hydration; if it fails, do nothing (avoid loops)
+      // Hydrate first; health check was blocking 7s on every auth change — only run it after failure for the alert.
       try {
         loginInFlightRef.current = true;
         const hydrated = await hydrateFromUid(uid);
@@ -304,7 +285,24 @@ export const useAuth = (navigate: NavigateFn) => {
         } catch (_) {}
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.warn('[useAuth] auth state hydrate skipped:', e);
+        // "Profile not found" is expected right after signUp, before createUser runs — skip noisy log
+        if (msg !== 'Profile not found') {
+          console.warn('[useAuth] auth state hydrate skipped:', e);
+        }
+        // Only run health check after failure, so we don't add 7s to every load
+        const stripeReturn = typeof window !== 'undefined' && (sessionStorage.getItem('stripe_return_in_progress') || sessionStorage.getItem('stripe_return_pending'));
+        const reachable = stripeReturn
+          ? await getSupabaseReachableForStripe().catch(() => true)
+          : await getSupabaseReachable().catch(() => true);
+        if (!reachable && typeof window !== 'undefined' && !(window as any).__stoodioz_timeout_alert_shown) {
+          (window as any).__stoodioz_timeout_alert_shown = true;
+          alert(
+            "Can't reach Supabase (health check failed).\n\n" +
+              '• Check .env (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) and network.\n\n' +
+              '• If using free tier: supabase.com/dashboard → your project → Restore if paused.\n\n' +
+              'Then refresh the page.'
+          );
+        }
         const fromStripeReturn =
           typeof window !== 'undefined' &&
           (sessionStorage.getItem('stripe_return_pending') || sessionStorage.getItem('stripe_return_in_progress'));

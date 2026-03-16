@@ -24,3 +24,9 @@
    - Confirm messages are inserted: Supabase Table Editor → `messages` table.  
    - Confirm Realtime is enabled for `messages` (see above).  
    - Confirm `participant_ids` on conversations are `profiles.id` values so both participants see the thread.
+
+## If messaging between users doesn't work (checklist)
+
+- **Sender:** After sending, the message should appear in the thread. If it doesn't, check the browser console for errors (e.g. RLS or insert failure). Supabase Table Editor → `messages`: confirm the row exists with the correct `conversation_id` and `sender_id` (use `profiles.id`).
+- **Recipient:** Messages load when they open Message Hub (`fetchConversations`). For **instant** delivery while the app is open, Realtime must be enabled: Database → Replication → add `messages` to the publication (or `ALTER PUBLICATION supabase_realtime ADD TABLE messages;`).
+- **Both sides see the same thread:** Conversations use `participant_ids` = list of `profiles.id`. When starting a chat we use `(user as any)?.profile_id ?? user?.id`. If the app sends the artist/engineer/stoodio row `id` instead of `profile_id`, the other user won't see the conversation. Ensure directory data includes `profile_id` and the app uses it for `createConversation` and `sendMessage`.

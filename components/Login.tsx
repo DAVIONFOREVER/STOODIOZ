@@ -120,6 +120,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate, isLoading = f
     [dispatch, onNavigate, setGlobalLoadingSafe]
   );
 
+  // Message from signup "already registered" (so you see it even when alert() is suppressed)
+  useEffect(() => {
+    try {
+      const msg = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('stoodioz_login_message');
+      if (msg) {
+        sessionStorage.removeItem('stoodioz_login_message');
+        setLocalError(msg);
+      }
+    } catch (_) {}
+  }, []);
+
   // initial session sniff (for Resume Session)
   useEffect(() => {
     let alive = true;
@@ -274,7 +285,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, error, onNavigate, isLoading = f
       {combinedError && (
         <div
           className={`border p-4 rounded-lg mb-6 text-sm ${
-            combinedError.toLowerCase().includes('email not confirmed')
+            combinedError.toLowerCase().includes('already registered')
+              ? 'bg-blue-500/20 border-blue-500/30 text-blue-200'
+              : combinedError.toLowerCase().includes('email not confirmed')
               ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-200'
               : 'bg-red-500/20 border-red-500/30 text-red-300'
           }`}

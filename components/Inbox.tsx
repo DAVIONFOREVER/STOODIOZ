@@ -850,81 +850,91 @@ const Inbox: React.FC = () => {
             )}
             <div className={`w-full md:w-1/3 flex-shrink-0 min-h-0 flex flex-col overflow-hidden ${selectedConversationId ? 'hidden md:flex' : ''}`}>
                 <div className="h-full flex flex-col border-r border-zinc-800/60 overflow-hidden">
-                    <div className="p-5 border-b border-zinc-800/60 bg-gradient-to-br from-zinc-950 via-zinc-950/80 to-zinc-900/50">
-                        <div className="flex items-center gap-3">
-                            <img src={appIcon} alt="Stoodioz" className="w-10 h-10 rounded-xl object-cover" />
-                            <div>
-                                <p className="text-xs uppercase tracking-[0.25em] text-orange-400">Message Hub</p>
-                                <h2 className="text-xl font-bold text-zinc-100">Message Hub</h2>
-                                <p className="text-xs text-zinc-400">Bookings, collabs, and live sessions.</p>
+                    {/* Scrollable sidebar so all options (actions, list, LiveHub, Aria) are reachable */}
+                    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+                        <div className="p-5 border-b border-zinc-800/60 bg-gradient-to-br from-zinc-950 via-zinc-950/80 to-zinc-900/50 flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <img src={appIcon} alt="Stoodioz" className="w-10 h-10 rounded-xl object-cover" />
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.25em] text-orange-400">Message Hub</p>
+                                    <h2 className="text-xl font-bold text-zinc-100">Message Hub</h2>
+                                    <p className="text-xs text-zinc-400">Bookings, collabs, and live sessions.</p>
+                                </div>
                             </div>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => { setSearchQuery(''); document.getElementById('inbox-search-input')?.focus(); }}
+                                    className="px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20"
+                                >
+                                    New message
+                                </button>
+                                <button
+                                    onClick={handleStartLiveRoom}
+                                    className="px-3 py-1.5 rounded-full bg-orange-500/20 text-orange-300 text-xs font-semibold hover:bg-orange-500/30"
+                                >
+                                    Start Live Room
+                                </button>
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="px-3 py-1.5 rounded-full bg-zinc-900/70 border border-zinc-800 text-xs font-semibold text-zinc-200 hover:bg-zinc-900"
+                                >
+                                    Find People
+                                </button>
+                            </div>
+                            <div className="mt-4">
+                                <input
+                                    id="inbox-search-input"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search artists, engineers, producers, studios, labels..."
+                                    className="w-full rounded-xl bg-zinc-900/70 border border-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+                                    aria-label="Search people to message"
+                                />
+                            </div>
+                            {searchQuery.trim().length > 0 && (
+                                <div className="mt-3 max-h-52 overflow-y-auto space-y-2">
+                                    {filteredUsers.length === 0 ? (
+                                        <p className="text-xs text-zinc-500 px-1">No matches found.</p>
+                                    ) : (
+                                        filteredUsers.slice(0, 10).map((user: any) => {
+                                            const role = ((user as any).role || (user as any).profiles?.role || (user as any).profile?.role || '').toString().toUpperCase();
+                                            const location = String(user?.location_text || user?.location || '');
+                                            return (
+                                                <button
+                                                    key={user.id}
+                                                    onClick={() => handleSelectUser(user)}
+                                                    className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-zinc-900/80 transition-colors text-left"
+                                                >
+                                                    <img src={getProfileImageUrl(user)} alt={getDisplayName(user)} className="w-9 h-9 rounded-lg object-cover" />
+                                                    <div className="flex-1 overflow-hidden">
+                                                        <p className="text-sm font-semibold text-zinc-100 truncate">{getDisplayName(user)}</p>
+                                                        <p className="text-xs text-zinc-400 truncate">
+                                                            {role || 'CREATOR'}{location ? ` • ${location}` : ''}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            )}
                         </div>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <button
-                                onClick={handleStartLiveRoom}
-                                className="px-3 py-1.5 rounded-full bg-orange-500/20 text-orange-300 text-xs font-semibold hover:bg-orange-500/30"
-                            >
-                                Start Live Room
-                            </button>
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="px-3 py-1.5 rounded-full bg-zinc-900/70 border border-zinc-800 text-xs font-semibold text-zinc-200 hover:bg-zinc-900"
-                            >
-                                Find People
-                            </button>
-                        </div>
-                        <div className="mt-4">
-                            <input
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search artists, engineers, producers, studios, labels..."
-                                className="w-full rounded-xl bg-zinc-900/70 border border-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+                        <div className="flex-1 min-h-[200px] overflow-y-auto">
+                            <ConversationList
+                                conversations={enrichedConversations}
+                                onSelect={selectConversation}
+                                onDelete={deleteConversation}
+                                selectedConversationId={selectedConversationId}
+                                currentUser={currentUser}
+                                title="Conversations"
+                                isLoading={isLoadingConversations}
+                                loadError={conversationsLoadError}
                             />
                         </div>
-                        {searchQuery.trim().length > 0 && (
-                            <div className="mt-3 max-h-52 overflow-y-auto space-y-2">
-                                {filteredUsers.length === 0 ? (
-                                    <p className="text-xs text-zinc-500 px-1">No matches found.</p>
-                                ) : (
-                                    filteredUsers.slice(0, 10).map((user: any) => {
-                                        const role = ((user as any).role || (user as any).profiles?.role || (user as any).profile?.role || '').toString().toUpperCase();
-                                        const location = String(user?.location_text || user?.location || '');
-                                        return (
-                                            <button
-                                                key={user.id}
-                                                onClick={() => handleSelectUser(user)}
-                                                className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-zinc-900/80 transition-colors text-left"
-                                            >
-                                                <img src={getProfileImageUrl(user)} alt={getDisplayName(user)} className="w-9 h-9 rounded-lg object-cover" />
-                                                <div className="flex-1 overflow-hidden">
-                                                    <p className="text-sm font-semibold text-zinc-100 truncate">{getDisplayName(user)}</p>
-                                                    <p className="text-xs text-zinc-400 truncate">
-                                                        {role || 'CREATOR'}{location ? ` • ${location}` : ''}
-                                                    </p>
-                                                </div>
-                                            </button>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto">
-                        <ConversationList
-                            conversations={enrichedConversations}
-                            onSelect={selectConversation}
-                            onDelete={deleteConversation}
-                            selectedConversationId={selectedConversationId}
-                            currentUser={currentUser}
-                            title="Conversations"
-                            isLoading={isLoadingConversations}
-                            loadError={conversationsLoadError}
-                        />
-                    </div>
-                    <div className="flex-shrink-0 p-4 border-t border-zinc-800/60">
-                        <LiveHub onStartLive={handleStartLiveRoom} onJoinLive={handleJoinLiveRoom} />
-                    </div>
-                    <div className="flex-shrink-0 p-4 border-t border-zinc-800/60">
+                        <div className="flex-shrink-0 p-4 border-t border-zinc-800/60">
+                            <LiveHub onStartLive={handleStartLiveRoom} onJoinLive={handleJoinLiveRoom} />
+                        </div>
+                        <div className="flex-shrink-0 p-4 border-t border-zinc-800/60">
                             <div className="cardSurface p-4 bg-zinc-950/70 rounded-xl border-2 border-orange-500/30 flex flex-col overflow-hidden">
                                 <div className="flex-shrink-0 flex items-center justify-between mb-3">
                                     <div>
@@ -932,7 +942,7 @@ const Inbox: React.FC = () => {
                                         <p className="text-sm text-zinc-400">Scheduling, networking, and messaging support.</p>
                                     </div>
                                 </div>
-                                <div className="flex-shrink-0 h-[360px] min-h-[360px] flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/60">
+                                <div className="flex-shrink-0 h-[280px] min-h-[280px] flex flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/60">
                                     <AriaCantataAssistant
                                         isOpen={true}
                                         onClose={() => {}}
@@ -944,8 +954,8 @@ const Inbox: React.FC = () => {
                                         isInline={true}
                                     />
                                 </div>
-                                </div>
                             </div>
+                        </div>
                     </div>
                 </div>
             <div className={`w-full md:w-2/3 flex-1 min-h-0 flex flex-col ${selectedConversationId ? 'flex' : 'hidden md:flex'}`}>

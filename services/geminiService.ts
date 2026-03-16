@@ -399,7 +399,7 @@ export const askAriaCantata = async (
 
     5. **Search:** {"type": "search", "value": { "role": "ENGINEER", "maxRate": 100, "city": "Atlanta" }, "text": "..."}
 
-    6. **Documents:** {"type": "generateDocument", "value": { "title": "Split Sheet", "content": "..." }, "text": "I've drafted and saved it."}
+    6. **Documents:** When the user asks you to create, draft, or save a document (split sheet, contract, agreement, etc.), you MUST respond with exactly: {"type": "generateDocument", "value": { "title": "Document Title", "content": "Full body text of the document here..." }, "text": "I've drafted and saved it to your Documents tab."}. The "content" must be the actual document body (plain text); "title" is the file name.
 
     7. **Label controls (LABEL only):** {"type": "labelControl", "target": "accepting_demos", "value": true, "text": "Demos enabled."}
 
@@ -434,9 +434,14 @@ export const askAriaCantata = async (
             contents: `${systemInstruction}\n\nUser: ${question}`,
             config: { responseMimeType: "application/json" }
         });
-        
-        let responseText = response.text.trim();
-        return JSON.parse(responseText) as AriaActionResponse;
+
+        let responseText = (response.text || '').trim();
+        // Extract JSON if wrapped in markdown code block (model sometimes returns ```json ... ```)
+        const jsonBlock = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonBlock?.[1]) responseText = jsonBlock[1].trim();
+        const parsed = JSON.parse(responseText) as AriaActionResponse;
+        if (parsed && typeof parsed === 'object' && parsed.type) return parsed;
+        return { type: 'speak', target: null, value: null, text: (parsed as any)?.text || "Done." };
     } catch (error: any) {
         const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED') || error?.message?.includes('quota');
         if (is429) {

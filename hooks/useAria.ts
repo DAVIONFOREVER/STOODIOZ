@@ -38,13 +38,15 @@ export const useAria = (deps: AriaHookDependencies) => {
                 if (currentUser) {
                     const reportTitle = command.target || "Performance Report";
                     const reportContent = command.value || "This report summarizes recent activity.";
+                    const profileId = (currentUser as any)?.profile_id ?? currentUser.id;
                     try {
                         const pdfBytes = await createPdfBytes(reportContent);
                         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
                         const file = new File([blob], `${reportTitle}.pdf`, { type: 'application/pdf' });
-                        await apiService.uploadDocument(currentUser.id, file, { name: reportTitle, type: 'REPORT', category: 'REPORT' });
-                        alert("I've generated your report and saved it to your Documents vault.");
-                        deps.navigate(userRole === 'LABEL' ? AppView.LABEL_DASHBOARD : AppView.ARTIST_DASHBOARD);
+                        await apiService.uploadDocument(profileId, file, { name: reportTitle, type: 'REPORT', category: 'REPORT' });
+                        alert("I've generated your report and saved it to your Documents tab.");
+                        const reportView = userRole === 'LABEL' ? AppView.LABEL_DASHBOARD : userRole === 'ENGINEER' ? AppView.ENGINEER_DASHBOARD : userRole === 'PRODUCER' ? AppView.PRODUCER_DASHBOARD : userRole === 'STOODIO' ? AppView.STOODIO_DASHBOARD : AppView.ARTIST_DASHBOARD;
+                        deps.navigate(reportView);
                         dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
                     } catch (e) { alert("Report generation failed."); }
                 } else {
@@ -80,20 +82,34 @@ export const useAria = (deps: AriaHookDependencies) => {
 
             case 'generateDocument':
                 if (command.value && currentUser) {
-                    const { title, content } = command.value;
+                    const raw = command.value as Record<string, unknown>;
+                    const title = (typeof raw?.title === 'string' ? raw.title : raw?.name) || 'Aria Document';
+                    const content = typeof raw?.content === 'string' ? raw.content : (typeof raw?.body === 'string' ? raw.body : String(raw?.content ?? raw?.body ?? ''));
+                    const profileId = (currentUser as any)?.profile_id ?? currentUser.id;
                     try {
                         const pdfBytes = await createPdfBytes(content);
                         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-                        const file = new File([blob], `${title}.pdf`, { type: 'application/pdf' });
-                        await apiService.uploadDocument(currentUser.id, file, { name: title, type: 'OFFICIAL', category: 'DOCUMENT' });
-                        
-                        let dashboardView = AppView.ARTIST_DASHBOARD;
-                        if (userRole === 'LABEL') dashboardView = AppView.LABEL_DASHBOARD;
-                        
+                        const file = new File([blob], `${title.replace(/[^a-zA-Z0-9-_ ]/g, '_')}.pdf`, { type: 'application/pdf' });
+                        await apiService.uploadDocument(profileId, file, { name: title, type: 'OFFICIAL', category: 'DOCUMENT' });
+                        const dashboardView = userRole === 'LABEL' ? AppView.LABEL_DASHBOARD : userRole === 'ENGINEER' ? AppView.ENGINEER_DASHBOARD : userRole === 'PRODUCER' ? AppView.PRODUCER_DASHBOARD : userRole === 'STOODIO' ? AppView.STOODIO_DASHBOARD : AppView.ARTIST_DASHBOARD;
                         deps.navigate(dashboardView);
                         dispatch({ type: ActionTypes.SET_DASHBOARD_TAB, payload: { tab: 'documents' } });
+                        if (typeof window !== 'undefined' && window.URL?.createObjectURL) {
+                            try {
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `${title.replace(/[^a-zA-Z0-9-_ ]/g, '_')}.pdf`;
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                            } catch (_) {}
+                        }
+                        alert(`Saved "${title}" to your Documents tab. You can open the Documents tab on your dashboard anytime to view or download it.`);
                         onClose();
-                    } catch (e) { console.error("Aria Doc Gen Error:", e); }
+                    } catch (e) {
+                        console.error("Aria Doc Gen Error:", e);
+                        alert("Could not save the document. Check your connection and try again.");
+                    }
                 } else if (!currentUser) {
                     alert("Log in to save documents to your vault.");
                 }

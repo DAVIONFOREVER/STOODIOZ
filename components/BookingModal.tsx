@@ -99,6 +99,10 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
     // FIX: Updated dependencies to use snake_case properties.
     }, [initialRoom.hourly_rate, stoodio.engineer_pay_rate, stoodio.in_house_engineers, duration, requestType, requestedEngineerId, selectedBeats, selectedProducer, addMixing, mixTrackCount, canOfferMixing, selectedEngineerForMixing, includeProducer]);
 
+    const walletBalanceDisplay = Number(walletBalanceFromPoll ?? currentUser?.wallet_balance ?? 0);
+    const safeTotalDisplay = Number.isFinite(totalCost) ? totalCost : 0;
+    const canPayFromWallet = safeTotalDisplay <= walletBalanceDisplay;
+
     const handleBeatToggle = (beat: Instrumental) => {
         setSelectedBeats(prev => 
             prev.find(b => b.id === beat.id) 
@@ -112,9 +116,12 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
 
         const walletBalance = Number(walletBalanceFromPoll ?? currentUser?.wallet_balance ?? 0);
         const safeTotal = Number.isFinite(totalCost) ? totalCost : 0;
-        if (safeTotal > walletBalance) {
-            dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } });
-            return;
+        const canPayFromWallet = safeTotal <= walletBalance;
+        // Allow both: pay from wallet (when balance sufficient) or pay with card via Stripe.
+        // When balance is low we no longer block — user can still proceed to Stripe to pay for the session directly.
+        if (!canPayFromWallet) {
+            // Optional: still offer to open Add Funds for users who prefer to top up first.
+            // Proceeding will charge the card on Stripe for this session.
         }
 
         const finalMixingDetails = bookingIntent?.mixingDetails || (addMixing && canOfferMixing && selectedEngineerForMixing ? {
@@ -321,6 +328,9 @@ const BookingModal: React.FC<BookingModalProps> = (props) => {
                                         <div className="flex justify-between text-zinc-300"><span>Service Fee ({ (SERVICE_FEE_PERCENTAGE * 100).toFixed(0) }%)</span> <span>+ ${serviceFee.toFixed(2)}</span></div>
                                         <div className="border-t border-orange-500/20 my-2"></div>
                                         <div className="flex justify-between font-bold text-lg"><span>Total</span> <span className="text-orange-400">${totalCost.toFixed(2)}</span></div>
+                                        {!canPayFromWallet && (
+                                            <p className="text-xs text-zinc-400 mt-2">You’ll pay this amount with your card on the next screen. <button type="button" onClick={() => dispatch({ type: ActionTypes.SET_ADD_FUNDS_MODAL_OPEN, payload: { isOpen: true } })} className="text-orange-400 hover:underline">Add funds to wallet instead</button></p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

@@ -55,7 +55,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '127.0.0.1',
       port: 5174,
-      strictPort: false,
+      strictPort: true,
       force: true, // re-run dependency pre-bundle when deps change so edits sync
       // Force browser to never use cached JS/HTML so edits always show
       headers: {
