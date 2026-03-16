@@ -356,6 +356,13 @@ const TabButton: React.FC<{ label: string; active: boolean; onClick: () => void;
     </button>
 );
 
+function buildAuthorMap(artist: Artist): Map<string, Artist> {
+    const ids = [artist.id, (artist as any).profile_id, (artist as any).role_id].filter((id): id is string => !!id && typeof id === 'string');
+    const map = new Map<string, Artist>();
+    ids.forEach((id) => map.set(id, artist));
+    return map;
+}
+
 const ArtistProfile: React.FC = () => {
     const { 
         selectedArtist, artists, engineers, stoodioz, producers, currentUser, ariaHistory, initialAriaCantataPrompt
@@ -620,14 +627,17 @@ const ArtistProfile: React.FC = () => {
         let isMounted = true;
         const profileId = (artist as any)?.profile_id ?? artist.id;
         const roleId = (artist as any)?.role_id;
-        const fallbackIds = [artist.id, roleId].filter(
-            (id): id is string => !!id && typeof id === 'string' && String(id) !== String(profileId)
+        const allAuthorIds = [profileId, artist.id, roleId].filter(
+            (id): id is string => !!id && typeof id === 'string'
         );
-        fetchUserPosts(profileId, fallbackIds.length > 0 ? fallbackIds : undefined)
+        const uniqueIds = [...new Set(allAuthorIds)];
+        const primaryId = uniqueIds[0];
+        const fallbackIds = uniqueIds.length > 1 ? uniqueIds.slice(1) : undefined;
+        fetchUserPosts(primaryId, fallbackIds)
             .then((p) => {
                 if (isMounted) setPosts(p);
                 if (typeof console !== 'undefined' && console.debug) {
-                    console.debug('[ArtistProfile] posts loaded', { artistIdSlice: artist.id?.slice(0, 8), roleIdSlice: (artist as any)?.role_id?.slice(0, 8), postsCount: Array.isArray(p) ? p.length : 0 });
+                    console.debug('[ArtistProfile] posts loaded', { artistIdSlice: artist.id?.slice(0, 8), profileIdSlice: profileId?.slice(0, 8), roleIdSlice: roleId?.slice(0, 8), postsCount: Array.isArray(p) ? p.length : 0 });
                 }
             })
             .catch((err) => {
@@ -835,7 +845,7 @@ const ArtistProfile: React.FC = () => {
                     {posts.length > 0 ? (
                         <PostFeed 
                             posts={posts} 
-                            authors={new Map([[artist.id, artist]])} 
+                            authors={buildAuthorMap(artist)} 
                             onLikePost={likePost} 
                             onCommentOnPost={commentOnPost} 
                             onSelectAuthor={() => {}} 
@@ -1004,7 +1014,7 @@ const ArtistProfile: React.FC = () => {
                             {posts.length > 0 ? (
                                 <PostFeed 
                                     posts={posts} 
-                                    authors={new Map([[artist.id, artist]])} 
+                                    authors={buildAuthorMap(artist)} 
                                     onLikePost={likePost} 
                                     onCommentOnPost={commentOnPost} 
                                     onSelectAuthor={() => {}} 
